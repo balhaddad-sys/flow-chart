@@ -1,0 +1,150 @@
+swelling = input("Is there a testicular lump or swelling? (yes/no): ")
+
+if swelling.lower() == "yes":
+
+    pain = input("Is the swelling painful or painless? (painful/painless): ")
+
+    
+
+    if pain.lower() == "painful":
+
+        onset = input("Did the pain come on suddenly or gradually? (suddenly/gradually): ")
+
+        
+
+        if onset.lower() == "suddenly":
+
+            redness = input("Is the scrotum red and tender? (yes/no): ")
+
+            
+
+            if redness.lower() == "yes":
+
+                print("Suspect torsion")
+
+            else:
+
+                fever = input("Is there fever, chills, discharge, or dysuria? (yes/no): ")
+
+                
+
+                if fever.lower() == "yes":
+
+                    print("Suspect epididymitis")
+
+                else:
+
+                    history = input("Is there a history of trauma or surgery? (yes/no): ")
+
+                    
+
+                    if history.lower() == "yes":
+
+                        print("Suspect hematoma")
+
+                    else:
+
+                        palpation = input("Perform palpation test. Can the lump or swelling be felt separately from the testicle? (yes/no): ")
+
+                        
+
+                        if palpation.lower() == "yes":
+
+                            print("Suspect epididymal cyst or hernia")
+
+                        else:
+
+                            ultrasound = input("Perform ultrasound and tumor marker tests. Does ultrasound show intratesticular mass and are tumor markers elevated? (yes/no): ")
+
+                            
+
+                            if ultrasound.lower() == "yes":
+
+                                print("Suspect testicular cancer")
+
+                            else:
+
+                                print("Suspect hematoma or infection")
+
+        else:
+
+            infection = input("Is there a history of infection or sexually transmitted disease? (yes/no): ")
+
+            
+
+            if infection.lower() == "yes":
+
+                print("Suspect epididymitis or orchitis")
+
+            else:
+
+                palpation = input("Perform palpation test. Can the lump or swelling be felt separately from the testicle? (yes/no): ")
+
+                
+
+                if palpation.lower() == "yes":
+
+                    print("Suspect hydrocele or hernia")
+
+                else:
+
+                    ultrasound = input("Perform ultrasound and tumor marker tests. Does ultrasound show intratesticular mass and are tumor markers elevated? (yes/no): ")
+
+                    
+
+                    if ultrasound.lower() == "yes":
+
+                        print("Suspect testicular cancer")
+
+                    else:
+
+                        print("Suspect hydrocele or infection")
+
+    else:
+
+        transillumination = input("Perform transillumination test. Does the swelling transilluminate? (yes/no): ")
+
+        
+
+        if transillumination.lower() == "yes":
+
+            print("Suspect hydrocele or epididymal cyst")
+
+        else:
+
+            palpation = input("Perform palpation test. Can the lump or swelling be felt separately from the testicle? (yes/no): ")
+
+            
+
+            if palpation.lower() == "yes":
+
+                reducibility = input("Perform reducibility test. Does the lump or swelling extend into the inguinal canal and cannot be reduced by gentle pressure? (yes/no): ")
+
+                
+
+                if reducibility.lower() == "yes":
+
+                    print("Suspect hernia")
+
+                else:
+
+                    print("Suspect teratoma")
+
+            else:
+
+                ultrasound = input("Perform ultrasound and tumor marker tests. Does ultrasound show intratesticular mass and are tumor markers elevated? (yes/no): ")
+
+                
+
+                if ultrasound.lower() == "yes":
+
+                    print("Suspect testicular cancer")
+
+                else:
+
+                    print("Suspect teratoma")
+
+else:
+
+    print("No testicular lump or swelling.") 
+
