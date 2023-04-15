@@ -1,0 +1,53 @@
+graph LR
+
+Start[Testicular lump or swelling]
+
+Start -->|Is the swelling painful or painless?| A{Painful swelling}
+Start -->|Is the swelling painful or painless?| B[Painless swelling]
+
+A -->|Is the onset sudden or gradual?| C{Sudden onset}
+A -->|Is the onset sudden or gradual?| D[Gradual onset]
+
+C -->|Is the scrotum red and tender?| E{Yes}
+C -->|Is the scrotum red and tender?| F{No}
+
+E -->|Suspect torsion| End
+F -->|Is there fever, chills, discharge, or dysuria?| G{Yes}
+F -->|Is there fever, chills, discharge, or dysuria?| H{No}
+
+G -->|Suspect epididymitis| End
+H -->|Is there a history of trauma or surgery?| I{Yes}
+H -->|Is there a history of trauma or surgery?| J{No}
+
+I -->|Suspect hematoma| End
+J -->|Perform palpation test| K{Lump or swelling attached to testicle}
+
+K -->|Perform ultrasound and tumor marker tests| L{Intratesticular mass and tumor markers are elevated?}
+K -->|Perform ultrasound and tumor marker tests| M{Intratesticular mass and tumor markers are normal?}
+
+L -->|Suspect testicular cancer| End
+M -->|Suspect hematoma or infection| End
+
+B -->|Perform transillumination test| N{Transillumination}
+N -->|The swelling transilluminates (light passes through)?| O{Yes}
+N -->|The swelling transilluminates (light passes through)?| P{No}
+
+O -->|Suspect hydrocele or epididymal cyst| End
+P -->|Perform palpation test| Q{Lump or swelling attached to testicle}
+
+Q -->|The lump or swelling can be felt separately from the testicle?| R{Yes}
+Q -->|The lump or swelling can be felt separately from the testicle?| S{No}
+
+R -->|Perform reducibility test| T{The lump or swelling extends into the inguinal canal and cannot be reduced by gentle pressure?}
+R -->|Perform reducibility test| U{The lump or swelling does not extend into the inguinal canal and can be reduced by gentle pressure?}
+
+T -->|Suspect hernia| End
+U -->|Suspect teratoma| End
+
+S -->|Perform ultrasound and tumor marker tests| V{Intratesticular mass and tumor markers are elevated?}
+S -->|Perform ultrasound and tumor marker tests| W{Intratesticular mass and tumor markers are normal?}
+
+V -->|Suspect testicular cancer| End
+W -->|Suspect teratoma| End
+
+End[End]
