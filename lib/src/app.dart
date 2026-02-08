@@ -91,7 +91,7 @@ class MedQApp extends ConsumerWidget {
         brightness: Brightness.light,
         textTheme: AppTypography.textTheme,
         scaffoldBackgroundColor: AppColors.background,
-        cardTheme: CardTheme(
+        cardTheme: CardThemeData(
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
