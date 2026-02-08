@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
-import '../../../core/services/cloud_functions_service.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../models/question_model.dart';
 
@@ -64,6 +63,7 @@ class QuizState {
 
 class QuizNotifier extends StateNotifier<QuizState> {
   final Ref _ref;
+  final Stopwatch _questionStopwatch = Stopwatch();
 
   QuizNotifier(this._ref) : super(const QuizState());
 
@@ -91,6 +91,9 @@ class QuizNotifier extends StateNotifier<QuizState> {
         correctCount: 0,
         totalAnswered: 0,
       );
+      _questionStopwatch
+        ..reset()
+        ..start();
     } catch (e) {
       ErrorHandler.logError(e);
       state = state.copyWith(
@@ -109,16 +112,19 @@ class QuizNotifier extends StateNotifier<QuizState> {
     final question = state.currentQuestion;
     if (question == null || state.selectedOptionIndex == null) return;
 
+    _questionStopwatch.stop();
+    final timeSpentSec = _questionStopwatch.elapsed.inSeconds;
+
     state = state.copyWith(hasSubmitted: true, isLoading: true);
 
     final isCorrect = state.selectedOptionIndex == question.correctIndex;
 
     try {
-      final functionsService = CloudFunctionsService();
+      final functionsService = _ref.read(cloudFunctionsServiceProvider);
       final result = await functionsService.submitAttempt(
         questionId: question.id,
         answerIndex: state.selectedOptionIndex!,
-        timeSpentSec: 0,
+        timeSpentSec: timeSpentSec,
       );
 
       state = state.copyWith(
@@ -144,6 +150,10 @@ class QuizNotifier extends StateNotifier<QuizState> {
       hasSubmitted: false,
       tutorResponse: null,
     );
+    // Reset stopwatch for next question
+    _questionStopwatch
+      ..reset()
+      ..start();
   }
 }
 

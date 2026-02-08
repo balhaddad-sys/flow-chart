@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,15 +16,31 @@ import 'features/planner/screens/planner_screen.dart';
 import 'features/quiz/screens/quiz_screen.dart';
 import 'features/study_session/screens/study_session_screen.dart';
 
+/// Listenable that notifies GoRouter when auth state changes,
+/// without recreating the entire router.
+class _AuthNotifier extends ChangeNotifier {
+  _AuthNotifier(Ref ref) {
+    ref.listen<AsyncValue<User?>>(authStateProvider, (_, __) {
+      notifyListeners();
+    });
+  }
+}
+
+final _authNotifierProvider = Provider<_AuthNotifier>((ref) {
+  return _AuthNotifier(ref);
+});
+
 final _routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
+  final authNotifier = ref.watch(_authNotifierProvider);
 
   return GoRouter(
     initialLocation: '/login',
+    refreshListenable: authNotifier,
     redirect: (context, state) {
-      final isLoggedIn = authState.valueOrNull != null;
+      final isLoggedIn = ref.read(authStateProvider).valueOrNull != null;
       final isAuthRoute =
-          state.matchedLocation == '/login' || state.matchedLocation == '/signup';
+          state.matchedLocation == '/login' ||
+          state.matchedLocation == '/signup';
 
       if (!isLoggedIn && !isAuthRoute) return '/login';
       if (isLoggedIn && isAuthRoute) return '/home';

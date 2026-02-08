@@ -95,17 +95,31 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
               ],
             ),
           ),
+          // Error message
+          if (data.errorMessage != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              child: Text(
+                data.errorMessage!,
+                style: TextStyle(color: AppColors.error),
+              ),
+            ),
           // Bottom action
           Padding(
             padding: AppSpacing.screenPadding,
             child: PrimaryButton(
               label: data.currentStep < _stepCount - 1 ? 'Next' : 'Finish',
               isLoading: data.isSubmitting,
-              onPressed: () {
+              onPressed: () async {
                 if (data.currentStep < _stepCount - 1) {
                   ref.read(onboardingProvider.notifier).nextStep();
                 } else {
-                  context.go('/home');
+                  final success = await ref
+                      .read(onboardingProvider.notifier)
+                      .finishOnboarding();
+                  if (success && context.mounted) {
+                    context.go('/home');
+                  }
                 }
               },
             ),

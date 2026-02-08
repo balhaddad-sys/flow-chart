@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/services/cloud_functions_service.dart';
+import '../../../core/providers/user_provider.dart';
 import '../../../core/utils/error_handler.dart';
 
 class FixPlanState {
@@ -28,15 +28,16 @@ class FixPlanState {
 }
 
 class FixPlanNotifier extends StateNotifier<FixPlanState> {
-  FixPlanNotifier() : super(const FixPlanState());
+  final Ref _ref;
 
-  final _functionsService = CloudFunctionsService();
+  FixPlanNotifier(this._ref) : super(const FixPlanState());
 
   Future<void> generateFixPlan(String courseId) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
+      final functionsService = _ref.read(cloudFunctionsServiceProvider);
       final result =
-          await _functionsService.runFixPlan(courseId: courseId);
+          await functionsService.runFixPlan(courseId: courseId);
       state = state.copyWith(fixPlan: result, isLoading: false);
     } catch (e) {
       ErrorHandler.logError(e);
@@ -50,5 +51,5 @@ class FixPlanNotifier extends StateNotifier<FixPlanState> {
 
 final fixPlanProvider =
     StateNotifierProvider<FixPlanNotifier, FixPlanState>((ref) {
-  return FixPlanNotifier();
+  return FixPlanNotifier(ref);
 });

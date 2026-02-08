@@ -86,6 +86,12 @@ class AuthScreenNotifier extends StateNotifier<AuthScreenData> {
   }
 }
 
+class _Absent {
+  const _Absent();
+}
+
+const _absent = _Absent();
+
 class AuthScreenData {
   final AuthScreenState state;
   final String? errorMessage;
@@ -97,11 +103,13 @@ class AuthScreenData {
 
   AuthScreenData copyWith({
     AuthScreenState? state,
-    String? errorMessage,
+    Object? errorMessage = _absent,
   }) {
     return AuthScreenData(
       state: state ?? this.state,
-      errorMessage: errorMessage,
+      errorMessage: errorMessage is _Absent
+          ? this.errorMessage
+          : errorMessage as String?,
     );
   }
 }

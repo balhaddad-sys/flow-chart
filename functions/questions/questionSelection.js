@@ -20,7 +20,8 @@ function computeWeaknessScore(topicStats) {
   const wrongRate =
     totalAttempts > 0 ? wrongAttempts / totalAttempts : 0.5;
   const recencyPenalty = Math.min(1, daysSinceLastReview / 14);
-  const speedPenalty = Math.min(1, avgTimePerQ / expectedTime);
+  // Invert: fast answers (likely guessing) get higher penalty
+  const speedPenalty = 1 - Math.min(1, avgTimePerQ / expectedTime);
 
   return 0.6 * wrongRate + 0.3 * recencyPenalty + 0.1 * speedPenalty;
 }

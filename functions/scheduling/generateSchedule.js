@@ -188,17 +188,25 @@ exports.generateSchedule = functions
         days[dayIndex].remaining -= task.estMinutes;
       }
 
-      // Place review tasks at offset from their study task
+      // Place review tasks at offset from their study task's day
       for (const task of reviewTasks) {
-        const studyDayIndex = placedTasks.findIndex(
+        // Find the placed study task for this section
+        const studyTask = placedTasks.find(
           (t) =>
             t.type === "STUDY" &&
             t.sectionIds[0] === task.sectionIds[0]
         );
-        if (studyDayIndex === -1) continue;
+        if (!studyTask) continue;
+
+        // Find which day index the study task was placed on
+        const studyDate = studyTask.dueDate.toDate();
+        const studyDayIdx = days.findIndex(
+          (d) => d.date.getTime() === studyDate.getTime()
+        );
+        if (studyDayIdx === -1) continue;
 
         const targetDayIndex = Math.min(
-          studyDayIndex + (task._dayOffset || 1),
+          studyDayIdx + (task._dayOffset || 1),
           days.length - 1
         );
 
@@ -207,7 +215,7 @@ exports.generateSchedule = functions
         placedTasks.push({
           ...cleanTask,
           dueDate: admin.firestore.Timestamp.fromDate(
-            days[Math.min(targetDayIndex, days.length - 1)].date
+            days[targetDayIndex].date
           ),
           orderIndex: 0,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),

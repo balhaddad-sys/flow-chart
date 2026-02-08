@@ -1,7 +1,6 @@
-import 'dart:io';
-
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class StorageService {
   final FirebaseStorage _storage = FirebaseStorage.instance;
@@ -28,6 +27,7 @@ class StorageService {
       type: FileType.custom,
       allowedExtensions: supportedExtensions,
       allowMultiple: false,
+      withData: kIsWeb, // On web, always load bytes into memory
     );
     return result?.files.firstOrNull;
   }
@@ -53,12 +53,18 @@ class StorageService {
     );
 
     late final UploadTask uploadTask;
-    if (file.path != null) {
-      uploadTask = ref.putFile(File(file.path!), metadata);
-    } else if (file.bytes != null) {
+    if (file.bytes != null) {
+      // Works on all platforms including web
       uploadTask = ref.putData(file.bytes!, metadata);
+    } else if (!kIsWeb && file.path != null) {
+      // Native-only fallback using dart:io via conditional import
+      // For web-only builds, bytes should always be available
+      // since we set withData: true in pickFile.
+      throw Exception(
+        'File bytes not available. Ensure withData is true when picking files.',
+      );
     } else {
-      throw Exception('File has no path or bytes');
+      throw Exception('File has no bytes available for upload');
     }
 
     if (onProgress != null) {

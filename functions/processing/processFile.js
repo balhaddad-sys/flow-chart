@@ -1,16 +1,14 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-const pdfParse = require("pdf-parse");
-const { Storage } = require("@google-cloud/storage");
 const os = require("os");
 const path = require("path");
 const fs = require("fs");
 
-const db = admin.firestore();
-const storage = new Storage();
+const { extractPdfSections } = require("./extractors/pdfExtractor");
+const { extractPptxSections } = require("./extractors/pptxExtractor");
+const { extractDocxSections } = require("./extractors/docxExtractor");
 
-const PAGES_PER_SECTION = 10;
-const MIN_CHARS_PER_SECTION = 100;
+const db = admin.firestore();
 
 exports.processUploadedFile = functions
   .runWith({ timeoutSeconds: 300, memory: "1GB" })
@@ -58,15 +56,51 @@ exports.processUploadedFile = functions
       );
 
       // Download
-      const bucket = storage.bucket(object.bucket);
+      const bucket = admin.storage().bucket(object.bucket);
       await bucket.file(filePath).download({ destination: tempFilePath });
 
-      let sections = [];
+      // Extract sections based on content type
+      let rawSections = [];
 
       if (contentType === "application/pdf") {
-        sections = await processPdf(tempFilePath, fileId, uid, bucket);
+        rawSections = await extractPdfSections(tempFilePath);
+      } else if (
+        contentType.includes("presentationml") ||
+        contentType.includes("presentation")
+      ) {
+        rawSections = await extractPptxSections(tempFilePath);
+      } else if (
+        contentType.includes("wordprocessingml") ||
+        contentType.includes("msword")
+      ) {
+        rawSections = await extractDocxSections(tempFilePath);
       }
-      // TODO(medq): Add PPTX and DOCX handlers
+
+      // Upload section text to Cloud Storage and build metadata
+      const sections = [];
+      for (const raw of rawSections) {
+        const sectionSlug = `${fileId}_s${sections.length}`;
+        const textBlobPath = `users/${uid}/derived/sections/${sectionSlug}.txt`;
+        await bucket.file(textBlobPath).save(raw.text, {
+          contentType: "text/plain",
+          metadata: { fileId },
+        });
+
+        sections.push({
+          fileId,
+          title: raw.title,
+          contentRef: {
+            type: raw.startPage != null ? "page" : raw.startSlide != null ? "slide" : "word",
+            startIndex: raw.startPage || raw.startSlide || raw.startWord || 0,
+            endIndex: raw.endPage || raw.endSlide || raw.endWord || 0,
+          },
+          textBlobPath,
+          textSizeBytes: Buffer.byteLength(raw.text, "utf8"),
+          estMinutes: raw.estMinutes || 15,
+          difficulty: 3,
+          topicTags: [],
+        });
+      }
 
       // Fetch courseId
       const fileData = (await fileRef.get()).data();
@@ -112,50 +146,4 @@ exports.processUploadedFile = functions
     }
   });
 
-async function processPdf(filePath, fileId, uid, bucket) {
-  const buffer = fs.readFileSync(filePath);
-  const data = await pdfParse(buffer);
 
-  const totalPages = data.numpages;
-  const fullText = data.text;
-  const charsPerPage = fullText.length / totalPages;
-
-  const sections = [];
-  let startPage = 1;
-
-  while (startPage <= totalPages) {
-    const endPage = Math.min(startPage + PAGES_PER_SECTION - 1, totalPages);
-    const startChar = Math.floor((startPage - 1) * charsPerPage);
-    const endChar = Math.floor(endPage * charsPerPage);
-    const text = fullText.slice(startChar, endChar).trim();
-
-    if (text.length >= MIN_CHARS_PER_SECTION) {
-      // ALWAYS write text to Cloud Storage — never store inline in Firestore
-      const sectionSlug = `${fileId}_p${startPage}-${endPage}`;
-      const textBlobPath = `users/${uid}/derived/sections/${sectionSlug}.txt`;
-      await bucket.file(textBlobPath).save(text, {
-        contentType: "text/plain",
-        metadata: {
-          fileId,
-          startPage: String(startPage),
-          endPage: String(endPage),
-        },
-      });
-
-      sections.push({
-        fileId,
-        title: `Pages ${startPage}\u2013${endPage}`,
-        contentRef: { type: "page", startIndex: startPage, endIndex: endPage },
-        textBlobPath: textBlobPath,
-        textSizeBytes: Buffer.byteLength(text, "utf8"),
-        estMinutes: Math.ceil((endPage - startPage + 1) * 3),
-        difficulty: 3,
-        topicTags: [],
-      });
-    }
-
-    startPage = endPage + 1;
-  }
-
-  return sections;
-}

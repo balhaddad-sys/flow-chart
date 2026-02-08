@@ -1,83 +1,29 @@
 import 'dart:convert';
+import 'dart:html' as html show window;
 
-import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart' as p;
-
-/// Local SQLite cache for offline-first support.
+/// Local cache for offline-first support using browser localStorage.
 /// Caches today's tasks and queues pending mutations for sync.
+/// Web-compatible replacement for sqflite.
 class LocalCacheService {
-  static const String _dbName = 'medq_cache.db';
-  static const int _dbVersion = 1;
-
-  Database? _db;
-
-  Future<Database> get database async {
-    _db ??= await _initDb();
-    return _db!;
-  }
-
-  Future<Database> _initDb() async {
-    final dbPath = await getDatabasesPath();
-    final path = p.join(dbPath, _dbName);
-
-    return openDatabase(
-      path,
-      version: _dbVersion,
-      onCreate: _onCreate,
-    );
-  }
-
-  Future<void> _onCreate(Database db, int version) async {
-    await db.execute('''
-      CREATE TABLE cached_tasks (
-        id TEXT PRIMARY KEY,
-        courseId TEXT NOT NULL,
-        data TEXT NOT NULL,
-        updatedAt INTEGER NOT NULL
-      )
-    ''');
-
-    await db.execute('''
-      CREATE TABLE pending_mutations (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        collection TEXT NOT NULL,
-        docId TEXT NOT NULL,
-        operationType TEXT NOT NULL,
-        data TEXT NOT NULL,
-        createdAt INTEGER NOT NULL
-      )
-    ''');
-  }
+  static const String _tasksKey = 'medq_cached_tasks';
+  static const String _mutationsKey = 'medq_pending_mutations';
+  static const String _mutationIdKey = 'medq_mutation_id_counter';
 
   // --- Cached Tasks ---
 
   Future<void> cacheTasks(List<Map<String, dynamic>> tasks) async {
-    final db = await database;
-    final batch = db.batch();
+    final existing = _readTasksMap();
     for (final task in tasks) {
-      batch.insert(
-        'cached_tasks',
-        {
-          'id': task['id'],
-          'courseId': task['courseId'],
-          'data': jsonEncode(task),
-          'updatedAt': DateTime.now().millisecondsSinceEpoch,
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+      final id = task['id'] as String;
+      existing[id] = task;
     }
-    await batch.commit(noResult: true);
+    _writeTasksMap(existing);
   }
 
   Future<List<Map<String, dynamic>>> getCachedTasks(String courseId) async {
-    final db = await database;
-    final results = await db.query(
-      'cached_tasks',
-      where: 'courseId = ?',
-      whereArgs: [courseId],
-    );
-    return results
-        .map((r) => jsonDecode(r['data'] as String) as Map<String, dynamic>)
+    final all = _readTasksMap();
+    return all.values
+        .where((t) => t['courseId'] == courseId)
         .toList();
   }
 
@@ -89,39 +35,73 @@ class LocalCacheService {
     required String operationType,
     required Map<String, dynamic> data,
   }) async {
-    final db = await database;
-    await db.insert('pending_mutations', {
+    final mutations = _readMutations();
+    final nextId = _nextMutationId();
+    mutations.add({
+      'id': nextId,
       'collection': collection,
       'docId': docId,
       'operationType': operationType,
-      'data': jsonEncode(data),
+      'data': data,
       'createdAt': DateTime.now().millisecondsSinceEpoch,
     });
+    _writeMutations(mutations);
   }
 
   Future<List<PendingMutation>> getPendingMutations() async {
-    final db = await database;
-    final results = await db.query(
-      'pending_mutations',
-      orderBy: 'createdAt ASC',
-    );
-    return results.map(PendingMutation.fromRow).toList();
+    final mutations = _readMutations();
+    mutations.sort((a, b) =>
+        (a['createdAt'] as int).compareTo(b['createdAt'] as int));
+    return mutations.map(PendingMutation.fromMap).toList();
   }
 
   Future<void> clearPendingMutations(List<int> ids) async {
-    final db = await database;
-    final placeholders = ids.map((_) => '?').join(',');
-    await db.delete(
-      'pending_mutations',
-      where: 'id IN ($placeholders)',
-      whereArgs: ids,
-    );
+    final mutations = _readMutations();
+    final idSet = ids.toSet();
+    mutations.removeWhere((m) => idSet.contains(m['id']));
+    _writeMutations(mutations);
   }
 
   Future<void> clearAll() async {
-    final db = await database;
-    await db.delete('cached_tasks');
-    await db.delete('pending_mutations');
+    html.window.localStorage.remove(_tasksKey);
+    html.window.localStorage.remove(_mutationsKey);
+    html.window.localStorage.remove(_mutationIdKey);
+  }
+
+  // --- Internal helpers ---
+
+  Map<String, Map<String, dynamic>> _readTasksMap() {
+    final raw = html.window.localStorage[_tasksKey];
+    if (raw == null || raw.isEmpty) return {};
+    final decoded = jsonDecode(raw) as Map<String, dynamic>;
+    return decoded.map(
+      (k, v) => MapEntry(k, Map<String, dynamic>.from(v as Map)),
+    );
+  }
+
+  void _writeTasksMap(Map<String, Map<String, dynamic>> tasks) {
+    html.window.localStorage[_tasksKey] = jsonEncode(tasks);
+  }
+
+  List<Map<String, dynamic>> _readMutations() {
+    final raw = html.window.localStorage[_mutationsKey];
+    if (raw == null || raw.isEmpty) return [];
+    final decoded = jsonDecode(raw) as List;
+    return decoded
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+  }
+
+  void _writeMutations(List<Map<String, dynamic>> mutations) {
+    html.window.localStorage[_mutationsKey] = jsonEncode(mutations);
+  }
+
+  int _nextMutationId() {
+    final raw = html.window.localStorage[_mutationIdKey];
+    final current = raw != null ? int.parse(raw) : 0;
+    final next = current + 1;
+    html.window.localStorage[_mutationIdKey] = next.toString();
+    return next;
   }
 }
 
@@ -142,14 +122,15 @@ class PendingMutation {
     required this.createdAt,
   });
 
-  factory PendingMutation.fromRow(Map<String, dynamic> row) {
+  factory PendingMutation.fromMap(Map<String, dynamic> map) {
     return PendingMutation(
-      id: row['id'] as int,
-      collection: row['collection'] as String,
-      docId: row['docId'] as String,
-      operationType: row['operationType'] as String,
-      data: jsonDecode(row['data'] as String) as Map<String, dynamic>,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(row['createdAt'] as int),
+      id: map['id'] as int,
+      collection: map['collection'] as String,
+      docId: map['docId'] as String,
+      operationType: map['operationType'] as String,
+      data: Map<String, dynamic>.from(map['data'] as Map),
+      createdAt:
+          DateTime.fromMillisecondsSinceEpoch(map['createdAt'] as int),
     );
   }
 }

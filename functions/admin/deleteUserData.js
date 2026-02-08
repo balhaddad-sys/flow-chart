@@ -39,9 +39,14 @@ exports.deleteUserData = functions
       for (const sub of subcollections) {
         const snap = await db.collection(`users/${uid}/${sub}`).get();
         if (!snap.empty) {
-          const batch = db.batch();
-          snap.docs.forEach((doc) => batch.delete(doc.ref));
-          await batch.commit();
+          // Chunk into batches of 500 (Firestore batch limit)
+          const BATCH_LIMIT = 500;
+          for (let i = 0; i < snap.docs.length; i += BATCH_LIMIT) {
+            const chunk = snap.docs.slice(i, i + BATCH_LIMIT);
+            const batch = db.batch();
+            chunk.forEach((doc) => batch.delete(doc.ref));
+            await batch.commit();
+          }
         }
       }
 

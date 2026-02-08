@@ -4,17 +4,37 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/widgets/primary_button.dart';
+import '../../home/providers/home_provider.dart';
 import '../providers/quiz_provider.dart';
 import '../widgets/question_card.dart';
 import '../widgets/explanation_panel.dart';
 
-class QuizScreen extends ConsumerWidget {
+class QuizScreen extends ConsumerStatefulWidget {
   final String? sectionId;
 
   const QuizScreen({super.key, this.sectionId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<QuizScreen> createState() => _QuizScreenState();
+}
+
+class _QuizScreenState extends ConsumerState<QuizScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final courseId = ref.read(activeCourseIdProvider);
+      if (courseId != null) {
+        ref.read(quizProvider.notifier).loadQuestions(
+              courseId: courseId,
+              sectionId: widget.sectionId,
+            );
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final quiz = ref.watch(quizProvider);
 
     if (quiz.isLoading && quiz.questions.isEmpty) {

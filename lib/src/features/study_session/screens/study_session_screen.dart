@@ -7,7 +7,7 @@ import '../providers/session_provider.dart';
 import '../widgets/session_timer.dart';
 import '../widgets/session_controls.dart';
 
-class StudySessionScreen extends ConsumerWidget {
+class StudySessionScreen extends ConsumerStatefulWidget {
   final String taskId;
   final String sectionId;
 
@@ -18,7 +18,24 @@ class StudySessionScreen extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<StudySessionScreen> createState() =>
+      _StudySessionScreenState();
+}
+
+class _StudySessionScreenState extends ConsumerState<StudySessionScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(sessionProvider.notifier).startSession(
+            taskId: widget.taskId,
+            sectionId: widget.sectionId,
+          );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
     final isTablet = MediaQuery.of(context).size.width > 600;
 
@@ -31,8 +48,8 @@ class StudySessionScreen extends ConsumerWidget {
       ),
       body: isTablet ? _tabletLayout(context) : _phoneLayout(context),
       bottomNavigationBar: SessionControls(
-        taskId: taskId,
-        sectionId: sectionId,
+        taskId: widget.taskId,
+        sectionId: widget.sectionId,
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../models/course_model.dart';
 import '../providers/home_provider.dart';
 import '../widgets/exam_countdown.dart';
 import '../widgets/stats_cards.dart';
@@ -45,10 +46,14 @@ class HomeScreen extends ConsumerWidget {
             );
           }
 
-          final activeCourseId =
-              ref.watch(activeCourseIdProvider) ?? courses.first.id;
-          final activeCourse =
-              courses.firstWhere((c) => c.id == activeCourseId);
+          final storedId = ref.watch(activeCourseIdProvider);
+          final activeCourse = storedId != null
+              ? courses.cast<CourseModel?>().firstWhere(
+                    (c) => c!.id == storedId,
+                    orElse: () => null,
+                  ) ?? courses.first
+              : courses.first;
+          final activeCourseId = activeCourse.id;
 
           return RefreshIndicator(
             onRefresh: () async {

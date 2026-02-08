@@ -19,6 +19,18 @@ exports.computeWeakness = functions
     if (!courseId) return null;
 
     try {
+      // Throttle: skip recomputation if stats were updated less than 30s ago
+      const statsDoc = await db.doc(`users/${uid}/stats/${courseId}`).get();
+      if (statsDoc.exists) {
+        const lastUpdated = statsDoc.data().updatedAt?.toDate();
+        if (lastUpdated) {
+          const secondsSinceUpdate = (Date.now() - lastUpdated.getTime()) / 1000;
+          if (secondsSinceUpdate < 30) {
+            console.log(`Stats for ${courseId} updated ${secondsSinceUpdate.toFixed(0)}s ago, skipping.`);
+            return null;
+          }
+        }
+      }
       // Fetch all attempts for this course
       const attemptsSnap = await db
         .collection(`users/${uid}/attempts`)
@@ -33,16 +45,33 @@ exports.computeWeakness = functions
       const overallAccuracy =
         totalAnswered > 0 ? totalCorrect / totalAnswered : 0;
 
+      // Batch-fetch all unique questions referenced by attempts
+      const uniqueQuestionIds = [
+        ...new Set(attempts.map((a) => a.questionId).filter(Boolean)),
+      ];
+      const questionMap = new Map();
+
+      // Firestore getAll supports up to 100 refs per call
+      const BATCH_SIZE = 100;
+      for (let i = 0; i < uniqueQuestionIds.length; i += BATCH_SIZE) {
+        const batch = uniqueQuestionIds.slice(i, i + BATCH_SIZE);
+        const refs = batch.map((id) =>
+          db.doc(`users/${uid}/questions/${id}`)
+        );
+        const docs = await db.getAll(...refs);
+        for (const doc of docs) {
+          if (doc.exists) {
+            questionMap.set(doc.id, doc.data());
+          }
+        }
+      }
+
       // Compute per-topic weakness scores
       const topicMap = new Map();
 
       for (const att of attempts) {
-        // Fetch question to get topic tags
-        const qDoc = await db
-          .doc(`users/${uid}/questions/${att.questionId}`)
-          .get();
-        if (!qDoc.exists) continue;
-        const question = qDoc.data();
+        const question = questionMap.get(att.questionId);
+        if (!question) continue;
 
         for (const tag of question.topicTags || []) {
           if (!topicMap.has(tag)) {
