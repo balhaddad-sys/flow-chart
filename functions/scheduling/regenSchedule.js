@@ -31,7 +31,7 @@ exports.regenSchedule = functions
       // Delete non-completed tasks
       const tasksSnap = await db
         .collection(`users/${uid}/tasks`)
-        .where("courseId", isEqualTo: courseId)
+        .where("courseId", "==", courseId)
         .get();
 
       const batch = db.batch();

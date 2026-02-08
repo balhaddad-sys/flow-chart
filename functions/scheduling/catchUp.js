@@ -34,9 +34,9 @@ exports.catchUp = functions
       // Find overdue tasks (dueDate < today, status = TODO)
       const overdueSnap = await db
         .collection(`users/${uid}/tasks`)
-        .where("courseId", isEqualTo: courseId)
-        .where("status", isEqualTo: "TODO")
-        .where("dueDate", isLessThan: admin.firestore.Timestamp.fromDate(today))
+        .where("courseId", "==", courseId)
+        .where("status", "==", "TODO")
+        .where("dueDate", "<", admin.firestore.Timestamp.fromDate(today))
         .get();
 
       if (overdueSnap.empty) {

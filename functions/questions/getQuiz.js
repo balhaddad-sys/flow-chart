@@ -28,10 +28,10 @@ exports.getQuiz = functions.https.onCall(async (data, context) => {
   try {
     let query = db
       .collection(`users/${uid}/questions`)
-      .where("courseId", isEqualTo: courseId);
+      .where("courseId", "==", courseId);
 
     if (mode === "section" && sectionId) {
-      query = query.where("sectionId", isEqualTo: sectionId);
+      query = query.where("sectionId", "==", sectionId);
     } else if (mode === "topic" && topicTag) {
       query = query.where("topicTags", "array-contains", topicTag);
     }
