@@ -40,12 +40,12 @@ class CloudFunctionsService {
 
   // --- Schedule ---
 
-  Future<Map<String, dynamic>> generatePlan({
+  Future<Map<String, dynamic>> generateSchedule({
     required String courseId,
     required Map<String, dynamic> availability,
     required String revisionPolicy,
   }) {
-    return _call('generatePlan', {
+    return _call('generateSchedule', {
       'courseId': courseId,
       'availability': availability,
       'revisionPolicy': revisionPolicy,

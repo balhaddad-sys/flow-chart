@@ -1,7 +1,10 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
+import '../../../core/services/storage_service.dart';
 import '../../../core/utils/error_handler.dart';
 
 /// Sentinel to distinguish "set to null" from "not provided" in copyWith.
@@ -10,6 +13,7 @@ class _Absent {
 }
 
 const _absent = _Absent();
+const _uuid = Uuid();
 
 class OnboardingData {
   final int currentStep;
@@ -22,6 +26,7 @@ class OnboardingData {
   final bool isSubmitting;
   final String? errorMessage;
   final String? createdCourseId;
+  final List<PlatformFile> selectedFiles;
 
   const OnboardingData({
     this.currentStep = 0,
@@ -34,6 +39,7 @@ class OnboardingData {
     this.isSubmitting = false,
     this.errorMessage,
     this.createdCourseId,
+    this.selectedFiles = const [],
   });
 
   OnboardingData copyWith({
@@ -47,6 +53,7 @@ class OnboardingData {
     bool? isSubmitting,
     Object? errorMessage = _absent,
     Object? createdCourseId = _absent,
+    List<PlatformFile>? selectedFiles,
   }) {
     return OnboardingData(
       currentStep: currentStep ?? this.currentStep,
@@ -62,6 +69,7 @@ class OnboardingData {
       createdCourseId: createdCourseId is _Absent
           ? this.createdCourseId
           : createdCourseId as String?,
+      selectedFiles: selectedFiles ?? this.selectedFiles,
     );
   }
 }
@@ -99,6 +107,19 @@ class OnboardingNotifier extends StateNotifier<OnboardingData> {
     state = state.copyWith(pomodoroStyle: style);
   }
 
+  void addFile(PlatformFile file) {
+    state = state.copyWith(
+      selectedFiles: [...state.selectedFiles, file],
+    );
+  }
+
+  void removeFile(String fileName) {
+    state = state.copyWith(
+      selectedFiles:
+          state.selectedFiles.where((f) => f.name != fileName).toList(),
+    );
+  }
+
   void nextStep() {
     state = state.copyWith(currentStep: state.currentStep + 1);
   }
@@ -109,7 +130,7 @@ class OnboardingNotifier extends StateNotifier<OnboardingData> {
     }
   }
 
-  /// Create the course in Firestore and update user preferences.
+  /// Create the course, upload files, and generate the study schedule.
   Future<bool> finishOnboarding() async {
     if (state.courseTitle.trim().isEmpty) {
       state = state.copyWith(errorMessage: 'Course title is required');
@@ -123,8 +144,9 @@ class OnboardingNotifier extends StateNotifier<OnboardingData> {
       if (uid == null) throw Exception('Not authenticated');
 
       final firestoreService = _ref.read(firestoreServiceProvider);
+      final storageService = StorageService();
 
-      // Create the course
+      // 1. Create the course
       final courseId = await firestoreService.createCourse(uid, {
         'title': state.courseTitle.trim(),
         if (state.examDate != null) 'examDate': state.examDate,
@@ -137,7 +159,28 @@ class OnboardingNotifier extends StateNotifier<OnboardingData> {
         },
       });
 
-      // Update user preferences
+      // 2. Upload files and create file docs in Firestore
+      for (final file in state.selectedFiles) {
+        final fileId = _uuid.v4();
+        final storagePath = await storageService.uploadFile(
+          uid: uid,
+          fileId: fileId,
+          file: file,
+        );
+
+        await firestoreService.createFile(uid, {
+          'courseId': courseId,
+          'originalName': file.name,
+          'storagePath': storagePath,
+          'sizeBytes': file.size,
+          'contentType':
+              StorageService.mimeTypes[file.extension] ??
+              'application/octet-stream',
+          'status': 'UPLOADED',
+        });
+      }
+
+      // 3. Update user preferences
       await firestoreService.updateUser(uid, {
         'preferences': {
           'pomodoroStyle': state.pomodoroStyle,
@@ -145,6 +188,17 @@ class OnboardingNotifier extends StateNotifier<OnboardingData> {
           'dailyMinutesDefault': state.dailyMinutes,
         },
       });
+
+      // 4. Generate the study schedule
+      final functionsService = _ref.read(cloudFunctionsServiceProvider);
+      await functionsService.generateSchedule(
+        courseId: courseId,
+        availability: {
+          'defaultMinutesPerDay': state.dailyMinutes,
+          'excludedDates': <String>[],
+        },
+        revisionPolicy: state.revisionPolicy,
+      );
 
       state = state.copyWith(
         isSubmitting: false,

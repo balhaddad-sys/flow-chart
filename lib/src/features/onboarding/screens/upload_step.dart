@@ -1,9 +1,11 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/services/storage_service.dart';
+import '../providers/onboarding_provider.dart';
 
 class UploadStep extends ConsumerStatefulWidget {
   const UploadStep({super.key});
@@ -14,7 +16,6 @@ class UploadStep extends ConsumerStatefulWidget {
 
 class _UploadStepState extends ConsumerState<UploadStep> {
   final _storageService = StorageService();
-  final List<String> _selectedFiles = [];
   bool _isPickingFile = false;
 
   Future<void> _pickFile() async {
@@ -22,7 +23,7 @@ class _UploadStepState extends ConsumerState<UploadStep> {
     try {
       final file = await _storageService.pickFile();
       if (file != null) {
-        setState(() => _selectedFiles.add(file.name));
+        ref.read(onboardingProvider.notifier).addFile(file);
       }
     } finally {
       setState(() => _isPickingFile = false);
@@ -31,6 +32,8 @@ class _UploadStepState extends ConsumerState<UploadStep> {
 
   @override
   Widget build(BuildContext context) {
+    final selectedFiles = ref.watch(onboardingProvider).selectedFiles;
+
     return Padding(
       padding: AppSpacing.screenPadding,
       child: ListView(
@@ -84,26 +87,28 @@ class _UploadStepState extends ConsumerState<UploadStep> {
           ),
           AppSpacing.gapLg,
           // Selected files list
-          if (_selectedFiles.isNotEmpty) ...[
+          if (selectedFiles.isNotEmpty) ...[
             Text(
               'Selected files',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             AppSpacing.gapSm,
-            ..._selectedFiles.map((name) {
+            ...selectedFiles.map((file) {
               return ListTile(
                 leading: const Icon(Icons.insert_drive_file_outlined),
-                title: Text(name),
+                title: Text(file.name),
                 trailing: IconButton(
                   icon: const Icon(Icons.close, size: 18),
                   onPressed: () {
-                    setState(() => _selectedFiles.remove(name));
+                    ref
+                        .read(onboardingProvider.notifier)
+                        .removeFile(file.name);
                   },
                 ),
               );
             }),
           ],
-          if (_selectedFiles.isEmpty)
+          if (selectedFiles.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.lg),
               child: Text(
