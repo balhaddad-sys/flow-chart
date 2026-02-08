@@ -35,6 +35,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         );
   }
 
+  void _handleGoogleSignIn() {
+    ref.read(authScreenProvider.notifier).signInWithGoogle();
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authScreenProvider);
@@ -99,6 +103,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   label: 'Sign In',
                   onPressed: _handleLogin,
                   isLoading: authState.state == AuthScreenState.loading,
+                ),
+                AppSpacing.gapMd,
+                Row(
+                  children: [
+                    const Expanded(child: Divider()),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                      child: Text(
+                        'or',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                    const Expanded(child: Divider()),
+                  ],
+                ),
+                AppSpacing.gapMd,
+                OutlinedButton.icon(
+                  onPressed: authState.state == AuthScreenState.loading
+                      ? null
+                      : _handleGoogleSignIn,
+                  icon: const Icon(Icons.g_mobiledata),
+                  label: const Text('Sign in with Google'),
                 ),
                 AppSpacing.gapMd,
                 TextButton(
