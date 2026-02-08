@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'core/constants/app_colors.dart';
 import 'core/constants/app_typography.dart';
 import 'core/providers/auth_provider.dart';
+import 'core/widgets/app_shell.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/signup_screen.dart';
 import 'features/dashboard/screens/weakness_dashboard.dart';
@@ -13,11 +14,14 @@ import 'features/home/screens/home_screen.dart';
 import 'features/library/screens/library_screen.dart';
 import 'features/onboarding/screens/onboarding_flow.dart';
 import 'features/planner/screens/planner_screen.dart';
+import 'features/profile/screens/profile_screen.dart';
 import 'features/quiz/screens/quiz_screen.dart';
 import 'features/study_session/screens/study_session_screen.dart';
 
-/// Listenable that notifies GoRouter when auth state changes,
-/// without recreating the entire router.
+// ---------------------------------------------------------------------------
+// Auth notifier for GoRouter
+// ---------------------------------------------------------------------------
+
 class _AuthNotifier extends ChangeNotifier {
   _AuthNotifier(Ref ref) {
     ref.listen<AsyncValue<User?>>(authStateProvider, (_, __) {
@@ -30,6 +34,21 @@ final _authNotifierProvider = Provider<_AuthNotifier>((ref) {
   return _AuthNotifier(ref);
 });
 
+// ---------------------------------------------------------------------------
+// Tab paths for the bottom nav shell
+// ---------------------------------------------------------------------------
+
+const _tabPaths = ['/home', '/library', '/planner', '/dashboard', '/profile'];
+
+int _indexForPath(String path) {
+  final idx = _tabPaths.indexWhere((p) => path.startsWith(p));
+  return idx >= 0 ? idx : 0;
+}
+
+// ---------------------------------------------------------------------------
+// Router
+// ---------------------------------------------------------------------------
+
 final _routerProvider = Provider<GoRouter>((ref) {
   final authNotifier = ref.watch(_authNotifierProvider);
 
@@ -38,8 +57,7 @@ final _routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: authNotifier,
     redirect: (context, state) {
       final isLoggedIn = ref.read(authStateProvider).valueOrNull != null;
-      final isAuthRoute =
-          state.matchedLocation == '/login' ||
+      final isAuthRoute = state.matchedLocation == '/login' ||
           state.matchedLocation == '/signup';
 
       if (!isLoggedIn && !isAuthRoute) return '/login';
@@ -47,6 +65,7 @@ final _routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      // Auth routes (no bottom nav)
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginScreen(),
@@ -59,18 +78,8 @@ final _routerProvider = Provider<GoRouter>((ref) {
         path: '/onboarding',
         builder: (context, state) => const OnboardingFlow(),
       ),
-      GoRoute(
-        path: '/home',
-        builder: (context, state) => const HomeScreen(),
-      ),
-      GoRoute(
-        path: '/library',
-        builder: (context, state) => const LibraryScreen(),
-      ),
-      GoRoute(
-        path: '/planner',
-        builder: (context, state) => const PlannerScreen(),
-      ),
+
+      // Full-screen routes (no bottom nav)
       GoRoute(
         path: '/study/:taskId/:sectionId',
         builder: (context, state) => StudySessionScreen(
@@ -84,13 +93,57 @@ final _routerProvider = Provider<GoRouter>((ref) {
           sectionId: state.pathParameters['sectionId'],
         ),
       ),
-      GoRoute(
-        path: '/dashboard',
-        builder: (context, state) => const WeaknessDashboard(),
+
+      // Shell with bottom navigation
+      ShellRoute(
+        builder: (context, state, child) {
+          final index = _indexForPath(state.matchedLocation);
+          return AppShell(
+            currentIndex: index,
+            onTabChanged: (i) => context.go(_tabPaths[i]),
+            child: child,
+          );
+        },
+        routes: [
+          GoRoute(
+            path: '/home',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: HomeScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/library',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: LibraryScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/planner',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: PlannerScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/dashboard',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: WeaknessDashboard(),
+            ),
+          ),
+          GoRoute(
+            path: '/profile',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: ProfileScreen(),
+            ),
+          ),
+        ],
       ),
     ],
   );
 });
+
+// ---------------------------------------------------------------------------
+// App widget
+// ---------------------------------------------------------------------------
 
 class MedQApp extends ConsumerWidget {
   const MedQApp({super.key});
@@ -108,6 +161,15 @@ class MedQApp extends ConsumerWidget {
         brightness: Brightness.light,
         textTheme: AppTypography.textTheme,
         scaffoldBackgroundColor: AppColors.background,
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
+            TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.linux: FadeUpwardsPageTransitionsBuilder(),
+            TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.windows: FadeUpwardsPageTransitionsBuilder(),
+          },
+        ),
         cardTheme: CardThemeData(
           elevation: 0,
           shape: RoundedRectangleBorder(
@@ -127,8 +189,25 @@ class MedQApp extends ConsumerWidget {
         appBarTheme: const AppBarTheme(
           centerTitle: false,
           elevation: 0,
+          scrolledUnderElevation: 0.5,
           backgroundColor: AppColors.surface,
           foregroundColor: AppColors.textPrimary,
+        ),
+        navigationBarTheme: NavigationBarThemeData(
+          labelTextStyle: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) {
+              return const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppColors.primary,
+              );
+            }
+            return const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              color: AppColors.textTertiary,
+            );
+          }),
         ),
       ),
       routerConfig: router,

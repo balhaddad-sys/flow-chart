@@ -48,10 +48,7 @@ Future<void> _confirmDeleteCourse(
 
   try {
     await ref.read(firestoreServiceProvider).deleteCourse(uid, course.id);
-
-    // Reset active course so the UI picks the next available one
     ref.read(activeCourseIdProvider.notifier).state = null;
-
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('"${course.title}" deleted')),
@@ -72,26 +69,9 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final coursesAsync = ref.watch(coursesProvider);
+    final user = ref.watch(currentUserProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('MedQ'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline),
-            tooltip: 'New Course',
-            onPressed: () => context.go('/onboarding'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.library_books_outlined),
-            onPressed: () => context.go('/library'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.bar_chart_outlined),
-            onPressed: () => context.go('/dashboard'),
-          ),
-        ],
-      ),
       body: coursesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
@@ -111,12 +91,11 @@ class HomeScreen extends ConsumerWidget {
               ? courses.cast<CourseModel?>().firstWhere(
                     (c) => c!.id == storedId,
                     orElse: () => null,
-                  ) ?? courses.first
+                  ) ??
+                  courses.first
               : courses.first;
           final activeCourseId = activeCourse.id;
 
-          // Ensure the provider is set so other screens (Library, Planner)
-          // can read it without requiring the user to touch the dropdown.
           if (ref.read(activeCourseIdProvider) != activeCourseId) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               ref.read(activeCourseIdProvider.notifier).state = activeCourseId;
@@ -128,72 +107,211 @@ class HomeScreen extends ConsumerWidget {
               ref.invalidate(todayTasksProvider(activeCourseId));
             },
             child: ListView(
-              padding: AppSpacing.screenPadding,
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.xl,
+              ),
               children: [
-                // Course selector
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButton<String>(
-                        value: activeCourseId,
-                        isExpanded: true,
-                        items: courses
-                            .map((c) => DropdownMenuItem(
-                                  value: c.id,
-                                  child: Text(c.title),
-                                ))
-                            .toList(),
-                        onChanged: (v) =>
-                            ref.read(activeCourseIdProvider.notifier).state = v,
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline,
-                          color: AppColors.error),
-                      tooltip: 'Delete course',
-                      onPressed: () => _confirmDeleteCourse(
-                        context,
-                        ref,
-                        activeCourse,
-                      ),
-                    ),
-                    TextButton.icon(
-                      onPressed: () => context.go('/onboarding'),
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('New'),
-                    ),
-                  ],
+                // Greeting
+                _GreetingHeader(
+                  name: user?.displayName ?? 'Student',
                 ),
-                AppSpacing.gapMd,
+                const SizedBox(height: AppSpacing.lg),
+
+                // Course selector card
+                _CourseSelector(
+                  courses: courses,
+                  activeCourse: activeCourse,
+                  onChanged: (id) =>
+                      ref.read(activeCourseIdProvider.notifier).state = id,
+                  onDelete: () => _confirmDeleteCourse(
+                    context,
+                    ref,
+                    activeCourse,
+                  ),
+                  onAdd: () => context.go('/onboarding'),
+                ),
+                const SizedBox(height: AppSpacing.lg),
 
                 // Exam countdown
-                if (activeCourse.examDate != null)
+                if (activeCourse.examDate != null) ...[
                   ExamCountdown(examDate: activeCourse.examDate!),
-                AppSpacing.gapMd,
+                  const SizedBox(height: AppSpacing.md),
+                ],
 
-                // Stats cards
+                // Stats
                 StatsCards(courseId: activeCourseId),
-                AppSpacing.gapMd,
+                const SizedBox(height: AppSpacing.lg),
 
                 // Today's tasks
                 Text(
-                  'Today\'s Plan',
-                  style: Theme.of(context).textTheme.headlineMedium,
+                  "Today's Tasks",
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
-                AppSpacing.gapSm,
+                const SizedBox(height: AppSpacing.sm),
                 TodayChecklist(courseId: activeCourseId),
-                AppSpacing.gapMd,
+                const SizedBox(height: AppSpacing.lg),
 
-                // Weak topics banner
+                // Weak topics
                 WeakTopicsBanner(courseId: activeCourseId),
               ],
             ),
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.go('/planner'),
-        child: const Icon(Icons.calendar_month),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Greeting header
+// ---------------------------------------------------------------------------
+
+class _GreetingHeader extends StatelessWidget {
+  final String name;
+
+  const _GreetingHeader({required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    final hour = DateTime.now().hour;
+    final greeting = hour < 12
+        ? 'Good morning'
+        : hour < 17
+            ? 'Good afternoon'
+            : 'Good evening';
+    final firstName = name.split(' ').first;
+
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$greeting,',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+              ),
+              Text(
+                firstName,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm,
+            vertical: AppSpacing.xs,
+          ),
+          decoration: BoxDecoration(
+            color: AppColors.warning.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.local_fire_department,
+                  color: AppColors.warning, size: 18),
+              SizedBox(width: 4),
+              Text(
+                'Study time!',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.warning,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Course selector card
+// ---------------------------------------------------------------------------
+
+class _CourseSelector extends StatelessWidget {
+  final List<CourseModel> courses;
+  final CourseModel activeCourse;
+  final ValueChanged<String?> onChanged;
+  final VoidCallback onDelete;
+  final VoidCallback onAdd;
+
+  const _CourseSelector({
+    required this.courses,
+    required this.activeCourse,
+    required this.onChanged,
+    required this.onDelete,
+    required this.onAdd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+            ),
+            child: const Icon(Icons.school, color: AppColors.primary, size: 22),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: activeCourse.id,
+                isExpanded: true,
+                isDense: true,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                items: courses
+                    .map((c) => DropdownMenuItem(
+                          value: c.id,
+                          child: Text(c.title),
+                        ))
+                    .toList(),
+                onChanged: onChanged,
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, size: 20),
+            color: AppColors.textTertiary,
+            tooltip: 'Delete course',
+            onPressed: onDelete,
+            visualDensity: VisualDensity.compact,
+          ),
+          IconButton(
+            icon: const Icon(Icons.add, size: 20),
+            color: AppColors.primary,
+            tooltip: 'New course',
+            onPressed: onAdd,
+            visualDensity: VisualDensity.compact,
+          ),
+        ],
       ),
     );
   }
