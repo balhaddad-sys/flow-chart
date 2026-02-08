@@ -12,9 +12,59 @@ const MAX_TOKENS = {
   questions: 4096,
   tutoring: 1024,
   fixPlan: 2048,
+  documentExtract: 1200,
 };
 
 const client = new Anthropic(); // Uses ANTHROPIC_API_KEY env variable
+
+/**
+ * Robust JSON extraction: handles code fences, leading/trailing text,
+ * and other common Claude output quirks.
+ * @param {string} text - Raw model output
+ * @returns {string} Extracted JSON string
+ */
+function extractJsonFromText(text) {
+  // Try direct parse first (fast path)
+  try {
+    JSON.parse(text);
+    return text;
+  } catch {
+    // continue to cleanup
+  }
+
+  // Strip markdown code fences and trim
+  const cleaned = text
+    .replace(/```json\s*/gi, "")
+    .replace(/```\s*/g, "")
+    .trim();
+
+  // Try direct parse after cleaning
+  try {
+    JSON.parse(cleaned);
+    return cleaned;
+  } catch {
+    // continue to brace-matching
+  }
+
+  // Find first JSON object or array boundaries
+  const firstOpen = Math.min(
+    cleaned.indexOf("{") === -1 ? Infinity : cleaned.indexOf("{"),
+    cleaned.indexOf("[") === -1 ? Infinity : cleaned.indexOf("[")
+  );
+  if (firstOpen === Infinity) {
+    throw new Error("No JSON object or array found in model output.");
+  }
+
+  const isArray = cleaned[firstOpen] === "[";
+  const closeChar = isArray ? "]" : "}";
+  const lastClose = cleaned.lastIndexOf(closeChar);
+
+  if (lastClose <= firstOpen) {
+    throw new Error("Malformed JSON boundaries in model output.");
+  }
+
+  return cleaned.slice(firstOpen, lastClose + 1);
+}
 
 /**
  * Call Claude API with automatic retry and JSON validation.
@@ -49,14 +99,9 @@ async function callClaude(
         .map((block) => block.text)
         .join("");
 
-      // Strip markdown code fences if present
-      const cleaned = text
-        .replace(/```json\s*/g, "")
-        .replace(/```\s*/g, "")
-        .trim();
-
-      // Parse and return
-      const parsed = JSON.parse(cleaned);
+      // Robust JSON extraction
+      const jsonStr = extractJsonFromText(text);
+      const parsed = JSON.parse(jsonStr);
       return { success: true, data: parsed, model, tokensUsed: response.usage };
     } catch (error) {
       console.error(`AI call attempt ${attempt + 1}/${retries + 1} failed:`, {
@@ -75,6 +120,101 @@ async function callClaude(
       }
 
       // Wait before retry (exponential backoff)
+      await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
+    }
+  }
+}
+
+/**
+ * Call Claude with a vision (image) message. Supports prompt caching
+ * on the system prompt for faster TTFT on repeated calls.
+ * @param {object} opts
+ * @param {string} opts.systemPrompt - Stable system prompt (cached)
+ * @param {string} opts.base64Image - Base64-encoded image data (no data URL prefix)
+ * @param {string} opts.mediaType - MIME type (e.g. "image/jpeg")
+ * @param {string} opts.userText - Per-image user instruction
+ * @param {string} opts.tier - "LIGHT" or "HEAVY"
+ * @param {number} opts.maxTokens - Max tokens for response
+ * @param {number} [opts.retries=2] - Retry count
+ * @returns {object} { success, data, model, tokensUsed, ms } or { success: false, error }
+ */
+async function callClaudeVision({
+  systemPrompt,
+  base64Image,
+  mediaType = "image/jpeg",
+  userText,
+  tier,
+  maxTokens,
+  retries = 2,
+}) {
+  const model = MODELS[tier];
+  const t0 = Date.now();
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const response = await client.messages.create({
+        model,
+        max_tokens: maxTokens,
+        temperature: 0,
+        // Prompt caching: mark system prompt as ephemeral for cache reuse
+        system: [
+          {
+            type: "text",
+            text: systemPrompt,
+            cache_control: { type: "ephemeral" },
+          },
+        ],
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: mediaType,
+                  data: base64Image,
+                },
+              },
+              {
+                type: "text",
+                text: userText,
+              },
+            ],
+          },
+        ],
+      });
+
+      const text = response.content
+        .filter((block) => block.type === "text")
+        .map((block) => block.text)
+        .join("");
+
+      const jsonStr = extractJsonFromText(text);
+      const parsed = JSON.parse(jsonStr);
+
+      return {
+        success: true,
+        data: parsed,
+        model,
+        tokensUsed: response.usage,
+        ms: Date.now() - t0,
+      };
+    } catch (error) {
+      console.error(
+        `Vision call attempt ${attempt + 1}/${retries + 1} failed:`,
+        { model, tier, error: error.message }
+      );
+
+      if (attempt === retries) {
+        return {
+          success: false,
+          error: error.message,
+          model,
+          ms: Date.now() - t0,
+        };
+      }
+
       await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
     }
   }
@@ -101,6 +241,8 @@ module.exports = {
   MODELS,
   MAX_TOKENS,
   callClaude,
+  callClaudeVision,
+  extractJsonFromText,
   generateBlueprint,
   generateQuestions,
   getTutorResponse,

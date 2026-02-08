@@ -149,6 +149,29 @@ Return this exact JSON schema:
 }`;
 }
 
+const DOCUMENT_EXTRACT_SYSTEM = `You are a medical data extractor.
+Extract lab results and return STRICT JSON ONLY.
+
+Rules:
+- Output must be valid JSON, no markdown, no comments, no extra text.
+- Use this schema:
+{
+  "page": number,
+  "records": [
+    { "date": string|null, "test": string, "value": string, "unit": string|null, "flag": string|null }
+  ]
+}
+
+Medical rules:
+- Preserve the unit exactly as written (e.g. mmol/L, mg/dL).
+- If date not present, set date null.
+- If flag not present, set flag null.
+- If no records are found on the page, return an empty records array.`;
+
+function documentExtractUserPrompt({ pageIndex }) {
+  return `Extract data from this page. Return JSON matching the schema. Set "page" = ${pageIndex}.`;
+}
+
 module.exports = {
   BLUEPRINT_SYSTEM,
   blueprintUserPrompt,
@@ -158,4 +181,6 @@ module.exports = {
   tutorUserPrompt,
   FIX_PLAN_SYSTEM,
   fixPlanUserPrompt,
+  DOCUMENT_EXTRACT_SYSTEM,
+  documentExtractUserPrompt,
 };

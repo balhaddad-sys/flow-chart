@@ -5,6 +5,7 @@ admin.initializeApp();
 // Processing pipeline
 const { processUploadedFile } = require("./processing/processFile");
 const { processSection } = require("./processing/processSection");
+const { processDocumentBatch } = require("./processing/processDocumentBatch");
 
 // Scheduling
 const { generateSchedule } = require("./scheduling/generateSchedule");
@@ -26,6 +27,7 @@ const { healthCheck } = require("./admin/healthCheck");
 // Export all functions
 exports.processUploadedFile = processUploadedFile;
 exports.processSection = processSection;
+exports.processDocumentBatch = processDocumentBatch;
 exports.generateSchedule = generateSchedule;
 exports.regenSchedule = regenSchedule;
 exports.catchUp = catchUp;
