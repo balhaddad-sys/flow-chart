@@ -119,7 +119,7 @@ class _UploadStepState extends ConsumerState<UploadStep> {
                 ),
               ),
               style: OutlinedButton.styleFrom(
-                side: BorderSide(color: AppColors.border, width: 2),
+                side: const BorderSide(color: AppColors.border, width: 2),
                 shape: RoundedRectangleBorder(
                   borderRadius:
                       BorderRadius.circular(AppSpacing.radiusLg),

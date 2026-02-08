@@ -23,8 +23,23 @@ class TaskRow extends ConsumerWidget {
         motion: const ScrollMotion(),
         children: [
           SlidableAction(
-            onPressed: (_) {
-              // TODO(medq): Reschedule task
+            onPressed: (_) async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: task.dueDate.add(const Duration(days: 1)),
+                firstDate: DateTime.now(),
+                lastDate: DateTime.now().add(const Duration(days: 365)),
+              );
+              if (picked != null) {
+                final uid = ref.read(uidProvider);
+                if (uid != null) {
+                  ref.read(firestoreServiceProvider).updateTask(
+                    uid,
+                    task.id,
+                    {'dueDate': picked},
+                  );
+                }
+              }
             },
             backgroundColor: AppColors.info,
             foregroundColor: Colors.white,

@@ -110,7 +110,7 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               child: Text(
                 data.errorMessage!,
-                style: TextStyle(color: AppColors.error),
+                style: const TextStyle(color: AppColors.error),
               ),
             ),
           // Bottom action

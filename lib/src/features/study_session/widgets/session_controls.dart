@@ -72,8 +72,29 @@ class SessionControls extends ConsumerWidget {
               icon: Icons.schedule,
               label: 'Reschedule',
               color: AppColors.warning,
-              onPressed: () {
-                // TODO(medq): Implement reschedule
+              onPressed: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.now().add(const Duration(days: 1)),
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime.now().add(const Duration(days: 365)),
+                );
+                if (picked != null) {
+                  final uid = ref.read(uidProvider);
+                  if (uid != null) {
+                    ref.read(firestoreServiceProvider).updateTask(
+                      uid,
+                      taskId,
+                      {'dueDate': picked, 'status': 'TODO'},
+                    );
+                  }
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Task rescheduled')),
+                    );
+                    context.pop();
+                  }
+                }
               },
             ),
           ],

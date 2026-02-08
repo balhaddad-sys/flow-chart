@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_spacing.dart';
+import '../../../core/providers/user_provider.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../home/providers/home_provider.dart';
@@ -34,8 +35,25 @@ class PlannerScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () {
-              // TODO(medq): Call regenSchedule cloud function
+            tooltip: 'Regenerate schedule',
+            onPressed: () async {
+              try {
+                await ref
+                    .read(cloudFunctionsServiceProvider)
+                    .regenSchedule(courseId: activeCourseId);
+                ref.invalidate(allTasksProvider(activeCourseId));
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Schedule regenerated')),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed to regenerate: $e')),
+                  );
+                }
+              }
             },
           ),
         ],
