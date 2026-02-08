@@ -18,13 +18,22 @@ class _UploadStepState extends ConsumerState<UploadStep> {
   final _storageService = StorageService();
   bool _isPickingFile = false;
 
+  String? _errorMessage;
+
   Future<void> _pickFile() async {
-    setState(() => _isPickingFile = true);
+    setState(() {
+      _isPickingFile = true;
+      _errorMessage = null;
+    });
     try {
       final file = await _storageService.pickFile();
       if (file != null) {
         ref.read(onboardingProvider.notifier).addFile(file);
       }
+    } on UnsupportedError catch (e) {
+      setState(() => _errorMessage = e.message);
+    } catch (e) {
+      setState(() => _errorMessage = 'Failed to pick file: $e');
     } finally {
       setState(() => _isPickingFile = false);
     }
@@ -85,6 +94,13 @@ class _UploadStepState extends ConsumerState<UploadStep> {
               ),
             ),
           ),
+          if (_errorMessage != null) ...[
+            AppSpacing.gapMd,
+            Text(
+              _errorMessage!,
+              style: TextStyle(color: AppColors.error, fontSize: 13),
+            ),
+          ],
           AppSpacing.gapLg,
           // Selected files list
           if (selectedFiles.isNotEmpty) ...[

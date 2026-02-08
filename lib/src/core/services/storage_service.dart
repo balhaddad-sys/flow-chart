@@ -24,12 +24,24 @@ class StorageService {
   /// Pick a file from the device.
   Future<PlatformFile?> pickFile() async {
     final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: supportedExtensions,
+      type: FileType.any,
       allowMultiple: false,
-      withData: kIsWeb, // On web, always load bytes into memory
+      withData: true,
     );
-    return result?.files.firstOrNull;
+    if (result == null || result.files.isEmpty) return null;
+
+    final file = result.files.first;
+    final ext = file.extension?.toLowerCase();
+
+    // Validate extension client-side
+    if (ext == null || !supportedExtensions.contains(ext)) {
+      throw UnsupportedError(
+        'Unsupported file type: .${ext ?? 'unknown'}. '
+        'Please select a PDF, PPTX, DOCX, or ZIP file.',
+      );
+    }
+
+    return file;
   }
 
   /// Upload a file to Cloud Storage under the user's uploads directory.
