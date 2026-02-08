@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_spacing.dart';
 import '../providers/session_provider.dart';
+import '../widgets/active_learning_panel.dart';
+import '../widgets/pdf_viewer_panel.dart';
 import '../widgets/session_timer.dart';
 import '../widgets/session_controls.dart';
 
@@ -22,10 +23,14 @@ class StudySessionScreen extends ConsumerStatefulWidget {
       _StudySessionScreenState();
 }
 
-class _StudySessionScreenState extends ConsumerState<StudySessionScreen> {
+class _StudySessionScreenState extends ConsumerState<StudySessionScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(sessionProvider.notifier).startSession(
             taskId: widget.taskId,
@@ -35,9 +40,15 @@ class _StudySessionScreenState extends ConsumerState<StudySessionScreen> {
   }
 
   @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
-    final isTablet = MediaQuery.of(context).size.width > 600;
+    final isWide = MediaQuery.of(context).size.width > 700;
 
     return Scaffold(
       appBar: AppBar(
@@ -45,8 +56,25 @@ class _StudySessionScreenState extends ConsumerState<StudySessionScreen> {
         actions: [
           SessionTimer(elapsedSeconds: session.elapsedSeconds),
         ],
+        bottom: isWide
+            ? null
+            : TabBar(
+                controller: _tabController,
+                tabs: const [
+                  Tab(icon: Icon(Icons.picture_as_pdf), text: 'Document'),
+                  Tab(icon: Icon(Icons.auto_awesome), text: 'Key Points'),
+                ],
+              ),
       ),
-      body: isTablet ? _tabletLayout(context) : _phoneLayout(context),
+      body: isWide
+          ? _wideLayout()
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                PdfViewerPanel(sectionId: widget.sectionId),
+                ActiveLearningPanel(sectionId: widget.sectionId),
+              ],
+            ),
       bottomNavigationBar: SessionControls(
         taskId: widget.taskId,
         sectionId: widget.sectionId,
@@ -54,44 +82,27 @@ class _StudySessionScreenState extends ConsumerState<StudySessionScreen> {
     );
   }
 
-  Widget _tabletLayout(BuildContext context) {
+  Widget _wideLayout() {
     return Row(
       children: [
-        // PDF viewer panel (65%)
+        // PDF viewer (65%)
         Expanded(
           flex: 65,
-          child: Container(
-            color: AppColors.surfaceVariant,
-            child: const Center(
-              child: Text('PDF Viewer Panel'),
-            ),
-          ),
+          child: PdfViewerPanel(sectionId: widget.sectionId),
         ),
         // Active learning panel (35%)
         Expanded(
           flex: 35,
           child: Container(
-            padding: AppSpacing.cardPadding,
             decoration: const BoxDecoration(
               border: Border(
                 left: BorderSide(color: AppColors.border),
               ),
             ),
-            child: const Center(
-              child: Text('Active Learning Panel'),
-            ),
+            child: ActiveLearningPanel(sectionId: widget.sectionId),
           ),
         ),
       ],
-    );
-  }
-
-  Widget _phoneLayout(BuildContext context) {
-    return Container(
-      color: AppColors.surfaceVariant,
-      child: const Center(
-        child: Text('PDF Viewer (Full Screen)'),
-      ),
     );
   }
 }

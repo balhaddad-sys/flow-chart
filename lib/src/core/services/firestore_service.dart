@@ -107,6 +107,24 @@ class FirestoreService {
         );
   }
 
+  Future<SectionModel?> getSection(
+    String uid, {
+    required String sectionId,
+  }) async {
+    final doc = await _sections(uid).doc(sectionId).get();
+    if (!doc.exists) return null;
+    return SectionModel.fromFirestore(doc);
+  }
+
+  Future<FileModel?> getFile(
+    String uid, {
+    required String fileId,
+  }) async {
+    final doc = await _files(uid).doc(fileId).get();
+    if (!doc.exists) return null;
+    return FileModel.fromFirestore(doc);
+  }
+
   // --- Tasks ---
 
   CollectionReference _tasks(String uid) =>
