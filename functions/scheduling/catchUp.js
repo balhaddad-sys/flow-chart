@@ -1,3 +1,8 @@
+const functions = require("firebase-functions");
+const admin = require("firebase-admin");
+
+const db = admin.firestore();
+
 /**
  * Callable/Scheduled: Catch-up logic for missed tasks.
  * Collects overdue TODO tasks and redistributes into future buffer slots.
