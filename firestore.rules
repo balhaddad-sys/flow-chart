@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    function isValidString(field, maxLen) {
+      return field is string && field.size() <= maxLen;
+    }
+
+    match /users/{userId} {
+      allow read, write: if isOwner(userId);
+
+      // All subcollections: files, sections, tasks, questions, attempts, stats, jobs, courses
+      match /{subcollection}/{docId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && (!('title' in request.resource.data) || isValidString(request.resource.data.title, 500))
+          && (!('tags' in request.resource.data) || request.resource.data.tags.size() <= 20)
+          && (!('options' in request.resource.data) || request.resource.data.options.size() <= 8);
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+      }
+
+      // Nested subcollections (if any future depth)
+      match /{document=**} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+  }
+}
