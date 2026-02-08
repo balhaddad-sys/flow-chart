@@ -1,9 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+
+  // Lazy-init to avoid crashing on web at startup
+  GoogleSignIn? _googleSignIn;
+  GoogleSignIn get _gsi => _googleSignIn ??= GoogleSignIn();
 
   User? get currentUser => _auth.currentUser;
   String? get uid => currentUser?.uid;
@@ -29,7 +33,14 @@ class AuthService {
 
   Future<UserCredential> signInWithGoogle() async {
     try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (kIsWeb) {
+        // On web, use Firebase Auth popup directly — no GIS script needed
+        final provider = GoogleAuthProvider();
+        return await _auth.signInWithPopup(provider);
+      }
+
+      // On native platforms, use google_sign_in package
+      final GoogleSignInAccount? googleUser = await _gsi.signIn();
 
       if (googleUser == null) {
         throw Exception('Google Sign-In was cancelled by user');
@@ -52,7 +63,9 @@ class AuthService {
   }
 
   Future<void> signOut() async {
-    await _googleSignIn.signOut();
+    if (!kIsWeb) {
+      await _gsi.signOut();
+    }
     await _auth.signOut();
   }
 
