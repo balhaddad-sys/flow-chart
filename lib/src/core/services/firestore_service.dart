@@ -127,12 +127,18 @@ class FirestoreService {
         );
   }
 
-  Future<String> createFile(String uid, Map<String, dynamic> data) async {
-    final ref = await _files(uid).add({
+  /// Create a file document with a specific [fileId] so the Firestore doc ID
+  /// matches the Storage path (`users/{uid}/uploads/{fileId}.ext`).
+  /// The Cloud Function `processUploadedFile` looks up this doc by fileId.
+  Future<void> createFile(
+    String uid,
+    Map<String, dynamic> data, {
+    required String fileId,
+  }) async {
+    await _files(uid).doc(fileId).set({
       ...data,
       'uploadedAt': FieldValue.serverTimestamp(),
     });
-    return ref.id;
   }
 
   // --- Sections ---

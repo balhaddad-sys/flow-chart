@@ -177,11 +177,11 @@ class OnboardingNotifier extends StateNotifier<OnboardingData> {
           'originalName': file.name,
           'storagePath': storagePath,
           'sizeBytes': file.size,
-          'contentType':
+          'mimeType':
               StorageService.mimeTypes[file.extension] ??
               'application/octet-stream',
           'status': 'UPLOADED',
-        });
+        }, fileId: fileId);
       }
 
       // 3. Update user preferences

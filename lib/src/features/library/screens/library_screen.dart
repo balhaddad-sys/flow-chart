@@ -80,10 +80,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         'originalName': file.name,
         'storagePath': storagePath,
         'sizeBytes': file.size,
-        'contentType':
+        'mimeType':
             StorageService.mimeTypes[ext] ?? 'application/octet-stream',
         'status': 'UPLOADED',
-      });
+      }, fileId: fileId);
 
       if (mounted) {
         setState(() => _isUploading = false);
