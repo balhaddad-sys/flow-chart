@@ -1,14 +1,85 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
+import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/user_provider.dart';
+import '../../../core/services/storage_service.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../home/providers/home_provider.dart';
 import '../providers/library_provider.dart';
 import '../widgets/file_card.dart';
 
+const _uuid = Uuid();
+
 class LibraryScreen extends ConsumerWidget {
   const LibraryScreen({super.key});
+
+  Future<void> _uploadFile(BuildContext context, WidgetRef ref) async {
+    final uid = ref.read(uidProvider);
+    if (uid == null) return;
+
+    final activeCourseId = ref.read(activeCourseIdProvider);
+    if (activeCourseId == null) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No active course selected')),
+        );
+      }
+      return;
+    }
+
+    final storageService = StorageService();
+    try {
+      final file = await storageService.pickFile();
+      if (file == null) return;
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Uploading ${file.name}...')),
+        );
+      }
+
+      final fileId = _uuid.v4();
+      final storagePath = await storageService.uploadFile(
+        uid: uid,
+        fileId: fileId,
+        file: file,
+      );
+
+      final firestoreService = ref.read(firestoreServiceProvider);
+      await firestoreService.createFile(uid, {
+        'courseId': activeCourseId,
+        'originalName': file.name,
+        'storagePath': storagePath,
+        'sizeBytes': file.size,
+        'contentType':
+            StorageService.mimeTypes[file.extension] ??
+            'application/octet-stream',
+        'status': 'UPLOADED',
+      });
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${file.name} uploaded')),
+        );
+      }
+    } on UnsupportedError catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message ?? 'Unsupported file type')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Upload failed: $e')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -44,9 +115,7 @@ class LibraryScreen extends ConsumerWidget {
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          // TODO(medq): Implement file upload from library
-        },
+        onPressed: () => _uploadFile(context, ref),
         icon: const Icon(Icons.upload_file),
         label: const Text('Upload'),
       ),

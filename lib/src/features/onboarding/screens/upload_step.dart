@@ -58,39 +58,42 @@ class _UploadStepState extends ConsumerState<UploadStep> {
           ),
           AppSpacing.gapXl,
           // Upload zone
-          InkWell(
-            onTap: _isPickingFile ? null : _pickFile,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-            child: Container(
-              padding: const EdgeInsets.all(AppSpacing.xxl),
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: AppColors.border,
-                  width: 2,
-                  strokeAlign: BorderSide.strokeAlignInside,
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _isPickingFile ? null : _pickFile,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+              child: Container(
+                padding: const EdgeInsets.all(AppSpacing.xxl),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: AppColors.border,
+                    width: 2,
+                    strokeAlign: BorderSide.strokeAlignInside,
+                  ),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
                 ),
-                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-              ),
-              child: Column(
-                children: [
-                  Icon(
-                    Icons.cloud_upload_outlined,
-                    size: 48,
-                    color: _isPickingFile
-                        ? AppColors.textTertiary
-                        : AppColors.primary,
-                  ),
-                  AppSpacing.gapMd,
-                  Text(
-                    _isPickingFile ? 'Selecting...' : 'Tap to select files',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  AppSpacing.gapXs,
-                  Text(
-                    'PDF, PPTX, DOCX, ZIP (max 100MB)',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.cloud_upload_outlined,
+                      size: 48,
+                      color: _isPickingFile
+                          ? AppColors.textTertiary
+                          : AppColors.primary,
+                    ),
+                    AppSpacing.gapMd,
+                    Text(
+                      _isPickingFile ? 'Selecting...' : 'Tap to select files',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    AppSpacing.gapXs,
+                    Text(
+                      'PDF, PPTX, DOCX, ZIP (max 100MB)',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
