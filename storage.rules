@@ -1,0 +1,19 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /users/{userId}/uploads/{allPaths=**} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.size < 100 * 1024 * 1024
+        && request.resource.contentType.matches('application/(pdf|vnd.openxmlformats.*|msword|zip)');
+    }
+    match /users/{userId}/derived/{allPaths=**} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      // Only Cloud Functions write derived content
+    }
+    match /users/{userId}/exports/{allPaths=**} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      // Only Cloud Functions write exports
+    }
+  }
+}

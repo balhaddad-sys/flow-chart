@@ -1,0 +1,36 @@
+# Flutter
+.dart_tool/
+.packages
+build/
+*.iml
+*.ipr
+*.iws
+.idea/
+.vscode/
+
+# Firebase
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Cloud Functions
+functions/node_modules/
+functions/lib/
+
+# Environment
+.env
+.env.local
+*.key
+*.pem
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated files
+*.g.dart
+*.freezed.dart
+
+# Coverage
+coverage/
