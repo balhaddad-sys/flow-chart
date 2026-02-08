@@ -22,7 +22,7 @@ exports.computeWeakness = functions
       // Fetch all attempts for this course
       const attemptsSnap = await db
         .collection(`users/${uid}/attempts`)
-        .where("courseId", isEqualTo: courseId)
+        .where("courseId", "==", courseId)
         .get();
 
       const attempts = attemptsSnap.docs.map((d) => d.data());
@@ -101,8 +101,8 @@ exports.computeWeakness = functions
       // Compute total study minutes from completed tasks
       const tasksSnap = await db
         .collection(`users/${uid}/tasks`)
-        .where("courseId", isEqualTo: courseId)
-        .where("status", isEqualTo: "DONE")
+        .where("courseId", "==", courseId)
+        .where("status", "==", "DONE")
         .get();
 
       const totalStudyMinutes = tasksSnap.docs.reduce(
@@ -113,7 +113,7 @@ exports.computeWeakness = functions
       const totalTasks = (
         await db
           .collection(`users/${uid}/tasks`)
-          .where("courseId", isEqualTo: courseId)
+          .where("courseId", "==", courseId)
           .get()
       ).size;
 

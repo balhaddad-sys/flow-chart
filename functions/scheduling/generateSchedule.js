@@ -40,8 +40,8 @@ exports.generateSchedule = functions
       // Fetch all analyzed sections for this course
       const sectionsSnap = await db
         .collection(`users/${uid}/sections`)
-        .where("courseId", isEqualTo: courseId)
-        .where("aiStatus", isEqualTo: "ANALYZED")
+        .where("courseId", "==", courseId)
+        .where("aiStatus", "==", "ANALYZED")
         .orderBy("orderIndex")
         .get();
 
