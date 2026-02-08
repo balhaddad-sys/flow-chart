@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/widgets/primary_button.dart';
+import '../../home/providers/home_provider.dart';
 import '../providers/onboarding_provider.dart';
 import 'course_setup_step.dart';
 import 'exam_date_step.dart';
@@ -127,6 +128,13 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
                       .read(onboardingProvider.notifier)
                       .finishOnboarding();
                   if (success && context.mounted) {
+                    // Set the newly created course as active
+                    final newCourseId =
+                        ref.read(onboardingProvider).createdCourseId;
+                    if (newCourseId != null) {
+                      ref.read(activeCourseIdProvider.notifier).state =
+                          newCourseId;
+                    }
                     context.go('/home');
                   }
                 }

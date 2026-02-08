@@ -115,6 +115,14 @@ class HomeScreen extends ConsumerWidget {
               : courses.first;
           final activeCourseId = activeCourse.id;
 
+          // Ensure the provider is set so other screens (Library, Planner)
+          // can read it without requiring the user to touch the dropdown.
+          if (ref.read(activeCourseIdProvider) != activeCourseId) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              ref.read(activeCourseIdProvider.notifier).state = activeCourseId;
+            });
+          }
+
           return RefreshIndicator(
             onRefresh: () async {
               ref.invalidate(todayTasksProvider(activeCourseId));
