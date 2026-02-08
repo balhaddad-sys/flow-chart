@@ -40,8 +40,8 @@ exports.generateSchedule = functions
       // Fetch all analyzed sections for this course
       const sectionsSnap = await db
         .collection(`users/${uid}/sections`)
-        .where("courseId", isEqualTo: courseId)
-        .where("aiStatus", isEqualTo: "ANALYZED")
+        .where("courseId", "==", courseId)
+        .where("aiStatus", "==", "ANALYZED")
         .orderBy("orderIndex")
         .get();
 
@@ -126,7 +126,7 @@ exports.generateSchedule = functions
       let cursor = new Date(today);
       while (cursor <= endDate) {
         const iso = cursor.toISOString().split("T")[0];
-        const dayName = cursor.toLocaleDateString("en-US", { weekday: "lowercase" });
+        const dayName = cursor.toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
 
         if (!excludedDates.has(iso)) {
           const override = availability?.perDayOverrides?.[dayName];
