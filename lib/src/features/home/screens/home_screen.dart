@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/user_provider.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../models/course_model.dart';
 import '../providers/home_provider.dart';
@@ -10,6 +13,58 @@ import '../widgets/exam_countdown.dart';
 import '../widgets/stats_cards.dart';
 import '../widgets/today_checklist.dart';
 import '../widgets/weak_topics_banner.dart';
+
+Future<void> _confirmDeleteCourse(
+  BuildContext context,
+  WidgetRef ref,
+  CourseModel course,
+) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Delete Course'),
+      content: Text(
+        'Delete "${course.title}" and all its tasks, files, questions, '
+        'and stats? This cannot be undone.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          style: TextButton.styleFrom(foregroundColor: AppColors.error),
+          onPressed: () => Navigator.of(ctx).pop(true),
+          child: const Text('Delete'),
+        ),
+      ],
+    ),
+  );
+
+  if (confirmed != true) return;
+
+  final uid = ref.read(uidProvider);
+  if (uid == null) return;
+
+  try {
+    await ref.read(firestoreServiceProvider).deleteCourse(uid, course.id);
+
+    // Reset active course so the UI picks the next available one
+    ref.read(activeCourseIdProvider.notifier).state = null;
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('"${course.title}" deleted')),
+      );
+    }
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete: $e')),
+      );
+    }
+  }
+}
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -84,7 +139,16 @@ class HomeScreen extends ConsumerWidget {
                             ref.read(activeCourseIdProvider.notifier).state = v,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline,
+                          color: AppColors.error),
+                      tooltip: 'Delete course',
+                      onPressed: () => _confirmDeleteCourse(
+                        context,
+                        ref,
+                        activeCourse,
+                      ),
+                    ),
                     TextButton.icon(
                       onPressed: () => context.go('/onboarding'),
                       icon: const Icon(Icons.add, size: 18),

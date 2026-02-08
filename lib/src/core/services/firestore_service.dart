@@ -64,6 +64,53 @@ class FirestoreService {
     await _courses(uid).doc(courseId).update(data);
   }
 
+  /// Delete a course and all its related data (tasks, files, sections,
+  /// questions, attempts, stats).
+  Future<void> deleteCourse(String uid, String courseId) async {
+    final batch = _db.batch();
+
+    // Delete related tasks
+    final tasks = await _tasks(uid)
+        .where('courseId', isEqualTo: courseId)
+        .get();
+    for (final doc in tasks.docs) {
+      batch.delete(doc.reference);
+    }
+
+    // Delete related files
+    final files = await _files(uid)
+        .where('courseId', isEqualTo: courseId)
+        .get();
+    for (final doc in files.docs) {
+      batch.delete(doc.reference);
+    }
+
+    // Delete related sections
+    final sections = await _sections(uid)
+        .where('courseId', isEqualTo: courseId)
+        .get();
+    for (final doc in sections.docs) {
+      batch.delete(doc.reference);
+    }
+
+    // Delete related questions
+    final questions = await _questions(uid)
+        .where('courseId', isEqualTo: courseId)
+        .get();
+    for (final doc in questions.docs) {
+      batch.delete(doc.reference);
+    }
+
+    // Delete stats doc
+    final statsRef = _db.doc('users/$uid/stats/$courseId');
+    batch.delete(statsRef);
+
+    // Delete the course itself
+    batch.delete(_courses(uid).doc(courseId));
+
+    await batch.commit();
+  }
+
   // --- Files ---
 
   CollectionReference _files(String uid) =>
