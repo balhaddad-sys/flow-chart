@@ -1,7 +1,8 @@
 import 'dart:convert';
-import 'dart:html' as html show window;
 
-/// Local cache for offline-first support using browser localStorage.
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// Local cache for offline-first support using SharedPreferences.
 /// Caches today's tasks and queues pending mutations for sync.
 /// Web-compatible replacement for sqflite.
 class LocalCacheService {
@@ -9,19 +10,28 @@ class LocalCacheService {
   static const String _mutationsKey = 'medq_pending_mutations';
   static const String _mutationIdKey = 'medq_mutation_id_counter';
 
+  SharedPreferences? _prefs;
+
+  Future<SharedPreferences> get _preferences async {
+    _prefs ??= await SharedPreferences.getInstance();
+    return _prefs!;
+  }
+
   // --- Cached Tasks ---
 
   Future<void> cacheTasks(List<Map<String, dynamic>> tasks) async {
-    final existing = _readTasksMap();
+    final prefs = await _preferences;
+    final existing = _readTasksMap(prefs);
     for (final task in tasks) {
       final id = task['id'] as String;
       existing[id] = task;
     }
-    _writeTasksMap(existing);
+    await prefs.setString(_tasksKey, jsonEncode(existing));
   }
 
   Future<List<Map<String, dynamic>>> getCachedTasks(String courseId) async {
-    final all = _readTasksMap();
+    final prefs = await _preferences;
+    final all = _readTasksMap(prefs);
     return all.values
         .where((t) => t['courseId'] == courseId)
         .toList();
@@ -35,8 +45,9 @@ class LocalCacheService {
     required String operationType,
     required Map<String, dynamic> data,
   }) async {
-    final mutations = _readMutations();
-    final nextId = _nextMutationId();
+    final prefs = await _preferences;
+    final mutations = _readMutations(prefs);
+    final nextId = _nextMutationId(prefs);
     mutations.add({
       'id': nextId,
       'collection': collection,
@@ -45,33 +56,36 @@ class LocalCacheService {
       'data': data,
       'createdAt': DateTime.now().millisecondsSinceEpoch,
     });
-    _writeMutations(mutations);
+    await prefs.setString(_mutationsKey, jsonEncode(mutations));
   }
 
   Future<List<PendingMutation>> getPendingMutations() async {
-    final mutations = _readMutations();
+    final prefs = await _preferences;
+    final mutations = _readMutations(prefs);
     mutations.sort((a, b) =>
         (a['createdAt'] as int).compareTo(b['createdAt'] as int));
     return mutations.map(PendingMutation.fromMap).toList();
   }
 
   Future<void> clearPendingMutations(List<int> ids) async {
-    final mutations = _readMutations();
+    final prefs = await _preferences;
+    final mutations = _readMutations(prefs);
     final idSet = ids.toSet();
     mutations.removeWhere((m) => idSet.contains(m['id']));
-    _writeMutations(mutations);
+    await prefs.setString(_mutationsKey, jsonEncode(mutations));
   }
 
   Future<void> clearAll() async {
-    html.window.localStorage.remove(_tasksKey);
-    html.window.localStorage.remove(_mutationsKey);
-    html.window.localStorage.remove(_mutationIdKey);
+    final prefs = await _preferences;
+    await prefs.remove(_tasksKey);
+    await prefs.remove(_mutationsKey);
+    await prefs.remove(_mutationIdKey);
   }
 
   // --- Internal helpers ---
 
-  Map<String, Map<String, dynamic>> _readTasksMap() {
-    final raw = html.window.localStorage[_tasksKey];
+  Map<String, Map<String, dynamic>> _readTasksMap(SharedPreferences prefs) {
+    final raw = prefs.getString(_tasksKey);
     if (raw == null || raw.isEmpty) return {};
     final decoded = jsonDecode(raw) as Map<String, dynamic>;
     return decoded.map(
@@ -79,12 +93,8 @@ class LocalCacheService {
     );
   }
 
-  void _writeTasksMap(Map<String, Map<String, dynamic>> tasks) {
-    html.window.localStorage[_tasksKey] = jsonEncode(tasks);
-  }
-
-  List<Map<String, dynamic>> _readMutations() {
-    final raw = html.window.localStorage[_mutationsKey];
+  List<Map<String, dynamic>> _readMutations(SharedPreferences prefs) {
+    final raw = prefs.getString(_mutationsKey);
     if (raw == null || raw.isEmpty) return [];
     final decoded = jsonDecode(raw) as List;
     return decoded
@@ -92,15 +102,10 @@ class LocalCacheService {
         .toList();
   }
 
-  void _writeMutations(List<Map<String, dynamic>> mutations) {
-    html.window.localStorage[_mutationsKey] = jsonEncode(mutations);
-  }
-
-  int _nextMutationId() {
-    final raw = html.window.localStorage[_mutationIdKey];
-    final current = raw != null ? int.parse(raw) : 0;
+  int _nextMutationId(SharedPreferences prefs) {
+    final current = prefs.getInt(_mutationIdKey) ?? 0;
     final next = current + 1;
-    html.window.localStorage[_mutationIdKey] = next.toString();
+    prefs.setInt(_mutationIdKey, next);
     return next;
   }
 }
