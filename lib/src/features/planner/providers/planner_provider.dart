@@ -6,6 +6,7 @@ import '../../../models/task_model.dart';
 
 final allTasksProvider =
     StreamProvider.family<List<TaskModel>, String>((ref, courseId) {
+  ref.keepAlive();
   final uid = ref.watch(uidProvider);
   if (uid == null) return const Stream.empty();
   return ref.watch(firestoreServiceProvider).watchAllTasks(uid, courseId);

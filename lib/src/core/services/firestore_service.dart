@@ -64,6 +64,53 @@ class FirestoreService {
     await _courses(uid).doc(courseId).update(data);
   }
 
+  /// Delete a course and all its related data (tasks, files, sections,
+  /// questions, attempts, stats).
+  Future<void> deleteCourse(String uid, String courseId) async {
+    final batch = _db.batch();
+
+    // Delete related tasks
+    final tasks = await _tasks(uid)
+        .where('courseId', isEqualTo: courseId)
+        .get();
+    for (final doc in tasks.docs) {
+      batch.delete(doc.reference);
+    }
+
+    // Delete related files
+    final files = await _files(uid)
+        .where('courseId', isEqualTo: courseId)
+        .get();
+    for (final doc in files.docs) {
+      batch.delete(doc.reference);
+    }
+
+    // Delete related sections
+    final sections = await _sections(uid)
+        .where('courseId', isEqualTo: courseId)
+        .get();
+    for (final doc in sections.docs) {
+      batch.delete(doc.reference);
+    }
+
+    // Delete related questions
+    final questions = await _questions(uid)
+        .where('courseId', isEqualTo: courseId)
+        .get();
+    for (final doc in questions.docs) {
+      batch.delete(doc.reference);
+    }
+
+    // Delete stats doc
+    final statsRef = _db.doc('users/$uid/stats/$courseId');
+    batch.delete(statsRef);
+
+    // Delete the course itself
+    batch.delete(_courses(uid).doc(courseId));
+
+    await batch.commit();
+  }
+
   // --- Files ---
 
   CollectionReference _files(String uid) =>
@@ -80,12 +127,18 @@ class FirestoreService {
         );
   }
 
-  Future<String> createFile(String uid, Map<String, dynamic> data) async {
-    final ref = await _files(uid).add({
+  /// Create a file document with a specific [fileId] so the Firestore doc ID
+  /// matches the Storage path (`users/{uid}/uploads/{fileId}.ext`).
+  /// The Cloud Function `processUploadedFile` looks up this doc by fileId.
+  Future<void> createFile(
+    String uid,
+    Map<String, dynamic> data, {
+    required String fileId,
+  }) async {
+    await _files(uid).doc(fileId).set({
       ...data,
       'uploadedAt': FieldValue.serverTimestamp(),
     });
-    return ref.id;
   }
 
   // --- Sections ---
@@ -105,6 +158,24 @@ class FirestoreService {
           (snap) =>
               snap.docs.map((d) => SectionModel.fromFirestore(d)).toList(),
         );
+  }
+
+  Future<SectionModel?> getSection(
+    String uid, {
+    required String sectionId,
+  }) async {
+    final doc = await _sections(uid).doc(sectionId).get();
+    if (!doc.exists) return null;
+    return SectionModel.fromFirestore(doc);
+  }
+
+  Future<FileModel?> getFile(
+    String uid, {
+    required String fileId,
+  }) async {
+    final doc = await _files(uid).doc(fileId).get();
+    if (!doc.exists) return null;
+    return FileModel.fromFirestore(doc);
   }
 
   // --- Tasks ---
