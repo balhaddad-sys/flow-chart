@@ -12,16 +12,43 @@ class CloudFunctionsService {
     Map<String, dynamic> data,
   ) async {
     final callable = _functions.httpsCallable(name);
-    final result = await callable.call<Map<String, dynamic>>(data);
-    final response = Map<String, dynamic>.from(result.data);
-    if (response['success'] != true) {
-      final error = response['error'] as Map<String, dynamic>?;
+    final result = await callable.call(data);
+
+    final dynamic raw = result.data;
+    Map<String, dynamic> response;
+
+    if (raw is Map) {
+      response = Map<String, dynamic>.from(raw);
+    } else if (raw is String) {
       throw CloudFunctionException(
-        code: error?['code'] as String? ?? 'UNKNOWN',
-        message: error?['message'] as String? ?? 'Unknown error',
+        code: 'INVALID_RESPONSE',
+        message: raw,
+      );
+    } else {
+      throw CloudFunctionException(
+        code: 'INVALID_RESPONSE',
+        message: 'Unexpected response type: ${raw.runtimeType}',
       );
     }
-    return Map<String, dynamic>.from(response['data'] as Map);
+
+    if (response['success'] != true) {
+      final error = response['error'];
+      String code = 'UNKNOWN';
+      String message = 'Unknown error';
+      if (error is Map) {
+        code = error['code']?.toString() ?? code;
+        message = error['message']?.toString() ?? message;
+      } else if (error is String) {
+        message = error;
+      }
+      throw CloudFunctionException(code: code, message: message);
+    }
+
+    final responseData = response['data'];
+    if (responseData is Map) {
+      return Map<String, dynamic>.from(responseData);
+    }
+    return response;
   }
 
   // --- Course ---

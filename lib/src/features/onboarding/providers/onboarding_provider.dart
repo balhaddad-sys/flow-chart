@@ -193,16 +193,22 @@ class OnboardingNotifier extends StateNotifier<OnboardingData> {
         },
       });
 
-      // 4. Generate the study schedule
-      final functionsService = _ref.read(cloudFunctionsServiceProvider);
-      await functionsService.generateSchedule(
-        courseId: courseId,
-        availability: {
-          'defaultMinutesPerDay': state.dailyMinutes,
-          'excludedDates': <String>[],
-        },
-        revisionPolicy: state.revisionPolicy,
-      );
+      // 4. Try to generate the study schedule (non-blocking — files
+      //    may not be processed yet, schedule can be generated later)
+      try {
+        final functionsService = _ref.read(cloudFunctionsServiceProvider);
+        await functionsService.generateSchedule(
+          courseId: courseId,
+          availability: {
+            'defaultMinutesPerDay': state.dailyMinutes,
+            'excludedDates': <String>[],
+          },
+          revisionPolicy: state.revisionPolicy,
+        );
+      } catch (_) {
+        // Schedule generation may fail if sections aren't processed yet.
+        // The user can regenerate from the planner screen.
+      }
 
       state = state.copyWith(
         isSubmitting: false,
