@@ -138,6 +138,24 @@ class CloudFunctionsService {
   Future<Map<String, dynamic>> runFixPlan({required String courseId}) {
     return _call('runFixPlan', {'courseId': courseId});
   }
+
+  // --- Document Batch Processing ---
+
+  /// Process multiple page images in parallel via Claude vision.
+  ///
+  /// [imagesBase64] - List of base64-encoded page images (JPEG).
+  /// [concurrency] - Optional parallel request limit (1-12, default 8).
+  ///
+  /// Returns: { results: [...], pages: [...], failures: [...], meta: {...} }
+  Future<Map<String, dynamic>> processDocumentBatch({
+    required List<String> imagesBase64,
+    int? concurrency,
+  }) {
+    return _call('processDocumentBatch', {
+      'images': imagesBase64,
+      if (concurrency != null) 'concurrency': concurrency,
+    });
+  }
 }
 
 class CloudFunctionException implements Exception {
