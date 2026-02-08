@@ -23,6 +23,11 @@ class HomeScreen extends ConsumerWidget {
         title: const Text('MedQ'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.add_circle_outline),
+            tooltip: 'New Course',
+            onPressed: () => context.go('/onboarding'),
+          ),
+          IconButton(
             icon: const Icon(Icons.library_books_outlined),
             onPressed: () => context.go('/library'),
           ),
@@ -62,20 +67,31 @@ class HomeScreen extends ConsumerWidget {
             child: ListView(
               padding: AppSpacing.screenPadding,
               children: [
-                // Course selector (if multiple)
-                if (courses.length > 1)
-                  DropdownButton<String>(
-                    value: activeCourseId,
-                    isExpanded: true,
-                    items: courses
-                        .map((c) => DropdownMenuItem(
-                              value: c.id,
-                              child: Text(c.title),
-                            ))
-                        .toList(),
-                    onChanged: (v) =>
-                        ref.read(activeCourseIdProvider.notifier).state = v,
-                  ),
+                // Course selector
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButton<String>(
+                        value: activeCourseId,
+                        isExpanded: true,
+                        items: courses
+                            .map((c) => DropdownMenuItem(
+                                  value: c.id,
+                                  child: Text(c.title),
+                                ))
+                            .toList(),
+                        onChanged: (v) =>
+                            ref.read(activeCourseIdProvider.notifier).state = v,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton.icon(
+                      onPressed: () => context.go('/onboarding'),
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('New'),
+                    ),
+                  ],
+                ),
                 AppSpacing.gapMd,
 
                 // Exam countdown

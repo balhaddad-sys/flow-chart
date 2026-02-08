@@ -1,8 +1,8 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
-import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
@@ -31,10 +31,31 @@ class LibraryScreen extends ConsumerWidget {
       return;
     }
 
-    final storageService = StorageService();
     try {
-      final file = await storageService.pickFile();
-      if (file == null) return;
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+        withData: true,
+      );
+      if (result == null || result.files.isEmpty) return;
+
+      final file = result.files.first;
+      final ext = file.extension?.toLowerCase();
+
+      if (ext == null ||
+          !StorageService.supportedExtensions.contains(ext)) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Unsupported file type: .${ext ?? 'unknown'}. '
+                'Use PDF, PPTX, DOCX, or ZIP.',
+              ),
+            ),
+          );
+        }
+        return;
+      }
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -42,6 +63,7 @@ class LibraryScreen extends ConsumerWidget {
         );
       }
 
+      final storageService = StorageService();
       final fileId = _uuid.v4();
       final storagePath = await storageService.uploadFile(
         uid: uid,
@@ -56,20 +78,13 @@ class LibraryScreen extends ConsumerWidget {
         'storagePath': storagePath,
         'sizeBytes': file.size,
         'contentType':
-            StorageService.mimeTypes[file.extension] ??
-            'application/octet-stream',
+            StorageService.mimeTypes[ext] ?? 'application/octet-stream',
         'status': 'UPLOADED',
       });
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${file.name} uploaded')),
-        );
-      }
-    } on UnsupportedError catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message ?? 'Unsupported file type')),
         );
       }
     } catch (e) {

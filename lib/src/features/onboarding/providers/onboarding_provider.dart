@@ -79,6 +79,10 @@ class OnboardingNotifier extends StateNotifier<OnboardingData> {
 
   OnboardingNotifier(this._ref) : super(const OnboardingData());
 
+  void reset() {
+    state = const OnboardingData();
+  }
+
   void setCourseTitle(String title) {
     state = state.copyWith(courseTitle: title);
   }

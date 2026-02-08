@@ -15,27 +15,58 @@ class UploadStep extends ConsumerStatefulWidget {
 }
 
 class _UploadStepState extends ConsumerState<UploadStep> {
-  final _storageService = StorageService();
   bool _isPickingFile = false;
-
-  String? _errorMessage;
+  String? _statusMessage;
+  bool _isError = false;
 
   Future<void> _pickFile() async {
     setState(() {
       _isPickingFile = true;
-      _errorMessage = null;
+      _statusMessage = 'Opening file picker...';
+      _isError = false;
     });
     try {
-      final file = await _storageService.pickFile();
-      if (file != null) {
-        ref.read(onboardingProvider.notifier).addFile(file);
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: false,
+        withData: true,
+      );
+
+      if (result == null || result.files.isEmpty) {
+        setState(() {
+          _statusMessage = null;
+          _isPickingFile = false;
+        });
+        return;
       }
-    } on UnsupportedError catch (e) {
-      setState(() => _errorMessage = e.message);
+
+      final file = result.files.first;
+      final ext = file.extension?.toLowerCase();
+
+      if (ext == null ||
+          !StorageService.supportedExtensions.contains(ext)) {
+        setState(() {
+          _statusMessage =
+              'Unsupported file type: .${ext ?? 'unknown'}. '
+              'Please select a PDF, PPTX, DOCX, or ZIP file.';
+          _isError = true;
+          _isPickingFile = false;
+        });
+        return;
+      }
+
+      ref.read(onboardingProvider.notifier).addFile(file);
+      setState(() {
+        _statusMessage = '${file.name} added';
+        _isError = false;
+        _isPickingFile = false;
+      });
     } catch (e) {
-      setState(() => _errorMessage = 'Failed to pick file: $e');
-    } finally {
-      setState(() => _isPickingFile = false);
+      setState(() {
+        _statusMessage = 'Error: $e';
+        _isError = true;
+        _isPickingFile = false;
+      });
     }
   }
 
@@ -57,37 +88,29 @@ class _UploadStepState extends ConsumerState<UploadStep> {
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           AppSpacing.gapXl,
-          // Upload zone
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: _isPickingFile ? null : _pickFile,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-              child: Container(
-                padding: const EdgeInsets.all(AppSpacing.xxl),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: AppColors.border,
-                    width: 2,
-                    strokeAlign: BorderSide.strokeAlignInside,
-                  ),
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                ),
+          // Upload button — using OutlinedButton for reliable web taps
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _isPickingFile ? null : _pickFile,
+              icon: Icon(
+                Icons.cloud_upload_outlined,
+                size: 32,
+                color: _isPickingFile
+                    ? AppColors.textTertiary
+                    : AppColors.primary,
+              ),
+              label: Padding(
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
                 child: Column(
                   children: [
-                    Icon(
-                      Icons.cloud_upload_outlined,
-                      size: 48,
-                      color: _isPickingFile
-                          ? AppColors.textTertiary
-                          : AppColors.primary,
-                    ),
-                    AppSpacing.gapMd,
                     Text(
-                      _isPickingFile ? 'Selecting...' : 'Tap to select files',
+                      _isPickingFile
+                          ? 'Opening file picker...'
+                          : 'Tap to select files',
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
-                    AppSpacing.gapXs,
+                    const SizedBox(height: 4),
                     Text(
                       'PDF, PPTX, DOCX, ZIP (max 100MB)',
                       style: Theme.of(context).textTheme.bodySmall,
@@ -95,13 +118,24 @@ class _UploadStepState extends ConsumerState<UploadStep> {
                   ],
                 ),
               ),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: AppColors.border, width: 2),
+                shape: RoundedRectangleBorder(
+                  borderRadius:
+                      BorderRadius.circular(AppSpacing.radiusLg),
+                ),
+                padding: const EdgeInsets.all(AppSpacing.lg),
+              ),
             ),
           ),
-          if (_errorMessage != null) ...[
+          if (_statusMessage != null) ...[
             AppSpacing.gapMd,
             Text(
-              _errorMessage!,
-              style: TextStyle(color: AppColors.error, fontSize: 13),
+              _statusMessage!,
+              style: TextStyle(
+                color: _isError ? AppColors.error : AppColors.success,
+                fontSize: 13,
+              ),
             ),
           ],
           AppSpacing.gapLg,
@@ -116,6 +150,9 @@ class _UploadStepState extends ConsumerState<UploadStep> {
               return ListTile(
                 leading: const Icon(Icons.insert_drive_file_outlined),
                 title: Text(file.name),
+                subtitle: Text(
+                  '${(file.size / 1024).toStringAsFixed(0)} KB',
+                ),
                 trailing: IconButton(
                   icon: const Icon(Icons.close, size: 18),
                   onPressed: () {

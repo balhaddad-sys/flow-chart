@@ -24,6 +24,15 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
   static const _stepCount = 4;
 
   @override
+  void initState() {
+    super.initState();
+    // Reset onboarding state so creating a new course starts fresh
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(onboardingProvider.notifier).reset();
+    });
+  }
+
+  @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
