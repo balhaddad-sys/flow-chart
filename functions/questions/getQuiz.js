@@ -1,29 +1,25 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const { requireAuth, requireStrings, requireInt, safeError } = require("../middleware/validate");
+const { checkRateLimit, RATE_LIMITS } = require("../middleware/rateLimit");
 
 const db = admin.firestore();
+
+const VALID_MODES = new Set(["section", "topic", "mixed", "random"]);
 
 /**
  * Callable: Fetch questions for a quiz session.
  * Supports filtering by section, topic, or random mixed mode.
  */
 exports.getQuiz = functions.https.onCall(async (data, context) => {
-  if (!context.auth) {
-    throw new functions.https.HttpsError(
-      "unauthenticated",
-      "Must be logged in"
-    );
-  }
+  const uid = requireAuth(context);
+  requireStrings(data, [{ field: "courseId", maxLen: 128 }]);
+  const count = requireInt(data, "count", 1, 50, 10);
 
-  const uid = context.auth.uid;
-  const { courseId, sectionId, topicTag, mode = "section", count = 10 } = data;
+  await checkRateLimit(uid, "getQuiz", RATE_LIMITS.getQuiz);
 
-  if (!courseId) {
-    throw new functions.https.HttpsError(
-      "invalid-argument",
-      "courseId is required"
-    );
-  }
+  const { courseId, sectionId, topicTag } = data;
+  const mode = VALID_MODES.has(data.mode) ? data.mode : "section";
 
   try {
     let query = db
@@ -36,7 +32,7 @@ exports.getQuiz = functions.https.onCall(async (data, context) => {
       query = query.where("topicTags", "array-contains", topicTag);
     }
 
-    const snap = await query.limit(count * 2).get(); // Fetch extra for sampling
+    const snap = await query.limit(count * 2).get();
 
     if (snap.empty) {
       return {
@@ -50,12 +46,10 @@ exports.getQuiz = functions.https.onCall(async (data, context) => {
       ...d.data(),
     }));
 
-    // For mixed mode, shuffle and sample
     if (mode === "mixed" || mode === "random") {
       questions = shuffleArray(questions);
     }
 
-    // Limit to requested count
     questions = questions.slice(0, count);
 
     return {
@@ -63,11 +57,7 @@ exports.getQuiz = functions.https.onCall(async (data, context) => {
       data: { questions },
     };
   } catch (error) {
-    console.error("getQuiz error:", error);
-    return {
-      success: false,
-      error: { code: "INTERNAL", message: error.message },
-    };
+    return safeError(error, "quiz retrieval");
   }
 });
 

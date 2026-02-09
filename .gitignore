@@ -34,3 +34,17 @@ Thumbs.db
 
 # Coverage
 coverage/
+
+# Secrets
+*.secret
+credentials.json
+service-account*.json
+
+# Logs
+*.log
+storage-debug.log
+pubspec.lock
+
+# Build artifacts
+.flutter-plugins
+.flutter-plugins-dependencies

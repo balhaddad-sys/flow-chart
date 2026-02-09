@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,6 +10,23 @@ import 'src/app.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Global error handling
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    if (kDebugMode) {
+      debugPrint('Flutter Error: ${details.exceptionAsString()}');
+    }
+  };
+
+  PlatformDispatcher.instance.onError = (error, stack) {
+    if (kDebugMode) {
+      debugPrint('Unhandled Error: $error');
+      debugPrint('Stack: $stack');
+    }
+    return true;
+  };
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );

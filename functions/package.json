@@ -12,7 +12,11 @@
     "start": "npm run shell",
     "deploy": "firebase deploy --only functions",
     "logs": "firebase functions:log",
-    "test": "jest"
+    "test": "jest --verbose",
+    "test:watch": "jest --watch"
+  },
+  "jest": {
+    "testMatch": ["**/__tests__/**/*.test.js"]
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
