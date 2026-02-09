@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:medq/src/core/utils/validators.dart';
 
 void main() {
-  group('Validators', () => {
+  group('Validators', () {
     group('email', () {
       test('returns null for valid email', () {
         expect(Validators.email('test@example.com'), isNull);
