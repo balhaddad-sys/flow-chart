@@ -97,11 +97,11 @@ class GoogleSignInButton extends StatelessWidget {
           foregroundColor: isDark ? const Color(0xFFE3E3E3) : const Color(0xFF1F1F1F),
           side: BorderSide(
             color: isDark ? const Color(0xFF8E918F) : const Color(0xFF747775),
-            width: 1,
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           ),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           elevation: 0,
         ),
         child: isLoading
@@ -120,7 +120,10 @@ class GoogleSignInButton extends StatelessWidget {
                   SizedBox(
                     width: 20,
                     height: 20,
-                    child: CustomPaint(painter: _GoogleLogoPainter()),
+                    child: CustomPaint(
+                      size: const Size(20, 20),
+                      painter: _GoogleLogoPainter(),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Text(
