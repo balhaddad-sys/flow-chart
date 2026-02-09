@@ -1,5 +1,7 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const { requireAuth, requireStrings, requireInt, safeError } = require("../middleware/validate");
+const { checkRateLimit, RATE_LIMITS } = require("../middleware/rateLimit");
 const { generateQuestions: aiGenerateQuestions } = require("../ai/aiClient");
 const { QUESTIONS_SYSTEM, questionsUserPrompt } = require("../ai/prompts");
 
@@ -12,24 +14,18 @@ const db = admin.firestore();
 exports.generateQuestions = functions
   .runWith({ timeoutSeconds: 120, memory: "512MB" })
   .https.onCall(async (data, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "Must be logged in"
-      );
-    }
+    const uid = requireAuth(context);
+    requireStrings(data, [
+      { field: "courseId", maxLen: 128 },
+      { field: "sectionId", maxLen: 128 },
+    ]);
+    const count = requireInt(data, "count", 1, 30, 10);
 
-    const uid = context.auth.uid;
-    const { courseId, sectionId, count = 10 } = data;
-
-    if (!courseId || !sectionId) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "courseId and sectionId are required"
-      );
-    }
+    await checkRateLimit(uid, "generateQuestions", RATE_LIMITS.generateQuestions);
 
     try {
+      const { courseId, sectionId } = data;
+
       // Fetch section
       const sectionDoc = await db
         .doc(`users/${uid}/sections/${sectionId}`)
@@ -37,17 +33,25 @@ exports.generateQuestions = functions
       if (!sectionDoc.exists) {
         return {
           success: false,
-          error: { code: "NOT_FOUND", message: "Section not found" },
+          error: { code: "NOT_FOUND", message: "Section not found." },
         };
       }
       const section = sectionDoc.data();
+
+      // Verify section belongs to user's course
+      if (section.courseId !== courseId) {
+        return {
+          success: false,
+          error: { code: "INVALID_ARGUMENT", message: "Section does not belong to this course." },
+        };
+      }
 
       if (!section.blueprint) {
         return {
           success: false,
           error: {
             code: "NOT_ANALYZED",
-            message: "Section must be analyzed before generating questions",
+            message: "Section must be analyzed before generating questions.",
           },
         };
       }
@@ -61,14 +65,6 @@ exports.generateQuestions = functions
       const easyCount = Math.round(count * 0.4);
       const hardCount = Math.round(count * 0.2);
       const mediumCount = count - easyCount - hardCount;
-
-      // Fetch file info
-      const fileDoc = await db
-        .doc(`users/${uid}/files/${section.fileId}`)
-        .get();
-      const fileName = fileDoc.exists
-        ? fileDoc.data().originalName
-        : "Unknown";
 
       // Generate questions via AI
       const result = await aiGenerateQuestions(
@@ -88,7 +84,7 @@ exports.generateQuestions = functions
           success: false,
           error: {
             code: "AI_FAILED",
-            message: "Failed to generate questions",
+            message: "Failed to generate questions. Please try again.",
           },
         };
       }
@@ -98,25 +94,30 @@ exports.generateQuestions = functions
       const questions = result.data.questions;
 
       for (const q of questions) {
+        // Validate question structure before writing
+        if (!q.stem || !Array.isArray(q.options) || q.correct_index == null) {
+          continue;
+        }
+
         const ref = db.collection(`users/${uid}/questions`).doc();
         batch.set(ref, {
           courseId,
           sectionId,
-          topicTags: q.tags || section.topicTags || [],
-          difficulty: q.difficulty || 3,
+          topicTags: Array.isArray(q.tags) ? q.tags.slice(0, 10) : (section.topicTags || []),
+          difficulty: Math.min(5, Math.max(1, q.difficulty || 3)),
           type: "SBA",
-          stem: q.stem,
-          options: q.options,
-          correctIndex: q.correct_index,
+          stem: String(q.stem).slice(0, 2000),
+          options: q.options.slice(0, 8).map((o) => String(o).slice(0, 500)),
+          correctIndex: Math.min(q.options.length - 1, Math.max(0, q.correct_index)),
           explanation: {
-            correctWhy: q.explanation.correct_why,
-            whyOthersWrong: q.explanation.why_others_wrong,
-            keyTakeaway: q.explanation.key_takeaway,
+            correctWhy: String(q.explanation?.correct_why || "").slice(0, 1000),
+            whyOthersWrong: String(q.explanation?.why_others_wrong || "").slice(0, 2000),
+            keyTakeaway: String(q.explanation?.key_takeaway || "").slice(0, 500),
           },
           sourceRef: {
             fileId: section.fileId,
             sectionId,
-            label: q.source_ref?.sectionLabel || section.title,
+            label: String(q.source_ref?.sectionLabel || section.title).slice(0, 200),
           },
           stats: { timesAnswered: 0, timesCorrect: 0, avgTimeSec: 0 },
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -130,10 +131,6 @@ exports.generateQuestions = functions
         data: { questionCount: questions.length },
       };
     } catch (error) {
-      console.error("generateQuestions error:", error);
-      return {
-        success: false,
-        error: { code: "INTERNAL", message: error.message },
-      };
+      return safeError(error, "question generation");
     }
   });

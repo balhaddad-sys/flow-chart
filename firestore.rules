@@ -2,31 +2,102 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
     function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
     function isValidString(field, maxLen) {
-      return field is string && field.size() <= maxLen;
+      return field is string && field.size() > 0 && field.size() <= maxLen;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // Internal collections (Cloud Functions only via Admin SDK)
+    match /_rateLimits/{doc} {
+      allow read, write: if false;
+    }
+
+    match /_health/{doc} {
+      allow read, write: if false;
     }
 
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && hasRequiredFields(['name', 'email'])
+        && isValidString(request.resource.data.name, 200)
+        && isValidString(request.resource.data.email, 320);
+      allow update: if isOwner(userId)
+        && (!('name' in request.resource.data) || isValidString(request.resource.data.name, 200))
+        && (!('email' in request.resource.data) || isValidString(request.resource.data.email, 320));
+      allow delete: if isOwner(userId);
 
-      // All subcollections: files, sections, tasks, questions, attempts, stats, jobs, courses
-      match /{subcollection}/{docId} {
+      match /courses/{courseId} {
         allow read: if isOwner(userId);
         allow create: if isOwner(userId)
-          && (!('title' in request.resource.data) || isValidString(request.resource.data.title, 500))
+          && hasRequiredFields(['title'])
+          && isValidString(request.resource.data.title, 500)
           && (!('tags' in request.resource.data) || request.resource.data.tags.size() <= 20)
-          && (!('options' in request.resource.data) || request.resource.data.options.size() <= 8);
+          && (!('examType' in request.resource.data) || request.resource.data.examType in ['SBA', 'OSCE', 'Mixed']);
+        allow update: if isOwner(userId)
+          && (!('title' in request.resource.data) || isValidString(request.resource.data.title, 500))
+          && (!('tags' in request.resource.data) || request.resource.data.tags.size() <= 20);
+        allow delete: if isOwner(userId);
+      }
+
+      match /files/{fileId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && hasRequiredFields(['originalName', 'storagePath', 'mimeType'])
+          && isValidString(request.resource.data.originalName, 500)
+          && request.resource.data.mimeType in [
+            'application/pdf',
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'application/zip'
+          ];
         allow update: if isOwner(userId);
         allow delete: if isOwner(userId);
       }
 
-      // Nested subcollections (if any future depth)
-      match /{document=**} {
-        allow read, write: if isOwner(userId);
+      match /sections/{sectionId} {
+        allow read: if isOwner(userId);
+        allow update: if isOwner(userId)
+          && (!('title' in request.resource.data) || isValidString(request.resource.data.title, 500));
+        allow delete: if isOwner(userId);
+      }
+
+      match /tasks/{taskId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId);
+        allow update: if isOwner(userId)
+          && (!('status' in request.resource.data) || request.resource.data.status in ['TODO', 'IN_PROGRESS', 'DONE', 'SKIPPED']);
+        allow delete: if isOwner(userId);
+      }
+
+      match /questions/{questionId} {
+        allow read: if isOwner(userId);
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /attempts/{attemptId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId);
+      }
+
+      match /stats/{statsId} {
+        allow read: if isOwner(userId);
+      }
+
+      match /jobs/{jobId} {
+        allow read: if isOwner(userId);
       }
     }
   }

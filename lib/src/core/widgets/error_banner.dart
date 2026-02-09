@@ -54,3 +54,20 @@ class ErrorBanner extends StatelessWidget {
     );
   }
 }
+
+class NetworkErrorBanner extends StatelessWidget {
+  final VoidCallback? onRetry;
+
+  const NetworkErrorBanner({
+    super.key,
+    this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ErrorBanner(
+      message: 'No internet connection. Some features may be unavailable.',
+      onRetry: onRetry,
+    );
+  }
+}

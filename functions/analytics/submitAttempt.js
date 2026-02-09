@@ -1,5 +1,7 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const { requireAuth, requireStrings, requireInt, safeError } = require("../middleware/validate");
+const { checkRateLimit, RATE_LIMITS } = require("../middleware/rateLimit");
 const { getTutorResponse } = require("../ai/aiClient");
 const { TUTOR_SYSTEM, tutorUserPrompt } = require("../ai/prompts");
 
@@ -12,24 +14,19 @@ const db = admin.firestore();
 exports.submitAttempt = functions
   .runWith({ timeoutSeconds: 60 })
   .https.onCall(async (data, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "Must be logged in"
-      );
-    }
+    const uid = requireAuth(context);
+    requireStrings(data, [{ field: "questionId", maxLen: 128 }]);
+    const answerIndex = requireInt(data, "answerIndex", 0, 7);
+    const timeSpentSec = requireInt(data, "timeSpentSec", 0, 3600);
+    const confidence = data.confidence != null
+      ? requireInt(data, "confidence", 1, 5)
+      : null;
 
-    const uid = context.auth.uid;
-    const { questionId, answerIndex, timeSpentSec, confidence } = data;
-
-    if (questionId == null || answerIndex == null || timeSpentSec == null) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "questionId, answerIndex, and timeSpentSec are required"
-      );
-    }
+    await checkRateLimit(uid, "submitAttempt", RATE_LIMITS.submitAttempt);
 
     try {
+      const { questionId } = data;
+
       // Fetch question
       const questionDoc = await db
         .doc(`users/${uid}/questions/${questionId}`)
@@ -37,7 +34,7 @@ exports.submitAttempt = functions
       if (!questionDoc.exists) {
         return {
           success: false,
-          error: { code: "NOT_FOUND", message: "Question not found" },
+          error: { code: "NOT_FOUND", message: "Question not found." },
         };
       }
       const question = questionDoc.data();
@@ -52,7 +49,7 @@ exports.submitAttempt = functions
         answeredIndex: answerIndex,
         correct,
         timeSpentSec,
-        confidence: confidence || null,
+        confidence,
         tutorResponseCached: null,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
@@ -89,7 +86,6 @@ exports.submitAttempt = functions
 
         if (result.success) {
           tutorResponse = result.data;
-          // Cache tutor response on attempt
           await attemptRef.update({
             tutorResponseCached: tutorResponse,
           });
@@ -105,10 +101,6 @@ exports.submitAttempt = functions
         },
       };
     } catch (error) {
-      console.error("submitAttempt error:", error);
-      return {
-        success: false,
-        error: { code: "INTERNAL", message: error.message },
-      };
+      return safeError(error, "attempt submission");
     }
   });

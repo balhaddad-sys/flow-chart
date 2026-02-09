@@ -1,5 +1,7 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const { requireAuth, requireStrings, safeError } = require("../middleware/validate");
+const { checkRateLimit, RATE_LIMITS } = require("../middleware/rateLimit");
 
 const db = admin.firestore();
 
@@ -10,22 +12,12 @@ const db = admin.firestore();
 exports.regenSchedule = functions
   .runWith({ timeoutSeconds: 60 })
   .https.onCall(async (data, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "Must be logged in"
-      );
-    }
+    const uid = requireAuth(context);
+    requireStrings(data, [{ field: "courseId", maxLen: 128 }]);
 
-    const uid = context.auth.uid;
+    await checkRateLimit(uid, "regenSchedule", RATE_LIMITS.regenSchedule);
+
     const { courseId, keepCompleted = true } = data;
-
-    if (!courseId) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "courseId is required"
-      );
-    }
 
     try {
       // Delete non-completed tasks
@@ -34,23 +26,28 @@ exports.regenSchedule = functions
         .where("courseId", "==", courseId)
         .get();
 
-      const batch = db.batch();
+      const BATCH_LIMIT = 500;
       let deletedCount = 0;
+      const toDelete = [];
 
       for (const doc of tasksSnap.docs) {
         const task = doc.data();
         if (keepCompleted && task.status === "DONE") continue;
-        batch.delete(doc.ref);
-        deletedCount++;
+        toDelete.push(doc.ref);
       }
 
-      await batch.commit();
+      for (let i = 0; i < toDelete.length; i += BATCH_LIMIT) {
+        const chunk = toDelete.slice(i, i + BATCH_LIMIT);
+        const batch = db.batch();
+        chunk.forEach((ref) => batch.delete(ref));
+        await batch.commit();
+        deletedCount += chunk.length;
+      }
 
       console.log(
         `Deleted ${deletedCount} tasks for course ${courseId}. Ready for re-generation.`
       );
 
-      // The caller should now call generateSchedule to create new tasks
       return {
         success: true,
         data: {
@@ -59,10 +56,6 @@ exports.regenSchedule = functions
         },
       };
     } catch (error) {
-      console.error("regenSchedule error:", error);
-      return {
-        success: false,
-        error: { code: "INTERNAL", message: error.message },
-      };
+      return safeError(error, "schedule regeneration");
     }
   });

@@ -1,38 +1,29 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const { requireAuth, requireStrings, safeError } = require("../middleware/validate");
+const { checkRateLimit, RATE_LIMITS } = require("../middleware/rateLimit");
 
 const db = admin.firestore();
 
 /**
  * Callable: Generate a study schedule for a course.
- * Implements the scheduling algorithm from the spec:
- * Build work units → estimate load → compute capacity → feasibility check → place tasks
+ * Build work units -> estimate load -> compute capacity -> feasibility check -> place tasks
  */
 exports.generateSchedule = functions
   .runWith({ timeoutSeconds: 60 })
   .https.onCall(async (data, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "Must be logged in"
-      );
-    }
+    const uid = requireAuth(context);
+    requireStrings(data, [{ field: "courseId", maxLen: 128 }]);
 
-    const uid = context.auth.uid;
-    const { courseId, availability, revisionPolicy } = data;
-
-    if (!courseId) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "courseId is required"
-      );
-    }
+    await checkRateLimit(uid, "generateSchedule", RATE_LIMITS.generateSchedule);
 
     try {
+      const { courseId, availability, revisionPolicy } = data;
+
       // Fetch course
       const courseDoc = await db.doc(`users/${uid}/courses/${courseId}`).get();
       if (!courseDoc.exists) {
-        return { success: false, error: { code: "NOT_FOUND", message: "Course not found" } };
+        return { success: false, error: { code: "NOT_FOUND", message: "Course not found." } };
       }
       const course = courseDoc.data();
       const examDate = course.examDate?.toDate();
@@ -62,19 +53,23 @@ exports.generateSchedule = functions
 
       // Step A: Build work units
       const tasks = [];
-      const policy = revisionPolicy || "standard";
-      const defaultMinutes = availability?.defaultMinutesPerDay || 120;
+      const validPolicies = new Set(["off", "light", "standard", "aggressive"]);
+      const policy = validPolicies.has(revisionPolicy) ? revisionPolicy : "standard";
+      const defaultMinutes = Math.min(480, Math.max(30, availability?.defaultMinutesPerDay || 120));
 
       for (const section of sections) {
+        const estMinutes = Math.min(240, Math.max(5, section.estMinutes || 15));
+        const difficulty = Math.min(5, Math.max(1, section.difficulty || 3));
+
         // STUDY task
         tasks.push({
           courseId,
           type: "STUDY",
-          title: `Study: ${section.title}`,
+          title: `Study: ${String(section.title).slice(0, 200)}`,
           sectionIds: [section.id],
-          topicTags: section.topicTags || [],
-          estMinutes: section.estMinutes || 15,
-          difficulty: section.difficulty || 3,
+          topicTags: (section.topicTags || []).slice(0, 10),
+          estMinutes,
+          difficulty,
           status: "TODO",
           isPinned: false,
           priority: 0,
@@ -84,11 +79,11 @@ exports.generateSchedule = functions
         tasks.push({
           courseId,
           type: "QUESTIONS",
-          title: `Questions: ${section.title}`,
+          title: `Questions: ${String(section.title).slice(0, 200)}`,
           sectionIds: [section.id],
-          topicTags: section.topicTags || [],
-          estMinutes: Math.max(8, Math.round((section.estMinutes || 15) * 0.35)),
-          difficulty: section.difficulty || 3,
+          topicTags: (section.topicTags || []).slice(0, 10),
+          estMinutes: Math.max(8, Math.round(estMinutes * 0.35)),
+          difficulty,
           status: "TODO",
           isPinned: false,
           priority: 0,
@@ -100,11 +95,11 @@ exports.generateSchedule = functions
           tasks.push({
             courseId,
             type: "REVIEW",
-            title: `Review: ${section.title}`,
+            title: `Review: ${String(section.title).slice(0, 200)}`,
             sectionIds: [section.id],
-            topicTags: section.topicTags || [],
+            topicTags: (section.topicTags || []).slice(0, 10),
             estMinutes: review.minutes,
-            difficulty: section.difficulty || 3,
+            difficulty,
             status: "TODO",
             isPinned: false,
             priority: 0,
@@ -119,18 +114,22 @@ exports.generateSchedule = functions
       // Step C: Compute daily capacity
       const today = new Date();
       const endDate = examDate || new Date(today.getTime() + 30 * 86400000);
-      const excludedDates = new Set(availability?.excludedDates || []);
-      const catchUpBuffer = (availability?.catchUpBufferPercent || 15) / 100;
+      const excludedDates = new Set(
+        (availability?.excludedDates || []).slice(0, 365)
+      );
+      const catchUpBuffer = Math.min(50, Math.max(0, availability?.catchUpBufferPercent || 15)) / 100;
 
       const days = [];
       let cursor = new Date(today);
-      while (cursor <= endDate) {
+      const maxDays = 365;
+      let dayCount = 0;
+      while (cursor <= endDate && dayCount < maxDays) {
         const iso = cursor.toISOString().split("T")[0];
         const dayName = cursor.toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
 
         if (!excludedDates.has(iso)) {
           const override = availability?.perDayOverrides?.[dayName];
-          const capacity = override != null ? override : defaultMinutes;
+          const capacity = override != null ? Math.min(480, Math.max(0, override)) : defaultMinutes;
           days.push({
             date: new Date(cursor),
             usableCapacity: Math.floor(capacity * (1 - catchUpBuffer)),
@@ -139,6 +138,7 @@ exports.generateSchedule = functions
         }
 
         cursor = new Date(cursor.getTime() + 86400000);
+        dayCount++;
       }
 
       // Step D: Feasibility check
@@ -160,18 +160,15 @@ exports.generateSchedule = functions
       }
 
       // Step E: Place tasks (balanced fill)
-      // Sort: difficulty desc, then by order
       const studyTasks = tasks.filter((t) => t.type === "STUDY" || t.type === "QUESTIONS");
       const reviewTasks = tasks.filter((t) => t.type === "REVIEW");
 
-      // Sort study tasks by difficulty desc
       studyTasks.sort((a, b) => b.difficulty - a.difficulty);
 
       let dayIndex = 0;
       let orderIndex = 0;
       const placedTasks = [];
 
-      // Place study + question tasks
       for (const task of studyTasks) {
         while (dayIndex < days.length && days[dayIndex].remaining < task.estMinutes) {
           dayIndex++;
@@ -190,15 +187,11 @@ exports.generateSchedule = functions
 
       // Place review tasks at offset from their study task's day
       for (const task of reviewTasks) {
-        // Find the placed study task for this section
         const studyTask = placedTasks.find(
-          (t) =>
-            t.type === "STUDY" &&
-            t.sectionIds[0] === task.sectionIds[0]
+          (t) => t.type === "STUDY" && t.sectionIds[0] === task.sectionIds[0]
         );
         if (!studyTask) continue;
 
-        // Find which day index the study task was placed on
         const studyDate = studyTask.dueDate.toDate();
         const studyDayIdx = days.findIndex(
           (d) => d.date.getTime() === studyDate.getTime()
@@ -210,25 +203,26 @@ exports.generateSchedule = functions
           days.length - 1
         );
 
-        // Clean up internal field
         const { _dayOffset, ...cleanTask } = task;
         placedTasks.push({
           ...cleanTask,
-          dueDate: admin.firestore.Timestamp.fromDate(
-            days[targetDayIndex].date
-          ),
+          dueDate: admin.firestore.Timestamp.fromDate(days[targetDayIndex].date),
           orderIndex: 0,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
       }
 
-      // Batch write tasks
-      const batch = db.batch();
-      for (const task of placedTasks) {
-        const ref = db.collection(`users/${uid}/tasks`).doc();
-        batch.set(ref, task);
+      // Batch write tasks (respecting 500-doc Firestore limit)
+      const BATCH_LIMIT = 500;
+      for (let i = 0; i < placedTasks.length; i += BATCH_LIMIT) {
+        const chunk = placedTasks.slice(i, i + BATCH_LIMIT);
+        const batch = db.batch();
+        for (const task of chunk) {
+          const ref = db.collection(`users/${uid}/tasks`).doc();
+          batch.set(ref, task);
+        }
+        await batch.commit();
       }
-      await batch.commit();
 
       return {
         success: true,
@@ -239,11 +233,7 @@ exports.generateSchedule = functions
         },
       };
     } catch (error) {
-      console.error("generateSchedule error:", error);
-      return {
-        success: false,
-        error: { code: "INTERNAL", message: error.message },
-      };
+      return safeError(error, "schedule generation");
     }
   });
 

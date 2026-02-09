@@ -14,6 +14,7 @@ import 'features/library/screens/library_screen.dart';
 import 'features/onboarding/screens/onboarding_flow.dart';
 import 'features/planner/screens/planner_screen.dart';
 import 'features/quiz/screens/quiz_screen.dart';
+import 'features/settings/screens/settings_screen.dart';
 import 'features/study_session/screens/study_session_screen.dart';
 
 /// Listenable that notifies GoRouter when auth state changes,
@@ -29,6 +30,9 @@ class _AuthNotifier extends ChangeNotifier {
 final _authNotifierProvider = Provider<_AuthNotifier>((ref) {
   return _AuthNotifier(ref);
 });
+
+/// Theme mode state provider
+final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
 
 final _routerProvider = Provider<GoRouter>((ref) {
   final authNotifier = ref.watch(_authNotifierProvider);
@@ -88,6 +92,10 @@ final _routerProvider = Provider<GoRouter>((ref) {
         path: '/dashboard',
         builder: (context, state) => const WeaknessDashboard(),
       ),
+      GoRoute(
+        path: '/settings',
+        builder: (context, state) => const SettingsScreen(),
+      ),
     ],
   );
 });
@@ -98,10 +106,12 @@ class MedQApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(_routerProvider);
+    final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(
       title: 'MedQ',
       debugShowCheckedModeBanner: false,
+      themeMode: themeMode,
       theme: ThemeData(
         useMaterial3: true,
         colorSchemeSeed: AppColors.primary,
@@ -129,6 +139,31 @@ class MedQApp extends ConsumerWidget {
           elevation: 0,
           backgroundColor: AppColors.surface,
           foregroundColor: AppColors.textPrimary,
+        ),
+      ),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorSchemeSeed: AppColors.primary,
+        brightness: Brightness.dark,
+        textTheme: AppTypography.textTheme,
+        cardTheme: CardThemeData(
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 14,
+          ),
+        ),
+        appBarTheme: const AppBarTheme(
+          centerTitle: false,
+          elevation: 0,
         ),
       ),
       routerConfig: router,
