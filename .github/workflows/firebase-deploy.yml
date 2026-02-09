@@ -38,5 +38,10 @@ jobs:
       - name: Install functions dependencies
         run: cd functions && npm install
 
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
       - name: Deploy to Firebase
-        run: firebase deploy --token ${{ secrets.FIREBASE_TOKEN }} --project medq-a6cc6
+        run: firebase deploy --project medq-a6cc6
