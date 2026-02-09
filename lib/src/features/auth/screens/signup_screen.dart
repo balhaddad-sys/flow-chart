@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/error_banner.dart';
+import '../../../core/widgets/google_sign_in_button.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../providers/auth_state_provider.dart';
 
@@ -36,6 +37,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
           _emailController.text.trim(),
           _passwordController.text,
         );
+  }
+
+  void _handleGoogleSignIn() {
+    ref.read(authScreenProvider.notifier).signInWithGoogle();
   }
 
   @override
@@ -113,6 +118,26 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   label: 'Create Account',
                   onPressed: _handleSignUp,
                   isLoading: authState.state == AuthScreenState.loading,
+                ),
+                AppSpacing.gapMd,
+                Row(
+                  children: [
+                    const Expanded(child: Divider()),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                      child: Text(
+                        'or',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                    const Expanded(child: Divider()),
+                  ],
+                ),
+                AppSpacing.gapMd,
+                GoogleSignInButton(
+                  onPressed: _handleGoogleSignIn,
+                  isLoading: authState.state == AuthScreenState.loading,
+                  label: 'Sign up with Google',
                 ),
               ],
             ),

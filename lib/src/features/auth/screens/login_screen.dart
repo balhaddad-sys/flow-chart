@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/error_banner.dart';
+import '../../../core/widgets/google_sign_in_button.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../providers/auth_state_provider.dart';
 
@@ -119,12 +120,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ],
                 ),
                 AppSpacing.gapMd,
-                OutlinedButton.icon(
-                  onPressed: authState.state == AuthScreenState.loading
-                      ? null
-                      : _handleGoogleSignIn,
-                  icon: const Icon(Icons.g_mobiledata),
-                  label: const Text('Sign in with Google'),
+                GoogleSignInButton(
+                  onPressed: _handleGoogleSignIn,
+                  isLoading: authState.state == AuthScreenState.loading,
                 ),
                 AppSpacing.gapMd,
                 TextButton(
