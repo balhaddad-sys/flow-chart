@@ -5,9 +5,7 @@
 
 const mammoth = require("mammoth");
 const fs = require("fs");
-
-const WORDS_PER_SECTION = 1200;
-const MIN_CHARS_PER_SECTION = 100;
+const { WORDS_PER_SECTION, MIN_CHARS_PER_SECTION } = require("../../lib/constants");
 
 /**
  * Extract text from a DOCX file and split into sections.

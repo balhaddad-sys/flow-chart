@@ -20,6 +20,7 @@ const fs = require("fs");
 
 const { db } = require("../lib/firestore");
 const { SUPPORTED_MIME_TYPES } = require("../lib/constants");
+const log = require("../lib/logger");
 const { extractPdfSections } = require("./extractors/pdfExtractor");
 const { extractPptxSections } = require("./extractors/pptxExtractor");
 const { extractDocxSections } = require("./extractors/docxExtractor");
@@ -33,14 +34,14 @@ exports.processUploadedFile = functions
 
     // ── Guard: only handle supported document types ──────────────────────
     if (!SUPPORTED_MIME_TYPES.some((t) => contentType.startsWith(t))) {
-      console.log(`Unsupported type: ${contentType}. Skipping.`);
+      log.debug("Unsupported file type, skipping", { contentType, filePath });
       return null;
     }
 
     // ── Parse storage path: users/{uid}/uploads/{fileId}.ext ─────────────
     const pathParts = filePath.split("/");
     if (pathParts.length < 4 || pathParts[0] !== "users" || pathParts[2] !== "uploads") {
-      console.log("Invalid path structure. Skipping.");
+      log.warn("Invalid upload path structure, skipping", { filePath });
       return null;
     }
 
@@ -128,9 +129,9 @@ exports.processUploadedFile = functions
         { merge: true }
       );
 
-      console.log(`Processed ${fileId}: ${sections.length} sections created.`);
+      log.info("File processed", { uid, fileId, sectionCount: sections.length });
     } catch (error) {
-      console.error(`Error processing ${fileId}:`, error);
+      log.error("File processing failed", { uid, fileId, error: error.message });
       await fileRef.set(
         {
           status: "FAILED",

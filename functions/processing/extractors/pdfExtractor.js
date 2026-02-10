@@ -5,14 +5,13 @@
 
 const pdfParse = require("pdf-parse");
 const fs = require("fs");
-
-const PAGES_PER_SECTION = 10;
-const MIN_CHARS_PER_SECTION = 100;
+const { PAGES_PER_SECTION, MIN_CHARS_PER_SECTION } = require("../../lib/constants");
 
 /**
  * Extract text from a PDF file and split into sections.
- * @param {string} filePath - Path to the PDF file on disk
- * @returns {Array<{text: string, title: string, startPage: number, endPage: number, estMinutes: number}>}
+ *
+ * @param {string} filePath - Path to the PDF file on disk.
+ * @returns {Promise<Array<{ text: string, title: string, startPage: number, endPage: number, estMinutes: number }>>}
  */
 async function extractPdfSections(filePath) {
   const buffer = fs.readFileSync(filePath);

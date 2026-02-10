@@ -3,13 +3,18 @@
  * @description Callable function that clears non-completed tasks for a course
  * so that `generateSchedule` can be called again with a clean slate.
  *
- * Completed (`DONE`) tasks are preserved by default.
+ * @param {Object} data
+ * @param {string} data.courseId
+ * @param {boolean} [data.keepCompleted=true] - Preserve tasks with status DONE.
+ * @returns {{ success: true, data: { deletedCount: number, message: string } }}
  */
 
 const functions = require("firebase-functions");
-const { requireAuth, requireStrings, safeError } = require("../middleware/validate");
+const { requireAuth, requireStrings } = require("../middleware/validate");
 const { checkRateLimit, RATE_LIMITS } = require("../middleware/rateLimit");
 const { db, batchDelete } = require("../lib/firestore");
+const { ok, safeError } = require("../lib/errors");
+const log = require("../lib/logger");
 
 exports.regenSchedule = functions
   .runWith({ timeoutSeconds: 60 })
@@ -33,12 +38,9 @@ exports.regenSchedule = functions
 
       const deletedCount = await batchDelete(toDelete);
 
-      console.log(`Deleted ${deletedCount} tasks for course ${courseId}. Ready for re-generation.`);
+      log.info("Schedule regeneration ready", { uid, courseId, deletedCount });
 
-      return {
-        success: true,
-        data: { deletedCount, message: "Old tasks cleared. Call generateSchedule to create new plan." },
-      };
+      return ok({ deletedCount, message: "Old tasks cleared. Call generateSchedule to create new plan." });
     } catch (error) {
       return safeError(error, "schedule regeneration");
     }

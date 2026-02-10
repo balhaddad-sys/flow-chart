@@ -2,17 +2,20 @@
  * @module admin/deleteUserData
  * @description Callable function for GDPR-style full purge of a user's data.
  *
- * Deletes every Firestore sub-collection under the user document, all Cloud
- * Storage files under the user's prefix, rate-limit tracking entries, and
- * the user document itself.  Designed to be idempotent — partial failures
- * (e.g. Storage network errors) are logged but do not abort the operation.
+ * Deletes every Firestore sub-collection, all Cloud Storage files, rate-limit
+ * tracking entries, and the user document itself.
+ *
+ * @param {Object} data - No required fields.
+ * @returns {{ success: true, data: { message: string } }}
  */
 
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-const { requireAuth, safeError } = require("../middleware/validate");
+const { requireAuth } = require("../middleware/validate");
 const { checkRateLimit, RATE_LIMITS } = require("../middleware/rateLimit");
 const { db, batchDelete } = require("../lib/firestore");
+const { ok, safeError } = require("../lib/errors");
+const log = require("../lib/logger");
 const { USER_SUBCOLLECTIONS } = require("../lib/constants");
 
 exports.deleteUserData = functions
@@ -28,7 +31,7 @@ exports.deleteUserData = functions
       try {
         await bucket.deleteFiles({ prefix: `users/${uid}/` });
       } catch (storageError) {
-        console.warn(`Storage deletion warning for ${uid}:`, storageError.message);
+        log.warn("Storage deletion partial failure", { uid, error: storageError.message });
       }
 
       // ── Delete Firestore sub-collections ────────────────────────────────
@@ -53,12 +56,12 @@ exports.deleteUserData = functions
           await batchDelete(rateLimitSnap.docs.map((doc) => doc.ref));
         }
       } catch (cleanupError) {
-        console.warn("Rate limit cleanup warning:", cleanupError.message);
+        log.warn("Rate limit cleanup partial failure", { uid, error: cleanupError.message });
       }
 
-      console.log(`All data for user ${uid} has been deleted.`);
+      log.info("User data deleted", { uid });
 
-      return { success: true, data: { message: "All user data has been permanently deleted." } };
+      return ok({ message: "All user data has been permanently deleted." });
     } catch (error) {
       return safeError(error, "user data deletion");
     }
