@@ -21,7 +21,7 @@ class CourseSetupStep extends ConsumerWidget {
           Container(
             width: 56,
             height: 56,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: AppColors.primarySurface,
               borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
             ),

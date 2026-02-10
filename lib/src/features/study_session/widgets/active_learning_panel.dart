@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
-import '../../../models/section_model.dart';
 import '../providers/session_provider.dart';
 
 class ActiveLearningPanel extends ConsumerWidget {
@@ -82,7 +81,7 @@ class ActiveLearningPanel extends ConsumerWidget {
                       .map((c) => Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 5),
-                            decoration: const BoxDecoration(
+                            decoration: BoxDecoration(
                               color: AppColors.primarySurface,
                               borderRadius: BorderRadius.circular(
                                   AppSpacing.radiusFull),
@@ -137,7 +136,7 @@ class ActiveLearningPanel extends ConsumerWidget {
                       .map((term) => Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 5),
-                            decoration: const BoxDecoration(
+                            decoration: BoxDecoration(
                               color: AppColors.surfaceVariant,
                               borderRadius: BorderRadius.circular(
                                   AppSpacing.radiusFull),
