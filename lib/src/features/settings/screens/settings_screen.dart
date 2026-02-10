@@ -91,32 +91,29 @@ class SettingsScreen extends ConsumerWidget {
               border: Border.all(color: AppColors.border.withValues(alpha: 0.7)),
               boxShadow: AppSpacing.shadowSm,
             ),
-            child: Column(
-              children: [
-                RadioListTile<ThemeMode>(
-                  title: const Text('System default'),
-                  value: ThemeMode.system,
-                  groupValue: themeMode,
-                  onChanged: (value) =>
-                      ref.read(themeModeProvider.notifier).state = value!,
-                ),
-                const Divider(height: 1, indent: 16, endIndent: 16),
-                RadioListTile<ThemeMode>(
-                  title: const Text('Light'),
-                  value: ThemeMode.light,
-                  groupValue: themeMode,
-                  onChanged: (value) =>
-                      ref.read(themeModeProvider.notifier).state = value!,
-                ),
-                const Divider(height: 1, indent: 16, endIndent: 16),
-                RadioListTile<ThemeMode>(
-                  title: const Text('Dark'),
-                  value: ThemeMode.dark,
-                  groupValue: themeMode,
-                  onChanged: (value) =>
-                      ref.read(themeModeProvider.notifier).state = value!,
-                ),
-              ],
+            child: RadioGroup<ThemeMode>(
+              groupValue: themeMode,
+              onChanged: (ThemeMode? value) {
+                ref.read(themeModeProvider.notifier).state = value!;
+              },
+              child: Column(
+                children: [
+                  RadioListTile<ThemeMode>(
+                    title: const Text('System default'),
+                    value: ThemeMode.system,
+                  ),
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  RadioListTile<ThemeMode>(
+                    title: const Text('Light'),
+                    value: ThemeMode.light,
+                  ),
+                  const Divider(height: 1, indent: 16, endIndent: 16),
+                  RadioListTile<ThemeMode>(
+                    title: const Text('Dark'),
+                    value: ThemeMode.dark,
+                  ),
+                ],
+              ),
             ),
           ),
 

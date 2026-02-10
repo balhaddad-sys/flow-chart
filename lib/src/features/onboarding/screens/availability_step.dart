@@ -117,28 +117,30 @@ class AvailabilityStep extends ConsumerWidget {
                   Border.all(color: AppColors.border.withValues(alpha: 0.7)),
               boxShadow: AppSpacing.shadowSm,
             ),
-            child: Column(
-              children:
-                  ['off', 'light', 'standard', 'aggressive'].map((policy) {
-                final isLast = policy == 'aggressive';
-                return Column(
-                  children: [
-                    RadioListTile<String>(
-                      title: Text(
-                          policy[0].toUpperCase() + policy.substring(1)),
-                      subtitle: Text(_policyDescription(policy)),
-                      value: policy,
-                      groupValue: data.revisionPolicy,
-                      onChanged: (v) => ref
-                          .read(onboardingProvider.notifier)
-                          .setRevisionPolicy(v!),
-                      activeColor: AppColors.primary,
-                    ),
-                    if (!isLast)
-                      const Divider(height: 1, indent: 16, endIndent: 16),
-                  ],
+            child: RadioGroup<String>(
+              groupValue: data.revisionPolicy,
+              onChanged: (String? v) {
+                ref.read(onboardingProvider.notifier).setRevisionPolicy(v!);
+              },
+              child: Column(
+                children:
+                    ['off', 'light', 'standard', 'aggressive'].map((policy) {
+                  final isLast = policy == 'aggressive';
+                  return Column(
+                    children: [
+                      RadioListTile<String>(
+                        title: Text(
+                            policy[0].toUpperCase() + policy.substring(1)),
+                        subtitle: Text(_policyDescription(policy)),
+                        value: policy,
+                        activeColor: AppColors.primary,
+                      ),
+                      if (!isLast)
+                        const Divider(height: 1, indent: 16, endIndent: 16),
+                    ],
                 );
               }).toList(),
+              ),
             ),
           ),
 
