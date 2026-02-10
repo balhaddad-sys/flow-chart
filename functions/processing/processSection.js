@@ -3,14 +3,15 @@
  * @description Firestore trigger that generates an AI blueprint for newly
  * created section documents whose `aiStatus` is `"PENDING"`.
  *
- * The blueprint enriches each section with learning objectives, key concepts,
- * high-yield points, common traps, terms to define, difficulty, estimated
- * study time, and topic tags — all produced by Claude Haiku.
+ * Uses the {@link module:lib/serialize} module to transform the AI response
+ * into the Firestore schema.
  */
 
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { db } = require("../lib/firestore");
+const log = require("../lib/logger");
+const { normaliseBlueprint } = require("../lib/serialize");
 const { generateBlueprint } = require("../ai/aiClient");
 const { BLUEPRINT_SYSTEM, blueprintUserPrompt } = require("../ai/prompts");
 
@@ -45,31 +46,26 @@ exports.processSection = functions
       );
 
       if (!result.success) {
-        console.error(`Blueprint generation failed for section ${sectionId}:`, result.error);
+        log.error("Blueprint generation failed", { uid, sectionId, error: result.error });
         await snap.ref.update({ aiStatus: "FAILED" });
         return null;
       }
 
-      const blueprint = result.data;
+      // Normalise via serialize module
+      const normalised = normaliseBlueprint(result.data);
 
       await snap.ref.update({
         aiStatus: "ANALYZED",
-        title: blueprint.title || sectionData.title,
-        difficulty: blueprint.difficulty || sectionData.difficulty,
-        estMinutes: blueprint.estimated_minutes || sectionData.estMinutes,
-        topicTags: blueprint.topic_tags || [],
-        blueprint: {
-          learningObjectives: blueprint.learning_objectives || [],
-          keyConcepts: blueprint.key_concepts || [],
-          highYieldPoints: blueprint.high_yield_points || [],
-          commonTraps: blueprint.common_traps || [],
-          termsToDefine: blueprint.terms_to_define || [],
-        },
+        title: normalised.title || sectionData.title,
+        difficulty: normalised.difficulty || sectionData.difficulty,
+        estMinutes: normalised.estMinutes || sectionData.estMinutes,
+        topicTags: normalised.topicTags,
+        blueprint: normalised.blueprint,
       });
 
-      console.log(`Section ${sectionId} blueprint generated successfully.`);
+      log.info("Section blueprint generated", { uid, sectionId, title: normalised.title });
     } catch (error) {
-      console.error(`Error processing section ${sectionId}:`, error);
+      log.error("Section processing failed", { uid, sectionId, error: error.message });
       await snap.ref.update({ aiStatus: "FAILED" });
     }
   });

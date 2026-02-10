@@ -5,9 +5,7 @@
 
 const JSZip = require("jszip");
 const fs = require("fs");
-
-const SLIDES_PER_SECTION = 20;
-const MIN_CHARS_PER_SECTION = 100;
+const { SLIDES_PER_SECTION, MIN_CHARS_PER_SECTION } = require("../../lib/constants");
 
 /**
  * Extract text from a PPTX file and split into sections.

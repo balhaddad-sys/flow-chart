@@ -28,6 +28,20 @@ const SUPPORTED_MIME_TYPES = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
 
+// ── Document extractors ─────────────────────────────────────────────────────
+
+/** Number of PDF pages per extracted section. */
+const PAGES_PER_SECTION = 10;
+
+/** Number of PPTX slides per extracted section. */
+const SLIDES_PER_SECTION = 20;
+
+/** Number of DOCX words per extracted section. */
+const WORDS_PER_SECTION = 1200;
+
+/** Minimum characters for a section to be kept (filters empty chunks). */
+const MIN_CHARS_PER_SECTION = 100;
+
 // ── Scheduling ───────────────────────────────────────────────────────────────
 
 /**
@@ -123,6 +137,10 @@ module.exports = {
   FIRESTORE_GET_ALL_LIMIT,
   MS_PER_DAY,
   SUPPORTED_MIME_TYPES,
+  PAGES_PER_SECTION,
+  SLIDES_PER_SECTION,
+  WORDS_PER_SECTION,
+  MIN_CHARS_PER_SECTION,
   REVISION_POLICIES,
   VALID_REVISION_POLICIES,
   DEFAULT_MINUTES_PER_DAY,
