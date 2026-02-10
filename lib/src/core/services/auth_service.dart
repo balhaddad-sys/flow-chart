@@ -43,20 +43,26 @@ class AuthService {
     try {
       return await _auth.signInWithPopup(provider);
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'popup-blocked') {
-        // Fall back to redirect flow when popups are blocked
-        await _auth.signInWithRedirect(provider);
-        final result = await _auth.getRedirectResult();
-        if (result.user == null) {
-          throw FirebaseAuthException(
-            code: 'redirect-failed',
-            message: 'Google Sign-In redirect did not complete.',
-          );
-        }
-        return result;
+      if (e.code == 'popup-blocked' || e.code == 'popup-closed-by-user') {
+        rethrow;
       }
-      rethrow;
+      // Fall back to redirect flow for COOP and other popup failures
+      return _signInWithGoogleRedirect(provider);
     }
+  }
+
+  Future<UserCredential> _signInWithGoogleRedirect(
+    GoogleAuthProvider provider,
+  ) async {
+    await _auth.signInWithRedirect(provider);
+    final result = await _auth.getRedirectResult();
+    if (result.user == null) {
+      throw FirebaseAuthException(
+        code: 'redirect-failed',
+        message: 'Google Sign-In redirect did not complete.',
+      );
+    }
+    return result;
   }
 
   Future<UserCredential> _signInWithGoogleNative() async {
