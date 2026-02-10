@@ -58,7 +58,7 @@ class ActiveLearningPanel extends ConsumerWidget {
 
             if (blueprint != null) ...[
               if (blueprint.learningObjectives.isNotEmpty) ...[
-                _SectionHeader(
+                const _SectionHeader(
                   icon: Icons.flag_outlined,
                   title: 'Learning Objectives',
                 ),
@@ -70,7 +70,7 @@ class ActiveLearningPanel extends ConsumerWidget {
               ],
 
               if (blueprint.keyConcepts.isNotEmpty) ...[
-                _SectionHeader(
+                const _SectionHeader(
                   icon: Icons.lightbulb_outline_rounded,
                   title: 'Key Concepts',
                 ),
@@ -82,7 +82,7 @@ class ActiveLearningPanel extends ConsumerWidget {
                       .map((c) => Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               color: AppColors.primarySurface,
                               borderRadius: BorderRadius.circular(
                                   AppSpacing.radiusFull),
@@ -99,7 +99,7 @@ class ActiveLearningPanel extends ConsumerWidget {
               ],
 
               if (blueprint.highYieldPoints.isNotEmpty) ...[
-                _SectionHeader(
+                const _SectionHeader(
                   icon: Icons.star_outline_rounded,
                   title: 'High-Yield Points',
                   color: AppColors.warning,
@@ -112,7 +112,7 @@ class ActiveLearningPanel extends ConsumerWidget {
               ],
 
               if (blueprint.commonTraps.isNotEmpty) ...[
-                _SectionHeader(
+                const _SectionHeader(
                   icon: Icons.warning_amber_rounded,
                   title: 'Common Traps',
                   color: AppColors.error,
@@ -125,7 +125,7 @@ class ActiveLearningPanel extends ConsumerWidget {
               ],
 
               if (blueprint.termsToDefine.isNotEmpty) ...[
-                _SectionHeader(
+                const _SectionHeader(
                   icon: Icons.menu_book_outlined,
                   title: 'Key Terms',
                 ),
@@ -137,7 +137,7 @@ class ActiveLearningPanel extends ConsumerWidget {
                       .map((term) => Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               color: AppColors.surfaceVariant,
                               borderRadius: BorderRadius.circular(
                                   AppSpacing.radiusFull),
@@ -320,10 +320,10 @@ class _HighlightItem extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.warningSurface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-        border: const Border(
+        border: Border(
           left: BorderSide(color: AppColors.warning, width: 3),
         ),
       ),
@@ -346,10 +346,10 @@ class _TrapItem extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         color: AppColors.errorSurface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-        border: const Border(
+        border: Border(
           left: BorderSide(color: AppColors.error, width: 3),
         ),
       ),

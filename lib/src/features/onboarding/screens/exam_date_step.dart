@@ -21,7 +21,7 @@ class ExamDateStep extends ConsumerWidget {
           Container(
             width: 56,
             height: 56,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppColors.secondarySurface,
               borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
             ),

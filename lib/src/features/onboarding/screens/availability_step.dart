@@ -21,7 +21,7 @@ class AvailabilityStep extends ConsumerWidget {
           Container(
             width: 56,
             height: 56,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppColors.accentSurface,
               borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
             ),
@@ -43,7 +43,7 @@ class AvailabilityStep extends ConsumerWidget {
           AppSpacing.gapXl,
 
           // Daily study time
-          _SectionLabel(label: 'Daily study time'),
+          const _SectionLabel(label: 'Daily study time'),
           AppSpacing.gapSm,
           Container(
             padding: AppSpacing.cardPaddingLarge,
@@ -107,7 +107,7 @@ class AvailabilityStep extends ConsumerWidget {
           AppSpacing.gapLg,
 
           // Revision intensity
-          _SectionLabel(label: 'Revision intensity'),
+          const _SectionLabel(label: 'Revision intensity'),
           AppSpacing.gapSm,
           Container(
             decoration: BoxDecoration(
@@ -145,7 +145,7 @@ class AvailabilityStep extends ConsumerWidget {
           AppSpacing.gapLg,
 
           // Session style
-          _SectionLabel(label: 'Session style'),
+          const _SectionLabel(label: 'Session style'),
           AppSpacing.gapSm,
           Wrap(
             spacing: AppSpacing.sm,

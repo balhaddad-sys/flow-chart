@@ -41,7 +41,7 @@ class QuestionCard extends StatelessWidget {
                     .map((tag) => Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             color: AppColors.primarySurface,
                             borderRadius:
                                 BorderRadius.circular(AppSpacing.radiusFull),
