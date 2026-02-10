@@ -51,17 +51,21 @@ class AvailabilityStep extends ConsumerWidget {
             style: Theme.of(context).textTheme.titleMedium,
           ),
           AppSpacing.gapSm,
-          ...['off', 'light', 'standard', 'aggressive'].map((policy) {
-            return RadioListTile<String>(
-              title: Text(policy[0].toUpperCase() + policy.substring(1)),
-              subtitle: Text(_policyDescription(policy)),
-              value: policy,
-              groupValue: data.revisionPolicy,
-              onChanged: (v) => ref
-                  .read(onboardingProvider.notifier)
-                  .setRevisionPolicy(v!),
-            );
-          }),
+          RadioGroup<String>(
+            groupValue: data.revisionPolicy,
+            onChanged: (v) => ref
+                .read(onboardingProvider.notifier)
+                .setRevisionPolicy(v!),
+            child: Column(
+              children: ['off', 'light', 'standard', 'aggressive'].map((policy) {
+                return RadioListTile<String>(
+                  title: Text(policy[0].toUpperCase() + policy.substring(1)),
+                  subtitle: Text(_policyDescription(policy)),
+                  value: policy,
+                );
+              }).toList(),
+            ),
+          ),
           AppSpacing.gapLg,
           Text(
             'Session style',
