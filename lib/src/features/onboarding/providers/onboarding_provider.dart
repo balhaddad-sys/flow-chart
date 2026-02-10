@@ -205,9 +205,10 @@ class OnboardingNotifier extends StateNotifier<OnboardingData> {
           },
           revisionPolicy: state.revisionPolicy,
         );
-      } catch (_) {
+      } catch (scheduleError) {
         // Schedule generation may fail if sections aren't processed yet.
         // The user can regenerate from the planner screen.
+        ErrorHandler.logError(scheduleError);
       }
 
       state = state.copyWith(

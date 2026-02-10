@@ -136,7 +136,7 @@ exports.processUploadedFile = functions
       await fileRef.set(
         {
           status: "FAILED",
-          errorMessage: error.message,
+          errorMessage: "Document processing failed. Please re-upload the file.",
         },
         { merge: true }
       );

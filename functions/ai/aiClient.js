@@ -15,6 +15,10 @@ const MAX_TOKENS = {
   documentExtract: 1200,
 };
 
+if (!process.env.ANTHROPIC_API_KEY) {
+  console.error("ANTHROPIC_API_KEY environment variable is not set. AI features will fail.");
+}
+
 const client = new Anthropic(); // Uses ANTHROPIC_API_KEY env variable
 
 /**

@@ -1,6 +1,6 @@
 const functions = require("firebase-functions");
 const pLimit = require("p-limit");
-const { callClaudeVision, MAX_TOKENS } = require("../ai/aiClient");
+const { callClaudeVision, MAX_TOKENS, MODELS } = require("../ai/aiClient");
 const {
   DOCUMENT_EXTRACT_SYSTEM,
   documentExtractUserPrompt,
@@ -234,7 +234,7 @@ exports.processDocumentBatch = functions
         pages: pagesSorted,
         failures,
         meta: {
-          model: "claude-haiku-4-5-20251001",
+          model: MODELS.LIGHT,
           totalMs,
           pagesTotal: cleanedImages.length,
           pagesSucceeded: successes.length,

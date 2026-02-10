@@ -47,7 +47,7 @@ class LocalCacheService {
   }) async {
     final prefs = await _preferences;
     final mutations = _readMutations(prefs);
-    final nextId = _nextMutationId(prefs);
+    final nextId = await _nextMutationId(prefs);
     mutations.add({
       'id': nextId,
       'collection': collection,
@@ -102,10 +102,10 @@ class LocalCacheService {
         .toList();
   }
 
-  int _nextMutationId(SharedPreferences prefs) {
+  Future<int> _nextMutationId(SharedPreferences prefs) async {
     final current = prefs.getInt(_mutationIdKey) ?? 0;
     final next = current + 1;
-    prefs.setInt(_mutationIdKey, next);
+    await prefs.setInt(_mutationIdKey, next);
     return next;
   }
 }
