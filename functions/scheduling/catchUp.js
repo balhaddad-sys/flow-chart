@@ -1,14 +1,20 @@
+/**
+ * @module scheduling/catchUp
+ * @description Callable function that redistributes overdue TODO tasks evenly
+ * across the next several days.
+ *
+ * Overdue tasks (dueDate < today, status = TODO) are spread over a fixed
+ * window defined by `CATCH_UP_SPAN_DAYS` and given elevated priority so they
+ * appear at the top of the student's daily plan.
+ */
+
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { requireAuth, requireStrings, safeError } = require("../middleware/validate");
 const { checkRateLimit, RATE_LIMITS } = require("../middleware/rateLimit");
+const { db, batchUpdate } = require("../lib/firestore");
+const { MS_PER_DAY, CATCH_UP_SPAN_DAYS } = require("../lib/constants");
 
-const db = admin.firestore();
-
-/**
- * Callable: Catch-up logic for missed tasks.
- * Collects overdue TODO tasks and redistributes into future buffer slots.
- */
 exports.catchUp = functions
   .runWith({ timeoutSeconds: 60 })
   .https.onCall(async (data, context) => {
@@ -22,7 +28,7 @@ exports.catchUp = functions
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-      // Find overdue tasks (dueDate < today, status = TODO)
+      // Find overdue TODO tasks
       const overdueSnap = await db
         .collection(`users/${uid}/tasks`)
         .where("courseId", "==", courseId)
@@ -31,39 +37,32 @@ exports.catchUp = functions
         .get();
 
       if (overdueSnap.empty) {
-        return {
-          success: true,
-          data: { redistributedCount: 0, message: "No overdue tasks." },
-        };
+        return { success: true, data: { redistributedCount: 0, message: "No overdue tasks." } };
       }
 
-      const BATCH_LIMIT = 500;
-      const overdueTasks = overdueSnap.docs;
-      const redistSpan = 5;
+      const overdueDocs = overdueSnap.docs;
 
-      for (let i = 0; i < overdueTasks.length; i += BATCH_LIMIT) {
-        const chunk = overdueTasks.slice(i, i + BATCH_LIMIT);
-        const batch = db.batch();
+      // Distribute evenly across the catch-up window
+      const updates = overdueDocs.map((doc, idx) => {
+        const dayOffset = Math.floor(idx / Math.ceil(overdueDocs.length / CATCH_UP_SPAN_DAYS)) + 1;
+        const newDate = new Date(today.getTime() + dayOffset * MS_PER_DAY);
 
-        chunk.forEach((doc, idx) => {
-          const globalIdx = i + idx;
-          const dayOffset = Math.floor(globalIdx / Math.ceil(overdueTasks.length / redistSpan)) + 1;
-          const newDate = new Date(today.getTime() + dayOffset * 86400000);
-
-          batch.update(doc.ref, {
+        return {
+          ref: doc.ref,
+          data: {
             dueDate: admin.firestore.Timestamp.fromDate(newDate),
             priority: 1,
-          });
-        });
+          },
+        };
+      });
 
-        await batch.commit();
-      }
+      await batchUpdate(updates);
 
       return {
         success: true,
         data: {
-          redistributedCount: overdueTasks.length,
-          message: `Redistributed ${overdueTasks.length} overdue tasks across next ${redistSpan} days.`,
+          redistributedCount: overdueDocs.length,
+          message: `Redistributed ${overdueDocs.length} overdue tasks across next ${CATCH_UP_SPAN_DAYS} days.`,
         },
       };
     } catch (error) {

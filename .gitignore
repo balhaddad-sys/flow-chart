@@ -16,7 +16,6 @@ ui-debug.log
 
 # Cloud Functions
 functions/node_modules/
-functions/lib/
 
 # Environment
 .env

@@ -1,6 +1,11 @@
 /**
- * MedQ AI Prompt Templates
- * All prompts enforce STRICT JSON output with exact schemas.
+ * @module ai/prompts
+ * @description System and user prompt templates for every AI-powered feature.
+ *
+ * All prompts enforce **strict JSON output** with exact field schemas so that
+ * downstream code can parse responses without ambiguity.  Each prompt pair
+ * consists of a constant system prompt and a builder function that assembles
+ * the user message from runtime data.
  */
 
 const BLUEPRINT_SYSTEM = `You are MedQ, a medical education content analyzer. Convert provided study

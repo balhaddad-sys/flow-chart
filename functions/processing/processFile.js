@@ -1,14 +1,28 @@
+/**
+ * @module processing/processFile
+ * @description Storage trigger that fires when a file is uploaded to
+ * `users/{uid}/uploads/{fileId}.ext`.
+ *
+ * Pipeline:
+ *  1. Validate MIME type against the supported set.
+ *  2. Download the file to a temp path.
+ *  3. Delegate to the appropriate extractor (PDF / PPTX / DOCX).
+ *  4. Upload each extracted section's text blob to Cloud Storage.
+ *  5. Create section metadata documents in Firestore (status = PENDING).
+ *  6. Mark the originating file document as READY.
+ */
+
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const os = require("os");
 const path = require("path");
 const fs = require("fs");
 
+const { db } = require("../lib/firestore");
+const { SUPPORTED_MIME_TYPES } = require("../lib/constants");
 const { extractPdfSections } = require("./extractors/pdfExtractor");
 const { extractPptxSections } = require("./extractors/pptxExtractor");
 const { extractDocxSections } = require("./extractors/docxExtractor");
-
-const db = admin.firestore();
 
 exports.processUploadedFile = functions
   .runWith({ timeoutSeconds: 300, memory: "1GB" })
@@ -17,36 +31,27 @@ exports.processUploadedFile = functions
     const filePath = object.name;
     const contentType = object.contentType;
 
-    // Only process supported types
-    const supportedTypes = [
-      "application/pdf",
-      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ];
-    if (!supportedTypes.some((t) => contentType.startsWith(t))) {
+    // ── Guard: only handle supported document types ──────────────────────
+    if (!SUPPORTED_MIME_TYPES.some((t) => contentType.startsWith(t))) {
       console.log(`Unsupported type: ${contentType}. Skipping.`);
       return null;
     }
 
-    // Extract uid and fileId from path: users/{uid}/uploads/{fileId}.ext
+    // ── Parse storage path: users/{uid}/uploads/{fileId}.ext ─────────────
     const pathParts = filePath.split("/");
-    if (
-      pathParts.length < 4 ||
-      pathParts[0] !== "users" ||
-      pathParts[2] !== "uploads"
-    ) {
+    if (pathParts.length < 4 || pathParts[0] !== "users" || pathParts[2] !== "uploads") {
       console.log("Invalid path structure. Skipping.");
       return null;
     }
+
     const uid = pathParts[1];
     const fileName = pathParts[3];
     const fileId = path.parse(fileName).name;
-
     const fileRef = db.doc(`users/${uid}/files/${fileId}`);
     const tempFilePath = path.join(os.tmpdir(), fileName);
 
     try {
-      // Update status
+      // Mark processing started
       await fileRef.set(
         {
           status: "PROCESSING",
@@ -55,28 +60,21 @@ exports.processUploadedFile = functions
         { merge: true }
       );
 
-      // Download
+      // Download to tmp
       const bucket = admin.storage().bucket(object.bucket);
       await bucket.file(filePath).download({ destination: tempFilePath });
 
-      // Extract sections based on content type
+      // Extract raw sections via the appropriate extractor
       let rawSections = [];
-
       if (contentType === "application/pdf") {
         rawSections = await extractPdfSections(tempFilePath);
-      } else if (
-        contentType.includes("presentationml") ||
-        contentType.includes("presentation")
-      ) {
+      } else if (contentType.includes("presentationml") || contentType.includes("presentation")) {
         rawSections = await extractPptxSections(tempFilePath);
-      } else if (
-        contentType.includes("wordprocessingml") ||
-        contentType.includes("msword")
-      ) {
+      } else if (contentType.includes("wordprocessingml") || contentType.includes("msword")) {
         rawSections = await extractDocxSections(tempFilePath);
       }
 
-      // Upload section text to Cloud Storage and build metadata
+      // Upload text blobs & build metadata entries
       const sections = [];
       for (const raw of rawSections) {
         const sectionSlug = `${fileId}_s${sections.length}`;
@@ -102,11 +100,11 @@ exports.processUploadedFile = functions
         });
       }
 
-      // Fetch courseId
+      // Resolve the parent course
       const fileData = (await fileRef.get()).data();
       const courseId = fileData?.courseId || null;
 
-      // Batch write sections (metadata only — text is in Storage)
+      // Batch-write section metadata
       const batch = db.batch();
       sections.forEach((sec, i) => {
         const ref = db.collection(`users/${uid}/sections`).doc();
@@ -120,7 +118,7 @@ exports.processUploadedFile = functions
       });
       await batch.commit();
 
-      // Mark file ready
+      // Mark file as ready
       await fileRef.set(
         {
           status: "READY",
@@ -141,9 +139,6 @@ exports.processUploadedFile = functions
         { merge: true }
       );
     } finally {
-      // Cleanup temp file
       if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
     }
   });
-
-

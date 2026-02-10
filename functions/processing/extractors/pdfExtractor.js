@@ -1,3 +1,8 @@
+/**
+ * @module processing/extractors/pdfExtractor
+ * @description Splits a PDF file into page-range sections with extracted text.
+ */
+
 const pdfParse = require("pdf-parse");
 const fs = require("fs");
 

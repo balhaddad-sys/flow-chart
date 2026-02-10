@@ -1,6 +1,17 @@
+/**
+ * @module ai/aiClient
+ * @description Thin wrapper around the Anthropic Claude API.
+ *
+ * Provides:
+ *  - `callClaude`       — Text-based JSON generation with retry + extraction.
+ *  - `callClaudeVision` — Image-based extraction with prompt caching.
+ *  - Convenience wrappers per prompt type (`generateBlueprint`, etc.).
+ *  - `extractJsonFromText` — Robust JSON extraction from raw model output.
+ */
+
 const Anthropic = require("@anthropic-ai/sdk");
 
-// EXACT MODEL STRINGS — do not modify without updating all downstream callers
+// Model identifiers — update here to roll out a new model globally.
 const MODELS = {
   LIGHT: "claude-haiku-4-5-20251001", // Blueprints, question generation, task planning
   HEAVY: "claude-opus-4-6", // Tutoring, fix plans, complex reasoning

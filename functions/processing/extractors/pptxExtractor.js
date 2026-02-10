@@ -1,3 +1,8 @@
+/**
+ * @module processing/extractors/pptxExtractor
+ * @description Splits a PPTX file into slide-range sections with extracted text.
+ */
+
 const JSZip = require("jszip");
 const fs = require("fs");
 

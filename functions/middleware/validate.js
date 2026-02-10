@@ -1,14 +1,21 @@
+/**
+ * @module middleware/validate
+ * @description Input validation helpers for Cloud Functions callable endpoints.
+ *
+ * Each helper throws `functions.https.HttpsError` with a descriptive message
+ * on invalid input, short-circuiting the request before any business logic
+ * runs.  `safeError` normalises caught errors into a client-safe envelope
+ * that never leaks stack traces or internal paths.
+ */
+
 const functions = require("firebase-functions");
 
 /**
- * Input validation helpers for Cloud Functions.
- * Throws HttpsError with descriptive messages on invalid input.
- */
-
-/**
- * Require authenticated user. Returns uid.
- * @param {object} context - Cloud Functions call context
- * @returns {string} uid
+ * Require an authenticated caller.
+ *
+ * @param {functions.https.CallableContext} context
+ * @returns {string} The authenticated user's UID.
+ * @throws {functions.https.HttpsError} `unauthenticated` if no auth context.
  */
 function requireAuth(context) {
   if (!context.auth) {
@@ -22,8 +29,10 @@ function requireAuth(context) {
 
 /**
  * Validate that required string fields are present and within length limits.
- * @param {object} data - Input data object
- * @param {Array<{field: string, maxLen?: number}>} fields - Required fields
+ *
+ * @param {object} data - Callable input data.
+ * @param {Array<{ field: string, maxLen?: number }>} fields
+ * @throws {functions.https.HttpsError} `invalid-argument` on first violation.
  */
 function requireStrings(data, fields) {
   for (const { field, maxLen } of fields) {
@@ -44,13 +53,15 @@ function requireStrings(data, fields) {
 }
 
 /**
- * Validate that a field is a positive integer within bounds.
- * @param {object} data - Input data object
- * @param {string} field - Field name
- * @param {number} min - Minimum value (inclusive)
- * @param {number} max - Maximum value (inclusive)
- * @param {number} [defaultValue] - Default if field is undefined
- * @returns {number} Validated integer
+ * Validate that a field is an integer within bounds.
+ *
+ * @param {object} data - Callable input data.
+ * @param {string} field - Field name.
+ * @param {number} min - Minimum value (inclusive).
+ * @param {number} max - Maximum value (inclusive).
+ * @param {number} [defaultValue] - Returned when the field is absent.
+ * @returns {number} The validated integer.
+ * @throws {functions.https.HttpsError} `invalid-argument` on violation.
  */
 function requireInt(data, field, min, max, defaultValue) {
   let value = data[field];
@@ -71,54 +82,33 @@ function requireInt(data, field, min, max, defaultValue) {
   return value;
 }
 
+/** @private Map of Firestore/gRPC error codes to client-friendly responses. */
+const ERROR_MAP = [
+  { codes: ["permission-denied", "PERMISSION_DENIED"], out: { code: "PERMISSION_DENIED", message: "You do not have permission to perform this action." } },
+  { codes: ["not-found", "NOT_FOUND"], out: { code: "NOT_FOUND", message: "The requested resource was not found." } },
+  { codes: ["already-exists", "ALREADY_EXISTS"], out: { code: "ALREADY_EXISTS", message: "This resource already exists." } },
+  { codes: ["resource-exhausted", "RESOURCE_EXHAUSTED"], out: { code: "RATE_LIMITED", message: "Too many requests. Please wait and try again." } },
+  { codes: ["unavailable", "UNAVAILABLE"], out: { code: "UNAVAILABLE", message: "Service temporarily unavailable. Please try again later." } },
+  { codes: ["deadline-exceeded", "DEADLINE_EXCEEDED"], out: { code: "TIMEOUT", message: "The operation took too long. Please try again." } },
+];
+
 /**
- * Sanitize error for client response. Never leak stack traces or internal paths.
- * @param {Error} error - The caught error
- * @param {string} operation - Human-readable operation name
- * @returns {object} Safe error response
+ * Normalise a caught error into a client-safe response envelope.
+ * Internal details are logged server-side but never returned to the caller.
+ *
+ * @param {Error} error
+ * @param {string} operation - Human-readable label (e.g. "schedule generation").
+ * @returns {{ success: false, error: { code: string, message: string } }}
  */
 function safeError(error, operation) {
   console.error(`${operation} error:`, error);
 
-  // Map known error types to user-friendly messages
-  if (error.code === "permission-denied" || error.code === "PERMISSION_DENIED") {
-    return {
-      success: false,
-      error: { code: "PERMISSION_DENIED", message: "You do not have permission to perform this action." },
-    };
-  }
-  if (error.code === "not-found" || error.code === "NOT_FOUND") {
-    return {
-      success: false,
-      error: { code: "NOT_FOUND", message: "The requested resource was not found." },
-    };
-  }
-  if (error.code === "already-exists" || error.code === "ALREADY_EXISTS") {
-    return {
-      success: false,
-      error: { code: "ALREADY_EXISTS", message: "This resource already exists." },
-    };
-  }
-  if (error.code === "resource-exhausted" || error.code === "RESOURCE_EXHAUSTED") {
-    return {
-      success: false,
-      error: { code: "RATE_LIMITED", message: "Too many requests. Please wait and try again." },
-    };
-  }
-  if (error.code === "unavailable" || error.code === "UNAVAILABLE") {
-    return {
-      success: false,
-      error: { code: "UNAVAILABLE", message: "Service temporarily unavailable. Please try again later." },
-    };
-  }
-  if (error.code === "deadline-exceeded" || error.code === "DEADLINE_EXCEEDED") {
-    return {
-      success: false,
-      error: { code: "TIMEOUT", message: "The operation took too long. Please try again." },
-    };
+  for (const entry of ERROR_MAP) {
+    if (entry.codes.includes(error.code)) {
+      return { success: false, error: entry.out };
+    }
   }
 
-  // Generic fallback — never expose internal error messages to client
   return {
     success: false,
     error: {
@@ -128,9 +118,4 @@ function safeError(error, operation) {
   };
 }
 
-module.exports = {
-  requireAuth,
-  requireStrings,
-  requireInt,
-  safeError,
-};
+module.exports = { requireAuth, requireStrings, requireInt, safeError };

@@ -1,44 +1,42 @@
+/**
+ * @module processing/processDocumentBatch
+ * @description Callable function that extracts structured data from document
+ * page images using Claude's vision capability.
+ *
+ * Accepts an array of base64-encoded page images, analyses them in parallel
+ * with controlled concurrency, validates each result, and returns a unified
+ * payload of extracted records together with per-page diagnostics.
+ *
+ * Input:  `{ images: string[], concurrency?: number }`
+ * Output: `{ success, data: { results, pages, failures, meta } }`
+ */
+
 const functions = require("firebase-functions");
 const pLimit = require("p-limit");
 const { callClaudeVision, MAX_TOKENS, MODELS } = require("../ai/aiClient");
+const { DOCUMENT_EXTRACT_SYSTEM, documentExtractUserPrompt } = require("../ai/prompts");
 const {
-  DOCUMENT_EXTRACT_SYSTEM,
-  documentExtractUserPrompt,
-} = require("../ai/prompts");
+  MAX_BATCH_PAGES,
+  MAX_BASE64_LENGTH,
+  DEFAULT_VISION_CONCURRENCY,
+  MAX_VISION_CONCURRENCY,
+} = require("../lib/constants");
+const { clampInt } = require("../lib/utils");
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * ─────────────────────────────────────────────────────────────────────────────
- * CONFIG
- * ─────────────────────────────────────────────────────────────────────────────
+ * Strip a data-URL prefix (e.g. `data:image/jpeg;base64,...`) if present.
+ * @param {string} input
+ * @returns {string} Raw base64 data.
  */
-
-// Controlled parallelism (real-world sweet spot: 6–10)
-const DEFAULT_CONCURRENCY = 8;
-
-// Safety limits
-const MAX_PAGES = 25;
-const MAX_BASE64_LENGTH = 450_000; // ~450KB per image in base64
-
-/**
- * ─────────────────────────────────────────────────────────────────────────────
- * HELPERS
- * ─────────────────────────────────────────────────────────────────────────────
- */
-
-/**
- * Remove data URL prefix if provided (e.g. "data:image/jpeg;base64,...").
- * @param {string} base64OrDataUrl
- * @returns {string} Raw base64 string
- */
-function stripDataUrl(base64OrDataUrl) {
-  const idx = base64OrDataUrl.indexOf("base64,");
-  if (idx !== -1) return base64OrDataUrl.slice(idx + "base64,".length).trim();
-  return base64OrDataUrl.trim();
+function stripDataUrl(input) {
+  const idx = input.indexOf("base64,");
+  return idx !== -1 ? input.slice(idx + "base64,".length).trim() : input.trim();
 }
 
 /**
- * Validate a single page record against expected shape.
- * Lightweight check — no external schema lib needed.
+ * Validate the shape of a single vision-extracted page result.
  * @param {object} data
  * @returns {{ valid: boolean, error?: string }}
  */
@@ -55,20 +53,17 @@ function validatePageResult(data) {
   for (let i = 0; i < data.records.length; i++) {
     const r = data.records[i];
     if (!r || typeof r.test !== "string" || typeof r.value !== "string") {
-      return {
-        valid: false,
-        error: `Record ${i} missing required 'test' or 'value' string fields`,
-      };
+      return { valid: false, error: `Record ${i} missing required 'test' or 'value' string fields` };
     }
   }
   return { valid: true };
 }
 
 /**
- * Analyze a single page image with Claude vision.
- * @param {string} base64Image - Raw base64 image data
- * @param {number} pageIndex - Zero-based page index
- * @returns {object} { success, page, data?, error?, ms }
+ * Analyse a single page image with Claude vision.
+ * @param {string} base64Image
+ * @param {number} pageIndex - Zero-based.
+ * @returns {Promise<{ success: boolean, page: number, data?: object, error?: string, ms?: number }>}
  */
 async function analyzeSinglePage(base64Image, pageIndex) {
   const result = await callClaudeVision({
@@ -82,134 +77,71 @@ async function analyzeSinglePage(base64Image, pageIndex) {
   });
 
   if (!result.success) {
-    return {
-      success: false,
-      page: pageIndex,
-      error: result.error,
-      ms: result.ms,
-    };
+    return { success: false, page: pageIndex, error: result.error, ms: result.ms };
   }
 
-  // Validate shape
   const validation = validatePageResult(result.data);
   if (!validation.valid) {
-    return {
-      success: false,
-      page: pageIndex,
-      error: `Validation failed: ${validation.error}`,
-      ms: result.ms,
-    };
+    return { success: false, page: pageIndex, error: `Validation failed: ${validation.error}`, ms: result.ms };
   }
 
-  return {
-    success: true,
-    page: pageIndex,
-    data: result.data,
-    ms: result.ms,
-  };
+  return { success: true, page: pageIndex, data: result.data, ms: result.ms };
 }
 
-/**
- * ─────────────────────────────────────────────────────────────────────────────
- * CALLABLE FUNCTION
- *
- * Input:  { images: string[], concurrency?: number }
- * Output: { results, pages, failures, meta }
- * ─────────────────────────────────────────────────────────────────────────────
- */
+// ── Callable ─────────────────────────────────────────────────────────────────
+
 exports.processDocumentBatch = functions
-  .runWith({
-    timeoutSeconds: 120,
-    memory: "1GB",
-  })
+  .runWith({ timeoutSeconds: 120, memory: "1GB" })
   .https.onCall(async (data, context) => {
     const start = Date.now();
 
-    // Auth required (medical data)
     if (!context.auth) {
-      throw new functions.https.HttpsError(
-        "unauthenticated",
-        "Must be logged in"
-      );
+      throw new functions.https.HttpsError("unauthenticated", "Must be logged in");
     }
 
     const uid = context.auth.uid;
     const { images, concurrency } = data;
 
-    // ── Validate input ──────────────────────────────────────────────────
-
+    // ── Validate input ────────────────────────────────────────────────────
     if (!Array.isArray(images) || images.length === 0) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "images must be a non-empty array of base64 strings"
-      );
+      throw new functions.https.HttpsError("invalid-argument", "images must be a non-empty array of base64 strings");
+    }
+    if (images.length > MAX_BATCH_PAGES) {
+      throw new functions.https.HttpsError("invalid-argument", `Too many pages. Maximum is ${MAX_BATCH_PAGES}.`);
     }
 
-    if (images.length > MAX_PAGES) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        `Too many pages. Maximum is ${MAX_PAGES}.`
-      );
-    }
-
-    const effectiveConcurrency = Math.min(
-      Math.max(1, concurrency || DEFAULT_CONCURRENCY),
-      12
+    const effectiveConcurrency = clampInt(
+      concurrency || DEFAULT_VISION_CONCURRENCY,
+      1,
+      MAX_VISION_CONCURRENCY
     );
 
-    // ── Clean & validate each image ─────────────────────────────────────
-
+    // ── Clean & validate each image ───────────────────────────────────────
     const cleanedImages = [];
     for (let i = 0; i < images.length; i++) {
       if (typeof images[i] !== "string" || images[i].length < 20) {
-        throw new functions.https.HttpsError(
-          "invalid-argument",
-          `Page ${i} is not a valid base64 string.`
-        );
+        throw new functions.https.HttpsError("invalid-argument", `Page ${i} is not a valid base64 string.`);
       }
-
       const cleaned = stripDataUrl(images[i]);
-
       if (cleaned.length > MAX_BASE64_LENGTH) {
-        throw new functions.https.HttpsError(
-          "invalid-argument",
-          `Page ${i} exceeds size limit. Compress further (max ~${MAX_BASE64_LENGTH} base64 chars).`
-        );
+        throw new functions.https.HttpsError("invalid-argument", `Page ${i} exceeds size limit. Compress further (max ~${MAX_BASE64_LENGTH} base64 chars).`);
       }
-
       cleanedImages.push(cleaned);
     }
 
-    // ── Run parallel analysis with controlled concurrency ───────────────
-
-    console.log("Starting batch analysis", {
-      pages: cleanedImages.length,
-      concurrency: effectiveConcurrency,
-      uid,
-    });
+    // ── Parallel analysis ─────────────────────────────────────────────────
+    console.log("Starting batch analysis", { pages: cleanedImages.length, concurrency: effectiveConcurrency, uid });
 
     const limit = pLimit(effectiveConcurrency);
-
-    const promises = cleanedImages.map((img, i) =>
-      limit(() => analyzeSinglePage(img, i))
+    const settled = await Promise.all(
+      cleanedImages.map((img, i) => limit(() => analyzeSinglePage(img, i)))
     );
 
-    const settled = await Promise.all(promises);
-
-    // ── Separate successes / failures ───────────────────────────────────
-
+    // ── Aggregate results ─────────────────────────────────────────────────
     const successes = settled.filter((r) => r.success);
-    const failures = settled
-      .filter((r) => !r.success)
-      .map((r) => ({ page: r.page, error: r.error, ms: r.ms }));
-
-    // Sort by page order and flatten records
-    const pagesSorted = successes
-      .sort((a, b) => a.page - b.page)
-      .map((p) => p.data);
-
+    const failures = settled.filter((r) => !r.success).map((r) => ({ page: r.page, error: r.error, ms: r.ms }));
+    const pagesSorted = successes.sort((a, b) => a.page - b.page).map((p) => p.data);
     const records = pagesSorted.flatMap((p) => p.records);
-
     const totalMs = Date.now() - start;
 
     console.log("Batch complete", {
@@ -218,14 +150,7 @@ exports.processDocumentBatch = functions
       successPages: successes.length,
       failedPages: failures.length,
       recordCount: records.length,
-      pageTimings: settled.map((r) => ({
-        page: r.page,
-        ms: r.ms,
-        ok: r.success,
-      })),
     });
-
-    // ── Return unified payload ──────────────────────────────────────────
 
     return {
       success: true,

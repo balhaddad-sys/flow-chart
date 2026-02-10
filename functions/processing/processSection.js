@@ -1,16 +1,19 @@
+/**
+ * @module processing/processSection
+ * @description Firestore trigger that generates an AI blueprint for newly
+ * created section documents whose `aiStatus` is `"PENDING"`.
+ *
+ * The blueprint enriches each section with learning objectives, key concepts,
+ * high-yield points, common traps, terms to define, difficulty, estimated
+ * study time, and topic tags — all produced by Claude Haiku.
+ */
+
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-const { Storage } = require("@google-cloud/storage");
+const { db } = require("../lib/firestore");
 const { generateBlueprint } = require("../ai/aiClient");
 const { BLUEPRINT_SYSTEM, blueprintUserPrompt } = require("../ai/prompts");
 
-const db = admin.firestore();
-const storage = new Storage();
-
-/**
- * Firestore trigger: when a new section is created with aiStatus === "PENDING",
- * fetch its text from Storage and generate a blueprint via AI.
- */
 exports.processSection = functions
   .runWith({ timeoutSeconds: 120, memory: "512MB" })
   .firestore.document("users/{uid}/sections/{sectionId}")
@@ -21,18 +24,16 @@ exports.processSection = functions
     if (sectionData.aiStatus !== "PENDING") return null;
 
     try {
-      // Fetch section text from Storage
+      // Fetch raw text from Cloud Storage
       const bucket = admin.storage().bucket();
       const [buffer] = await bucket.file(sectionData.textBlobPath).download();
       const sectionText = buffer.toString("utf-8");
 
-      // Fetch file info for context
-      const fileDoc = await db
-        .doc(`users/${uid}/files/${sectionData.fileId}`)
-        .get();
+      // Fetch parent file metadata for prompt context
+      const fileDoc = await db.doc(`users/${uid}/files/${sectionData.fileId}`).get();
       const fileData = fileDoc.exists ? fileDoc.data() : {};
 
-      // Generate blueprint
+      // Generate blueprint via AI
       const result = await generateBlueprint(
         BLUEPRINT_SYSTEM,
         blueprintUserPrompt({
@@ -51,7 +52,6 @@ exports.processSection = functions
 
       const blueprint = result.data;
 
-      // Update section with blueprint data
       await snap.ref.update({
         aiStatus: "ANALYZED",
         title: blueprint.title || sectionData.title,
