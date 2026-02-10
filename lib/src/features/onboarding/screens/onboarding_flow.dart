@@ -23,10 +23,16 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
 
   static const _stepCount = 4;
 
+  static const _stepLabels = [
+    'Course',
+    'Exam Date',
+    'Availability',
+    'Upload',
+  ];
+
   @override
   void initState() {
     super.initState();
-    // Reset onboarding state so creating a new course starts fresh
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(onboardingProvider.notifier).reset();
     });
@@ -61,7 +67,14 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
         title: const Text('Set Up Your Course'),
         leading: data.currentStep > 0
             ? IconButton(
-                icon: const Icon(Icons.arrow_back),
+                icon: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceVariant,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.arrow_back_rounded, size: 18),
+                ),
                 onPressed: () =>
                     ref.read(onboardingProvider.notifier).previousStep(),
               )
@@ -69,28 +82,56 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
       ),
       body: Column(
         children: [
-          // Progress indicator
+          // Step indicator
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             child: Row(
               children: List.generate(_stepCount, (i) {
+                final isActive = i <= data.currentStep;
+                final isCurrent = i == data.currentStep;
                 return Expanded(
-                  child: Container(
-                    height: 4,
-                    margin: const EdgeInsets.symmetric(horizontal: 2),
-                    decoration: BoxDecoration(
-                      color: i <= data.currentStep
-                          ? AppColors.primary
-                          : AppColors.border,
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.radiusSm),
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      left: i > 0 ? 4 : 0,
+                      right: i < _stepCount - 1 ? 4 : 0,
+                    ),
+                    child: Column(
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: isActive
+                                ? AppColors.primary
+                                : AppColors.surfaceVariant,
+                            borderRadius:
+                                BorderRadius.circular(AppSpacing.radiusFull),
+                          ),
+                        ),
+                        AppSpacing.gapXs,
+                        Text(
+                          _stepLabels[i],
+                          style: Theme.of(context)
+                              .textTheme
+                              .labelSmall
+                              ?.copyWith(
+                                color: isCurrent
+                                    ? AppColors.primary
+                                    : AppColors.textTertiary,
+                                fontWeight: isCurrent
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                              ),
+                        ),
+                      ],
                     ),
                   ),
                 );
               }),
             ),
           ),
-          AppSpacing.gapMd,
+          AppSpacing.gapSm,
+
           // Page content
           Expanded(
             child: PageView(
@@ -104,20 +145,34 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
               ],
             ),
           ),
+
           // Error message
           if (data.errorMessage != null)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-              child: Text(
-                data.errorMessage!,
-                style: const TextStyle(color: AppColors.error),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.errorSurface,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                ),
+                child: Text(
+                  data.errorMessage!,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(color: AppColors.error),
+                ),
               ),
             ),
+
           // Bottom action
           Padding(
-            padding: AppSpacing.screenPadding,
+            padding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: PrimaryButton(
-              label: data.currentStep < _stepCount - 1 ? 'Next' : 'Finish',
+              label: data.currentStep < _stepCount - 1 ? 'Continue' : 'Finish',
               isLoading: data.isSubmitting,
               onPressed: () async {
                 if (data.currentStep < _stepCount - 1) {
@@ -133,7 +188,7 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
               },
             ),
           ),
-          AppSpacing.gapMd,
+          AppSpacing.gapSm,
         ],
       ),
     );

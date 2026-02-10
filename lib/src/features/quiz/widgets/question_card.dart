@@ -9,88 +9,77 @@ class QuestionCard extends StatelessWidget {
   final QuestionModel question;
   final int? selectedIndex;
   final bool hasSubmitted;
-  final void Function(int) onOptionSelected;
+  final ValueChanged<int> onOptionSelected;
 
   const QuestionCard({
     super.key,
     required this.question,
-    this.selectedIndex,
+    required this.selectedIndex,
     required this.hasSubmitted,
     required this.onOptionSelected,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Difficulty badge
-        Row(
-          children: [
-            _difficultyChip(question.difficulty),
-            if (question.topicTags.isNotEmpty) ...[
-              AppSpacing.hGapSm,
-              ...question.topicTags.take(2).map((tag) => Padding(
-                    padding: const EdgeInsets.only(right: AppSpacing.xs),
-                    child: Chip(
-                      label: Text(tag),
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  )),
-            ],
-          ],
-        ),
-        AppSpacing.gapMd,
-        // Question stem
-        Text(
-          question.stem,
-          style: Theme.of(context).textTheme.bodyLarge,
-        ),
-        AppSpacing.gapLg,
-        // Options
-        ...List.generate(question.options.length, (i) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: OptionButton(
-              index: i,
-              text: question.options[i],
-              isSelected: selectedIndex == i,
-              isCorrect: hasSubmitted ? i == question.correctIndex : null,
-              hasSubmitted: hasSubmitted,
-              onTap: () => onOptionSelected(i),
-            ),
-          );
-        }),
-      ],
-    );
-  }
-
-  Widget _difficultyChip(int difficulty) {
-    final label = difficulty <= 2
-        ? 'Easy'
-        : difficulty <= 3
-            ? 'Medium'
-            : 'Hard';
-    final color = difficulty <= 2
-        ? AppColors.difficultyEasy
-        : difficulty <= 3
-            ? AppColors.difficultyMedium
-            : AppColors.difficultyHard;
-
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: AppSpacing.cardPaddingLarge,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.7)),
+        boxShadow: AppSpacing.shadowMd,
       ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (question.topicTags.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: Wrap(
+                spacing: AppSpacing.xs,
+                children: question.topicTags
+                    .map((tag) => Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.primarySurface,
+                            borderRadius:
+                                BorderRadius.circular(AppSpacing.radiusFull),
+                          ),
+                          child: Text(
+                            tag,
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(color: AppColors.primary),
+                          ),
+                        ))
+                    .toList(),
+              ),
+            ),
+          Text(
+            question.stem,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary,
+                  height: 1.6,
+                ),
+          ),
+          AppSpacing.gapLg,
+          ...List.generate(question.options.length, (i) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: OptionButton(
+                index: i,
+                text: question.options[i],
+                isSelected: selectedIndex == i,
+                hasSubmitted: hasSubmitted,
+                isCorrect: i == question.correctIndex,
+                onTap: hasSubmitted ? null : () => onOptionSelected(i),
+              ),
+            );
+          }),
+        ],
       ),
     );
   }

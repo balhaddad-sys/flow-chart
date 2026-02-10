@@ -12,39 +12,69 @@ class ExamCountdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final daysLeft = AppDateUtils.daysUntil(examDate);
+    final isUrgent = daysLeft <= 7;
 
     return Container(
       width: double.infinity,
-      padding: AppSpacing.cardPadding,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: daysLeft <= 7
-              ? [AppColors.error, AppColors.warning]
-              : [AppColors.primary, AppColors.secondary],
-        ),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        gradient: isUrgent ? AppColors.warmGradient : AppColors.primaryGradient,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+        boxShadow: [
+          BoxShadow(
+            color: (isUrgent ? AppColors.error : AppColors.primary)
+                .withValues(alpha: 0.25),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
-      child: Column(
+      child: Row(
         children: [
-          Text(
-            '$daysLeft',
-            style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isUrgent ? 'Exam is near!' : 'Exam countdown',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: Colors.white70,
+                        letterSpacing: 0.5,
+                      ),
                 ),
+                AppSpacing.gapXs,
+                Text(
+                  AppDateUtils.formatFull(examDate),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.white60,
+                      ),
+                ),
+              ],
+            ),
           ),
-          Text(
-            'days until exam',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Colors.white70,
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  '$daysLeft',
+                  style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
                 ),
-          ),
-          AppSpacing.gapXs,
-          Text(
-            AppDateUtils.formatFull(examDate),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.white60,
+                Text(
+                  'days',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: Colors.white70,
+                      ),
                 ),
+              ],
+            ),
           ),
         ],
       ),

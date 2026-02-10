@@ -25,40 +25,78 @@ class WeakTopicsBanner extends ConsumerWidget {
 
         final topWeak = stats.weakestTopics.take(3).toList();
 
-        return Card(
-          color: AppColors.warning.withValues(alpha: 0.08),
+        return Container(
+          decoration: BoxDecoration(
+            color: AppColors.warningSurface,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+            border: Border.all(
+              color: AppColors.warning.withValues(alpha: 0.2),
+            ),
+          ),
           child: Padding(
-            padding: AppSpacing.cardPadding,
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.warning_amber,
-                        color: AppColors.warning, size: 20),
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: AppColors.warning.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.trending_down_rounded,
+                          color: AppColors.warning, size: 16),
+                    ),
                     AppSpacing.hGapSm,
                     Text(
-                      'Weak Topics',
-                      style: Theme.of(context).textTheme.titleMedium,
+                      'Needs Attention',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: AppColors.warning,
+                          ),
                     ),
                     const Spacer(),
                     TextButton(
                       onPressed: () => context.go('/dashboard'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppColors.warning,
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                      ),
                       child: const Text('View All'),
                     ),
                   ],
                 ),
-                AppSpacing.gapSm,
+                AppSpacing.gapMd,
                 ...topWeak.map((topic) {
                   return Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                     child: Row(
                       children: [
-                        Expanded(child: Text(topic.tag)),
+                        Container(
+                          width: 4,
+                          height: 4,
+                          decoration: const BoxDecoration(
+                            color: AppColors.warning,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        AppSpacing.hGapSm,
+                        Expanded(
+                          child: Text(
+                            topic.tag,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: AppColors.textPrimary,
+                                ),
+                          ),
+                        ),
                         Text(
-                          '${(topic.accuracy * 100).round()}% accuracy',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          '${(topic.accuracy * 100).round()}%',
+                          style: Theme.of(context).textTheme.labelMedium?.copyWith(
                                 color: AppColors.error,
+                                fontWeight: FontWeight.w600,
                               ),
                         ),
                       ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../core/utils/date_utils.dart';
@@ -20,7 +21,7 @@ class PlannerScreen extends ConsumerWidget {
     if (activeCourseId == null) {
       return const Scaffold(
         body: EmptyState(
-          icon: Icons.calendar_today,
+          icon: Icons.calendar_today_rounded,
           title: 'No course selected',
           subtitle: 'Select a course to view the plan',
         ),
@@ -33,28 +34,39 @@ class PlannerScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Study Plan'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Regenerate schedule',
-            onPressed: () async {
-              try {
-                await ref
-                    .read(cloudFunctionsServiceProvider)
-                    .regenSchedule(courseId: activeCourseId);
-                ref.invalidate(allTasksProvider(activeCourseId));
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Schedule regenerated')),
-                  );
+          Container(
+            margin: const EdgeInsets.only(right: 12),
+            child: IconButton(
+              icon: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.primarySurface,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                ),
+                child: const Icon(Icons.refresh_rounded,
+                    color: AppColors.primary, size: 20),
+              ),
+              tooltip: 'Regenerate schedule',
+              onPressed: () async {
+                try {
+                  await ref
+                      .read(cloudFunctionsServiceProvider)
+                      .regenSchedule(courseId: activeCourseId);
+                  ref.invalidate(allTasksProvider(activeCourseId));
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Schedule regenerated')),
+                    );
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Failed to regenerate: $e')),
+                    );
+                  }
                 }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed to regenerate: $e')),
-                  );
-                }
-              }
-            },
+              },
+            ),
           ),
         ],
       ),
@@ -64,7 +76,7 @@ class PlannerScreen extends ConsumerWidget {
         data: (tasks) {
           if (tasks.isEmpty) {
             return const EmptyState(
-              icon: Icons.calendar_today,
+              icon: Icons.calendar_today_rounded,
               title: 'No plan generated yet',
               subtitle: 'Upload materials and generate a study plan',
               actionLabel: 'Generate Plan',
@@ -74,7 +86,7 @@ class PlannerScreen extends ConsumerWidget {
           final grouped = ref.watch(groupedTasksProvider(tasks));
 
           return ListView.builder(
-            padding: AppSpacing.screenPadding,
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
             itemCount: grouped.length,
             itemBuilder: (context, i) {
               final date = grouped.keys.elementAt(i);

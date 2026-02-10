@@ -7,7 +7,7 @@ import '../../../models/question_model.dart';
 class ExplanationPanel extends StatelessWidget {
   final QuestionModel question;
   final int selectedIndex;
-  final Map<String, dynamic>? tutorResponse;
+  final String? tutorResponse;
 
   const ExplanationPanel({
     super.key,
@@ -21,77 +21,98 @@ class ExplanationPanel extends StatelessWidget {
     final isCorrect = selectedIndex == question.correctIndex;
 
     return Container(
-      padding: AppSpacing.cardPadding,
+      padding: AppSpacing.cardPaddingLarge,
       decoration: BoxDecoration(
-        color: isCorrect
-            ? AppColors.success.withValues(alpha: 0.05)
-            : AppColors.error.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        color: isCorrect ? AppColors.successSurface : AppColors.errorSurface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         border: Border.all(
-          color: isCorrect
-              ? AppColors.success.withValues(alpha: 0.2)
-              : AppColors.error.withValues(alpha: 0.2),
+          color: (isCorrect ? AppColors.success : AppColors.error)
+              .withValues(alpha: 0.2),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            isCorrect ? 'Correct!' : 'Incorrect',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: isCorrect ? AppColors.success : AppColors.error,
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: (isCorrect ? AppColors.success : AppColors.error)
+                      .withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
                 ),
+                child: Icon(
+                  isCorrect ? Icons.check_rounded : Icons.close_rounded,
+                  color: isCorrect ? AppColors.success : AppColors.error,
+                  size: 16,
+                ),
+              ),
+              AppSpacing.hGapSm,
+              Text(
+                isCorrect ? 'Correct!' : 'Incorrect',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: isCorrect ? AppColors.success : AppColors.error,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
           ),
           AppSpacing.gapMd,
-          // Why correct
-          Text(
-            'Why ${question.options[question.correctIndex]} is correct:',
-            style: Theme.of(context).textTheme.labelLarge,
-          ),
-          AppSpacing.gapXs,
-          Text(
-            question.explanation.correctWhy,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          if (!isCorrect) ...[
-            AppSpacing.gapMd,
-            // Why student was wrong
+          if (question.explanation.isNotEmpty) ...[
             Text(
-              'Why your answer was wrong:',
-              style: Theme.of(context).textTheme.labelLarge,
-            ),
-            AppSpacing.gapXs,
-            Text(
-              selectedIndex < question.explanation.whyOthersWrong.length
-                  ? question.explanation.whyOthersWrong[selectedIndex]
-                  : 'This option is incorrect.',
-              style: Theme.of(context).textTheme.bodyMedium,
+              question.explanation,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textPrimary,
+                    height: 1.6,
+                  ),
             ),
           ],
-          AppSpacing.gapMd,
-          // Key takeaway
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: AppColors.info.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.lightbulb_outline,
-                    color: AppColors.info, size: 18),
-                AppSpacing.hGapSm,
-                Expanded(
-                  child: Text(
-                    question.explanation.keyTakeaway,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.info,
-                        ),
+          if (tutorResponse != null && tutorResponse!.isNotEmpty) ...[
+            AppSpacing.gapMd,
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.surface.withValues(alpha: 0.7),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                border: Border(
+                  left: BorderSide(
+                    color: AppColors.secondary,
+                    width: 3,
                   ),
                 ),
-              ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.auto_awesome_rounded,
+                          color: AppColors.secondary, size: 16),
+                      AppSpacing.hGapXs,
+                      Text(
+                        'AI Tutor',
+                        style:
+                            Theme.of(context).textTheme.labelMedium?.copyWith(
+                                  color: AppColors.secondary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                      ),
+                    ],
+                  ),
+                  AppSpacing.gapSm,
+                  Text(
+                    tutorResponse!,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textPrimary,
+                          height: 1.5,
+                        ),
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );

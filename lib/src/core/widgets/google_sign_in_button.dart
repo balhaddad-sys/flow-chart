@@ -89,14 +89,14 @@ class GoogleSignInButton extends StatelessWidget {
 
     return SizedBox(
       width: double.infinity,
-      height: 48,
+      height: 52,
       child: OutlinedButton(
         onPressed: isLoading ? null : onPressed,
         style: OutlinedButton.styleFrom(
-          backgroundColor: isDark ? const Color(0xFF131314) : Colors.white,
+          backgroundColor: isDark ? const Color(0xFF1C1C1E) : Colors.white,
           foregroundColor: isDark ? const Color(0xFFE3E3E3) : const Color(0xFF1F1F1F),
           side: BorderSide(
-            color: isDark ? const Color(0xFF8E918F) : const Color(0xFF747775),
+            color: isDark ? const Color(0xFF3A3A3C) : const Color(0xFFDADCE0),
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -109,7 +109,7 @@ class GoogleSignInButton extends StatelessWidget {
                 height: 20,
                 width: 20,
                 child: CircularProgressIndicator(
-                  strokeWidth: 2,
+                  strokeWidth: 2.5,
                   color: isDark ? Colors.white70 : Colors.black54,
                 ),
               )
