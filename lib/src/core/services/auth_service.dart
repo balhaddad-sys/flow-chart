@@ -32,34 +32,51 @@ class AuthService {
   }
 
   Future<UserCredential> signInWithGoogle() async {
-    try {
-      if (kIsWeb) {
-        // On web, use Firebase Auth popup directly — no GIS script needed
-        final provider = GoogleAuthProvider();
-        return await _auth.signInWithPopup(provider);
-      }
-
-      // On native platforms, use google_sign_in package
-      final GoogleSignInAccount? googleUser = await _gsi.signIn();
-
-      if (googleUser == null) {
-        throw Exception('Google Sign-In was cancelled by user');
-      }
-
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
-
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      return await _auth.signInWithCredential(credential);
-    } on FirebaseAuthException catch (e) {
-      throw Exception('Firebase Auth Error: ${e.message}');
-    } catch (e) {
-      throw Exception('Google Sign-In Error: $e');
+    if (kIsWeb) {
+      return _signInWithGoogleWeb();
     }
+    return _signInWithGoogleNative();
+  }
+
+  Future<UserCredential> _signInWithGoogleWeb() async {
+    final provider = GoogleAuthProvider();
+    try {
+      return await _auth.signInWithPopup(provider);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'popup-blocked') {
+        // Fall back to redirect flow when popups are blocked
+        await _auth.signInWithRedirect(provider);
+        final result = await _auth.getRedirectResult();
+        if (result.user == null) {
+          throw FirebaseAuthException(
+            code: 'redirect-failed',
+            message: 'Google Sign-In redirect did not complete.',
+          );
+        }
+        return result;
+      }
+      rethrow;
+    }
+  }
+
+  Future<UserCredential> _signInWithGoogleNative() async {
+    final GoogleSignInAccount? googleUser = await _gsi.signIn();
+    if (googleUser == null) {
+      throw FirebaseAuthException(
+        code: 'popup-closed-by-user',
+        message: 'Google Sign-In was cancelled.',
+      );
+    }
+
+    final GoogleSignInAuthentication googleAuth =
+        await googleUser.authentication;
+
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+
+    return await _auth.signInWithCredential(credential);
   }
 
   Future<void> signOut() async {
