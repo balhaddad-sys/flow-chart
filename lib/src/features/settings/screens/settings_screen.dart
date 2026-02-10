@@ -61,30 +61,26 @@ class SettingsScreen extends ConsumerWidget {
           ),
           AppSpacing.gapSm,
           Card(
-            child: Column(
-              children: [
-                RadioListTile<ThemeMode>(
-                  title: const Text('System default'),
-                  value: ThemeMode.system,
-                  groupValue: themeMode,
-                  onChanged: (value) =>
-                      ref.read(themeModeProvider.notifier).state = value!,
-                ),
-                RadioListTile<ThemeMode>(
-                  title: const Text('Light'),
-                  value: ThemeMode.light,
-                  groupValue: themeMode,
-                  onChanged: (value) =>
-                      ref.read(themeModeProvider.notifier).state = value!,
-                ),
-                RadioListTile<ThemeMode>(
-                  title: const Text('Dark'),
-                  value: ThemeMode.dark,
-                  groupValue: themeMode,
-                  onChanged: (value) =>
-                      ref.read(themeModeProvider.notifier).state = value!,
-                ),
-              ],
+            child: RadioGroup<ThemeMode>(
+              groupValue: themeMode,
+              onChanged: (value) =>
+                  ref.read(themeModeProvider.notifier).state = value!,
+              child: Column(
+                children: [
+                  RadioListTile<ThemeMode>(
+                    title: const Text('System default'),
+                    value: ThemeMode.system,
+                  ),
+                  RadioListTile<ThemeMode>(
+                    title: const Text('Light'),
+                    value: ThemeMode.light,
+                  ),
+                  RadioListTile<ThemeMode>(
+                    title: const Text('Dark'),
+                    value: ThemeMode.dark,
+                  ),
+                ],
+              ),
             ),
           ),
 
@@ -99,10 +95,10 @@ class SettingsScreen extends ConsumerWidget {
           Card(
             child: Column(
               children: [
-                ListTile(
-                  leading: const Icon(Icons.info_outline),
-                  title: const Text('Version'),
-                  subtitle: const Text('1.0.0'),
+                const ListTile(
+                  leading: Icon(Icons.info_outline),
+                  title: Text('Version'),
+                  subtitle: Text('1.0.0'),
                 ),
                 const Divider(height: 1),
                 ListTile(
