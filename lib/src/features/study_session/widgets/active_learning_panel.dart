@@ -162,11 +162,11 @@ class ActiveLearningPanel extends ConsumerWidget {
                       Container(
                         width: 56,
                         height: 56,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           color: AppColors.secondarySurface,
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(Icons.auto_awesome_rounded,
+                        child: const Icon(Icons.auto_awesome_rounded,
                             color: AppColors.secondary, size: 28),
                       ),
                       AppSpacing.gapMd,
@@ -323,7 +323,7 @@ class _HighlightItem extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.warningSurface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-        border: Border(
+        border: const Border(
           left: BorderSide(color: AppColors.warning, width: 3),
         ),
       ),
@@ -349,7 +349,7 @@ class _TrapItem extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.errorSurface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-        border: Border(
+        border: const Border(
           left: BorderSide(color: AppColors.error, width: 3),
         ),
       ),

@@ -66,11 +66,11 @@ class _TaskRow extends ConsumerWidget {
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
         leading: GestureDetector(
-          onTap: () {
+          onTap: () async {
             if (!isDone) {
               final uid = ref.read(uidProvider);
               if (uid != null) {
-                ref.read(firestoreServiceProvider).completeTask(uid, task.id);
+                await ref.read(firestoreServiceProvider).completeTask(uid, task.id);
               }
             }
           },

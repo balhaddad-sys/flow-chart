@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
@@ -43,7 +41,7 @@ class LoadingOverlay extends StatelessWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        SizedBox(
+                        const SizedBox(
                           width: 40,
                           height: 40,
                           child: CircularProgressIndicator(

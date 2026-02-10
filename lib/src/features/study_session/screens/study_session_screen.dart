@@ -92,7 +92,7 @@ class _StudySessionScreenState extends ConsumerState<StudySessionScreen>
     return Column(
       children: [
         Container(
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: AppColors.surface,
             border: Border(
               bottom: BorderSide(color: AppColors.divider),
@@ -151,7 +151,7 @@ class _PdfViewerPanel extends ConsumerWidget {
               Container(
                 width: 56,
                 height: 56,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppColors.errorSurface,
                   shape: BoxShape.circle,
                 ),
@@ -204,7 +204,7 @@ class _PdfViewerPanel extends ConsumerWidget {
                   Container(
                     width: 56,
                     height: 56,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: AppColors.errorSurface,
                       shape: BoxShape.circle,
                     ),

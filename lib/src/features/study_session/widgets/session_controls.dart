@@ -26,7 +26,7 @@ class SessionControls extends ConsumerWidget {
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.divider)),
+        border: const Border(top: BorderSide(color: AppColors.divider)),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF0F172A).withValues(alpha: 0.04),
@@ -95,7 +95,7 @@ class SessionControls extends ConsumerWidget {
                 if (picked != null) {
                   final uid = ref.read(uidProvider);
                   if (uid != null) {
-                    ref.read(firestoreServiceProvider).updateTask(
+                    await ref.read(firestoreServiceProvider).updateTask(
                       uid,
                       taskId,
                       {'dueDate': picked, 'status': 'TODO'},
