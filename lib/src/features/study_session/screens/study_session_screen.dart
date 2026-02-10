@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pdfrx/pdfrx.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../core/providers/auth_provider.dart';
 import '../providers/session_provider.dart';
+import '../widgets/active_learning_panel.dart';
 import '../widgets/session_timer.dart';
 import '../widgets/session_controls.dart';
 
@@ -22,10 +25,14 @@ class StudySessionScreen extends ConsumerStatefulWidget {
       _StudySessionScreenState();
 }
 
-class _StudySessionScreenState extends ConsumerState<StudySessionScreen> {
+class _StudySessionScreenState extends ConsumerState<StudySessionScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(sessionProvider.notifier).startSession(
             taskId: widget.taskId,
@@ -35,13 +42,21 @@ class _StudySessionScreenState extends ConsumerState<StudySessionScreen> {
   }
 
   @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
     final isTablet = MediaQuery.of(context).size.width > 600;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Study Session'),
+        title: Text(
+          session.isPaused ? 'Paused' : 'Study Session',
+        ),
         actions: [
           SessionTimer(elapsedSeconds: session.elapsedSeconds),
         ],
@@ -57,29 +72,19 @@ class _StudySessionScreenState extends ConsumerState<StudySessionScreen> {
   Widget _tabletLayout(BuildContext context) {
     return Row(
       children: [
-        // PDF viewer panel (65%)
         Expanded(
           flex: 65,
-          child: Container(
-            color: AppColors.surfaceVariant,
-            child: const Center(
-              child: Text('PDF Viewer Panel'),
-            ),
-          ),
+          child: _PdfViewerPanel(sectionId: widget.sectionId),
         ),
-        // Active learning panel (35%)
         Expanded(
           flex: 35,
           child: Container(
-            padding: AppSpacing.cardPadding,
             decoration: const BoxDecoration(
               border: Border(
                 left: BorderSide(color: AppColors.border),
               ),
             ),
-            child: const Center(
-              child: Text('Active Learning Panel'),
-            ),
+            child: ActiveLearningPanel(sectionId: widget.sectionId),
           ),
         ),
       ],
@@ -87,11 +92,130 @@ class _StudySessionScreenState extends ConsumerState<StudySessionScreen> {
   }
 
   Widget _phoneLayout(BuildContext context) {
-    return Container(
-      color: AppColors.surfaceVariant,
-      child: const Center(
-        child: Text('PDF Viewer (Full Screen)'),
+    return Column(
+      children: [
+        TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(icon: Icon(Icons.picture_as_pdf), text: 'PDF'),
+            Tab(icon: Icon(Icons.lightbulb_outline), text: 'Study Guide'),
+          ],
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _PdfViewerPanel(sectionId: widget.sectionId),
+              ActiveLearningPanel(sectionId: widget.sectionId),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Loads and displays the PDF associated with a section's file.
+class _PdfViewerPanel extends ConsumerWidget {
+  final String sectionId;
+
+  const _PdfViewerPanel({required this.sectionId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final uid = ref.watch(uidProvider);
+    if (uid == null) {
+      return const Center(child: Text('Not authenticated'));
+    }
+
+    final sectionAsync = ref.watch(sectionForSessionProvider(sectionId));
+
+    return sectionAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(
+        child: Padding(
+          padding: AppSpacing.cardPadding,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline,
+                  color: AppColors.error, size: 48),
+              AppSpacing.gapMd,
+              Text(
+                'Could not load PDF',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              AppSpacing.gapSm,
+              Text(
+                '$e',
+                style: Theme.of(context).textTheme.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
       ),
+      data: (section) {
+        if (section == null) {
+          return const Center(
+            child: Text('Section not found'),
+          );
+        }
+
+        final pdfUrlAsync =
+            ref.watch(pdfDownloadUrlProvider(section.fileId));
+
+        return pdfUrlAsync.when(
+          loading: () => Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                AppSpacing.gapMd,
+                Text(
+                  'Loading PDF...',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+          ),
+          error: (e, _) => Center(
+            child: Padding(
+              padding: AppSpacing.cardPadding,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.cloud_off,
+                      color: AppColors.error, size: 48),
+                  AppSpacing.gapMd,
+                  Text(
+                    'Failed to load file',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  AppSpacing.gapSm,
+                  Text(
+                    '$e',
+                    style: Theme.of(context).textTheme.bodySmall,
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          data: (url) {
+            if (url == null) {
+              return const Center(child: Text('PDF not available'));
+            }
+            return PdfViewer.uri(
+              Uri.parse(url),
+              params: PdfViewerParams(
+                enableTextSelection: true,
+                maxScale: 5.0,
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

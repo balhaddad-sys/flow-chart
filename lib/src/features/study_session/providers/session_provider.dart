@@ -2,6 +2,11 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/user_provider.dart';
+import '../../../core/services/storage_service.dart';
+import '../../../models/section_model.dart';
+
 enum SessionPhase { studying, quiz, completed }
 
 class SessionState {
@@ -98,4 +103,27 @@ class SessionNotifier extends StateNotifier<SessionState> {
 final sessionProvider =
     StateNotifierProvider<SessionNotifier, SessionState>((ref) {
   return SessionNotifier();
+});
+
+/// Looks up a [SectionModel] by its document ID across all user sections.
+final sectionForSessionProvider =
+    FutureProvider.family<SectionModel?, String>((ref, sectionId) async {
+  final uid = ref.watch(uidProvider);
+  if (uid == null) return null;
+  final db = ref.watch(firestoreServiceProvider);
+  final doc = await db.getSection(uid, sectionId);
+  return doc;
+});
+
+/// Resolves a download URL for a file given its Firestore file ID.
+/// Looks up the file document to get storagePath, then fetches the URL.
+final pdfDownloadUrlProvider =
+    FutureProvider.family<String?, String>((ref, fileId) async {
+  final uid = ref.watch(uidProvider);
+  if (uid == null) return null;
+  final db = ref.watch(firestoreServiceProvider);
+  final file = await db.getFile(uid, fileId);
+  if (file == null) return null;
+  final storage = StorageService();
+  return storage.getDownloadUrl(file.storagePath);
 });
