@@ -30,7 +30,7 @@ class SessionTimer extends StatelessWidget {
         horizontal: 14,
         vertical: 6,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.primarySurface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
       ),
