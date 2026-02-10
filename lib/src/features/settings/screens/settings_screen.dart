@@ -138,7 +138,7 @@ class SettingsScreen extends ConsumerWidget {
                   leading: Container(
                     width: 36,
                     height: 36,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: AppColors.primarySurface,
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -153,7 +153,7 @@ class SettingsScreen extends ConsumerWidget {
                   leading: Container(
                     width: 36,
                     height: 36,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: AppColors.secondarySurface,
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -170,7 +170,7 @@ class SettingsScreen extends ConsumerWidget {
                   leading: Container(
                     width: 36,
                     height: 36,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: AppColors.accentSurface,
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -204,7 +204,7 @@ class SettingsScreen extends ConsumerWidget {
                   leading: Container(
                     width: 36,
                     height: 36,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: AppColors.surfaceVariant,
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -223,7 +223,7 @@ class SettingsScreen extends ConsumerWidget {
                   leading: Container(
                     width: 36,
                     height: 36,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: AppColors.errorSurface,
                       borderRadius: BorderRadius.circular(8),
                     ),

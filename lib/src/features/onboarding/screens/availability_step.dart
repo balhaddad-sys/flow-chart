@@ -21,7 +21,7 @@ class AvailabilityStep extends ConsumerWidget {
           Container(
             width: 56,
             height: 56,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: AppColors.accentSurface,
               borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
             ),

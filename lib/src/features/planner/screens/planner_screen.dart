@@ -39,7 +39,7 @@ class PlannerScreen extends ConsumerWidget {
             child: IconButton(
               icon: Container(
                 padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   color: AppColors.primarySurface,
                   borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                 ),
