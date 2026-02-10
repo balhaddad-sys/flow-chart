@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
@@ -10,7 +11,7 @@ import '../../../core/services/storage_service.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../home/providers/home_provider.dart';
 import '../providers/library_provider.dart';
-import '../widgets/file_card.dart';
+import '../widgets/section_list.dart';
 
 const _uuid = Uuid();
 
@@ -171,7 +172,7 @@ class _CourseSection extends ConsumerWidget {
             }
             return Column(
               children: files
-                  .map((file) => FileCard(file: file))
+                  .map((file) => _ExpandableFileCard(file: file))
                   .toList(),
             );
           },
@@ -179,5 +180,142 @@ class _CourseSection extends ConsumerWidget {
         AppSpacing.gapLg,
       ],
     );
+  }
+}
+
+/// A file entry that expands to show the file's extracted sections.
+class _ExpandableFileCard extends ConsumerStatefulWidget {
+  final dynamic file;
+
+  const _ExpandableFileCard({required this.file});
+
+  @override
+  ConsumerState<_ExpandableFileCard> createState() =>
+      _ExpandableFileCardState();
+}
+
+class _ExpandableFileCardState extends ConsumerState<_ExpandableFileCard> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final file = widget.file;
+    final isReady = file.status == 'READY';
+    final hasSections = isReady && file.sectionCount > 0;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // File header - tappable to expand if sections exist
+          ListTile(
+            onTap: hasSections
+                ? () => setState(() => _expanded = !_expanded)
+                : null,
+            leading: _fileIcon(file.mimeType),
+            title: Text(
+              file.originalName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: _buildSubtitle(context, file),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _statusIndicator(file.status),
+                if (hasSections) ...[
+                  const SizedBox(width: 4),
+                  Icon(
+                    _expanded
+                        ? Icons.expand_less
+                        : Icons.expand_more,
+                    color: AppColors.textTertiary,
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          // Expandable sections list
+          if (hasSections)
+            AnimatedCrossFade(
+              firstChild: const SizedBox.shrink(),
+              secondChild: Container(
+                decoration: const BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: AppColors.divider),
+                  ),
+                ),
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: SectionList(fileId: file.id),
+              ),
+              crossFadeState: _expanded
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
+              duration: const Duration(milliseconds: 200),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _fileIcon(String mimeType) {
+    IconData icon;
+    Color color;
+    if (mimeType.contains('pdf')) {
+      icon = Icons.picture_as_pdf;
+      color = Colors.red;
+    } else if (mimeType.contains('presentation')) {
+      icon = Icons.slideshow;
+      color = Colors.orange;
+    } else if (mimeType.contains('wordprocessing')) {
+      icon = Icons.article;
+      color = Colors.blue;
+    } else {
+      icon = Icons.insert_drive_file;
+      color = AppColors.textTertiary;
+    }
+    return Icon(icon, color: color, size: 32);
+  }
+
+  Widget _buildSubtitle(BuildContext context, dynamic file) {
+    final sizeStr = _formatSize(file.sizeBytes);
+    final sectionStr = file.status == 'READY'
+        ? ' | ${file.sectionCount} sections'
+        : '';
+    return Text(
+      '$sizeStr$sectionStr',
+      style: Theme.of(context).textTheme.bodySmall,
+    );
+  }
+
+  Widget _statusIndicator(String status) {
+    switch (status) {
+      case 'PROCESSING':
+        return const SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppColors.primary,
+          ),
+        );
+      case 'READY':
+        return const Icon(Icons.check_circle, color: AppColors.success);
+      case 'FAILED':
+        return const Icon(Icons.error, color: AppColors.error);
+      default:
+        return const Icon(
+            Icons.hourglass_empty, color: AppColors.textTertiary);
+    }
+  }
+
+  String _formatSize(int bytes) {
+    if (bytes >= 1048576) {
+      return '${(bytes / 1048576).toStringAsFixed(1)} MB';
+    }
+    return '${(bytes / 1024).toStringAsFixed(0)} KB';
   }
 }
