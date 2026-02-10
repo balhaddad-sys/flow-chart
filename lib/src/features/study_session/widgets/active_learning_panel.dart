@@ -320,10 +320,10 @@ class _HighlightItem extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.warningSurface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-        border: Border(
+        border: const Border(
           left: BorderSide(color: AppColors.warning, width: 3),
         ),
       ),
@@ -346,10 +346,10 @@ class _TrapItem extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.errorSurface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-        border: Border(
+        border: const Border(
           left: BorderSide(color: AppColors.error, width: 3),
         ),
       ),
