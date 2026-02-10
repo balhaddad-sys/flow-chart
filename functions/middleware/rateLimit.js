@@ -75,8 +75,15 @@ async function checkRateLimit(uid, operation, { maxCalls, windowMs }) {
     // If it's already an HttpsError (rate limit), re-throw
     if (error.code === "resource-exhausted") throw error;
 
-    // For Firestore errors, log but don't block the request
-    console.warn(`Rate limit check failed for ${key}:`, error.message);
+    // For Firestore errors, fall back to in-memory tracking only
+    console.warn(`Rate limit Firestore check failed for ${key}:`, error.message);
+    const fallback = cache.get(key);
+    if (fallback) {
+      fallback.count = (fallback.count || 0) + 1;
+      fallback.timestamp = now;
+    } else {
+      cache.set(key, { count: 1, timestamp: now });
+    }
   }
 }
 

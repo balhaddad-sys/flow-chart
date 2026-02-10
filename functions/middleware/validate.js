@@ -93,6 +93,30 @@ function safeError(error, operation) {
       error: { code: "NOT_FOUND", message: "The requested resource was not found." },
     };
   }
+  if (error.code === "already-exists" || error.code === "ALREADY_EXISTS") {
+    return {
+      success: false,
+      error: { code: "ALREADY_EXISTS", message: "This resource already exists." },
+    };
+  }
+  if (error.code === "resource-exhausted" || error.code === "RESOURCE_EXHAUSTED") {
+    return {
+      success: false,
+      error: { code: "RATE_LIMITED", message: "Too many requests. Please wait and try again." },
+    };
+  }
+  if (error.code === "unavailable" || error.code === "UNAVAILABLE") {
+    return {
+      success: false,
+      error: { code: "UNAVAILABLE", message: "Service temporarily unavailable. Please try again later." },
+    };
+  }
+  if (error.code === "deadline-exceeded" || error.code === "DEADLINE_EXCEEDED") {
+    return {
+      success: false,
+      error: { code: "TIMEOUT", message: "The operation took too long. Please try again." },
+    };
+  }
 
   // Generic fallback — never expose internal error messages to client
   return {

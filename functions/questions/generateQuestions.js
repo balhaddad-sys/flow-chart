@@ -92,13 +92,16 @@ exports.generateQuestions = functions
       // Write questions to Firestore
       const batch = db.batch();
       const questions = result.data.questions;
+      let validCount = 0;
 
       for (const q of questions) {
         // Validate question structure before writing
         if (!q.stem || !Array.isArray(q.options) || q.correct_index == null) {
+          console.warn(`Skipping invalid question: missing stem, options, or correct_index`);
           continue;
         }
 
+        validCount++;
         const ref = db.collection(`users/${uid}/questions`).doc();
         batch.set(ref, {
           courseId,
@@ -128,7 +131,10 @@ exports.generateQuestions = functions
 
       return {
         success: true,
-        data: { questionCount: questions.length },
+        data: {
+          questionCount: validCount,
+          skippedCount: questions.length - validCount,
+        },
       };
     } catch (error) {
       return safeError(error, "question generation");

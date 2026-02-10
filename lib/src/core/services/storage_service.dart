@@ -80,13 +80,20 @@ class StorageService {
     }
 
     if (onProgress != null) {
-      uploadTask.snapshotEvents.listen((event) {
-        final progress = event.bytesTransferred / event.totalBytes;
-        onProgress(progress);
+      final subscription = uploadTask.snapshotEvents.listen((event) {
+        if (event.totalBytes > 0) {
+          final progress = event.bytesTransferred / event.totalBytes;
+          onProgress(progress);
+        }
       });
+      try {
+        await uploadTask;
+      } finally {
+        await subscription.cancel();
+      }
+    } else {
+      await uploadTask;
     }
-
-    await uploadTask;
     return storagePath;
   }
 

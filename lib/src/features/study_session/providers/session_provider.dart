@@ -42,6 +42,7 @@ class SessionState {
 
 class SessionNotifier extends StateNotifier<SessionState> {
   Timer? _timer;
+  bool _disposed = false;
 
   SessionNotifier() : super(const SessionState());
 
@@ -80,7 +81,7 @@ class SessionNotifier extends StateNotifier<SessionState> {
   void _startTimer() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) {
+      if (!_disposed) {
         state = state.copyWith(elapsedSeconds: state.elapsedSeconds + 1);
       }
     });
@@ -88,6 +89,7 @@ class SessionNotifier extends StateNotifier<SessionState> {
 
   @override
   void dispose() {
+    _disposed = true;
     _timer?.cancel();
     super.dispose();
   }

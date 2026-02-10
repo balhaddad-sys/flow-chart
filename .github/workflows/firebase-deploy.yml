@@ -8,6 +8,10 @@ on:
     branches:
       - main
 
+env:
+  FIREBASE_PROJECT_ID: medq-a6cc6
+  NODE_VERSION: '20'
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -18,7 +22,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: functions/package-lock.json
 
@@ -43,6 +47,10 @@ jobs:
       - name: Install Cloud Functions dependencies
         run: cd functions && npm ci
 
+      - name: Audit Cloud Functions dependencies
+        run: cd functions && npm audit --audit-level=high
+        continue-on-error: true
+
       - name: Run Cloud Functions tests
         run: cd functions && npm test
 
@@ -58,7 +66,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: functions/package-lock.json
 
@@ -89,4 +97,4 @@ jobs:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
       - name: Deploy to Firebase
-        run: firebase deploy --project medq-a6cc6
+        run: firebase deploy --project ${{ env.FIREBASE_PROJECT_ID }}
