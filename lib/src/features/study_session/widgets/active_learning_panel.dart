@@ -26,14 +26,13 @@ class ActiveLearningPanel extends ConsumerWidget {
         final blueprint = section.blueprint;
 
         return ListView(
-          padding: AppSpacing.cardPadding,
+          padding: AppSpacing.cardPaddingLarge,
           children: [
-            // Section header
             Text(
               section.title,
-              style: Theme.of(context).textTheme.titleLarge,
+              style: Theme.of(context).textTheme.headlineMedium,
             ),
-            AppSpacing.gapXs,
+            AppSpacing.gapSm,
             Wrap(
               spacing: AppSpacing.xs,
               runSpacing: AppSpacing.xs,
@@ -43,22 +42,21 @@ class ActiveLearningPanel extends ConsumerWidget {
                   label: '${section.estMinutes} min',
                 ),
                 _InfoChip(
-                  icon: Icons.signal_cellular_alt,
+                  icon: Icons.signal_cellular_alt_rounded,
                   label: 'Difficulty ${section.difficulty}/5',
                 ),
                 ...section.topicTags.map(
                   (tag) => _InfoChip(
-                    icon: Icons.label_outline,
+                    icon: Icons.label_outline_rounded,
                     label: tag,
                     color: AppColors.secondary,
                   ),
                 ),
               ],
             ),
-            AppSpacing.gapLg,
+            AppSpacing.gapXl,
 
             if (blueprint != null) ...[
-              // Learning objectives
               if (blueprint.learningObjectives.isNotEmpty) ...[
                 _SectionHeader(
                   icon: Icons.flag_outlined,
@@ -71,10 +69,9 @@ class ActiveLearningPanel extends ConsumerWidget {
                 AppSpacing.gapLg,
               ],
 
-              // Key concepts
               if (blueprint.keyConcepts.isNotEmpty) ...[
                 _SectionHeader(
-                  icon: Icons.lightbulb_outline,
+                  icon: Icons.lightbulb_outline_rounded,
                   title: 'Key Concepts',
                 ),
                 AppSpacing.gapSm,
@@ -82,24 +79,28 @@ class ActiveLearningPanel extends ConsumerWidget {
                   spacing: AppSpacing.sm,
                   runSpacing: AppSpacing.sm,
                   children: blueprint.keyConcepts
-                      .map((c) => Chip(
-                            label: Text(c,
-                                style: Theme.of(context).textTheme.bodySmall),
-                            backgroundColor:
-                                AppColors.primary.withValues(alpha: 0.08),
-                            side: BorderSide.none,
-                            padding: EdgeInsets.zero,
-                            visualDensity: VisualDensity.compact,
+                      .map((c) => Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: AppColors.primarySurface,
+                              borderRadius: BorderRadius.circular(
+                                  AppSpacing.radiusFull),
+                            ),
+                            child: Text(c,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelMedium
+                                    ?.copyWith(color: AppColors.primary)),
                           ))
                       .toList(),
                 ),
                 AppSpacing.gapLg,
               ],
 
-              // High-yield points
               if (blueprint.highYieldPoints.isNotEmpty) ...[
                 _SectionHeader(
-                  icon: Icons.star_outline,
+                  icon: Icons.star_outline_rounded,
                   title: 'High-Yield Points',
                   color: AppColors.warning,
                 ),
@@ -110,10 +111,9 @@ class ActiveLearningPanel extends ConsumerWidget {
                 AppSpacing.gapLg,
               ],
 
-              // Common traps
               if (blueprint.commonTraps.isNotEmpty) ...[
                 _SectionHeader(
-                  icon: Icons.warning_amber_outlined,
+                  icon: Icons.warning_amber_rounded,
                   title: 'Common Traps',
                   color: AppColors.error,
                 ),
@@ -124,7 +124,6 @@ class ActiveLearningPanel extends ConsumerWidget {
                 AppSpacing.gapLg,
               ],
 
-              // Terms to define
               if (blueprint.termsToDefine.isNotEmpty) ...[
                 _SectionHeader(
                   icon: Icons.menu_book_outlined,
@@ -135,42 +134,56 @@ class ActiveLearningPanel extends ConsumerWidget {
                   spacing: AppSpacing.sm,
                   runSpacing: AppSpacing.sm,
                   children: blueprint.termsToDefine
-                      .map((term) => Chip(
-                            label: Text(term,
-                                style: Theme.of(context).textTheme.bodySmall),
-                            backgroundColor:
-                                AppColors.surfaceVariant,
-                            side: BorderSide.none,
-                            padding: EdgeInsets.zero,
-                            visualDensity: VisualDensity.compact,
+                      .map((term) => Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: AppColors.surfaceVariant,
+                              borderRadius: BorderRadius.circular(
+                                  AppSpacing.radiusFull),
+                            ),
+                            child: Text(term,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .labelMedium),
                           ))
                       .toList(),
                 ),
                 AppSpacing.gapLg,
               ],
             ] else ...[
-              // No blueprint available yet
               Center(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: AppSpacing.xxl),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.auto_awesome,
-                          color: AppColors.textTertiary, size: 40),
+                      Container(
+                        width: 56,
+                        height: 56,
+                        decoration: BoxDecoration(
+                          color: AppColors.secondarySurface,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.auto_awesome_rounded,
+                            color: AppColors.secondary, size: 28),
+                      ),
                       AppSpacing.gapMd,
                       Text(
                         'Study guide generating...',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: AppColors.textSecondary,
-                            ),
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(color: AppColors.textSecondary),
                       ),
                       AppSpacing.gapXs,
                       Text(
                         'AI analysis is still processing this section',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.textTertiary,
-                            ),
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(color: AppColors.textTertiary),
                       ),
                     ],
                   ),
@@ -200,11 +213,22 @@ class _SectionHeader extends StatelessWidget {
     final c = color ?? AppColors.primary;
     return Row(
       children: [
-        Icon(icon, color: c, size: 20),
+        Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            color: c.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(icon, color: c, size: 14),
+        ),
         AppSpacing.hGapSm,
         Text(
           title,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(color: c),
+          style: Theme.of(context)
+              .textTheme
+              .titleSmall
+              ?.copyWith(color: c, fontWeight: FontWeight.w700),
         ),
       ],
     );
@@ -226,24 +250,21 @@ class _InfoChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = color ?? AppColors.textSecondary;
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xs,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: c.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: c),
+          Icon(icon, size: 13, color: c),
           const SizedBox(width: 4),
           Text(
             label,
             style: Theme.of(context)
                 .textTheme
-                .bodySmall
+                .labelSmall
                 ?.copyWith(color: c, fontWeight: FontWeight.w500),
           ),
         ],
@@ -265,10 +286,10 @@ class _BulletItem extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.only(top: 6),
+            padding: const EdgeInsets.only(top: 7),
             child: Container(
-              width: 6,
-              height: 6,
+              width: 5,
+              height: 5,
               decoration: const BoxDecoration(
                 color: AppColors.primary,
                 shape: BoxShape.circle,
@@ -277,7 +298,11 @@ class _BulletItem extends StatelessWidget {
           ),
           AppSpacing.hGapSm,
           Expanded(
-            child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
+            child: Text(text,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textPrimary,
+                      height: 1.5,
+                    )),
           ),
         ],
       ),
@@ -296,13 +321,17 @@ class _HighlightItem extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
-        color: AppColors.warning.withValues(alpha: 0.08),
+        color: AppColors.warningSurface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
         border: Border(
           left: BorderSide(color: AppColors.warning, width: 3),
         ),
       ),
-      child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
+      child: Text(text,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppColors.textPrimary,
+                height: 1.5,
+              )),
     );
   }
 }
@@ -318,7 +347,7 @@ class _TrapItem extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       padding: const EdgeInsets.all(AppSpacing.sm),
       decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.06),
+        color: AppColors.errorSurface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
         border: Border(
           left: BorderSide(color: AppColors.error, width: 3),
@@ -327,10 +356,15 @@ class _TrapItem extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.warning_amber, color: AppColors.error, size: 16),
+          const Icon(Icons.warning_amber_rounded,
+              color: AppColors.error, size: 16),
           AppSpacing.hGapSm,
           Expanded(
-            child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
+            child: Text(text,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textPrimary,
+                      height: 1.5,
+                    )),
           ),
         ],
       ),

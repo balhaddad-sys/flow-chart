@@ -7,53 +7,75 @@ class OptionButton extends StatelessWidget {
   final int index;
   final String text;
   final bool isSelected;
-  final bool? isCorrect;
   final bool hasSubmitted;
-  final VoidCallback onTap;
+  final bool isCorrect;
+  final VoidCallback? onTap;
 
   const OptionButton({
     super.key,
     required this.index,
     required this.text,
     required this.isSelected,
-    this.isCorrect,
     required this.hasSubmitted,
-    required this.onTap,
+    required this.isCorrect,
+    this.onTap,
   });
 
-  static const _optionLabels = ['A', 'B', 'C', 'D', 'E'];
+  static const _labels = ['A', 'B', 'C', 'D', 'E'];
 
   @override
   Widget build(BuildContext context) {
     Color borderColor;
-    Color? bgColor;
+    Color bgColor;
+    Color labelBg;
+    Color labelColor;
+    IconData? trailingIcon;
+    Color? trailingColor;
 
     if (hasSubmitted) {
-      if (isCorrect == true) {
+      if (isCorrect) {
         borderColor = AppColors.success;
-        bgColor = AppColors.success.withValues(alpha: 0.08);
-      } else if (isSelected && isCorrect == false) {
+        bgColor = AppColors.successSurface;
+        labelBg = AppColors.success;
+        labelColor = Colors.white;
+        trailingIcon = Icons.check_circle_rounded;
+        trailingColor = AppColors.success;
+      } else if (isSelected) {
         borderColor = AppColors.error;
-        bgColor = AppColors.error.withValues(alpha: 0.08);
+        bgColor = AppColors.errorSurface;
+        labelBg = AppColors.error;
+        labelColor = Colors.white;
+        trailingIcon = Icons.cancel_rounded;
+        trailingColor = AppColors.error;
       } else {
         borderColor = AppColors.border;
-        bgColor = null;
+        bgColor = AppColors.surface;
+        labelBg = AppColors.surfaceVariant;
+        labelColor = AppColors.textTertiary;
       }
+    } else if (isSelected) {
+      borderColor = AppColors.primary;
+      bgColor = AppColors.primarySurface;
+      labelBg = AppColors.primary;
+      labelColor = Colors.white;
     } else {
-      borderColor = isSelected ? AppColors.primary : AppColors.border;
-      bgColor = isSelected ? AppColors.primary.withValues(alpha: 0.05) : null;
+      borderColor = AppColors.border;
+      bgColor = AppColors.surface;
+      labelBg = AppColors.surfaceVariant;
+      labelColor = AppColors.textSecondary;
     }
 
     return InkWell(
-      onTap: hasSubmitted ? null : onTap,
+      onTap: onTap,
       borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(AppSpacing.md),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
           color: bgColor,
-          border: Border.all(color: borderColor, width: isSelected ? 2 : 1),
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          border: Border.all(color: borderColor, width: 1.5),
         ),
         child: Row(
           children: [
@@ -61,17 +83,15 @@ class OptionButton extends StatelessWidget {
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isSelected ? borderColor : AppColors.surfaceVariant,
+                color: labelBg,
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Center(
                 child: Text(
-                  index < _optionLabels.length
-                      ? _optionLabels[index]
-                      : '${index + 1}',
+                  index < _labels.length ? _labels[index] : '${index + 1}',
                   style: TextStyle(
-                    color: isSelected ? Colors.white : AppColors.textSecondary,
-                    fontWeight: FontWeight.w600,
+                    color: labelColor,
+                    fontWeight: FontWeight.w700,
                     fontSize: 13,
                   ),
                 ),
@@ -81,13 +101,15 @@ class OptionButton extends StatelessWidget {
             Expanded(
               child: Text(
                 text,
-                style: Theme.of(context).textTheme.bodyLarge,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight:
+                          isSelected ? FontWeight.w500 : FontWeight.w400,
+                    ),
               ),
             ),
-            if (hasSubmitted && isCorrect == true)
-              const Icon(Icons.check_circle, color: AppColors.success, size: 20),
-            if (hasSubmitted && isSelected && isCorrect == false)
-              const Icon(Icons.cancel, color: AppColors.error, size: 20),
+            if (trailingIcon != null)
+              Icon(trailingIcon, color: trailingColor, size: 22),
           ],
         ),
       ),

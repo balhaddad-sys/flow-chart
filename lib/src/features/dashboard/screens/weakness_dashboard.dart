@@ -21,7 +21,7 @@ class WeaknessDashboard extends ConsumerWidget {
     if (activeCourseId == null) {
       return const Scaffold(
         body: EmptyState(
-          icon: Icons.bar_chart,
+          icon: Icons.insights_rounded,
           title: 'No course selected',
         ),
       );
@@ -32,7 +32,7 @@ class WeaknessDashboard extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Weakness Dashboard'),
+        title: const Text('Analytics'),
       ),
       body: statsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -40,29 +40,29 @@ class WeaknessDashboard extends ConsumerWidget {
         data: (stats) {
           if (stats == null || stats.weakestTopics.isEmpty) {
             return const EmptyState(
-              icon: Icons.check_circle_outline,
+              icon: Icons.check_circle_outline_rounded,
               title: 'No weak topics yet',
               subtitle: 'Complete some questions to see your weaknesses',
             );
           }
 
           return ListView(
-            padding: AppSpacing.screenPadding,
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
             children: [
-              // Stats summary row
+              // Stats summary
               _StatsSummary(stats: stats),
               AppSpacing.gapLg,
 
-              // Weak topics
+              // Section header
               Text(
-                'Topics Ranked by Weakness',
-                style: Theme.of(context).textTheme.titleLarge,
+                'Weak Topics',
+                style: Theme.of(context).textTheme.headlineMedium,
               ),
-              AppSpacing.gapSm,
+              AppSpacing.gapXs,
               Text(
                 'Focus on the red topics first for maximum improvement',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
+                      color: AppColors.textTertiary,
                     ),
               ),
               AppSpacing.gapMd,
@@ -71,13 +71,13 @@ class WeaknessDashboard extends ConsumerWidget {
               ),
               AppSpacing.gapLg,
 
-              // Fix plan section
+              // Fix plan
               PrimaryButton(
                 label: fixPlan.fixPlan != null
                     ? 'Regenerate Fix Plan'
                     : 'Generate Fix Plan',
                 isLoading: fixPlan.isLoading,
-                icon: Icons.auto_fix_high,
+                icon: Icons.auto_fix_high_rounded,
                 onPressed: () {
                   ref
                       .read(fixPlanProvider.notifier)
@@ -120,55 +120,58 @@ class _StatsSummary extends StatelessWidget {
             ? AppColors.warning
             : AppColors.success;
 
-    return Card(
-      child: Padding(
-        padding: AppSpacing.cardPadding,
-        child: Row(
-          children: [
-            // Accuracy ring
-            CircularPercentIndicator(
-              radius: 40,
-              lineWidth: 8,
-              percent: stats.overallAccuracy.clamp(0, 1),
-              center: Text(
-                '$accuracyPercent%',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              progressColor: accuracyColor,
-              backgroundColor: AppColors.border,
-              circularStrokeCap: CircularStrokeCap.round,
+    return Container(
+      padding: AppSpacing.cardPaddingLarge,
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.7)),
+        boxShadow: AppSpacing.shadowMd,
+      ),
+      child: Row(
+        children: [
+          CircularPercentIndicator(
+            radius: 44,
+            lineWidth: 8,
+            percent: stats.overallAccuracy.clamp(0, 1),
+            center: Text(
+              '$accuracyPercent%',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: accuracyColor,
+                  ),
             ),
-            AppSpacing.hGapMd,
-            // Stats details
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Overall Accuracy',
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                  AppSpacing.gapXs,
-                  _StatRow(
-                    icon: Icons.quiz_outlined,
-                    label: '${stats.totalQuestionsAnswered} questions answered',
-                  ),
-                  _StatRow(
-                    icon: Icons.timer_outlined,
-                    label: '${stats.totalStudyMinutes} minutes studied',
-                  ),
-                  _StatRow(
-                    icon: Icons.warning_amber_outlined,
-                    label: '${stats.weakestTopics.length} weak topics',
-                    color: AppColors.error,
-                  ),
-                ],
-              ),
+            progressColor: accuracyColor,
+            backgroundColor: accuracyColor.withValues(alpha: 0.12),
+            circularStrokeCap: CircularStrokeCap.round,
+          ),
+          AppSpacing.hGapLg,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Overall Accuracy',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                AppSpacing.gapSm,
+                _StatRow(
+                  icon: Icons.quiz_outlined,
+                  label: '${stats.totalQuestionsAnswered} questions answered',
+                ),
+                _StatRow(
+                  icon: Icons.timer_outlined,
+                  label: '${stats.totalStudyMinutes} minutes studied',
+                ),
+                _StatRow(
+                  icon: Icons.trending_down_rounded,
+                  label: '${stats.weakestTopics.length} weak topics',
+                  color: AppColors.error,
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -188,11 +191,11 @@ class _StatRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
+      padding: const EdgeInsets.only(bottom: 4),
       child: Row(
         children: [
-          Icon(icon, size: 14, color: color ?? AppColors.textSecondary),
-          const SizedBox(width: 6),
+          Icon(icon, size: 14, color: color ?? AppColors.textTertiary),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               label,

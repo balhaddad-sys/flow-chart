@@ -27,15 +27,20 @@ class StatsCards extends ConsumerWidget {
             _StatCard(
               label: 'Completion',
               child: CircularPercentIndicator(
-                radius: 28,
+                radius: 26,
                 lineWidth: 5,
                 percent: stats.completionPercent.clamp(0, 1),
                 center: Text(
                   '${(stats.completionPercent * 100).round()}%',
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.primary,
+                  ),
                 ),
                 progressColor: AppColors.primary,
-                backgroundColor: AppColors.border,
+                backgroundColor: AppColors.primarySurface,
+                circularStrokeCap: CircularStrokeCap.round,
               ),
             ),
             AppSpacing.hGapSm,
@@ -47,6 +52,7 @@ class StatsCards extends ConsumerWidget {
                       color: stats.overallAccuracy >= 0.7
                           ? AppColors.success
                           : AppColors.warning,
+                      fontWeight: FontWeight.w700,
                     ),
               ),
             ),
@@ -55,12 +61,21 @@ class StatsCards extends ConsumerWidget {
               label: 'Streak',
               child: Row(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
                 children: [
                   Text(
                     '${stats.streakDays}',
-                    style: Theme.of(context).textTheme.headlineMedium,
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                   ),
-                  const Text(' days'),
+                  Text(
+                    'd',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                  ),
                 ],
               ),
             ),
@@ -69,7 +84,9 @@ class StatsCards extends ConsumerWidget {
               label: 'This week',
               child: Text(
                 AppDateUtils.formatDuration(stats.weeklyStudyMinutes),
-                style: Theme.of(context).textTheme.headlineMedium,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
               ),
             ),
           ],
@@ -88,19 +105,25 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          child: Column(
-            children: [
-              child,
-              AppSpacing.gapXs,
-              Text(
-                label,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-          ),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          border: Border.all(color: AppColors.border.withValues(alpha: 0.7)),
+          boxShadow: AppSpacing.shadowSm,
+        ),
+        child: Column(
+          children: [
+            child,
+            AppSpacing.gapXs,
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+            ),
+          ],
         ),
       ),
     );

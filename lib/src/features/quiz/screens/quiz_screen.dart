@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../home/providers/home_provider.dart';
@@ -60,20 +61,39 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
           'Question ${quiz.currentIndex + 1}/${quiz.questions.length}',
         ),
         actions: [
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            child: Center(
-              child: Text(
-                '${quiz.correctCount}/${quiz.totalAnswered} correct',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
+          Container(
+            margin: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppColors.successSurface,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+            ),
+            child: Text(
+              '${quiz.correctCount}/${quiz.totalAnswered} correct',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: AppColors.success,
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
           ),
         ],
       ),
       body: ListView(
-        padding: AppSpacing.screenPadding,
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
         children: [
+          // Progress bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+            child: LinearProgressIndicator(
+              value: (quiz.currentIndex + 1) / quiz.questions.length,
+              backgroundColor: AppColors.primarySurface,
+              color: AppColors.primary,
+              minHeight: 4,
+            ),
+          ),
+          AppSpacing.gapLg,
+
           QuestionCard(
             question: question,
             selectedIndex: quiz.selectedOptionIndex,
@@ -116,28 +136,56 @@ class _ResultsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final percent = (quiz.accuracy * 100).round();
+    final color = percent >= 70
+        ? AppColors.success
+        : percent >= 40
+            ? AppColors.warning
+            : AppColors.error;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Quiz Complete')),
       body: Center(
         child: Padding(
-          padding: AppSpacing.screenPadding,
+          padding: const EdgeInsets.all(32),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    '$percent%',
+                    style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                          color: color,
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                ),
+              ),
+              AppSpacing.gapLg,
               Text(
-                '$percent%',
-                style: Theme.of(context).textTheme.displayLarge,
+                percent >= 70 ? 'Great work!' : 'Keep practicing!',
+                style: Theme.of(context).textTheme.headlineMedium,
               ),
               AppSpacing.gapSm,
               Text(
                 '${quiz.correctCount} out of ${quiz.totalAnswered} correct',
-                style: Theme.of(context).textTheme.titleMedium,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
               ),
               AppSpacing.gapXl,
-              PrimaryButton(
-                label: 'Done',
-                onPressed: () => context.pop(),
+              SizedBox(
+                width: 200,
+                child: PrimaryButton(
+                  label: 'Done',
+                  onPressed: () => context.pop(),
+                ),
               ),
             ],
           ),

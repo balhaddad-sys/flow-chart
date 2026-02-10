@@ -26,7 +26,7 @@ class PrimaryButton extends StatelessWidget {
             height: 20,
             width: 20,
             child: CircularProgressIndicator(
-              strokeWidth: 2,
+              strokeWidth: 2.5,
               color: Colors.white,
             ),
           )
@@ -37,19 +37,25 @@ class PrimaryButton extends StatelessWidget {
                 Icon(icon, size: 18),
                 AppSpacing.hGapSm,
               ],
-              Text(label),
+              Text(
+                label,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.2,
+                ),
+              ),
             ],
           );
 
     if (isOutlined) {
       return SizedBox(
         width: double.infinity,
-        height: 48,
+        height: 52,
         child: OutlinedButton(
           onPressed: isLoading ? null : onPressed,
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.primary,
-            side: const BorderSide(color: AppColors.primary),
+            side: const BorderSide(color: AppColors.primary, width: 1.5),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             ),
@@ -61,18 +67,41 @@ class PrimaryButton extends StatelessWidget {
 
     return SizedBox(
       width: double.infinity,
-      height: 48,
-      child: ElevatedButton(
-        onPressed: isLoading ? null : onPressed,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          ),
-          elevation: 0,
+      height: 52,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: onPressed != null && !isLoading
+              ? AppColors.primaryGradient
+              : null,
+          color: onPressed == null || isLoading
+              ? AppColors.primary.withValues(alpha: 0.4)
+              : null,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          boxShadow: onPressed != null && !isLoading
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: 0.3),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
         ),
-        child: child,
+        child: ElevatedButton(
+          onPressed: isLoading ? null : onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            disabledBackgroundColor: Colors.transparent,
+            foregroundColor: Colors.white,
+            disabledForegroundColor: Colors.white70,
+            shadowColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            ),
+            elevation: 0,
+          ),
+          child: child,
+        ),
       ),
     );
   }

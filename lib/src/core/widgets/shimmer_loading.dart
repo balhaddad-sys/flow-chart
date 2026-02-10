@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../constants/app_spacing.dart';
+
 class ShimmerLoading extends StatefulWidget {
   final double width;
   final double height;
@@ -9,7 +11,7 @@ class ShimmerLoading extends StatefulWidget {
     super.key,
     this.width = double.infinity,
     required this.height,
-    this.borderRadius = 8,
+    this.borderRadius = 12,
   });
 
   @override
@@ -42,8 +44,8 @@ class _ShimmerLoadingState extends State<ShimmerLoading>
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final baseColor = isDark ? Colors.grey[800]! : Colors.grey[300]!;
-    final highlightColor = isDark ? Colors.grey[700]! : Colors.grey[100]!;
+    final baseColor = isDark ? Colors.grey[800]! : const Color(0xFFE2E8F0);
+    final highlightColor = isDark ? Colors.grey[700]! : const Color(0xFFF1F5F9);
 
     return AnimatedBuilder(
       animation: _animation,
@@ -86,7 +88,7 @@ class ShimmerList extends StatelessWidget {
       children: List.generate(
         itemCount,
         (index) => Padding(
-          padding: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
           child: ShimmerLoading(height: itemHeight),
         ),
       ),

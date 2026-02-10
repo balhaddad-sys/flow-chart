@@ -76,16 +76,13 @@ class _StudySessionScreenState extends ConsumerState<StudySessionScreen>
           flex: 65,
           child: _PdfViewerPanel(sectionId: widget.sectionId),
         ),
+        Container(
+          width: 1,
+          color: AppColors.divider,
+        ),
         Expanded(
           flex: 35,
-          child: Container(
-            decoration: const BoxDecoration(
-              border: Border(
-                left: BorderSide(color: AppColors.border),
-              ),
-            ),
-            child: ActiveLearningPanel(sectionId: widget.sectionId),
-          ),
+          child: ActiveLearningPanel(sectionId: widget.sectionId),
         ),
       ],
     );
@@ -94,12 +91,26 @@ class _StudySessionScreenState extends ConsumerState<StudySessionScreen>
   Widget _phoneLayout(BuildContext context) {
     return Column(
       children: [
-        TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.picture_as_pdf), text: 'PDF'),
-            Tab(icon: Icon(Icons.lightbulb_outline), text: 'Study Guide'),
-          ],
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            border: Border(
+              bottom: BorderSide(color: AppColors.divider),
+            ),
+          ),
+          child: TabBar(
+            controller: _tabController,
+            tabs: const [
+              Tab(
+                icon: Icon(Icons.picture_as_pdf_rounded),
+                text: 'PDF',
+              ),
+              Tab(
+                icon: Icon(Icons.lightbulb_outline_rounded),
+                text: 'Study Guide',
+              ),
+            ],
+          ),
         ),
         Expanded(
           child: TabBarView(
@@ -115,7 +126,6 @@ class _StudySessionScreenState extends ConsumerState<StudySessionScreen>
   }
 }
 
-/// Loads and displays the PDF associated with a section's file.
 class _PdfViewerPanel extends ConsumerWidget {
   final String sectionId;
 
@@ -138,8 +148,16 @@ class _PdfViewerPanel extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline,
-                  color: AppColors.error, size: 48),
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: AppColors.errorSurface,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.error_outline_rounded,
+                    color: AppColors.error, size: 28),
+              ),
               AppSpacing.gapMd,
               Text(
                 'Could not load PDF',
@@ -157,9 +175,7 @@ class _PdfViewerPanel extends ConsumerWidget {
       ),
       data: (section) {
         if (section == null) {
-          return const Center(
-            child: Text('Section not found'),
-          );
+          return const Center(child: Text('Section not found'));
         }
 
         final pdfUrlAsync =
@@ -185,8 +201,16 @@ class _PdfViewerPanel extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.cloud_off,
-                      color: AppColors.error, size: 48),
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: AppColors.errorSurface,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.cloud_off_rounded,
+                        color: AppColors.error, size: 28),
+                  ),
                   AppSpacing.gapMd,
                   Text(
                     'Failed to load file',

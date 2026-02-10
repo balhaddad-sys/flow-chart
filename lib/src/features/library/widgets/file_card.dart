@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../models/file_model.dart';
-import 'processing_indicator.dart';
 
 class FileCard extends StatelessWidget {
   final FileModel file;
@@ -12,14 +11,21 @@ class FileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.7)),
+        boxShadow: AppSpacing.shadowSm,
+      ),
       child: ListTile(
         leading: _fileIcon(file.mimeType),
         title: Text(
           file.originalName,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.titleMedium,
         ),
         subtitle: _buildSubtitle(context),
         trailing: _statusIndicator(),
@@ -30,20 +36,33 @@ class FileCard extends StatelessWidget {
   Widget _fileIcon(String mimeType) {
     IconData icon;
     Color color;
+    Color bg;
     if (mimeType.contains('pdf')) {
-      icon = Icons.picture_as_pdf;
-      color = Colors.red;
+      icon = Icons.picture_as_pdf_rounded;
+      color = const Color(0xFFDC2626);
+      bg = const Color(0xFFFEF2F2);
     } else if (mimeType.contains('presentation')) {
-      icon = Icons.slideshow;
-      color = Colors.orange;
+      icon = Icons.slideshow_rounded;
+      color = const Color(0xFFD97706);
+      bg = const Color(0xFFFFFBEB);
     } else if (mimeType.contains('wordprocessing')) {
-      icon = Icons.article;
-      color = Colors.blue;
+      icon = Icons.article_rounded;
+      color = const Color(0xFF1A56DB);
+      bg = const Color(0xFFEFF6FF);
     } else {
-      icon = Icons.insert_drive_file;
+      icon = Icons.insert_drive_file_rounded;
       color = AppColors.textTertiary;
+      bg = AppColors.surfaceVariant;
     }
-    return Icon(icon, color: color, size: 32);
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+      ),
+      child: Icon(icon, color: color, size: 22),
+    );
   }
 
   Widget _buildSubtitle(BuildContext context) {
@@ -60,13 +79,30 @@ class FileCard extends StatelessWidget {
   Widget _statusIndicator() {
     switch (file.status) {
       case 'PROCESSING':
-        return const ProcessingIndicator();
+        return const SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppColors.primary,
+          ),
+        );
       case 'READY':
-        return const Icon(Icons.check_circle, color: AppColors.success);
+        return Container(
+          width: 24,
+          height: 24,
+          decoration: BoxDecoration(
+            color: AppColors.successSurface,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.check_rounded,
+              color: AppColors.success, size: 16),
+        );
       case 'FAILED':
-        return const Icon(Icons.error, color: AppColors.error);
+        return const Icon(Icons.error_rounded, color: AppColors.error);
       default:
-        return const Icon(Icons.hourglass_empty, color: AppColors.textTertiary);
+        return const Icon(
+            Icons.hourglass_empty_rounded, color: AppColors.textTertiary);
     }
   }
 

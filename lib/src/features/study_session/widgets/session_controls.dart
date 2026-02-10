@@ -24,18 +24,26 @@ class SessionControls extends ConsumerWidget {
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.border)),
+        border: Border(top: BorderSide(color: AppColors.divider)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, -2),
+          ),
+        ],
       ),
       child: SafeArea(
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             _ControlButton(
-              icon: Icons.check_circle,
+              icon: Icons.check_circle_rounded,
               label: 'Complete',
               color: AppColors.success,
+              bgColor: AppColors.successSurface,
               onPressed: () {
                 final uid = ref.read(uidProvider);
                 if (uid != null) {
@@ -48,18 +56,22 @@ class SessionControls extends ConsumerWidget {
               },
             ),
             _ControlButton(
-              icon: Icons.quiz,
+              icon: Icons.quiz_rounded,
               label: 'Questions',
               color: AppColors.secondary,
+              bgColor: AppColors.secondarySurface,
               onPressed: () {
                 ref.read(sessionProvider.notifier).moveToQuiz();
                 context.push('/quiz/$sectionId');
               },
             ),
             _ControlButton(
-              icon: session.isPaused ? Icons.play_arrow : Icons.pause,
+              icon: session.isPaused
+                  ? Icons.play_arrow_rounded
+                  : Icons.pause_rounded,
               label: session.isPaused ? 'Resume' : 'Pause',
               color: AppColors.info,
+              bgColor: AppColors.infoSurface,
               onPressed: () {
                 if (session.isPaused) {
                   ref.read(sessionProvider.notifier).resumeSession();
@@ -69,9 +81,10 @@ class SessionControls extends ConsumerWidget {
               },
             ),
             _ControlButton(
-              icon: Icons.schedule,
+              icon: Icons.schedule_rounded,
               label: 'Reschedule',
               color: AppColors.warning,
+              bgColor: AppColors.warningSurface,
               onPressed: () async {
                 final picked = await showDatePicker(
                   context: context,
@@ -108,12 +121,14 @@ class _ControlButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
+  final Color bgColor;
   final VoidCallback onPressed;
 
   const _ControlButton({
     required this.icon,
     required this.label,
     required this.color,
+    required this.bgColor,
     required this.onPressed,
   });
 
@@ -127,12 +142,21 @@ class _ControlButton extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: color),
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              ),
+              child: Icon(icon, color: color, size: 22),
+            ),
             AppSpacing.gapXs,
             Text(
               label,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: color,
+                    fontWeight: FontWeight.w600,
                   ),
             ),
           ],
