@@ -34,11 +34,11 @@ class AppDateUtils {
   }
 
   static String formatDuration(int minutes) {
-    if (minutes < 60) return '${minutes}m';
+    if (minutes < 60) return '$minutes min';
     final hours = minutes ~/ 60;
     final mins = minutes % 60;
     if (mins == 0) return '${hours}h';
-    return '${hours}h ${mins}m';
+    return '${hours}h ${mins}min';
   }
 
   static String relativeDay(DateTime date) {
