@@ -9,6 +9,7 @@ import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../models/file_model.dart';
 import '../../home/providers/home_provider.dart';
 import '../providers/library_provider.dart';
 import '../widgets/section_list.dart';
@@ -221,7 +222,7 @@ class _CourseSection extends ConsumerWidget {
 }
 
 class _ExpandableFileCard extends ConsumerStatefulWidget {
-  final dynamic file;
+  final FileModel file;
 
   const _ExpandableFileCard({required this.file});
 
@@ -333,7 +334,7 @@ class _ExpandableFileCardState extends ConsumerState<_ExpandableFileCard> {
     );
   }
 
-  Widget _buildSubtitle(BuildContext context, dynamic file) {
+  Widget _buildSubtitle(BuildContext context, FileModel file) {
     final sizeStr = _formatSize(file.sizeBytes);
     final sectionStr = file.status == 'READY'
         ? ' | ${file.sectionCount} sections'
@@ -359,7 +360,7 @@ class _ExpandableFileCardState extends ConsumerState<_ExpandableFileCard> {
         return Container(
           width: 24,
           height: 24,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: AppColors.successSurface,
             shape: BoxShape.circle,
           ),

@@ -126,7 +126,7 @@ class _UploadStepState extends ConsumerState<UploadStep> {
                   Container(
                     width: 48,
                     height: 48,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: AppColors.primarySurface,
                       shape: BoxShape.circle,
                     ),
@@ -261,7 +261,7 @@ class _UploadStepState extends ConsumerState<UploadStep> {
                       ),
                     ),
                     IconButton(
-                      icon: Icon(Icons.close_rounded,
+                      icon: const Icon(Icons.close_rounded,
                           size: 18, color: AppColors.textTertiary),
                       onPressed: () {
                         ref

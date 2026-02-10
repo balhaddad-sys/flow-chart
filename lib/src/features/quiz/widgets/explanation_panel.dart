@@ -76,7 +76,7 @@ class ExplanationPanel extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.surface.withValues(alpha: 0.7),
                 borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                border: Border(
+                border: const Border(
                   left: BorderSide(
                     color: AppColors.secondary,
                     width: 3,
@@ -88,7 +88,7 @@ class ExplanationPanel extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.auto_awesome_rounded,
+                      const Icon(Icons.auto_awesome_rounded,
                           color: AppColors.secondary, size: 16),
                       AppSpacing.hGapXs,
                       Text(

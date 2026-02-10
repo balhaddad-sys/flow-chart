@@ -187,7 +187,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             text: 'Don\'t have an account? ',
                             style: Theme.of(context).textTheme.bodyMedium,
                             children: [
-                              TextSpan(
+                              const TextSpan(
                                 text: 'Sign Up',
                                 style: TextStyle(
                                   color: AppColors.primary,

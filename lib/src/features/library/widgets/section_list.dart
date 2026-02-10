@@ -62,7 +62,7 @@ class SectionList extends ConsumerWidget {
         return Container(
           width: 22,
           height: 22,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: AppColors.successSurface,
             shape: BoxShape.circle,
           ),

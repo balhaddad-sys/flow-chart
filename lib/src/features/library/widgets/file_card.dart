@@ -91,7 +91,7 @@ class FileCard extends StatelessWidget {
         return Container(
           width: 24,
           height: 24,
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: AppColors.successSurface,
             shape: BoxShape.circle,
           ),

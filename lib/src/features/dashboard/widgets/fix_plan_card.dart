@@ -32,7 +32,7 @@ class FixPlanCard extends StatelessWidget {
               Container(
                 width: 32,
                 height: 32,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppColors.secondarySurface,
                   shape: BoxShape.circle,
                 ),

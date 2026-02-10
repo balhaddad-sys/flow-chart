@@ -33,10 +33,10 @@ class StatsCards extends ConsumerWidget {
                 center: Text(
                   '${(stats.completionPercent * 100).round()}%',
                   style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                  ),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
                 ),
                 progressColor: AppColors.primary,
                 backgroundColor: AppColors.primarySurface,

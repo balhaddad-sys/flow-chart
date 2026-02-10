@@ -39,10 +39,10 @@ class TaskRow extends ConsumerWidget {
           motion: const DrawerMotion(),
           children: [
             SlidableAction(
-              onPressed: (_) {
+              onPressed: (_) async {
                 final uid = ref.read(uidProvider);
                 if (uid != null) {
-                  ref.read(firestoreServiceProvider).updateTask(
+                  await ref.read(firestoreServiceProvider).updateTask(
                     uid,
                     task.id,
                     {'status': task.status == 'SKIPPED' ? 'TODO' : 'SKIPPED'},
@@ -99,7 +99,7 @@ class TaskRow extends ConsumerWidget {
               padding: const EdgeInsets.only(top: 2),
               child: Row(
                 children: [
-                  Icon(Icons.timer_outlined,
+                  const Icon(Icons.timer_outlined,
                       size: 12, color: AppColors.textTertiary),
                   const SizedBox(width: 4),
                   Text(
@@ -107,7 +107,7 @@ class TaskRow extends ConsumerWidget {
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(width: 12),
-                  Icon(Icons.label_outline_rounded,
+                  const Icon(Icons.label_outline_rounded,
                       size: 12, color: AppColors.textTertiary),
                   const SizedBox(width: 4),
                   Flexible(
@@ -123,7 +123,7 @@ class TaskRow extends ConsumerWidget {
             trailing: isDone
                 ? const Icon(Icons.check_circle_rounded,
                     color: AppColors.success, size: 20)
-                : Icon(Icons.chevron_right_rounded,
+                : const Icon(Icons.chevron_right_rounded,
                     color: AppColors.textTertiary, size: 20),
           ),
         ),

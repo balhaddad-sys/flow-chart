@@ -38,7 +38,7 @@ class SettingsScreen extends ConsumerWidget {
                   Container(
                     width: 48,
                     height: 48,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       gradient: AppColors.primaryGradient,
                       shape: BoxShape.circle,
                     ),
@@ -227,10 +227,10 @@ class SettingsScreen extends ConsumerWidget {
                       color: AppColors.errorSurface,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(Icons.delete_forever_rounded,
+                    child: const Icon(Icons.delete_forever_rounded,
                         color: AppColors.error, size: 20),
                   ),
-                  title: Text(
+                  title: const Text(
                     'Delete Account',
                     style: TextStyle(color: AppColors.error),
                   ),

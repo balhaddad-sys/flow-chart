@@ -69,7 +69,7 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
             ? IconButton(
                 icon: Container(
                   padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: AppColors.surfaceVariant,
                     shape: BoxShape.circle,
                   ),
