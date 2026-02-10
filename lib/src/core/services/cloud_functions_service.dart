@@ -51,6 +51,14 @@ class CloudFunctionsService {
     return response;
   }
 
+  /// Generic public callable for one-off function invocations (e.g. deleteUserData).
+  Future<Map<String, dynamic>> call(
+    String name,
+    Map<String, dynamic> data,
+  ) {
+    return _call(name, data);
+  }
+
   // --- Course ---
 
   Future<Map<String, dynamic>> createCourse({

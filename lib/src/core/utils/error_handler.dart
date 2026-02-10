@@ -34,6 +34,14 @@ class ErrorHandler {
         return 'Invalid email address.';
       case 'too-many-requests':
         return 'Too many attempts. Please wait and try again.';
+      case 'popup-closed-by-user':
+        return 'Sign-in was cancelled.';
+      case 'popup-blocked':
+        return 'Pop-up blocked by browser. Please allow pop-ups and try again.';
+      case 'account-exists-with-different-credential':
+        return 'An account already exists with this email using a different sign-in method.';
+      case 'redirect-failed':
+        return 'Google Sign-In redirect did not complete. Please try again.';
       default:
         return 'Authentication error. Please try again.';
     }
