@@ -22,7 +22,7 @@ class SettingsScreen extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
         children: [
           // Account section
-          _SectionLabel(label: 'Account'),
+          const _SectionLabel(label: 'Account'),
           AppSpacing.gapSm,
           Container(
             padding: AppSpacing.cardPaddingLarge,
@@ -82,7 +82,7 @@ class SettingsScreen extends ConsumerWidget {
           AppSpacing.gapLg,
 
           // Appearance
-          _SectionLabel(label: 'Appearance'),
+          const _SectionLabel(label: 'Appearance'),
           AppSpacing.gapSm,
           Container(
             decoration: BoxDecoration(
@@ -123,7 +123,7 @@ class SettingsScreen extends ConsumerWidget {
           AppSpacing.gapLg,
 
           // About
-          _SectionLabel(label: 'About'),
+          const _SectionLabel(label: 'About'),
           AppSpacing.gapSm,
           Container(
             decoration: BoxDecoration(
@@ -138,7 +138,7 @@ class SettingsScreen extends ConsumerWidget {
                   leading: Container(
                     width: 36,
                     height: 36,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: AppColors.primarySurface,
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -153,7 +153,7 @@ class SettingsScreen extends ConsumerWidget {
                   leading: Container(
                     width: 36,
                     height: 36,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: AppColors.secondarySurface,
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -170,7 +170,7 @@ class SettingsScreen extends ConsumerWidget {
                   leading: Container(
                     width: 36,
                     height: 36,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: AppColors.accentSurface,
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -189,7 +189,7 @@ class SettingsScreen extends ConsumerWidget {
           AppSpacing.gapLg,
 
           // Account actions
-          _SectionLabel(label: 'Account Actions'),
+          const _SectionLabel(label: 'Account Actions'),
           AppSpacing.gapSm,
           Container(
             decoration: BoxDecoration(
@@ -204,7 +204,7 @@ class SettingsScreen extends ConsumerWidget {
                   leading: Container(
                     width: 36,
                     height: 36,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: AppColors.surfaceVariant,
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -223,7 +223,7 @@ class SettingsScreen extends ConsumerWidget {
                   leading: Container(
                     width: 36,
                     height: 36,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: AppColors.errorSurface,
                       borderRadius: BorderRadius.circular(8),
                     ),

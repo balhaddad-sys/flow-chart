@@ -153,7 +153,7 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppColors.errorSurface,
                   borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                 ),

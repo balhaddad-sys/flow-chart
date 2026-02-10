@@ -82,7 +82,7 @@ class _UploadStepState extends ConsumerState<UploadStep> {
           Container(
             width: 56,
             height: 56,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: AppColors.successSurface,
               borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
             ),
@@ -227,7 +227,7 @@ class _UploadStepState extends ConsumerState<UploadStep> {
                     Container(
                       width: 36,
                       height: 36,
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         color: AppColors.primarySurface,
                         borderRadius: BorderRadius.circular(
                             AppSpacing.radiusSm),
