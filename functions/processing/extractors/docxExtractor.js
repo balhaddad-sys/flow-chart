@@ -1,3 +1,8 @@
+/**
+ * @module processing/extractors/docxExtractor
+ * @description Splits a DOCX file into word-count sections with extracted text.
+ */
+
 const mammoth = require("mammoth");
 const fs = require("fs");
 

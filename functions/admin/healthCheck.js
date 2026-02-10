@@ -1,26 +1,29 @@
+/**
+ * @module admin/healthCheck
+ * @description HTTP endpoint that returns the operational health status of
+ * the Cloud Functions deployment.
+ *
+ * Performs a lightweight Firestore write to verify connectivity and returns
+ * `200 healthy` or `503 degraded` accordingly.
+ */
+
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const { db } = require("../lib/firestore");
+const { HEALTH_TIMEOUT_MS } = require("../lib/constants");
 
-const db = admin.firestore();
 const APP_VERSION = require("../package.json").version;
 
-/**
- * HTTP: Returns function health status.
- * Performs lightweight Firestore connectivity check.
- */
 exports.healthCheck = functions.https.onRequest(async (req, res) => {
   if (req.method !== "GET") {
     res.status(405).json({ error: "Method not allowed" });
     return;
   }
 
-  const checks = {
-    firestore: "unknown",
-  };
+  const checks = { firestore: "unknown" };
 
   try {
     const start = Date.now();
-    const HEALTH_TIMEOUT_MS = 5000;
     await Promise.race([
       db.collection("_health").doc("ping").set({
         timestamp: admin.firestore.FieldValue.serverTimestamp(),

@@ -1,6 +1,10 @@
 /**
- * Weakness-weighted question selection algorithm.
- * Used for "Random Mixed Quiz" mode to bias towards weak topics.
+ * @module questions/questionSelection
+ * @description Weakness-weighted question selection algorithm.
+ *
+ * Used by the "Random Mixed Quiz" mode to bias question selection towards the
+ * student's weakest topics.  The weakness formula combines error rate (60 %),
+ * recency penalty (30 %), and speed penalty (10 %).
  */
 
 /**
