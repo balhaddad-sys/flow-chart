@@ -37,7 +37,8 @@ class WeaknessDashboard extends ConsumerWidget {
       );
     }
 
-    final statsAsync = ref.watch(courseStatsProvider(activeCourseId));
+    final String courseId = activeCourseId;
+    final statsAsync = ref.watch(courseStatsProvider(courseId));
     final fixPlan = ref.watch(fixPlanProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -158,7 +159,7 @@ class WeaknessDashboard extends ConsumerWidget {
                       onPressed: () {
                         ref
                             .read(fixPlanProvider.notifier)
-                            .generateFixPlan(activeCourseId);
+                            .generateFixPlan(courseId);
                       },
                     ),
 

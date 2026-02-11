@@ -124,9 +124,9 @@ class SettingsScreen extends ConsumerWidget {
           AppSpacing.gapXl,
 
           // ── Appearance section ───────────────────────────────────────
-          Padding(
+          const Padding(
             padding: AppSpacing.screenHorizontal,
-            child: const _SectionHeader(
+            child: _SectionHeader(
                 label: 'Appearance', icon: Icons.palette_outlined),
           ),
           AppSpacing.gapSm,
@@ -180,9 +180,9 @@ class SettingsScreen extends ConsumerWidget {
           AppSpacing.gapXl,
 
           // ── About section ───────────────────────────────────────────
-          Padding(
+          const Padding(
             padding: AppSpacing.screenHorizontal,
-            child: const _SectionHeader(label: 'About', icon: Icons.info_outline),
+            child: _SectionHeader(label: 'About', icon: Icons.info_outline),
           ),
           AppSpacing.gapSm,
           Padding(
@@ -259,9 +259,9 @@ class SettingsScreen extends ConsumerWidget {
           AppSpacing.gapXl,
 
           // ── Account actions ─────────────────────────────────────────
-          Padding(
+          const Padding(
             padding: AppSpacing.screenHorizontal,
-            child: const _SectionHeader(
+            child: _SectionHeader(
                 label: 'Account Actions', icon: Icons.manage_accounts),
           ),
           AppSpacing.gapSm,
