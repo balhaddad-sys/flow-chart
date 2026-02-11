@@ -96,11 +96,14 @@ async function checkRateLimit(uid, operation, { maxCalls, windowMs }) {
  * Format: `{ maxCalls, windowMs }`.
  */
 const RATE_LIMITS = {
+  createCourse:        { maxCalls: 10, windowMs:    60_000 },
   generateQuestions:    { maxCalls: 10, windowMs:    60_000 },
   generateSchedule:    { maxCalls:  5, windowMs:    60_000 },
   regenSchedule:       { maxCalls:  5, windowMs:    60_000 },
   submitAttempt:       { maxCalls: 60, windowMs:    60_000 },
   getQuiz:             { maxCalls: 30, windowMs:    60_000 },
+  getTutorHelp:        { maxCalls: 20, windowMs:    60_000 },
+  runFixPlan:          { maxCalls:  3, windowMs:    60_000 },
   catchUp:             { maxCalls:  5, windowMs:    60_000 },
   processDocumentBatch:{ maxCalls:  5, windowMs:   300_000 },
   deleteUserData:      { maxCalls:  1, windowMs: 3_600_000 },

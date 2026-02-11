@@ -9,9 +9,9 @@
  *
  *   processing  — Document ingestion pipeline (Storage / Firestore triggers)
  *   scheduling  — Study-plan generation, regeneration, and catch-up
- *   questions   — AI question generation and quiz retrieval
- *   analytics   — Attempt logging and weakness computation
- *   admin       — Health checks, GDPR data deletion
+ *   questions   — AI question generation, quiz retrieval, and tutor help
+ *   analytics   — Attempt logging, weakness computation, and fix plans
+ *   admin       — Course management, health checks, GDPR data deletion
  */
 
 const admin = require("firebase-admin");
@@ -31,12 +31,15 @@ const { catchUp } = require("./scheduling/catchUp");
 // ── Questions ────────────────────────────────────────────────────────────────
 const { generateQuestions } = require("./questions/generateQuestions");
 const { getQuiz } = require("./questions/getQuiz");
+const { getTutorHelp } = require("./questions/getTutorHelp");
 
 // ── Analytics ────────────────────────────────────────────────────────────────
 const { submitAttempt } = require("./analytics/submitAttempt");
 const { computeWeakness } = require("./analytics/computeWeakness");
+const { runFixPlan } = require("./analytics/runFixPlan");
 
 // ── Admin ────────────────────────────────────────────────────────────────────
+const { createCourse } = require("./admin/createCourse");
 const { deleteUserData } = require("./admin/deleteUserData");
 const { healthCheck } = require("./admin/healthCheck");
 
@@ -49,7 +52,10 @@ exports.regenSchedule = regenSchedule;
 exports.catchUp = catchUp;
 exports.generateQuestions = generateQuestions;
 exports.getQuiz = getQuiz;
+exports.getTutorHelp = getTutorHelp;
 exports.submitAttempt = submitAttempt;
 exports.computeWeakness = computeWeakness;
+exports.runFixPlan = runFixPlan;
+exports.createCourse = createCourse;
 exports.deleteUserData = deleteUserData;
 exports.healthCheck = healthCheck;
