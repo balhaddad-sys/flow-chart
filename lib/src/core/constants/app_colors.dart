@@ -64,6 +64,15 @@ class AppColors {
   static const Color difficultyMedium = Color(0xFFD97706);
   static const Color difficultyHard = Color(0xFFDC2626);
 
+  // ── Surface aliases (used by onboarding, study session, etc.) ────────────
+  static const Color primarySurface = primarySubtle;
+  static const Color secondarySurface = secondarySubtle;
+  static const Color accentSurface = accentSubtle;
+  static const Color successSurface = successLight;
+  static const Color warningSurface = warningLight;
+  static const Color errorSurface = errorLight;
+  static const Color infoSurface = infoLight;
+
   // ── Gradients ───────────────────────────────────────────────────────────────
   static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topLeft,

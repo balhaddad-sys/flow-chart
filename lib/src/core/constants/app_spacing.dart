@@ -38,6 +38,26 @@ class AppSpacing {
   static const SizedBox gapXl = SizedBox(height: xl);
   static const SizedBox gapXxl = SizedBox(height: xxl);
 
+  // ── Card padding aliases ──────────────────────────────────────────────────
+  static const EdgeInsets cardPaddingLarge = cardPaddingLg;
+
+  // ── Box shadows ─────────────────────────────────────────────────────────
+  static const List<BoxShadow> shadowSm = [
+    BoxShadow(
+      color: Color(0x0D000000),
+      blurRadius: 6,
+      offset: Offset(0, 2),
+    ),
+  ];
+
+  static const List<BoxShadow> shadowLg = [
+    BoxShadow(
+      color: Color(0x1A000000),
+      blurRadius: 24,
+      offset: Offset(0, 8),
+    ),
+  ];
+
   // ── Horizontal gaps ───────────────────────────────────────────────────────
   static const SizedBox hGapXs = SizedBox(width: xs);
   static const SizedBox hGapSm = SizedBox(width: sm);
