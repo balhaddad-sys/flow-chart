@@ -32,6 +32,7 @@ class FileModel with _$FileModel {
     @Default(FileMeta()) FileMeta meta,
     @Default('UPLOADED') String status,
     String? errorMessage,
+    String? processingPhase, // EXTRACTING, ANALYZING, GENERATING_QUESTIONS
     @TimestampConverter() DateTime? processingStartedAt,
     @TimestampConverter() DateTime? processedAt,
     @Default(0) int sectionCount,

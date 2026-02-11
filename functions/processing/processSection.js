@@ -49,10 +49,25 @@ exports.processSection = functions
         aiStatus: "PROCESSING",
         processingStartedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
+
+      log.info("Section processing started", {
+        uid,
+        sectionId,
+        title: sectionData.title,
+        phase: "FETCHING_TEXT",
+      });
+
       // Fetch raw text from Cloud Storage
       const bucket = admin.storage().bucket();
       const [buffer] = await bucket.file(sectionData.textBlobPath).download();
       const sectionText = buffer.toString("utf-8");
+
+      log.info("Text fetched, starting blueprint generation", {
+        uid,
+        sectionId,
+        textLength: sectionText.length,
+        phase: "GENERATING_BLUEPRINT",
+      });
 
       // Fetch parent file metadata for prompt context
       const fileDoc = await db.doc(`users/${uid}/files/${sectionData.fileId}`).get();
@@ -103,7 +118,12 @@ exports.processSection = functions
         blueprint: normalised.blueprint,
       });
 
-      log.info("Section blueprint generated", { uid, sectionId, title: normalised.title });
+      log.info("Section blueprint generated", {
+        uid,
+        sectionId,
+        title: normalised.title,
+        phase: "BLUEPRINT_COMPLETE",
+      });
 
       // ── Auto-generate questions from the analyzed section ───────────────
       const courseId = sectionData.courseId;
@@ -112,7 +132,13 @@ exports.processSection = functions
       const hardCount = Math.round(count * DIFFICULTY_DISTRIBUTION.hard);
       const mediumCount = count - easyCount - hardCount;
 
-      log.info("Starting question generation", { uid, sectionId, count });
+      log.info("Starting question generation", {
+        uid,
+        sectionId,
+        count,
+        phase: "GENERATING_QUESTIONS",
+        distribution: { easy: easyCount, medium: mediumCount, hard: hardCount },
+      });
       const qT0 = Date.now();
 
       const qResult = await aiGenerateQuestions(
@@ -174,9 +200,13 @@ exports.processSection = functions
         await batchSet(validItems);
       }
 
-      log.info("Auto questions generated", {
-        uid, sectionId, generated: validItems.length,
-        skipped: qResult.data.questions.length - validItems.length,
+      log.info("Section processing complete", {
+        uid,
+        sectionId,
+        phase: "COMPLETE",
+        questionsGenerated: validItems.length,
+        questionsSkipped: qResult.data.questions.length - validItems.length,
+        totalDurationMs: Date.now() - t0,
       });
     } catch (error) {
       log.error("Section processing failed", { uid, sectionId, error: error.message });

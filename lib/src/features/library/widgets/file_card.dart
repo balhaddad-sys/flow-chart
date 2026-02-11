@@ -86,7 +86,10 @@ class FileCard extends StatelessWidget {
   Widget _statusIndicator(bool isDark) {
     switch (file.status) {
       case 'PROCESSING':
-        return const ProcessingIndicator();
+        return ProcessingIndicator(
+          phase: file.processingPhase,
+          showLabel: true,
+        );
       case 'READY':
         return Container(
           width: 28,

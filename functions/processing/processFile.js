@@ -76,12 +76,15 @@ exports.processUploadedFile = functions
       await fileRef.set(
         {
           status: "PROCESSING",
+          processingPhase: "EXTRACTING",
           processingStartedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
         { merge: true }
       );
 
       const courseId = fileSnap.data()?.courseId || null;
+
+      log.info("Starting document extraction", { uid, fileId, contentType });
 
       // Download to tmp
       await bucket.file(filePath).download({ destination: tempFilePath });
@@ -123,6 +126,14 @@ exports.processUploadedFile = functions
         })
       );
 
+      // Update phase: moving to AI analysis
+      await fileRef.set(
+        {
+          processingPhase: "ANALYZING",
+        },
+        { merge: true }
+      );
+
       // Batch-write section metadata (handles >500 docs automatically)
       const items = sections.map((sec, i) => ({
         ref: db.collection(`users/${uid}/sections`).doc(),
@@ -136,10 +147,13 @@ exports.processUploadedFile = functions
       }));
       await batchSet(items);
 
-      // Mark file as ready
+      log.info("Extraction complete, AI analysis will begin", { uid, fileId, sectionCount: sections.length });
+
+      // Mark file as ready (sections will process async)
       await fileRef.set(
         {
           status: "READY",
+          processingPhase: admin.firestore.FieldValue.delete(),
           sectionCount: sections.length,
           processedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
