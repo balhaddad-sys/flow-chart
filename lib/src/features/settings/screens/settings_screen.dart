@@ -298,6 +298,31 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                   ListTile(
                     leading: const Icon(
+                      Icons.cleaning_services_outlined,
+                      color: AppColors.warning,
+                      size: 20,
+                    ),
+                    title: const Text(
+                      'Delete All Data',
+                      style: TextStyle(color: AppColors.warning),
+                    ),
+                    subtitle: Text(
+                      'Remove all courses, files, and progress',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: isDark
+                                ? AppColors.darkTextTertiary
+                                : AppColors.textTertiary,
+                          ),
+                    ),
+                    onTap: () => _showClearDataConfirmation(context, ref),
+                  ),
+                  Divider(
+                    height: 1,
+                    color:
+                        isDark ? AppColors.darkBorder : AppColors.borderLight,
+                  ),
+                  ListTile(
+                    leading: const Icon(
                       Icons.delete_forever,
                       color: AppColors.error,
                       size: 20,
@@ -323,6 +348,71 @@ class SettingsScreen extends ConsumerWidget {
 
           // Extra bottom spacing so content clears the bottom nav bar
           const SizedBox(height: 96),
+        ],
+      ),
+    );
+  }
+
+  void _showClearDataConfirmation(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete All Data?'),
+        content: const Text(
+          'This will permanently delete:\n'
+          '• All courses and study plans\n'
+          '• All uploaded files and materials\n'
+          '• All questions and quiz history\n'
+          '• All progress and statistics\n\n'
+          'Your account will remain active. You can start fresh after deletion.\n\n'
+          'This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Deleting all data...')),
+                  );
+                }
+
+                await ref.read(cloudFunctionsServiceProvider).call(
+                  'deleteUserData',
+                  {},
+                );
+
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('All data deleted successfully'),
+                      backgroundColor: AppColors.success,
+                    ),
+                  );
+                  // Navigate to onboarding to start fresh
+                  context.go('/onboarding');
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to delete data: $e'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
+              }
+            },
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.warning,
+            ),
+            child: const Text('Delete All Data'),
+          ),
         ],
       ),
     );
