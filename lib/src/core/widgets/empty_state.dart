@@ -22,14 +22,32 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 64, color: AppColors.textTertiary),
-            AppSpacing.gapMd,
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                color: isDark
+                    ? AppColors.darkSurfaceVariant
+                    : AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+              ),
+              child: Icon(
+                icon,
+                size: 36,
+                color: isDark
+                    ? AppColors.darkTextTertiary
+                    : AppColors.textTertiary,
+              ),
+            ),
+            AppSpacing.gapLg,
             Text(
               title,
               style: Theme.of(context).textTheme.titleLarge,
@@ -39,14 +57,18 @@ class EmptyState extends StatelessWidget {
               AppSpacing.gapSm,
               Text(
                 subtitle!,
-                style: Theme.of(context).textTheme.bodyMedium,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.textSecondary,
+                    ),
                 textAlign: TextAlign.center,
               ),
             ],
             if (actionLabel != null && onAction != null) ...[
               AppSpacing.gapLg,
               SizedBox(
-                width: 200,
+                width: 220,
                 child: PrimaryButton(
                   label: actionLabel!,
                   onPressed: onAction,

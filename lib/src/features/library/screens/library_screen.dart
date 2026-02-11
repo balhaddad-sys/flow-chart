@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
@@ -149,14 +150,31 @@ class _CourseSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final filesAsync = ref.watch(filesProvider(courseId));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          courseTitle,
-          style: Theme.of(context).textTheme.headlineMedium,
+        Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+              ),
+              child: const Icon(Icons.folder, color: AppColors.primary, size: 18),
+            ),
+            AppSpacing.hGapSm,
+            Expanded(
+              child: Text(
+                courseTitle,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+            ),
+          ],
         ),
         AppSpacing.gapSm,
         filesAsync.when(
@@ -164,9 +182,24 @@ class _CourseSection extends ConsumerWidget {
           error: (e, _) => Text('Error: $e'),
           data: (files) {
             if (files.isEmpty) {
-              return const Padding(
-                padding: EdgeInsets.all(AppSpacing.md),
-                child: Text('No files uploaded yet'),
+              return Container(
+                width: double.infinity,
+                padding: AppSpacing.cardPadding,
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? AppColors.darkSurfaceVariant
+                      : AppColors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                ),
+                child: Text(
+                  'No files uploaded yet',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: isDark
+                            ? AppColors.darkTextTertiary
+                            : AppColors.textTertiary,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
               );
             }
             return Column(

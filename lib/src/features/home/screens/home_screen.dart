@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../models/course_model.dart';
@@ -17,23 +18,54 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final coursesAsync = ref.watch(coursesProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('MedQ'),
+        title: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                gradient: AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Center(
+                child: Text(
+                  'M',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+            AppSpacing.hGapSm,
+            Text(
+              'MedQ',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add_circle_outline),
-            tooltip: 'New Course',
-            onPressed: () => context.go('/onboarding'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.library_books_outlined),
+            icon: const Icon(Icons.library_books_outlined, size: 22),
+            tooltip: 'Library',
             onPressed: () => context.go('/library'),
           ),
           IconButton(
-            icon: const Icon(Icons.bar_chart_outlined),
+            icon: const Icon(Icons.bar_chart_outlined, size: 22),
+            tooltip: 'Dashboard',
             onPressed: () => context.go('/dashboard'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined, size: 22),
+            tooltip: 'Settings',
+            onPressed: () => context.go('/settings'),
           ),
         ],
       ),
@@ -65,55 +97,89 @@ class HomeScreen extends ConsumerWidget {
               ref.invalidate(todayTasksProvider(activeCourseId));
             },
             child: ListView(
-              padding: AppSpacing.screenPadding,
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               children: [
-                // Course selector
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButton<String>(
-                        value: activeCourseId,
-                        isExpanded: true,
-                        items: courses
-                            .map((c) => DropdownMenuItem(
-                                  value: c.id,
-                                  child: Text(c.title),
-                                ))
-                            .toList(),
-                        onChanged: (v) =>
-                            ref.read(activeCourseIdProvider.notifier).state = v,
+                // ── Course selector ─────────────────────────────────
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? AppColors.darkSurfaceVariant
+                        : AppColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                    border: Border.all(
+                      color: isDark ? AppColors.darkBorder : AppColors.border,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.school_outlined, size: 20),
+                      AppSpacing.hGapSm,
+                      Expanded(
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: activeCourseId,
+                            isExpanded: true,
+                            isDense: true,
+                            style: Theme.of(context).textTheme.titleMedium,
+                            items: courses
+                                .map((c) => DropdownMenuItem(
+                                      value: c.id,
+                                      child: Text(c.title),
+                                    ))
+                                .toList(),
+                            onChanged: (v) =>
+                                ref.read(activeCourseIdProvider.notifier).state = v,
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    TextButton.icon(
-                      onPressed: () => context.go('/onboarding'),
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('New'),
-                    ),
-                  ],
+                      Container(
+                        height: 28,
+                        width: 1,
+                        color: isDark ? AppColors.darkBorder : AppColors.border,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add, size: 20),
+                        tooltip: 'New Course',
+                        onPressed: () => context.go('/onboarding'),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    ],
+                  ),
                 ),
                 AppSpacing.gapMd,
 
-                // Exam countdown
-                if (activeCourse.examDate != null)
+                // ── Exam countdown ──────────────────────────────────
+                if (activeCourse.examDate != null) ...[
                   ExamCountdown(examDate: activeCourse.examDate!),
-                AppSpacing.gapMd,
+                  AppSpacing.gapMd,
+                ],
 
-                // Stats cards
+                // ── Stats cards ─────────────────────────────────────
                 StatsCards(courseId: activeCourseId),
-                AppSpacing.gapMd,
+                AppSpacing.gapLg,
 
-                // Today's tasks
-                Text(
-                  'Today\'s Plan',
-                  style: Theme.of(context).textTheme.headlineMedium,
+                // ── Today's tasks ───────────────────────────────────
+                Row(
+                  children: [
+                    Text(
+                      'Today\'s Plan',
+                      style: Theme.of(context).textTheme.headlineMedium,
+                    ),
+                    const Spacer(),
+                    TextButton(
+                      onPressed: () => context.go('/planner'),
+                      child: const Text('View All'),
+                    ),
+                  ],
                 ),
                 AppSpacing.gapSm,
                 TodayChecklist(courseId: activeCourseId),
                 AppSpacing.gapMd,
 
-                // Weak topics banner
+                // ── Weak topics banner ──────────────────────────────
                 WeakTopicsBanner(courseId: activeCourseId),
+                AppSpacing.gapLg,
               ],
             ),
           );

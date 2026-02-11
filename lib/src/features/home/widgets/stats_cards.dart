@@ -15,6 +15,7 @@ class StatsCards extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(courseStatsProvider(courseId));
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return statsAsync.when(
       loading: () => const SizedBox.shrink(),
@@ -26,50 +27,65 @@ class StatsCards extends ConsumerWidget {
           children: [
             _StatCard(
               label: 'Completion',
+              isDark: isDark,
               child: CircularPercentIndicator(
-                radius: 28,
-                lineWidth: 5,
+                radius: 26,
+                lineWidth: 4,
                 percent: stats.completionPercent.clamp(0, 1),
                 center: Text(
                   '${(stats.completionPercent * 100).round()}%',
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
                 ),
                 progressColor: AppColors.primary,
-                backgroundColor: AppColors.border,
+                backgroundColor: isDark ? AppColors.darkBorder : AppColors.border,
+                circularStrokeCap: CircularStrokeCap.round,
               ),
             ),
             AppSpacing.hGapSm,
             _StatCard(
               label: 'Accuracy',
+              isDark: isDark,
               child: Text(
                 '${(stats.overallAccuracy * 100).round()}%',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       color: stats.overallAccuracy >= 0.7
                           ? AppColors.success
                           : AppColors.warning,
+                      fontWeight: FontWeight.w700,
                     ),
               ),
             ),
             AppSpacing.hGapSm,
             _StatCard(
               label: 'Streak',
+              isDark: isDark,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
                 children: [
                   Text(
                     '${stats.streakDays}',
-                    style: Theme.of(context).textTheme.headlineMedium,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                   ),
-                  const Text(' days'),
+                  Text(
+                    'd',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                 ],
               ),
             ),
             AppSpacing.hGapSm,
             _StatCard(
               label: 'This week',
+              isDark: isDark,
               child: Text(
                 AppDateUtils.formatDuration(stats.weeklyStudyMinutes),
-                style: Theme.of(context).textTheme.headlineMedium,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
               ),
             ),
           ],
@@ -82,25 +98,39 @@ class StatsCards extends ConsumerWidget {
 class _StatCard extends StatelessWidget {
   final String label;
   final Widget child;
+  final bool isDark;
 
-  const _StatCard({required this.label, required this.child});
+  const _StatCard({
+    required this.label,
+    required this.child,
+    this.isDark = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.sm),
-          child: Column(
-            children: [
-              child,
-              AppSpacing.gapXs,
-              Text(
-                label,
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkSurface : AppColors.surface,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          border: Border.all(
+            color: isDark ? AppColors.darkBorder : AppColors.border,
           ),
+        ),
+        child: Column(
+          children: [
+            child,
+            AppSpacing.gapXs,
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: isDark
+                        ? AppColors.darkTextTertiary
+                        : AppColors.textTertiary,
+                  ),
+            ),
+          ],
         ),
       ),
     );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../home/providers/home_provider.dart';
@@ -36,6 +37,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   @override
   Widget build(BuildContext context) {
     final quiz = ref.watch(quizProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (quiz.isLoading && quiz.questions.isEmpty) {
       return const Scaffold(
@@ -54,19 +56,47 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       );
     }
 
+    final progress = quiz.questions.isNotEmpty
+        ? (quiz.currentIndex + 1) / quiz.questions.length
+        : 0.0;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
           'Question ${quiz.currentIndex + 1}/${quiz.questions.length}',
         ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(3),
+          child: LinearProgressIndicator(
+            value: progress,
+            backgroundColor: isDark
+                ? AppColors.darkSurfaceVariant
+                : AppColors.surfaceVariant,
+            color: AppColors.primary,
+            minHeight: 3,
+          ),
+        ),
         actions: [
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            child: Center(
-              child: Text(
-                '${quiz.correctCount}/${quiz.totalAnswered} correct',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
+          Container(
+            margin: const EdgeInsets.only(right: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppColors.success.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check_circle, color: AppColors.success, size: 14),
+                const SizedBox(width: 4),
+                Text(
+                  '${quiz.correctCount}/${quiz.totalAnswered}',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.success,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
             ),
           ),
         ],
@@ -102,6 +132,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
               label: 'Next Question',
               onPressed: () => ref.read(quizProvider.notifier).nextQuestion(),
             ),
+          AppSpacing.gapLg,
         ],
       ),
     );
@@ -116,6 +147,20 @@ class _ResultsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final percent = (quiz.accuracy * 100).round();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final Color scoreColor;
+    final String scoreLabel;
+    if (quiz.accuracy >= 0.8) {
+      scoreColor = AppColors.success;
+      scoreLabel = 'Excellent!';
+    } else if (quiz.accuracy >= 0.6) {
+      scoreColor = AppColors.warning;
+      scoreLabel = 'Good effort';
+    } else {
+      scoreColor = AppColors.error;
+      scoreLabel = 'Keep practicing';
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Quiz Complete')),
@@ -125,19 +170,50 @@ class _ResultsView extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: scoreColor.withValues(alpha: 0.1),
+                  border: Border.all(
+                    color: scoreColor.withValues(alpha: 0.3),
+                    width: 3,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    '$percent%',
+                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                          color: scoreColor,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ),
+              ),
+              AppSpacing.gapLg,
               Text(
-                '$percent%',
-                style: Theme.of(context).textTheme.displayLarge,
+                scoreLabel,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: scoreColor,
+                    ),
               ),
               AppSpacing.gapSm,
               Text(
                 '${quiz.correctCount} out of ${quiz.totalAnswered} correct',
-                style: Theme.of(context).textTheme.titleMedium,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.textSecondary,
+                    ),
               ),
               AppSpacing.gapXl,
-              PrimaryButton(
-                label: 'Done',
-                onPressed: () => context.pop(),
+              SizedBox(
+                width: 220,
+                child: PrimaryButton(
+                  label: 'Done',
+                  onPressed: () => context.pop(),
+                ),
               ),
             ],
           ),

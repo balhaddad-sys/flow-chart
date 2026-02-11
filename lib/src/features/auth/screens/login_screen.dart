@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/error_banner.dart';
@@ -20,6 +21,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -43,6 +45,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authScreenProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     ref.listen<AuthScreenData>(authScreenProvider, (prev, next) {
       if (next.state == AuthScreenState.success) {
@@ -54,86 +57,170 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: AppSpacing.screenPadding,
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                Text(
-                  'MedQ',
-                  style: Theme.of(context).textTheme.displayLarge,
-                  textAlign: TextAlign.center,
-                ),
-                AppSpacing.gapSm,
-                Text(
-                  'Your adaptive study companion',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                  textAlign: TextAlign.center,
-                ),
-                AppSpacing.gapXl,
-                if (authState.errorMessage != null) ...[
-                  ErrorBanner(
-                    message: authState.errorMessage!,
-                    onDismiss: () =>
-                        ref.read(authScreenProvider.notifier).clearError(),
-                  ),
-                  AppSpacing.gapMd,
-                ],
-                TextFormField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.email_outlined),
-                  ),
-                  keyboardType: TextInputType.emailAddress,
-                  validator: Validators.email,
-                ),
-                AppSpacing.gapMd,
-                TextFormField(
-                  controller: _passwordController,
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                    prefixIcon: Icon(Icons.lock_outline),
-                  ),
-                  obscureText: true,
-                  validator: Validators.password,
-                ),
-                AppSpacing.gapLg,
-                PrimaryButton(
-                  label: 'Sign In',
-                  onPressed: _handleLogin,
-                  isLoading: authState.state == AuthScreenState.loading,
-                ),
-                AppSpacing.gapMd,
-                Row(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 400),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Expanded(child: Divider()),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                      child: Text(
-                        'or',
-                        style: Theme.of(context).textTheme.bodySmall,
+                    AppSpacing.gapXl,
+
+                    // ── Branded logo ──────────────────────────────────────
+                    Center(
+                      child: Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          gradient: AppColors.primaryGradient,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.3),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'M',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 32,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -1,
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                    const Expanded(child: Divider()),
+                    AppSpacing.gapLg,
+
+                    // ── Title ─────────────────────────────────────────────
+                    Text(
+                      'Welcome back',
+                      style: Theme.of(context).textTheme.headlineLarge,
+                      textAlign: TextAlign.center,
+                    ),
+                    AppSpacing.gapXs,
+                    Text(
+                      'Sign in to continue your study journey',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.textSecondary,
+                          ),
+                      textAlign: TextAlign.center,
+                    ),
+                    AppSpacing.gapXl,
+
+                    // ── Error banner ──────────────────────────────────────
+                    if (authState.errorMessage != null) ...[
+                      ErrorBanner(
+                        message: authState.errorMessage!,
+                        onDismiss: () =>
+                            ref.read(authScreenProvider.notifier).clearError(),
+                      ),
+                      AppSpacing.gapMd,
+                    ],
+
+                    // ── Email field ───────────────────────────────────────
+                    TextFormField(
+                      controller: _emailController,
+                      decoration: const InputDecoration(
+                        labelText: 'Email address',
+                        hintText: 'you@example.com',
+                        prefixIcon: Icon(Icons.email_outlined),
+                      ),
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      validator: Validators.email,
+                    ),
+                    AppSpacing.gapMd,
+
+                    // ── Password field ────────────────────────────────────
+                    TextFormField(
+                      controller: _passwordController,
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            size: 20,
+                          ),
+                          onPressed: () =>
+                              setState(() => _obscurePassword = !_obscurePassword),
+                        ),
+                      ),
+                      obscureText: _obscurePassword,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => _handleLogin(),
+                      validator: Validators.password,
+                    ),
+                    AppSpacing.gapLg,
+
+                    // ── Sign in button ────────────────────────────────────
+                    PrimaryButton(
+                      label: 'Sign In',
+                      onPressed: _handleLogin,
+                      isLoading: authState.state == AuthScreenState.loading,
+                    ),
+                    AppSpacing.gapLg,
+
+                    // ── Divider ───────────────────────────────────────────
+                    Row(
+                      children: [
+                        const Expanded(child: Divider()),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            'or continue with',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                        const Expanded(child: Divider()),
+                      ],
+                    ),
+                    AppSpacing.gapLg,
+
+                    // ── Google sign-in ────────────────────────────────────
+                    GoogleSignInButton(
+                      onPressed: _handleGoogleSignIn,
+                      isLoading: authState.state == AuthScreenState.loading,
+                    ),
+                    AppSpacing.gapXl,
+
+                    // ── Sign up link ──────────────────────────────────────
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Don\'t have an account? ',
+                          style: Theme.of(context).textTheme.bodyMedium,
+                        ),
+                        GestureDetector(
+                          onTap: () => context.go('/signup'),
+                          child: Text(
+                            'Sign Up',
+                            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                                  color: AppColors.primary,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    AppSpacing.gapXl,
                   ],
                 ),
-                AppSpacing.gapMd,
-                GoogleSignInButton(
-                  onPressed: _handleGoogleSignIn,
-                  isLoading: authState.state == AuthScreenState.loading,
-                ),
-                AppSpacing.gapMd,
-                TextButton(
-                  onPressed: () => context.go('/signup'),
-                  child: const Text('Don\'t have an account? Sign Up'),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
         ),
       ),
     );

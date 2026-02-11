@@ -17,6 +17,7 @@ class TaskRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDone = task.status == 'DONE';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Slidable(
       endActionPane: ActionPane(
@@ -64,20 +65,35 @@ class TaskRow extends ConsumerWidget {
           ),
         ],
       ),
-      child: Card(
+      child: Container(
         margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkSurface : AppColors.surface,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          border: Border.all(
+            color: isDone
+                ? (isDark ? AppColors.darkBorder : AppColors.borderLight)
+                : (isDark ? AppColors.darkBorder : AppColors.border),
+          ),
+        ),
         child: ListTile(
-          leading: _typeIcon(task.type),
+          leading: _typeIcon(task.type, isDark),
           title: Text(
             task.title,
             style: TextStyle(
               decoration: isDone ? TextDecoration.lineThrough : null,
-              color: isDone ? AppColors.textTertiary : null,
+              color: isDone
+                  ? (isDark ? AppColors.darkTextTertiary : AppColors.textTertiary)
+                  : null,
             ),
           ),
           subtitle: Text(
             AppDateUtils.formatDuration(task.estMinutes),
-            style: Theme.of(context).textTheme.bodySmall,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: isDark
+                      ? AppColors.darkTextTertiary
+                      : AppColors.textTertiary,
+                ),
           ),
           trailing: Checkbox(
             value: isDone,
@@ -95,18 +111,35 @@ class TaskRow extends ConsumerWidget {
     );
   }
 
-  Widget _typeIcon(String type) {
+  Widget _typeIcon(String type, bool isDark) {
+    final IconData icon;
+    final Color color;
     switch (type) {
       case 'STUDY':
-        return const Icon(Icons.menu_book, color: AppColors.primary);
+        icon = Icons.menu_book;
+        color = AppColors.primary;
       case 'QUESTIONS':
-        return const Icon(Icons.quiz, color: AppColors.secondary);
+        icon = Icons.quiz;
+        color = AppColors.secondary;
       case 'REVIEW':
-        return const Icon(Icons.refresh, color: AppColors.warning);
+        icon = Icons.refresh;
+        color = AppColors.warning;
       case 'MOCK':
-        return const Icon(Icons.assignment, color: AppColors.error);
+        icon = Icons.assignment;
+        color = AppColors.error;
       default:
-        return const Icon(Icons.task);
+        icon = Icons.task;
+        color = isDark ? AppColors.darkTextTertiary : AppColors.textTertiary;
     }
+
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isDark ? 0.15 : 0.1),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+      ),
+      child: Icon(icon, color: color, size: 18),
+    );
   }
 }

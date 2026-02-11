@@ -25,23 +25,31 @@ class OptionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     Color borderColor;
     Color? bgColor;
 
     if (hasSubmitted) {
       if (isCorrect == true) {
         borderColor = AppColors.success;
-        bgColor = AppColors.success.withValues(alpha: 0.08);
+        bgColor = AppColors.successLight.withValues(alpha: isDark ? 0.15 : 0.5);
       } else if (isSelected && isCorrect == false) {
         borderColor = AppColors.error;
-        bgColor = AppColors.error.withValues(alpha: 0.08);
+        bgColor = AppColors.errorLight.withValues(alpha: isDark ? 0.15 : 0.5);
       } else {
-        borderColor = AppColors.border;
+        borderColor = isDark ? AppColors.darkBorder : AppColors.border;
         bgColor = null;
       }
     } else {
-      borderColor = isSelected ? AppColors.primary : AppColors.border;
-      bgColor = isSelected ? AppColors.primary.withValues(alpha: 0.05) : null;
+      borderColor = isSelected
+          ? AppColors.primary
+          : isDark
+              ? AppColors.darkBorder
+              : AppColors.border;
+      bgColor = isSelected
+          ? AppColors.primarySubtle.withValues(alpha: isDark ? 0.15 : 1.0)
+          : null;
     }
 
     return InkWell(
@@ -58,11 +66,15 @@ class OptionButton extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 28,
-              height: 28,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: isSelected ? borderColor : AppColors.surfaceVariant,
+                color: isSelected
+                    ? borderColor
+                    : isDark
+                        ? AppColors.darkSurfaceVariant
+                        : AppColors.surfaceVariant,
               ),
               child: Center(
                 child: Text(
@@ -70,7 +82,11 @@ class OptionButton extends StatelessWidget {
                       ? _optionLabels[index]
                       : '${index + 1}',
                   style: TextStyle(
-                    color: isSelected ? Colors.white : AppColors.textSecondary,
+                    color: isSelected
+                        ? Colors.white
+                        : isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.textSecondary,
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
@@ -85,9 +101,9 @@ class OptionButton extends StatelessWidget {
               ),
             ),
             if (hasSubmitted && isCorrect == true)
-              const Icon(Icons.check_circle, color: AppColors.success, size: 20),
+              const Icon(Icons.check_circle, color: AppColors.success, size: 22),
             if (hasSubmitted && isSelected && isCorrect == false)
-              const Icon(Icons.cancel, color: AppColors.error, size: 20),
+              const Icon(Icons.cancel, color: AppColors.error, size: 22),
           ],
         ),
       ),

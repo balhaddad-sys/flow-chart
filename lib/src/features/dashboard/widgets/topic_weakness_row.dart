@@ -12,8 +12,8 @@ class TopicWeaknessRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final accuracyPercent = (topic.accuracy * 100).round();
-    final weaknessPercent = (topic.weaknessScore * 100).round();
 
     final color = topic.accuracy < 0.4
         ? AppColors.error
@@ -21,46 +21,55 @@ class TopicWeaknessRow extends StatelessWidget {
             ? AppColors.warning
             : AppColors.success;
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      child: Padding(
-        padding: AppSpacing.cardPadding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    topic.tag,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
+      padding: AppSpacing.cardPadding,
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.border,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  topic.tag,
+                  style: Theme.of(context).textTheme.titleMedium,
                 ),
-                Text(
-                  '$accuracyPercent% accuracy',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                ),
+                child: Text(
+                  '$accuracyPercent%',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         color: color,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                       ),
                 ),
-              ],
-            ),
-            AppSpacing.gapSm,
-            LinearPercentIndicator(
-              padding: EdgeInsets.zero,
-              lineHeight: 6,
-              percent: topic.accuracy.clamp(0, 1),
-              progressColor: color,
-              backgroundColor: AppColors.border,
-              barRadius: const Radius.circular(3),
-            ),
-            AppSpacing.gapXs,
-            Text(
-              'Weakness score: $weaknessPercent%',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
+              ),
+            ],
+          ),
+          AppSpacing.gapSm,
+          LinearPercentIndicator(
+            padding: EdgeInsets.zero,
+            lineHeight: 6,
+            percent: topic.accuracy.clamp(0, 1).toDouble(),
+            progressColor: color,
+            backgroundColor: isDark
+                ? AppColors.darkSurfaceVariant
+                : AppColors.surfaceVariant,
+            barRadius: const Radius.circular(3),
+          ),
+        ],
       ),
     );
   }

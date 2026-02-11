@@ -12,61 +12,105 @@ class FileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.border,
+        ),
+      ),
       child: ListTile(
-        leading: _fileIcon(file.mimeType),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xs,
+        ),
+        leading: _fileIcon(file.mimeType, isDark),
         title: Text(
           file.originalName,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        subtitle: _buildSubtitle(context),
-        trailing: _statusIndicator(),
+        subtitle: _buildSubtitle(context, isDark),
+        trailing: _statusIndicator(isDark),
       ),
     );
   }
 
-  Widget _fileIcon(String mimeType) {
+  Widget _fileIcon(String mimeType, bool isDark) {
     IconData icon;
     Color color;
     if (mimeType.contains('pdf')) {
       icon = Icons.picture_as_pdf;
-      color = Colors.red;
+      color = AppColors.error;
     } else if (mimeType.contains('presentation')) {
       icon = Icons.slideshow;
-      color = Colors.orange;
+      color = AppColors.warning;
     } else if (mimeType.contains('wordprocessing')) {
       icon = Icons.article;
-      color = Colors.blue;
+      color = AppColors.primary;
     } else {
       icon = Icons.insert_drive_file;
-      color = AppColors.textTertiary;
+      color = isDark ? AppColors.darkTextTertiary : AppColors.textTertiary;
     }
-    return Icon(icon, color: color, size: 32);
-  }
 
-  Widget _buildSubtitle(BuildContext context) {
-    final sizeStr = _formatSize(file.sizeBytes);
-    final sectionStr = file.status == 'READY'
-        ? ' | ${file.sectionCount} sections'
-        : '';
-    return Text(
-      '$sizeStr$sectionStr',
-      style: Theme.of(context).textTheme.bodySmall,
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isDark ? 0.15 : 0.1),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+      ),
+      child: Icon(icon, color: color, size: 22),
     );
   }
 
-  Widget _statusIndicator() {
+  Widget _buildSubtitle(BuildContext context, bool isDark) {
+    final sizeStr = _formatSize(file.sizeBytes);
+    final sectionStr = file.status == 'READY'
+        ? ' · ${file.sectionCount} sections'
+        : '';
+    return Text(
+      '$sizeStr$sectionStr',
+      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+            color: isDark
+                ? AppColors.darkTextTertiary
+                : AppColors.textTertiary,
+          ),
+    );
+  }
+
+  Widget _statusIndicator(bool isDark) {
     switch (file.status) {
       case 'PROCESSING':
         return const ProcessingIndicator();
       case 'READY':
-        return const Icon(Icons.check_circle, color: AppColors.success);
+        return Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: AppColors.success.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.check, color: AppColors.success, size: 16),
+        );
       case 'FAILED':
-        return const Icon(Icons.error, color: AppColors.error);
+        return Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: AppColors.error.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.close, color: AppColors.error, size: 16),
+        );
       default:
-        return const Icon(Icons.hourglass_empty, color: AppColors.textTertiary);
+        return Icon(Icons.hourglass_empty,
+            color: isDark ? AppColors.darkTextTertiary : AppColors.textTertiary,
+            size: 20);
     }
   }
 

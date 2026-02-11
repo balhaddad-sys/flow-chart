@@ -21,34 +21,44 @@ class QuestionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Difficulty badge
-        Row(
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.xs,
           children: [
             _difficultyChip(question.difficulty),
-            if (question.topicTags.isNotEmpty) ...[
-              AppSpacing.hGapSm,
-              ...question.topicTags.take(2).map((tag) => Padding(
-                    padding: const EdgeInsets.only(right: AppSpacing.xs),
-                    child: Chip(
-                      label: Text(tag),
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  )),
-            ],
+            ...question.topicTags.take(2).map((tag) => Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? AppColors.darkSurfaceVariant
+                        : AppColors.surfaceVariant,
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                  ),
+                  child: Text(
+                    tag,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.textSecondary,
+                        ),
+                  ),
+                )),
           ],
         ),
         AppSpacing.gapMd,
-        // Question stem
         Text(
           question.stem,
-          style: Theme.of(context).textTheme.bodyLarge,
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.w500,
+                height: 1.5,
+              ),
         ),
         AppSpacing.gapLg,
-        // Options
         ...List.generate(question.options.length, (i) {
           return Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),

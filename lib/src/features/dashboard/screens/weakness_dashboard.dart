@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/primary_button.dart';
@@ -15,6 +16,7 @@ class WeaknessDashboard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final activeCourseId = ref.watch(activeCourseIdProvider);
+
     if (activeCourseId == null) {
       return const Scaffold(
         body: EmptyState(
@@ -46,9 +48,24 @@ class WeaknessDashboard extends ConsumerWidget {
           return ListView(
             padding: AppSpacing.screenPadding,
             children: [
-              Text(
-                'Topics Ranked by Weakness',
-                style: Theme.of(context).textTheme.headlineMedium,
+              Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: AppColors.error.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                    ),
+                    child: const Icon(Icons.trending_down,
+                        color: AppColors.error, size: 20),
+                  ),
+                  AppSpacing.hGapSm,
+                  Text(
+                    'Topics Ranked by Weakness',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ],
               ),
               AppSpacing.gapMd,
               ...stats.weakestTopics.map(
@@ -68,6 +85,7 @@ class WeaknessDashboard extends ConsumerWidget {
               AppSpacing.gapMd,
               if (fixPlan.fixPlan != null)
                 FixPlanCard(fixPlan: fixPlan.fixPlan!),
+              AppSpacing.gapLg,
             ],
           );
         },

@@ -13,51 +13,94 @@ class FixPlanCard extends StatelessWidget {
     final plan = fixPlan['fix_plan'] as Map<String, dynamic>?;
     if (plan == null) return const SizedBox.shrink();
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final summary = plan['summary'] as String? ?? '';
     final tasks = (plan['tasks'] as List<dynamic>?) ?? [];
 
-    return Card(
-      child: Padding(
-        padding: AppSpacing.cardPadding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.auto_fix_high,
-                    color: AppColors.secondary, size: 20),
-                AppSpacing.hGapSm,
-                Text(
-                  'Fix Plan',
-                  style: Theme.of(context).textTheme.titleMedium,
+    return Container(
+      padding: AppSpacing.cardPaddingLg,
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        border: Border.all(
+          color: AppColors.secondary.withValues(alpha: isDark ? 0.2 : 0.15),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                 ),
-              ],
-            ),
-            AppSpacing.gapSm,
-            Text(
-              summary,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+                child: const Icon(Icons.auto_fix_high,
+                    color: AppColors.secondary, size: 18),
+              ),
+              AppSpacing.hGapSm,
+              Text(
+                'Fix Plan',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ],
+          ),
+          AppSpacing.gapMd,
+          Text(
+            summary,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.textSecondary,
+                ),
+          ),
+          if (tasks.isNotEmpty) ...[
             AppSpacing.gapMd,
             ...tasks.map((task) {
               final t = task as Map<String, dynamic>;
-              return ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(
-                  t['type'] == 'REVIEW'
-                      ? Icons.refresh
-                      : Icons.quiz,
-                  color: AppColors.primary,
+              final isReview = t['type'] == 'REVIEW';
+              return Container(
+                margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? AppColors.darkSurfaceVariant.withValues(alpha: 0.5)
+                      : AppColors.surfaceVariant.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                 ),
-                title: Text(t['title'] as String? ?? ''),
-                subtitle: Text(
-                  'Day ${t['dayOffset'] ?? 0} | ${t['estMinutes'] ?? 0} min',
-                  style: Theme.of(context).textTheme.bodySmall,
+                child: Row(
+                  children: [
+                    Icon(
+                      isReview ? Icons.refresh : Icons.quiz,
+                      color: isReview ? AppColors.warning : AppColors.primary,
+                      size: 18,
+                    ),
+                    AppSpacing.hGapSm,
+                    Expanded(
+                      child: Text(
+                        t['title'] as String? ?? '',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                    Text(
+                      'Day ${t['dayOffset'] ?? 0} · ${t['estMinutes'] ?? 0}m',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: isDark
+                                ? AppColors.darkTextTertiary
+                                : AppColors.textTertiary,
+                          ),
+                    ),
+                  ],
                 ),
               );
             }),
           ],
-        ),
+        ],
       ),
     );
   }

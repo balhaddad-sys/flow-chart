@@ -19,31 +19,51 @@ class ExplanationPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isCorrect = selectedIndex == question.correctIndex;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
-      padding: AppSpacing.cardPadding,
+      padding: AppSpacing.cardPaddingLg,
       decoration: BoxDecoration(
         color: isCorrect
-            ? AppColors.success.withValues(alpha: 0.05)
-            : AppColors.error.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            ? AppColors.successLight.withValues(alpha: isDark ? 0.1 : 0.5)
+            : AppColors.errorLight.withValues(alpha: isDark ? 0.1 : 0.5),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         border: Border.all(
           color: isCorrect
-              ? AppColors.success.withValues(alpha: 0.2)
-              : AppColors.error.withValues(alpha: 0.2),
+              ? AppColors.success.withValues(alpha: isDark ? 0.2 : 0.15)
+              : AppColors.error.withValues(alpha: isDark ? 0.2 : 0.15),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            isCorrect ? 'Correct!' : 'Incorrect',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: isCorrect ? AppColors.success : AppColors.error,
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: (isCorrect ? AppColors.success : AppColors.error)
+                      .withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                 ),
+                child: Icon(
+                  isCorrect ? Icons.check : Icons.close,
+                  color: isCorrect ? AppColors.success : AppColors.error,
+                  size: 16,
+                ),
+              ),
+              AppSpacing.hGapSm,
+              Text(
+                isCorrect ? 'Correct!' : 'Incorrect',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: isCorrect ? AppColors.success : AppColors.error,
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ],
           ),
           AppSpacing.gapMd,
-          // Why correct
           Text(
             'Why ${question.options[question.correctIndex]} is correct:',
             style: Theme.of(context).textTheme.labelLarge,
@@ -55,7 +75,6 @@ class ExplanationPanel extends StatelessWidget {
           ),
           if (!isCorrect) ...[
             AppSpacing.gapMd,
-            // Why student was wrong
             Text(
               'Why your answer was wrong:',
               style: Theme.of(context).textTheme.labelLarge,
@@ -69,17 +88,24 @@ class ExplanationPanel extends StatelessWidget {
             ),
           ],
           AppSpacing.gapMd,
-          // Key takeaway
           Container(
             padding: const EdgeInsets.all(AppSpacing.sm),
             decoration: BoxDecoration(
-              color: AppColors.info.withValues(alpha: 0.08),
+              color: AppColors.infoLight.withValues(alpha: isDark ? 0.1 : 0.5),
               borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
             ),
             child: Row(
               children: [
-                const Icon(Icons.lightbulb_outline,
-                    color: AppColors.info, size: 18),
+                Container(
+                  width: 24,
+                  height: 24,
+                  decoration: BoxDecoration(
+                    color: AppColors.info.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Icon(Icons.lightbulb_outline,
+                      color: AppColors.info, size: 14),
+                ),
                 AppSpacing.hGapSm,
                 Expanded(
                   child: Text(

@@ -20,6 +20,9 @@ class DayHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final allDone = completedCount == totalCount && totalCount > 0;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       child: Row(
@@ -29,18 +32,36 @@ class DayHeader extends StatelessWidget {
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const Spacer(),
-          Text(
-            '$completedCount/$totalCount',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: completedCount == totalCount
-                      ? AppColors.success
-                      : AppColors.textSecondary,
-                ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: allDone
+                  ? AppColors.success.withValues(alpha: 0.1)
+                  : isDark
+                      ? AppColors.darkSurfaceVariant
+                      : AppColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+            ),
+            child: Text(
+              '$completedCount/$totalCount',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: allDone
+                        ? AppColors.success
+                        : isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
           ),
           AppSpacing.hGapSm,
           Text(
             AppDateUtils.formatDuration(totalMinutes),
-            style: Theme.of(context).textTheme.bodySmall,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: isDark
+                      ? AppColors.darkTextTertiary
+                      : AppColors.textTertiary,
+                ),
           ),
         ],
       ),
