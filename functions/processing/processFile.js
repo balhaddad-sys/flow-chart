@@ -26,7 +26,10 @@ const { extractPptxSections } = require("./extractors/pptxExtractor");
 const { extractDocxSections } = require("./extractors/docxExtractor");
 
 exports.processUploadedFile = functions
-  .runWith({ timeoutSeconds: 300, memory: "1GB" })
+  .runWith({
+    timeoutSeconds: 180, // Reduced: extraction is fast, AI processing happens async
+    memory: "1GB",
+  })
   .storage.object()
   .onFinalize(async (object) => {
     const filePath = object.name;

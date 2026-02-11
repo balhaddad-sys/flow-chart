@@ -20,7 +20,11 @@ const { DIFFICULTY_DISTRIBUTION } = require("../lib/constants");
 const DEFAULT_QUESTION_COUNT = 10;
 
 exports.processSection = functions
-  .runWith({ timeoutSeconds: 300, memory: "512MB" })
+  .runWith({
+    timeoutSeconds: 120, // Reduced: Haiku 4.5 is much faster
+    memory: "512MB",
+    maxInstances: 10, // Process multiple sections in parallel
+  })
   .firestore.document("users/{uid}/sections/{sectionId}")
   .onCreate(async (snap, context) => {
     const { uid, sectionId } = context.params;
@@ -54,7 +58,10 @@ exports.processSection = functions
       const fileDoc = await db.doc(`users/${uid}/files/${sectionData.fileId}`).get();
       const fileData = fileDoc.exists ? fileDoc.data() : {};
 
-      // Generate blueprint via AI
+      // Generate blueprint via AI (Haiku 4.5 - FAST)
+      log.info("Starting blueprint generation", { uid, sectionId, textLength: sectionText.length });
+      const t0 = Date.now();
+
       const result = await generateBlueprint(
         BLUEPRINT_SYSTEM,
         blueprintUserPrompt({
@@ -66,10 +73,23 @@ exports.processSection = functions
       );
 
       if (!result.success) {
-        log.error("Blueprint generation failed", { uid, sectionId, error: result.error });
+        log.error("Blueprint generation failed", {
+          uid,
+          sectionId,
+          error: result.error,
+          durationMs: Date.now() - t0,
+        });
         await snap.ref.update({ aiStatus: "FAILED" });
         return null;
       }
+
+      log.info("Blueprint generated", {
+        uid,
+        sectionId,
+        durationMs: Date.now() - t0,
+        model: result.model,
+        tokens: result.tokensUsed,
+      });
 
       // Normalise via serialize module
       const normalised = normaliseBlueprint(result.data);
@@ -92,6 +112,9 @@ exports.processSection = functions
       const hardCount = Math.round(count * DIFFICULTY_DISTRIBUTION.hard);
       const mediumCount = count - easyCount - hardCount;
 
+      log.info("Starting question generation", { uid, sectionId, count });
+      const qT0 = Date.now();
+
       const qResult = await aiGenerateQuestions(
         QUESTIONS_SYSTEM,
         questionsUserPrompt({
@@ -105,9 +128,22 @@ exports.processSection = functions
       );
 
       if (!qResult.success || !qResult.data.questions) {
-        log.warn("Auto question generation failed", { uid, sectionId, error: qResult.error });
+        log.warn("Auto question generation failed", {
+          uid,
+          sectionId,
+          error: qResult.error,
+          durationMs: Date.now() - qT0,
+        });
         return null; // Blueprint saved; questions can be retried manually
       }
+
+      log.info("Questions generated", {
+        uid,
+        sectionId,
+        count: qResult.data.questions.length,
+        durationMs: Date.now() - qT0,
+        model: qResult.model,
+      });
 
       const defaults = {
         fileId: sectionData.fileId,
