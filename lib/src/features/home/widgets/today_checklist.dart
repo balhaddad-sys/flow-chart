@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
@@ -21,7 +22,34 @@ class TodayChecklist extends ConsumerWidget {
 
     return tasksAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Text('Error loading tasks: $e'),
+      error: (e, _) {
+        // Parse common errors for user-friendly messages
+        final errorStr = e.toString().toLowerCase();
+
+        if (errorStr.contains('no_sections') ||
+            errorStr.contains('no analyzed sections')) {
+          return EmptyState(
+            icon: Icons.upload_file_outlined,
+            title: 'Get started',
+            subtitle: 'Upload your first study material to generate a personalized plan',
+            actionLabel: 'Upload File',
+            onAction: () {
+              // Navigate to library upload
+              final router = GoRouter.of(context);
+              router.go('/library');
+            },
+          );
+        }
+
+        // Generic error fallback
+        return EmptyState(
+          icon: Icons.error_outline,
+          title: 'Unable to load plan',
+          subtitle: 'Please try again or check your connection',
+          actionLabel: 'Retry',
+          onAction: () => ref.invalidate(todayTasksProvider(courseId)),
+        );
+      },
       data: (tasks) {
         if (tasks.isEmpty) {
           return EmptyState(
