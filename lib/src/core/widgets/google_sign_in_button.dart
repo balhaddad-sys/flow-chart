@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../constants/app_colors.dart';
 import '../constants/app_spacing.dart';
 
 /// A Google "G" logo painted to match official branding.
@@ -8,7 +9,6 @@ class _GoogleLogoPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final double s = size.width;
 
-    // Blue quadrant (right)
     final bluePaint = Paint()..color = const Color(0xFF4285F4);
     final bluePath = Path()
       ..moveTo(s * 0.964, s * 0.480)
@@ -23,7 +23,6 @@ class _GoogleLogoPainter extends CustomPainter {
       ..close();
     canvas.drawPath(bluePath, bluePaint);
 
-    // Green quadrant (bottom-left)
     final greenPaint = Paint()..color = const Color(0xFF34A853);
     final greenPath = Path()
       ..moveTo(s * 0.500, s * 0.940)
@@ -37,7 +36,6 @@ class _GoogleLogoPainter extends CustomPainter {
       ..close();
     canvas.drawPath(greenPath, greenPaint);
 
-    // Yellow quadrant (bottom-right area)
     final yellowPaint = Paint()..color = const Color(0xFFFBBC05);
     final yellowPath = Path()
       ..moveTo(s * 0.226, s * 0.574)
@@ -52,7 +50,6 @@ class _GoogleLogoPainter extends CustomPainter {
       ..close();
     canvas.drawPath(yellowPath, yellowPaint);
 
-    // Red quadrant (top-left)
     final redPaint = Paint()..color = const Color(0xFFEA4335);
     final redPath = Path()
       ..moveTo(s * 0.500, s * 0.196)
@@ -93,10 +90,10 @@ class GoogleSignInButton extends StatelessWidget {
       child: OutlinedButton(
         onPressed: isLoading ? null : onPressed,
         style: OutlinedButton.styleFrom(
-          backgroundColor: isDark ? const Color(0xFF1C1C1E) : Colors.white,
-          foregroundColor: isDark ? const Color(0xFFE3E3E3) : const Color(0xFF1F1F1F),
+          backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
+          foregroundColor: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
           side: BorderSide(
-            color: isDark ? const Color(0xFF3A3A3C) : const Color(0xFFDADCE0),
+            color: isDark ? AppColors.darkBorder : AppColors.border,
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -109,7 +106,7 @@ class GoogleSignInButton extends StatelessWidget {
                 height: 20,
                 width: 20,
                 child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
+                  strokeWidth: 2,
                   color: isDark ? Colors.white70 : Colors.black54,
                 ),
               )
@@ -131,7 +128,7 @@ class GoogleSignInButton extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
-                      color: isDark ? const Color(0xFFE3E3E3) : const Color(0xFF1F1F1F),
+                      color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
                     ),
                   ),
                 ],

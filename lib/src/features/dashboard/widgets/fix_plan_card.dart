@@ -13,16 +13,18 @@ class FixPlanCard extends StatelessWidget {
     final plan = fixPlan['fix_plan'] as Map<String, dynamic>?;
     if (plan == null) return const SizedBox.shrink();
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final summary = plan['summary'] as String? ?? '';
     final tasks = (plan['tasks'] as List<dynamic>?) ?? [];
 
     return Container(
-      padding: AppSpacing.cardPaddingLarge,
+      padding: AppSpacing.cardPaddingLg,
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: isDark ? AppColors.darkSurface : AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.7)),
-        boxShadow: AppSpacing.shadowMd,
+        border: Border.all(
+          color: AppColors.secondary.withValues(alpha: isDark ? 0.2 : 0.15),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -32,17 +34,19 @@ class FixPlanCard extends StatelessWidget {
               Container(
                 width: 32,
                 height: 32,
-                decoration: const BoxDecoration(
-                  color: AppColors.secondarySurface,
-                  shape: BoxShape.circle,
+                decoration: BoxDecoration(
+                  color: AppColors.secondary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                 ),
-                child: const Icon(Icons.auto_fix_high_rounded,
+                child: const Icon(Icons.auto_fix_high,
                     color: AppColors.secondary, size: 18),
               ),
               AppSpacing.hGapSm,
               Text(
                 'Fix Plan',
-                style: Theme.of(context).textTheme.titleLarge,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
               ),
             ],
           ),
@@ -50,8 +54,9 @@ class FixPlanCard extends StatelessWidget {
           Text(
             summary,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                  height: 1.5,
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.textSecondary,
                 ),
           ),
           if (tasks.isNotEmpty) ...[
@@ -60,50 +65,35 @@ class FixPlanCard extends StatelessWidget {
               final t = task as Map<String, dynamic>;
               final isReview = t['type'] == 'REVIEW';
               return Container(
-                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+                padding: const EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
-                  color: isReview
-                      ? AppColors.primarySurface
-                      : AppColors.secondarySurface,
+                  color: isDark
+                      ? AppColors.darkSurfaceVariant.withValues(alpha: 0.5)
+                      : AppColors.surfaceVariant.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
                 ),
                 child: Row(
                   children: [
-                    Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: isReview
-                            ? AppColors.primary.withValues(alpha: 0.15)
-                            : AppColors.secondary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(
-                        isReview
-                            ? Icons.refresh_rounded
-                            : Icons.quiz_rounded,
-                        color: isReview
-                            ? AppColors.primary
-                            : AppColors.secondary,
-                        size: 16,
+                    Icon(
+                      isReview ? Icons.refresh : Icons.quiz,
+                      color: isReview ? AppColors.warning : AppColors.primary,
+                      size: 18,
+                    ),
+                    AppSpacing.hGapSm,
+                    Expanded(
+                      child: Text(
+                        t['title'] as String? ?? '',
+                        style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ),
-                    AppSpacing.hGapMd,
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            t['title'] as String? ?? '',
-                            style: Theme.of(context).textTheme.titleSmall,
+                    Text(
+                      'Day ${t['dayOffset'] ?? 0} · ${t['estMinutes'] ?? 0}m',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: isDark
+                                ? AppColors.darkTextTertiary
+                                : AppColors.textTertiary,
                           ),
-                          Text(
-                            'Day ${t['dayOffset'] ?? 0} | ${t['estMinutes'] ?? 0} min',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ],
-                      ),
                     ),
                   ],
                 ),

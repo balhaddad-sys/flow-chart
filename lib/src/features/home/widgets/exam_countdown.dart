@@ -16,16 +16,15 @@ class ExamCountdown extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: AppSpacing.cardPaddingLg,
       decoration: BoxDecoration(
-        gradient: isUrgent ? AppColors.warmGradient : AppColors.primaryGradient,
+        gradient: isUrgent ? AppColors.urgentGradient : AppColors.primaryGradient,
         borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
         boxShadow: [
           BoxShadow(
-            color: (isUrgent ? AppColors.error : AppColors.primary)
-                .withValues(alpha: 0.25),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: (isUrgent ? AppColors.error : AppColors.primary).withValues(alpha: 0.25),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -36,8 +35,8 @@ class ExamCountdown extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isUrgent ? 'Exam is near!' : 'Exam countdown',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  isUrgent ? 'Exam approaching' : 'Exam countdown',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
                         color: Colors.white70,
                         letterSpacing: 0.5,
                       ),

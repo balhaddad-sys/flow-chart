@@ -21,6 +21,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -44,6 +45,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authScreenProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     ref.listen<AuthScreenData>(authScreenProvider, (prev, next) {
       if (next.state == AuthScreenState.success) {
@@ -52,7 +54,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -65,41 +66,58 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Brand header
-                    Container(
-                      width: 64,
-                      height: 64,
-                      decoration: BoxDecoration(
-                        gradient: AppColors.primaryGradient,
-                        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.3),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
+                    AppSpacing.gapXl,
+
+                    // ── Branded logo ──────────────────────────────────────
+                    Center(
+                      child: Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          gradient: AppColors.primaryGradient,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.primary.withValues(alpha: 0.3),
+                              blurRadius: 20,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: const Center(
+                          child: Text(
+                            'M',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 32,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -1,
+                            ),
                           ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.school_rounded,
-                        color: Colors.white,
-                        size: 32,
+                        ),
                       ),
                     ),
                     AppSpacing.gapLg,
+
+                    // ── Title ─────────────────────────────────────────────
                     Text(
                       'Welcome back',
-                      style: Theme.of(context).textTheme.displayMedium,
+                      style: Theme.of(context).textTheme.headlineLarge,
+                      textAlign: TextAlign.center,
                     ),
                     AppSpacing.gapXs,
                     Text(
                       'Sign in to continue your study journey',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textTertiary,
+                            color: isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.textSecondary,
                           ),
+                      textAlign: TextAlign.center,
                     ),
                     AppSpacing.gapXl,
 
+                    // ── Error banner ──────────────────────────────────────
                     if (authState.errorMessage != null) ...[
                       ErrorBanner(
                         message: authState.errorMessage!,
@@ -109,30 +127,45 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       AppSpacing.gapMd,
                     ],
 
-                    // Email field
+                    // ── Email field ───────────────────────────────────────
                     TextFormField(
                       controller: _emailController,
                       decoration: const InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: Icon(Icons.email_outlined, size: 20),
+                        labelText: 'Email address',
+                        hintText: 'you@example.com',
+                        prefixIcon: Icon(Icons.email_outlined),
                       ),
                       keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
                       validator: Validators.email,
                     ),
                     AppSpacing.gapMd,
 
-                    // Password field
+                    // ── Password field ────────────────────────────────────
                     TextFormField(
                       controller: _passwordController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Password',
-                        prefixIcon: Icon(Icons.lock_outline_rounded, size: 20),
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            size: 20,
+                          ),
+                          onPressed: () =>
+                              setState(() => _obscurePassword = !_obscurePassword),
+                        ),
                       ),
-                      obscureText: true,
+                      obscureText: _obscurePassword,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => _handleLogin(),
                       validator: Validators.password,
                     ),
                     AppSpacing.gapLg,
 
+                    // ── Sign in button ────────────────────────────────────
                     PrimaryButton(
                       label: 'Sign In',
                       onPressed: _handleLogin,
@@ -140,65 +173,49 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     AppSpacing.gapLg,
 
-                    // Divider
+                    // ── Divider ───────────────────────────────────────────
                     Row(
                       children: [
-                        Expanded(
-                          child: Container(
-                            height: 1,
-                            color: AppColors.border,
-                          ),
-                        ),
+                        const Expanded(child: Divider()),
                         Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.md),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Text(
-                            'or',
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: AppColors.textTertiary,
-                                    ),
+                            'or continue with',
+                            style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ),
-                        Expanded(
-                          child: Container(
-                            height: 1,
-                            color: AppColors.border,
-                          ),
-                        ),
+                        const Expanded(child: Divider()),
                       ],
                     ),
                     AppSpacing.gapLg,
 
+                    // ── Google sign-in ────────────────────────────────────
                     GoogleSignInButton(
                       onPressed: _handleGoogleSignIn,
                       isLoading: authState.state == AuthScreenState.loading,
                     ),
-                    AppSpacing.gapLg,
+                    AppSpacing.gapXl,
 
-                    Center(
-                      child: TextButton(
-                        onPressed: () => context.go('/signup'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.primary,
+                    // ── Sign up link ──────────────────────────────────────
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Don\'t have an account? ',
+                          style: Theme.of(context).textTheme.bodyMedium,
                         ),
-                        child: RichText(
-                          text: TextSpan(
-                            text: 'Don\'t have an account? ',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                            children: [
-                              const TextSpan(
-                                text: 'Sign Up',
-                                style: TextStyle(
+                        GestureDetector(
+                          onTap: () => context.go('/signup'),
+                          child: Text(
+                            'Sign Up',
+                            style: Theme.of(context).textTheme.labelLarge?.copyWith(
                                   color: AppColors.primary,
-                                  fontWeight: FontWeight.w600,
                                 ),
-                              ),
-                            ],
                           ),
                         ),
-                      ),
+                      ],
                     ),
+                    AppSpacing.gapXl,
                   ],
                 ),
               ),

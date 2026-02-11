@@ -22,6 +22,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -47,6 +48,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authScreenProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     ref.listen<AuthScreenData>(authScreenProvider, (prev, next) {
       if (next.state == AuthScreenState.success) {
@@ -55,19 +57,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     });
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
         leading: IconButton(
-          icon: Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              shape: BoxShape.circle,
-              border: Border.all(color: AppColors.border),
-            ),
-            child: const Icon(Icons.arrow_back, size: 18),
-          ),
+          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
           onPressed: () => context.go('/login'),
         ),
       ),
@@ -83,19 +75,23 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // ── Header ──────────────────────────────────────────
                     Text(
                       'Create Account',
-                      style: Theme.of(context).textTheme.displayMedium,
+                      style: Theme.of(context).textTheme.headlineLarge,
                     ),
                     AppSpacing.gapXs,
                     Text(
                       'Start your personalized study journey',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textTertiary,
+                            color: isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.textSecondary,
                           ),
                     ),
                     AppSpacing.gapXl,
 
+                    // ── Error banner ────────────────────────────────────
                     if (authState.errorMessage != null) ...[
                       ErrorBanner(
                         message: authState.errorMessage!,
@@ -105,36 +101,59 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                       AppSpacing.gapMd,
                     ],
 
+                    // ── Name ────────────────────────────────────────────
                     TextFormField(
                       controller: _nameController,
                       decoration: const InputDecoration(
                         labelText: 'Full Name',
-                        prefixIcon: Icon(Icons.person_outline_rounded, size: 20),
+                        hintText: 'John Doe',
+                        prefixIcon: Icon(Icons.person_outline),
                       ),
+                      textInputAction: TextInputAction.next,
                       validator: (v) => Validators.required(v, 'Name'),
                     ),
                     AppSpacing.gapMd,
+
+                    // ── Email ───────────────────────────────────────────
                     TextFormField(
                       controller: _emailController,
                       decoration: const InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: Icon(Icons.email_outlined, size: 20),
+                        labelText: 'Email address',
+                        hintText: 'you@example.com',
+                        prefixIcon: Icon(Icons.email_outlined),
                       ),
                       keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
                       validator: Validators.email,
                     ),
                     AppSpacing.gapMd,
+
+                    // ── Password ────────────────────────────────────────
                     TextFormField(
                       controller: _passwordController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Password',
-                        prefixIcon: Icon(Icons.lock_outline_rounded, size: 20),
+                        hintText: 'Min. 8 characters',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            size: 20,
+                          ),
+                          onPressed: () =>
+                              setState(() => _obscurePassword = !_obscurePassword),
+                        ),
                       ),
-                      obscureText: true,
+                      obscureText: _obscurePassword,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => _handleSignUp(),
                       validator: Validators.password,
                     ),
                     AppSpacing.gapLg,
 
+                    // ── Create account button ──────────────────────────
                     PrimaryButton(
                       label: 'Create Account',
                       onPressed: _handleSignUp,
@@ -142,28 +161,29 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                     ),
                     AppSpacing.gapLg,
 
+                    // ── Divider ─────────────────────────────────────────
                     Row(
                       children: [
-                        Expanded(child: Container(height: 1, color: AppColors.border)),
+                        const Expanded(child: Divider()),
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Text(
-                            'or',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: AppColors.textTertiary,
-                                ),
+                            'or continue with',
+                            style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ),
-                        Expanded(child: Container(height: 1, color: AppColors.border)),
+                        const Expanded(child: Divider()),
                       ],
                     ),
                     AppSpacing.gapLg,
 
+                    // ── Google sign-up ──────────────────────────────────
                     GoogleSignInButton(
                       onPressed: _handleGoogleSignIn,
                       isLoading: authState.state == AuthScreenState.loading,
                       label: 'Sign up with Google',
                     ),
+                    AppSpacing.gapXl,
                   ],
                 ),
               ),

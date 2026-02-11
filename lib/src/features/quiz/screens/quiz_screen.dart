@@ -37,6 +37,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   @override
   Widget build(BuildContext context) {
     final quiz = ref.watch(quizProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (quiz.isLoading && quiz.questions.isEmpty) {
       return const Scaffold(
@@ -55,45 +56,54 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       );
     }
 
+    final progress = quiz.questions.isNotEmpty
+        ? (quiz.currentIndex + 1) / quiz.questions.length
+        : 0.0;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
           'Question ${quiz.currentIndex + 1}/${quiz.questions.length}',
         ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(3),
+          child: LinearProgressIndicator(
+            value: progress,
+            backgroundColor: isDark
+                ? AppColors.darkSurfaceVariant
+                : AppColors.surfaceVariant,
+            color: AppColors.primary,
+            minHeight: 3,
+          ),
+        ),
         actions: [
           Container(
-            margin: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            margin: const EdgeInsets.only(right: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: AppColors.successSurface,
+              color: AppColors.success.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
             ),
-            child: Text(
-              '${quiz.correctCount}/${quiz.totalAnswered} correct',
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: AppColors.success,
-                    fontWeight: FontWeight.w600,
-                  ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.check_circle, color: AppColors.success, size: 14),
+                const SizedBox(width: 4),
+                Text(
+                  '${quiz.correctCount}/${quiz.totalAnswered}',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: AppColors.success,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
             ),
           ),
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        padding: AppSpacing.screenPadding,
         children: [
-          // Progress bar
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
-            child: LinearProgressIndicator(
-              value: (quiz.currentIndex + 1) / quiz.questions.length,
-              backgroundColor: AppColors.primarySurface,
-              color: AppColors.primary,
-              minHeight: 4,
-            ),
-          ),
-          AppSpacing.gapLg,
-
           QuestionCard(
             question: question,
             selectedIndex: quiz.selectedOptionIndex,
@@ -122,6 +132,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
               label: 'Next Question',
               onPressed: () => ref.read(quizProvider.notifier).nextQuestion(),
             ),
+          AppSpacing.gapLg,
         ],
       ),
     );
@@ -136,17 +147,26 @@ class _ResultsView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final percent = (quiz.accuracy * 100).round();
-    final color = percent >= 70
-        ? AppColors.success
-        : percent >= 40
-            ? AppColors.warning
-            : AppColors.error;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final Color scoreColor;
+    final String scoreLabel;
+    if (quiz.accuracy >= 0.8) {
+      scoreColor = AppColors.success;
+      scoreLabel = 'Excellent!';
+    } else if (quiz.accuracy >= 0.6) {
+      scoreColor = AppColors.warning;
+      scoreLabel = 'Good effort';
+    } else {
+      scoreColor = AppColors.error;
+      scoreLabel = 'Keep practicing';
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Quiz Complete')),
       body: Center(
         child: Padding(
-          padding: const EdgeInsets.all(32),
+          padding: AppSpacing.screenPadding,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -154,34 +174,42 @@ class _ResultsView extends StatelessWidget {
                 width: 120,
                 height: 120,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
+                  color: scoreColor.withValues(alpha: 0.1),
+                  border: Border.all(
+                    color: scoreColor.withValues(alpha: 0.3),
+                    width: 3,
+                  ),
                 ),
                 child: Center(
                   child: Text(
                     '$percent%',
-                    style: Theme.of(context).textTheme.displayLarge?.copyWith(
-                          color: color,
-                          fontWeight: FontWeight.w800,
+                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                          color: scoreColor,
+                          fontWeight: FontWeight.w700,
                         ),
                   ),
                 ),
               ),
               AppSpacing.gapLg,
               Text(
-                percent >= 70 ? 'Great work!' : 'Keep practicing!',
-                style: Theme.of(context).textTheme.headlineMedium,
+                scoreLabel,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      color: scoreColor,
+                    ),
               ),
               AppSpacing.gapSm,
               Text(
                 '${quiz.correctCount} out of ${quiz.totalAnswered} correct',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textTertiary,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.textSecondary,
                     ),
               ),
               AppSpacing.gapXl,
               SizedBox(
-                width: 200,
+                width: 220,
                 child: PrimaryButton(
                   label: 'Done',
                   onPressed: () => context.pop(),

@@ -15,6 +15,7 @@ class StatsCards extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(courseStatsProvider(courseId));
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return statsAsync.when(
       loading: () => const SizedBox.shrink(),
@@ -26,29 +27,27 @@ class StatsCards extends ConsumerWidget {
           children: [
             _StatCard(
               label: 'Completion',
+              isDark: isDark,
               child: CircularPercentIndicator(
                 radius: 26,
-                lineWidth: 5,
+                lineWidth: 4,
                 percent: stats.completionPercent.clamp(0, 1),
                 center: Text(
                   '${(stats.completionPercent * 100).round()}%',
-                  style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
-                    ),
+                  style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
                 ),
                 progressColor: AppColors.primary,
-                backgroundColor: AppColors.primarySurface,
+                backgroundColor: isDark ? AppColors.darkBorder : AppColors.border,
                 circularStrokeCap: CircularStrokeCap.round,
               ),
             ),
             AppSpacing.hGapSm,
             _StatCard(
               label: 'Accuracy',
+              isDark: isDark,
               child: Text(
                 '${(stats.overallAccuracy * 100).round()}%',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       color: stats.overallAccuracy >= 0.7
                           ? AppColors.success
                           : AppColors.warning,
@@ -59,6 +58,7 @@ class StatsCards extends ConsumerWidget {
             AppSpacing.hGapSm,
             _StatCard(
               label: 'Streak',
+              isDark: isDark,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -66,15 +66,13 @@ class StatsCards extends ConsumerWidget {
                 children: [
                   Text(
                     '${stats.streakDays}',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w700,
                         ),
                   ),
                   Text(
                     'd',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textTertiary,
-                        ),
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
               ),
@@ -82,9 +80,10 @@ class StatsCards extends ConsumerWidget {
             AppSpacing.hGapSm,
             _StatCard(
               label: 'This week',
+              isDark: isDark,
               child: Text(
                 AppDateUtils.formatDuration(stats.weeklyStudyMinutes),
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
               ),
@@ -99,19 +98,25 @@ class StatsCards extends ConsumerWidget {
 class _StatCard extends StatelessWidget {
   final String label;
   final Widget child;
+  final bool isDark;
 
-  const _StatCard({required this.label, required this.child});
+  const _StatCard({
+    required this.label,
+    required this.child,
+    this.isDark = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-          border: Border.all(color: AppColors.border.withValues(alpha: 0.7)),
-          boxShadow: AppSpacing.shadowSm,
+          color: isDark ? AppColors.darkSurface : AppColors.surface,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          border: Border.all(
+            color: isDark ? AppColors.darkBorder : AppColors.border,
+          ),
         ),
         child: Column(
           children: [
@@ -120,7 +125,9 @@ class _StatCard extends StatelessWidget {
             Text(
               label,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.textTertiary,
+                    color: isDark
+                        ? AppColors.darkTextTertiary
+                        : AppColors.textTertiary,
                   ),
             ),
           ],

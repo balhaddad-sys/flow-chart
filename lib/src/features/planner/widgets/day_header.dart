@@ -20,67 +20,48 @@ class DayHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final allDone = completedCount == totalCount && totalCount > 0;
-    final progress = totalCount > 0 ? completedCount / totalCount : 0.0;
 
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: Row(
         children: [
-          Row(
-            children: [
-              Text(
-                label,
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const Spacer(),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: allDone
-                      ? AppColors.successSurface
-                      : AppColors.surfaceVariant,
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (allDone)
-                      const Icon(Icons.check_circle_rounded,
-                          color: AppColors.success, size: 14),
-                    if (allDone) const SizedBox(width: 4),
-                    Text(
-                      allDone ? 'Complete' : '$completedCount/$totalCount',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: allDone
-                                ? AppColors.success
-                                : AppColors.textSecondary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-              AppSpacing.hGapSm,
-              Text(
-                AppDateUtils.formatDuration(totalMinutes),
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
-              ),
-            ],
+          Text(
+            label,
+            style: Theme.of(context).textTheme.titleLarge,
           ),
-          AppSpacing.gapXs,
-          ClipRRect(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
-            child: LinearProgressIndicator(
-              value: progress,
-              backgroundColor: AppColors.surfaceVariant,
-              color: allDone ? AppColors.success : AppColors.primary,
-              minHeight: 3,
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: allDone
+                  ? AppColors.success.withValues(alpha: 0.1)
+                  : isDark
+                      ? AppColors.darkSurfaceVariant
+                      : AppColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
             ),
+            child: Text(
+              '$completedCount/$totalCount',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: allDone
+                        ? AppColors.success
+                        : isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+          AppSpacing.hGapSm,
+          Text(
+            AppDateUtils.formatDuration(totalMinutes),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: isDark
+                      ? AppColors.darkTextTertiary
+                      : AppColors.textTertiary,
+                ),
           ),
         ],
       ),

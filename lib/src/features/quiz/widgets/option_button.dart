@@ -7,91 +7,87 @@ class OptionButton extends StatelessWidget {
   final int index;
   final String text;
   final bool isSelected;
+  final bool? isCorrect;
   final bool hasSubmitted;
-  final bool isCorrect;
-  final VoidCallback? onTap;
+  final VoidCallback onTap;
 
   const OptionButton({
     super.key,
     required this.index,
     required this.text,
     required this.isSelected,
+    this.isCorrect,
     required this.hasSubmitted,
-    required this.isCorrect,
-    this.onTap,
+    required this.onTap,
   });
 
-  static const _labels = ['A', 'B', 'C', 'D', 'E'];
+  static const _optionLabels = ['A', 'B', 'C', 'D', 'E'];
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     Color borderColor;
-    Color bgColor;
-    Color labelBg;
-    Color labelColor;
-    IconData? trailingIcon;
-    Color? trailingColor;
+    Color? bgColor;
 
     if (hasSubmitted) {
-      if (isCorrect) {
+      if (isCorrect == true) {
         borderColor = AppColors.success;
-        bgColor = AppColors.successSurface;
-        labelBg = AppColors.success;
-        labelColor = Colors.white;
-        trailingIcon = Icons.check_circle_rounded;
-        trailingColor = AppColors.success;
-      } else if (isSelected) {
+        bgColor = AppColors.successLight.withValues(alpha: isDark ? 0.15 : 0.5);
+      } else if (isSelected && isCorrect == false) {
         borderColor = AppColors.error;
-        bgColor = AppColors.errorSurface;
-        labelBg = AppColors.error;
-        labelColor = Colors.white;
-        trailingIcon = Icons.cancel_rounded;
-        trailingColor = AppColors.error;
+        bgColor = AppColors.errorLight.withValues(alpha: isDark ? 0.15 : 0.5);
       } else {
-        borderColor = AppColors.border;
-        bgColor = AppColors.surface;
-        labelBg = AppColors.surfaceVariant;
-        labelColor = AppColors.textTertiary;
+        borderColor = isDark ? AppColors.darkBorder : AppColors.border;
+        bgColor = null;
       }
-    } else if (isSelected) {
-      borderColor = AppColors.primary;
-      bgColor = AppColors.primarySurface;
-      labelBg = AppColors.primary;
-      labelColor = Colors.white;
     } else {
-      borderColor = AppColors.border;
-      bgColor = AppColors.surface;
-      labelBg = AppColors.surfaceVariant;
-      labelColor = AppColors.textSecondary;
+      borderColor = isSelected
+          ? AppColors.primary
+          : isDark
+              ? AppColors.darkBorder
+              : AppColors.border;
+      bgColor = isSelected
+          ? AppColors.primarySubtle.withValues(alpha: isDark ? 0.15 : 1.0)
+          : null;
     }
 
     return InkWell(
-      onTap: onTap,
+      onTap: hasSubmitted ? null : onTap,
       borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        curve: Curves.easeOut,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
           color: bgColor,
+          border: Border.all(color: borderColor, width: isSelected ? 2 : 1),
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          border: Border.all(color: borderColor, width: 1.5),
         ),
         child: Row(
           children: [
             Container(
-              width: 28,
-              height: 28,
+              width: 32,
+              height: 32,
               decoration: BoxDecoration(
-                color: labelBg,
-                borderRadius: BorderRadius.circular(8),
+                shape: BoxShape.circle,
+                color: isSelected
+                    ? borderColor
+                    : isDark
+                        ? AppColors.darkSurfaceVariant
+                        : AppColors.surfaceVariant,
               ),
               child: Center(
                 child: Text(
-                  index < _labels.length ? _labels[index] : '${index + 1}',
+                  index < _optionLabels.length
+                      ? _optionLabels[index]
+                      : '${index + 1}',
                   style: TextStyle(
-                    color: labelColor,
-                    fontWeight: FontWeight.w700,
+                    color: isSelected
+                        ? Colors.white
+                        : isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.textSecondary,
+                    fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
                 ),
@@ -101,15 +97,13 @@ class OptionButton extends StatelessWidget {
             Expanded(
               child: Text(
                 text,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight:
-                          isSelected ? FontWeight.w500 : FontWeight.w400,
-                    ),
+                style: Theme.of(context).textTheme.bodyLarge,
               ),
             ),
-            if (trailingIcon != null)
-              Icon(trailingIcon, color: trailingColor, size: 22),
+            if (hasSubmitted && isCorrect == true)
+              const Icon(Icons.check_circle, color: AppColors.success, size: 22),
+            if (hasSubmitted && isSelected && isCorrect == false)
+              const Icon(Icons.cancel, color: AppColors.error, size: 22),
           ],
         ),
       ),

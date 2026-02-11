@@ -17,11 +17,12 @@ class PlannerScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final activeCourseId = ref.watch(activeCourseIdProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (activeCourseId == null) {
       return const Scaffold(
         body: EmptyState(
-          icon: Icons.calendar_today_rounded,
+          icon: Icons.calendar_today,
           title: 'No course selected',
           subtitle: 'Select a course to view the plan',
         ),
@@ -35,17 +36,15 @@ class PlannerScreen extends ConsumerWidget {
         title: const Text('Study Plan'),
         actions: [
           Container(
-            margin: const EdgeInsets.only(right: 12),
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? AppColors.darkSurfaceVariant
+                  : AppColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+            ),
             child: IconButton(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.primarySurface,
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                ),
-                child: const Icon(Icons.refresh_rounded,
-                    color: AppColors.primary, size: 20),
-              ),
+              icon: const Icon(Icons.refresh, size: 20),
               tooltip: 'Regenerate schedule',
               onPressed: () async {
                 try {
@@ -76,7 +75,7 @@ class PlannerScreen extends ConsumerWidget {
         data: (tasks) {
           if (tasks.isEmpty) {
             return const EmptyState(
-              icon: Icons.calendar_today_rounded,
+              icon: Icons.calendar_today,
               title: 'No plan generated yet',
               subtitle: 'Upload materials and generate a study plan',
               actionLabel: 'Generate Plan',
@@ -86,7 +85,7 @@ class PlannerScreen extends ConsumerWidget {
           final grouped = ref.watch(groupedTasksProvider(tasks));
 
           return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            padding: AppSpacing.screenPadding,
             itemCount: grouped.length,
             itemBuilder: (context, i) {
               final date = grouped.keys.elementAt(i);

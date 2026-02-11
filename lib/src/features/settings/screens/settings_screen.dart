@@ -15,40 +15,42 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(userModelProvider);
     final themeMode = ref.watch(themeModeProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+        padding: AppSpacing.screenPadding,
         children: [
           // Account section
-          const _SectionLabel(label: 'Account'),
+          _SectionHeader(label: 'Account', icon: Icons.person_outline),
           AppSpacing.gapSm,
           Container(
-            padding: AppSpacing.cardPaddingLarge,
             decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-              border: Border.all(color: AppColors.border.withValues(alpha: 0.7)),
-              boxShadow: AppSpacing.shadowSm,
+              color: isDark ? AppColors.darkSurface : AppColors.surface,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              border: Border.all(
+                color: isDark ? AppColors.darkBorder : AppColors.border,
+              ),
             ),
+            padding: AppSpacing.cardPadding,
             child: userAsync.when(
               data: (user) => Row(
                 children: [
                   Container(
                     width: 48,
                     height: 48,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       gradient: AppColors.primaryGradient,
-                      shape: BoxShape.circle,
+                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                     ),
                     child: Center(
                       child: Text(
-                        (user?.name ?? 'U').substring(0, 1).toUpperCase(),
+                        (user?.name ?? 'U')[0].toUpperCase(),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 20,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -60,12 +62,16 @@ class SettingsScreen extends ConsumerWidget {
                       children: [
                         Text(
                           user?.name ?? 'User',
-                          style: Theme.of(context).textTheme.titleLarge,
+                          style: Theme.of(context).textTheme.titleMedium,
                         ),
                         AppSpacing.gapXs,
                         Text(
                           user?.email ?? '',
-                          style: Theme.of(context).textTheme.bodySmall,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: isDark
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.textSecondary,
+                              ),
                         ),
                       ],
                     ),
@@ -81,105 +87,116 @@ class SettingsScreen extends ConsumerWidget {
 
           AppSpacing.gapLg,
 
-          // Appearance
-          const _SectionLabel(label: 'Appearance'),
+          // Appearance section
+          _SectionHeader(label: 'Appearance', icon: Icons.palette_outlined),
           AppSpacing.gapSm,
           Container(
             decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-              border: Border.all(color: AppColors.border.withValues(alpha: 0.7)),
-              boxShadow: AppSpacing.shadowSm,
+              color: isDark ? AppColors.darkSurface : AppColors.surface,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              border: Border.all(
+                color: isDark ? AppColors.darkBorder : AppColors.border,
+              ),
             ),
-            child: Column(
-              children: [
-                RadioListTile<ThemeMode>(
-                  title: const Text('System default'),
-                  value: ThemeMode.system,
-                  groupValue: themeMode,
-                  onChanged: (value) =>
-                      ref.read(themeModeProvider.notifier).state = value!,
-                ),
-                const Divider(height: 1, indent: 16, endIndent: 16),
-                RadioListTile<ThemeMode>(
-                  title: const Text('Light'),
-                  value: ThemeMode.light,
-                  groupValue: themeMode,
-                  onChanged: (value) =>
-                      ref.read(themeModeProvider.notifier).state = value!,
-                ),
-                const Divider(height: 1, indent: 16, endIndent: 16),
-                RadioListTile<ThemeMode>(
-                  title: const Text('Dark'),
-                  value: ThemeMode.dark,
-                  groupValue: themeMode,
-                  onChanged: (value) =>
-                      ref.read(themeModeProvider.notifier).state = value!,
-                ),
-              ],
+            child: RadioGroup<ThemeMode>(
+              groupValue: themeMode,
+              onChanged: (value) =>
+                  ref.read(themeModeProvider.notifier).state = value!,
+              child: Column(
+                children: [
+                  RadioListTile<ThemeMode>(
+                    title: const Text('System default'),
+                    value: ThemeMode.system,
+                    secondary: const Icon(Icons.phone_android, size: 20),
+                  ),
+                  Divider(
+                    height: 1,
+                    color: isDark ? AppColors.darkBorder : AppColors.borderLight,
+                  ),
+                  RadioListTile<ThemeMode>(
+                    title: const Text('Light'),
+                    value: ThemeMode.light,
+                    secondary: const Icon(Icons.light_mode, size: 20),
+                  ),
+                  Divider(
+                    height: 1,
+                    color: isDark ? AppColors.darkBorder : AppColors.borderLight,
+                  ),
+                  RadioListTile<ThemeMode>(
+                    title: const Text('Dark'),
+                    value: ThemeMode.dark,
+                    secondary: const Icon(Icons.dark_mode, size: 20),
+                  ),
+                ],
+              ),
             ),
           ),
 
           AppSpacing.gapLg,
 
-          // About
-          const _SectionLabel(label: 'About'),
+          // About section
+          _SectionHeader(label: 'About', icon: Icons.info_outline),
           AppSpacing.gapSm,
           Container(
             decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-              border: Border.all(color: AppColors.border.withValues(alpha: 0.7)),
-              boxShadow: AppSpacing.shadowSm,
+              color: isDark ? AppColors.darkSurface : AppColors.surface,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              border: Border.all(
+                color: isDark ? AppColors.darkBorder : AppColors.border,
+              ),
             ),
             child: Column(
               children: [
                 ListTile(
-                  leading: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: AppColors.primarySurface,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.info_outline_rounded,
-                        color: AppColors.primary, size: 20),
-                  ),
+                  leading: Icon(Icons.info_outline,
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.textSecondary,
+                      size: 20),
                   title: const Text('Version'),
-                  subtitle: const Text('1.0.0'),
-                ),
-                const Divider(height: 1, indent: 16, endIndent: 16),
-                ListTile(
-                  leading: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: AppColors.secondarySurface,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.privacy_tip_outlined,
-                        color: AppColors.secondary, size: 20),
+                  trailing: Text(
+                    '1.0.0',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: isDark
+                              ? AppColors.darkTextTertiary
+                              : AppColors.textTertiary,
+                        ),
                   ),
+                ),
+                Divider(
+                  height: 1,
+                  color: isDark ? AppColors.darkBorder : AppColors.borderLight,
+                ),
+                ListTile(
+                  leading: Icon(Icons.privacy_tip_outlined,
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.textSecondary,
+                      size: 20),
                   title: const Text('Privacy Policy'),
-                  trailing: const Icon(Icons.chevron_right_rounded,
-                      color: AppColors.textTertiary),
+                  trailing: Icon(Icons.chevron_right,
+                      color: isDark
+                          ? AppColors.darkTextTertiary
+                          : AppColors.textTertiary,
+                      size: 20),
                   onTap: () {},
                 ),
-                const Divider(height: 1, indent: 16, endIndent: 16),
+                Divider(
+                  height: 1,
+                  color: isDark ? AppColors.darkBorder : AppColors.borderLight,
+                ),
                 ListTile(
-                  leading: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: AppColors.accentSurface,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.description_outlined,
-                        color: AppColors.accent, size: 20),
-                  ),
+                  leading: Icon(Icons.description_outlined,
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.textSecondary,
+                      size: 20),
                   title: const Text('Terms of Service'),
-                  trailing: const Icon(Icons.chevron_right_rounded,
-                      color: AppColors.textTertiary),
+                  trailing: Icon(Icons.chevron_right,
+                      color: isDark
+                          ? AppColors.darkTextTertiary
+                          : AppColors.textTertiary,
+                      size: 20),
                   onTap: () {},
                 ),
               ],
@@ -189,27 +206,24 @@ class SettingsScreen extends ConsumerWidget {
           AppSpacing.gapLg,
 
           // Account actions
-          const _SectionLabel(label: 'Account Actions'),
+          _SectionHeader(label: 'Account Actions', icon: Icons.manage_accounts),
           AppSpacing.gapSm,
           Container(
             decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-              border: Border.all(color: AppColors.border.withValues(alpha: 0.7)),
-              boxShadow: AppSpacing.shadowSm,
+              color: isDark ? AppColors.darkSurface : AppColors.surface,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              border: Border.all(
+                color: isDark ? AppColors.darkBorder : AppColors.border,
+              ),
             ),
             child: Column(
               children: [
                 ListTile(
-                  leading: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceVariant,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.logout_rounded, size: 20),
-                  ),
+                  leading: Icon(Icons.logout,
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.textSecondary,
+                      size: 20),
                   title: const Text('Sign Out'),
                   onTap: () async {
                     await ref.read(authServiceProvider).signOut();
@@ -218,28 +232,35 @@ class SettingsScreen extends ConsumerWidget {
                     }
                   },
                 ),
-                const Divider(height: 1, indent: 16, endIndent: 16),
+                Divider(
+                  height: 1,
+                  color: isDark ? AppColors.darkBorder : AppColors.borderLight,
+                ),
                 ListTile(
-                  leading: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: AppColors.errorSurface,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(Icons.delete_forever_rounded,
-                        color: AppColors.error, size: 20),
+                  leading: const Icon(
+                    Icons.delete_forever,
+                    color: AppColors.error,
+                    size: 20,
                   ),
                   title: const Text(
                     'Delete Account',
                     style: TextStyle(color: AppColors.error),
                   ),
-                  subtitle: const Text('Permanently delete all data'),
+                  subtitle: Text(
+                    'Permanently delete all data',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: isDark
+                              ? AppColors.darkTextTertiary
+                              : AppColors.textTertiary,
+                        ),
+                  ),
                   onTap: () => _showDeleteConfirmation(context, ref),
                 ),
               ],
             ),
           ),
+
+          AppSpacing.gapXl,
         ],
       ),
     );
@@ -282,7 +303,7 @@ class SettingsScreen extends ConsumerWidget {
               }
             },
             style: TextButton.styleFrom(
-              foregroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: AppColors.error,
             ),
             child: const Text('Delete'),
           ),
@@ -292,23 +313,34 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
-class _SectionLabel extends StatelessWidget {
+class _SectionHeader extends StatelessWidget {
   final String label;
+  final IconData icon;
 
-  const _SectionLabel({required this.label});
+  const _SectionHeader({required this.label, required this.icon});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: Text(
-        label.toUpperCase(),
-        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: AppColors.textTertiary,
-              letterSpacing: 1.0,
-              fontWeight: FontWeight.w600,
-            ),
-      ),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Row(
+      children: [
+        Icon(
+          icon,
+          size: 16,
+          color: isDark ? AppColors.darkTextTertiary : AppColors.textTertiary,
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label.toUpperCase(),
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: isDark
+                    ? AppColors.darkTextTertiary
+                    : AppColors.textTertiary,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.0,
+              ),
+        ),
+      ],
     );
   }
 }
