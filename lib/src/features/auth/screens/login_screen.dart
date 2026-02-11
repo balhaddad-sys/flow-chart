@@ -17,14 +17,34 @@ class LoginScreen extends ConsumerStatefulWidget {
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen>
+    with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  late final AnimationController _animController;
+  late final Animation<double> _fadeIn;
+  late final Animation<Offset> _slideUp;
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+    );
+    _fadeIn = CurvedAnimation(parent: _animController, curve: Curves.easeOut);
+    _slideUp = Tween<Offset>(
+      begin: const Offset(0, 0.05),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
+    _animController.forward();
+  }
 
   @override
   void dispose() {
+    _animController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
@@ -54,172 +74,230 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 400),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    AppSpacing.gapXl,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: isDark ? null : AppColors.subtleGradient,
+          color: isDark ? AppColors.darkBackground : null,
+        ),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: FadeTransition(
+                opacity: _fadeIn,
+                child: SlideTransition(
+                  position: _slideUp,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: AppSpacing.maxAuthWidth),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          AppSpacing.gapXl,
 
-                    // ── Branded logo ──────────────────────────────────────
-                    Center(
-                      child: Container(
-                        width: 72,
-                        height: 72,
-                        decoration: BoxDecoration(
-                          gradient: AppColors.primaryGradient,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.3),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: const Center(
-                          child: Text(
-                            'M',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 32,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -1,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    AppSpacing.gapLg,
-
-                    // ── Title ─────────────────────────────────────────────
-                    Text(
-                      'Welcome back',
-                      style: Theme.of(context).textTheme.headlineLarge,
-                      textAlign: TextAlign.center,
-                    ),
-                    AppSpacing.gapXs,
-                    Text(
-                      'Sign in to continue your study journey',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: isDark
-                                ? AppColors.darkTextSecondary
-                                : AppColors.textSecondary,
-                          ),
-                      textAlign: TextAlign.center,
-                    ),
-                    AppSpacing.gapXl,
-
-                    // ── Error banner ──────────────────────────────────────
-                    if (authState.errorMessage != null) ...[
-                      ErrorBanner(
-                        message: authState.errorMessage!,
-                        onDismiss: () =>
-                            ref.read(authScreenProvider.notifier).clearError(),
-                      ),
-                      AppSpacing.gapMd,
-                    ],
-
-                    // ── Email field ───────────────────────────────────────
-                    TextFormField(
-                      controller: _emailController,
-                      decoration: const InputDecoration(
-                        labelText: 'Email address',
-                        hintText: 'you@example.com',
-                        prefixIcon: Icon(Icons.email_outlined),
-                      ),
-                      keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.next,
-                      validator: Validators.email,
-                    ),
-                    AppSpacing.gapMd,
-
-                    // ── Password field ────────────────────────────────────
-                    TextFormField(
-                      controller: _passwordController,
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        prefixIcon: const Icon(Icons.lock_outline),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscurePassword
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                            size: 20,
-                          ),
-                          onPressed: () =>
-                              setState(() => _obscurePassword = !_obscurePassword),
-                        ),
-                      ),
-                      obscureText: _obscurePassword,
-                      textInputAction: TextInputAction.done,
-                      onFieldSubmitted: (_) => _handleLogin(),
-                      validator: Validators.password,
-                    ),
-                    AppSpacing.gapLg,
-
-                    // ── Sign in button ────────────────────────────────────
-                    PrimaryButton(
-                      label: 'Sign In',
-                      onPressed: _handleLogin,
-                      isLoading: authState.state == AuthScreenState.loading,
-                    ),
-                    AppSpacing.gapLg,
-
-                    // ── Divider ───────────────────────────────────────────
-                    Row(
-                      children: [
-                        const Expanded(child: Divider()),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Text(
-                            'or continue with',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ),
-                        const Expanded(child: Divider()),
-                      ],
-                    ),
-                    AppSpacing.gapLg,
-
-                    // ── Google sign-in ────────────────────────────────────
-                    GoogleSignInButton(
-                      onPressed: _handleGoogleSignIn,
-                      isLoading: authState.state == AuthScreenState.loading,
-                    ),
-                    AppSpacing.gapXl,
-
-                    // ── Sign up link ──────────────────────────────────────
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            'Don\'t have an account? ',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () => context.go('/signup'),
-                          child: Text(
-                            'Sign Up',
-                            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                                  color: AppColors.primary,
+                          // ── Branded logo ──────────────────────────────────
+                          Center(
+                            child: Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                gradient: AppColors.heroGradient,
+                                borderRadius: BorderRadius.circular(22),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.primary.withValues(alpha: 0.35),
+                                    blurRadius: 24,
+                                    offset: const Offset(0, 10),
+                                  ),
+                                ],
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  'M',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -1.5,
+                                  ),
                                 ),
+                              ),
+                            ),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 20),
+
+                          // ── Title ─────────────────────────────────────────
+                          Text(
+                            'Welcome back',
+                            style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.5,
+                                ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Sign in to continue your study journey',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: isDark
+                                      ? AppColors.darkTextSecondary
+                                      : AppColors.textSecondary,
+                                ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 36),
+
+                          // ── Error banner ──────────────────────────────────
+                          if (authState.errorMessage != null) ...[
+                            ErrorBanner(
+                              message: authState.errorMessage!,
+                              onDismiss: () =>
+                                  ref.read(authScreenProvider.notifier).clearError(),
+                            ),
+                            AppSpacing.gapMd,
+                          ],
+
+                          // ── Form card ─────────────────────────────────────
+                          Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(
+                              color: isDark ? AppColors.darkSurface : AppColors.surface,
+                              borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+                              border: Border.all(
+                                color: isDark
+                                    ? AppColors.darkBorder.withValues(alpha: 0.4)
+                                    : AppColors.border.withValues(alpha: 0.5),
+                              ),
+                              boxShadow: isDark ? null : AppSpacing.shadowMd,
+                            ),
+                            child: Column(
+                              children: [
+                                // ── Email field ─────────────────────────────
+                                TextFormField(
+                                  controller: _emailController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Email address',
+                                    hintText: 'you@example.com',
+                                    prefixIcon: Icon(Icons.email_outlined, size: 20),
+                                  ),
+                                  keyboardType: TextInputType.emailAddress,
+                                  textInputAction: TextInputAction.next,
+                                  validator: Validators.email,
+                                ),
+                                AppSpacing.gapMd,
+
+                                // ── Password field ──────────────────────────
+                                TextFormField(
+                                  controller: _passwordController,
+                                  decoration: InputDecoration(
+                                    labelText: 'Password',
+                                    prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _obscurePassword
+                                            ? Icons.visibility_off_outlined
+                                            : Icons.visibility_outlined,
+                                        size: 20,
+                                      ),
+                                      onPressed: () => setState(
+                                          () => _obscurePassword = !_obscurePassword),
+                                    ),
+                                  ),
+                                  obscureText: _obscurePassword,
+                                  textInputAction: TextInputAction.done,
+                                  onFieldSubmitted: (_) => _handleLogin(),
+                                  validator: Validators.password,
+                                ),
+                                const SizedBox(height: 24),
+
+                                // ── Sign in button ──────────────────────────
+                                PrimaryButton(
+                                  label: 'Sign In',
+                                  onPressed: _handleLogin,
+                                  isLoading:
+                                      authState.state == AuthScreenState.loading,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // ── Divider ───────────────────────────────────────
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Divider(
+                                  color: isDark ? AppColors.darkBorder : AppColors.border,
+                                ),
+                              ),
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                child: Text(
+                                  'or continue with',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelMedium
+                                      ?.copyWith(
+                                        color: isDark
+                                            ? AppColors.darkTextTertiary
+                                            : AppColors.textTertiary,
+                                      ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Divider(
+                                  color: isDark ? AppColors.darkBorder : AppColors.border,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+
+                          // ── Google sign-in ────────────────────────────────
+                          GoogleSignInButton(
+                            onPressed: _handleGoogleSignIn,
+                            isLoading:
+                                authState.state == AuthScreenState.loading,
+                          ),
+                          const SizedBox(height: 32),
+
+                          // ── Sign up link ──────────────────────────────────
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                'Don\'t have an account? ',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      color: isDark
+                                          ? AppColors.darkTextSecondary
+                                          : AppColors.textSecondary,
+                                    ),
+                              ),
+                              GestureDetector(
+                                onTap: () => context.go('/signup'),
+                                child: Text(
+                                  'Sign Up',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelLarge
+                                      ?.copyWith(
+                                        color: AppColors.primaryLight,
+                                      ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          AppSpacing.gapXl,
+                        ],
+                      ),
                     ),
-                    AppSpacing.gapXl,
-                  ],
+                  ),
                 ),
               ),
             ),

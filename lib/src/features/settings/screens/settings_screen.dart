@@ -18,249 +18,311 @@ class SettingsScreen extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
       body: ListView(
-        padding: AppSpacing.screenPadding,
+        padding: EdgeInsets.zero,
         children: [
-          // Account section
-          _SectionHeader(label: 'Account', icon: Icons.person_outline),
-          AppSpacing.gapSm,
-          Container(
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkSurface : AppColors.surface,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              border: Border.all(
-                color: isDark ? AppColors.darkBorder : AppColors.border,
+          // ── SafeArea header instead of AppBar ────────────────────────
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: 4,
+              ),
+              child: Text(
+                'Settings',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.textPrimary,
+                    ),
               ),
             ),
-            padding: AppSpacing.cardPadding,
-            child: userAsync.when(
-              data: (user) => Row(
-                children: [
-                  Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      gradient: AppColors.primaryGradient,
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                    ),
-                    child: Center(
-                      child: Text(
-                        (user?.name ?? 'U')[0].toUpperCase(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
+          ),
+
+          AppSpacing.gapLg,
+
+          // ── Account card (prominent) ─────────────────────────────────
+          Padding(
+            padding: AppSpacing.screenHorizontal,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: isDark
+                    ? AppColors.darkHeroGradient
+                    : AppColors.primaryGradient,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                boxShadow: isDark ? [] : AppSpacing.shadowMd,
+              ),
+              padding: AppSpacing.cardPaddingLg,
+              child: userAsync.when(
+                data: (user) => Row(
+                  children: [
+                    Container(
+                      width: 64,
+                      height: 64,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.radiusMd),
+                      ),
+                      child: Center(
+                        child: Text(
+                          (user?.name ?? 'U')[0].toUpperCase(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 26,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  AppSpacing.hGapMd,
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          user?.name ?? 'User',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        AppSpacing.gapXs,
-                        Text(
-                          user?.email ?? '',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: isDark
-                                    ? AppColors.darkTextSecondary
-                                    : AppColors.textSecondary,
-                              ),
-                        ),
-                      ],
+                    AppSpacing.hGapMd,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            user?.name ?? 'User',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            user?.email ?? '',
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Colors.white.withOpacity(0.7),
+                                    ),
+                          ),
+                        ],
+                      ),
                     ),
+                  ],
+                ),
+                loading: () => const SizedBox(
+                  height: 64,
+                  child: Center(
+                    child: CircularProgressIndicator(color: Colors.white),
                   ),
-                ],
+                ),
+                error: (_, __) => const Text(
+                  'Failed to load profile',
+                  style: TextStyle(color: Colors.white70),
+                ),
               ),
-              loading: () => const Center(
-                child: CircularProgressIndicator(),
-              ),
-              error: (_, __) => const Text('Failed to load profile'),
-            ),
-          ),
-
-          AppSpacing.gapLg,
-
-          // Appearance section
-          _SectionHeader(label: 'Appearance', icon: Icons.palette_outlined),
-          AppSpacing.gapSm,
-          Container(
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkSurface : AppColors.surface,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              border: Border.all(
-                color: isDark ? AppColors.darkBorder : AppColors.border,
-              ),
-            ),
-            child: RadioGroup<ThemeMode>(
-              groupValue: themeMode,
-              onChanged: (value) =>
-                  ref.read(themeModeProvider.notifier).state = value!,
-              child: Column(
-                children: [
-                  RadioListTile<ThemeMode>(
-                    title: const Text('System default'),
-                    value: ThemeMode.system,
-                    secondary: const Icon(Icons.phone_android, size: 20),
-                  ),
-                  Divider(
-                    height: 1,
-                    color: isDark ? AppColors.darkBorder : AppColors.borderLight,
-                  ),
-                  RadioListTile<ThemeMode>(
-                    title: const Text('Light'),
-                    value: ThemeMode.light,
-                    secondary: const Icon(Icons.light_mode, size: 20),
-                  ),
-                  Divider(
-                    height: 1,
-                    color: isDark ? AppColors.darkBorder : AppColors.borderLight,
-                  ),
-                  RadioListTile<ThemeMode>(
-                    title: const Text('Dark'),
-                    value: ThemeMode.dark,
-                    secondary: const Icon(Icons.dark_mode, size: 20),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          AppSpacing.gapLg,
-
-          // About section
-          _SectionHeader(label: 'About', icon: Icons.info_outline),
-          AppSpacing.gapSm,
-          Container(
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkSurface : AppColors.surface,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              border: Border.all(
-                color: isDark ? AppColors.darkBorder : AppColors.border,
-              ),
-            ),
-            child: Column(
-              children: [
-                ListTile(
-                  leading: Icon(Icons.info_outline,
-                      color: isDark
-                          ? AppColors.darkTextSecondary
-                          : AppColors.textSecondary,
-                      size: 20),
-                  title: const Text('Version'),
-                  trailing: Text(
-                    '1.0.0',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: isDark
-                              ? AppColors.darkTextTertiary
-                              : AppColors.textTertiary,
-                        ),
-                  ),
-                ),
-                Divider(
-                  height: 1,
-                  color: isDark ? AppColors.darkBorder : AppColors.borderLight,
-                ),
-                ListTile(
-                  leading: Icon(Icons.privacy_tip_outlined,
-                      color: isDark
-                          ? AppColors.darkTextSecondary
-                          : AppColors.textSecondary,
-                      size: 20),
-                  title: const Text('Privacy Policy'),
-                  trailing: Icon(Icons.chevron_right,
-                      color: isDark
-                          ? AppColors.darkTextTertiary
-                          : AppColors.textTertiary,
-                      size: 20),
-                  onTap: () {},
-                ),
-                Divider(
-                  height: 1,
-                  color: isDark ? AppColors.darkBorder : AppColors.borderLight,
-                ),
-                ListTile(
-                  leading: Icon(Icons.description_outlined,
-                      color: isDark
-                          ? AppColors.darkTextSecondary
-                          : AppColors.textSecondary,
-                      size: 20),
-                  title: const Text('Terms of Service'),
-                  trailing: Icon(Icons.chevron_right,
-                      color: isDark
-                          ? AppColors.darkTextTertiary
-                          : AppColors.textTertiary,
-                      size: 20),
-                  onTap: () {},
-                ),
-              ],
-            ),
-          ),
-
-          AppSpacing.gapLg,
-
-          // Account actions
-          _SectionHeader(label: 'Account Actions', icon: Icons.manage_accounts),
-          AppSpacing.gapSm,
-          Container(
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.darkSurface : AppColors.surface,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              border: Border.all(
-                color: isDark ? AppColors.darkBorder : AppColors.border,
-              ),
-            ),
-            child: Column(
-              children: [
-                ListTile(
-                  leading: Icon(Icons.logout,
-                      color: isDark
-                          ? AppColors.darkTextSecondary
-                          : AppColors.textSecondary,
-                      size: 20),
-                  title: const Text('Sign Out'),
-                  onTap: () async {
-                    await ref.read(authServiceProvider).signOut();
-                    if (context.mounted) {
-                      context.go('/login');
-                    }
-                  },
-                ),
-                Divider(
-                  height: 1,
-                  color: isDark ? AppColors.darkBorder : AppColors.borderLight,
-                ),
-                ListTile(
-                  leading: const Icon(
-                    Icons.delete_forever,
-                    color: AppColors.error,
-                    size: 20,
-                  ),
-                  title: const Text(
-                    'Delete Account',
-                    style: TextStyle(color: AppColors.error),
-                  ),
-                  subtitle: Text(
-                    'Permanently delete all data',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: isDark
-                              ? AppColors.darkTextTertiary
-                              : AppColors.textTertiary,
-                        ),
-                  ),
-                  onTap: () => _showDeleteConfirmation(context, ref),
-                ),
-              ],
             ),
           ),
 
           AppSpacing.gapXl,
+
+          // ── Appearance section ───────────────────────────────────────
+          Padding(
+            padding: AppSpacing.screenHorizontal,
+            child: _SectionHeader(
+                label: 'Appearance', icon: Icons.palette_outlined),
+          ),
+          AppSpacing.gapSm,
+          Padding(
+            padding: AppSpacing.screenHorizontal,
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkSurface : AppColors.surface,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                border: Border.all(
+                  color: isDark ? AppColors.darkBorder : AppColors.border,
+                ),
+              ),
+              child: RadioGroup<ThemeMode>(
+                groupValue: themeMode,
+                onChanged: (value) =>
+                    ref.read(themeModeProvider.notifier).state = value!,
+                child: Column(
+                  children: [
+                    RadioListTile<ThemeMode>(
+                      title: const Text('System default'),
+                      value: ThemeMode.system,
+                      secondary: const Icon(Icons.phone_android, size: 20),
+                    ),
+                    Divider(
+                      height: 1,
+                      color:
+                          isDark ? AppColors.darkBorder : AppColors.borderLight,
+                    ),
+                    RadioListTile<ThemeMode>(
+                      title: const Text('Light'),
+                      value: ThemeMode.light,
+                      secondary: const Icon(Icons.light_mode, size: 20),
+                    ),
+                    Divider(
+                      height: 1,
+                      color:
+                          isDark ? AppColors.darkBorder : AppColors.borderLight,
+                    ),
+                    RadioListTile<ThemeMode>(
+                      title: const Text('Dark'),
+                      value: ThemeMode.dark,
+                      secondary: const Icon(Icons.dark_mode, size: 20),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          AppSpacing.gapXl,
+
+          // ── About section ───────────────────────────────────────────
+          Padding(
+            padding: AppSpacing.screenHorizontal,
+            child: _SectionHeader(label: 'About', icon: Icons.info_outline),
+          ),
+          AppSpacing.gapSm,
+          Padding(
+            padding: AppSpacing.screenHorizontal,
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkSurface : AppColors.surface,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                border: Border.all(
+                  color: isDark ? AppColors.darkBorder : AppColors.border,
+                ),
+              ),
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: Icon(Icons.info_outline,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.textSecondary,
+                        size: 20),
+                    title: const Text('Version'),
+                    trailing: Text(
+                      '1.0.0',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: isDark
+                                ? AppColors.darkTextTertiary
+                                : AppColors.textTertiary,
+                          ),
+                    ),
+                  ),
+                  Divider(
+                    height: 1,
+                    color:
+                        isDark ? AppColors.darkBorder : AppColors.borderLight,
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.privacy_tip_outlined,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.textSecondary,
+                        size: 20),
+                    title: const Text('Privacy Policy'),
+                    trailing: Icon(Icons.chevron_right,
+                        color: isDark
+                            ? AppColors.darkTextTertiary
+                            : AppColors.textTertiary,
+                        size: 20),
+                    onTap: () {},
+                  ),
+                  Divider(
+                    height: 1,
+                    color:
+                        isDark ? AppColors.darkBorder : AppColors.borderLight,
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.description_outlined,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.textSecondary,
+                        size: 20),
+                    title: const Text('Terms of Service'),
+                    trailing: Icon(Icons.chevron_right,
+                        color: isDark
+                            ? AppColors.darkTextTertiary
+                            : AppColors.textTertiary,
+                        size: 20),
+                    onTap: () {},
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          AppSpacing.gapXl,
+
+          // ── Account actions ─────────────────────────────────────────
+          Padding(
+            padding: AppSpacing.screenHorizontal,
+            child: _SectionHeader(
+                label: 'Account Actions', icon: Icons.manage_accounts),
+          ),
+          AppSpacing.gapSm,
+          Padding(
+            padding: AppSpacing.screenHorizontal,
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkSurface : AppColors.surface,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                border: Border.all(
+                  color: isDark ? AppColors.darkBorder : AppColors.border,
+                ),
+              ),
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: Icon(Icons.logout,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.textSecondary,
+                        size: 20),
+                    title: const Text('Sign Out'),
+                    onTap: () async {
+                      await ref.read(authServiceProvider).signOut();
+                      if (context.mounted) {
+                        context.go('/login');
+                      }
+                    },
+                  ),
+                  Divider(
+                    height: 1,
+                    color:
+                        isDark ? AppColors.darkBorder : AppColors.borderLight,
+                  ),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.delete_forever,
+                      color: AppColors.error,
+                      size: 20,
+                    ),
+                    title: const Text(
+                      'Delete Account',
+                      style: TextStyle(color: AppColors.error),
+                    ),
+                    subtitle: Text(
+                      'Permanently delete all data',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: isDark
+                                ? AppColors.darkTextTertiary
+                                : AppColors.textTertiary,
+                          ),
+                    ),
+                    onTap: () => _showDeleteConfirmation(context, ref),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Extra bottom spacing so content clears the bottom nav bar
+          const SizedBox(height: 96),
         ],
       ),
     );
@@ -322,25 +384,29 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Row(
-      children: [
-        Icon(
-          icon,
-          size: 16,
-          color: isDark ? AppColors.darkTextTertiary : AppColors.textTertiary,
-        ),
-        const SizedBox(width: 6),
-        Text(
-          label.toUpperCase(),
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: isDark
-                    ? AppColors.darkTextTertiary
-                    : AppColors.textTertiary,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.0,
-              ),
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 14,
+            color: isDark ? AppColors.darkTextTertiary : AppColors.textTertiary,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            label.toUpperCase(),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: isDark
+                      ? AppColors.darkTextTertiary
+                      : AppColors.textTertiary,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.2,
+                  fontSize: 11,
+                ),
+          ),
+        ],
+      ),
     );
   }
 }

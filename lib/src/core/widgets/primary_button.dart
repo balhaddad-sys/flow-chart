@@ -26,7 +26,7 @@ class PrimaryButton extends StatelessWidget {
             height: 20,
             width: 20,
             child: CircularProgressIndicator(
-              strokeWidth: 2,
+              strokeWidth: 2.5,
               color: Colors.white,
             ),
           )
@@ -42,7 +42,7 @@ class PrimaryButton extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
-                  letterSpacing: 0.1,
+                  letterSpacing: 0.2,
                 ),
               ),
             ],
@@ -56,7 +56,7 @@ class PrimaryButton extends StatelessWidget {
           onPressed: isLoading ? null : onPressed,
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.primary,
-            side: const BorderSide(color: AppColors.border),
+            side: BorderSide(color: AppColors.border.withValues(alpha: 0.7)),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             ),
@@ -66,16 +66,35 @@ class PrimaryButton extends StatelessWidget {
       );
     }
 
-    return SizedBox(
+    return Container(
       width: double.infinity,
       height: 52,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        gradient: onPressed != null && !isLoading
+            ? AppColors.heroGradient
+            : null,
+        color: onPressed == null || isLoading
+            ? AppColors.primary.withValues(alpha: 0.5)
+            : null,
+        boxShadow: onPressed != null && !isLoading
+            ? [
+                BoxShadow(
+                  color: AppColors.primary.withValues(alpha: 0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
+      ),
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColors.primary,
+          backgroundColor: Colors.transparent,
           foregroundColor: Colors.white,
-          disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.6),
+          disabledBackgroundColor: Colors.transparent,
           disabledForegroundColor: Colors.white70,
+          shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           ),

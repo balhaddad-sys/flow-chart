@@ -28,11 +28,9 @@ class WeaknessDashboard extends ConsumerWidget {
 
     final statsAsync = ref.watch(courseStatsProvider(activeCourseId));
     final fixPlan = ref.watch(fixPlanProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Weakness Dashboard'),
-      ),
       body: statsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
@@ -45,50 +43,211 @@ class WeaknessDashboard extends ConsumerWidget {
             );
           }
 
-          return ListView(
-            padding: AppSpacing.screenPadding,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: AppColors.error.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+          return CustomScrollView(
+            slivers: [
+              // ── Gradient header ──────────────────────────────────────
+              SliverToBoxAdapter(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: isDark
+                        ? AppColors.darkHeroGradient
+                        : AppColors.subtleGradient,
+                  ),
+                  child: SafeArea(
+                    bottom: false,
+                    child: Padding(
+                      padding: const EdgeInsets.only(
+                        left: 20,
+                        right: 20,
+                        top: AppSpacing.lg,
+                        bottom: AppSpacing.xl,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Insights',
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: isDark
+                                      ? AppColors.darkTextPrimary
+                                      : AppColors.textPrimary,
+                                ),
+                          ),
+                          const SizedBox(height: AppSpacing.xs),
+                          Text(
+                            'Focus on your weakest areas to improve faster',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: isDark
+                                      ? AppColors.darkTextSecondary
+                                      : AppColors.textSecondary,
+                                ),
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          // ── Summary chip row ─────────────────────────
+                          Row(
+                            children: [
+                              _SummaryChip(
+                                icon: Icons.trending_down,
+                                label:
+                                    '${stats.weakestTopics.length} weak topic${stats.weakestTopics.length == 1 ? '' : 's'}',
+                                color: AppColors.error,
+                                isDark: isDark,
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              if (fixPlan.fixPlan != null)
+                                _SummaryChip(
+                                  icon: Icons.auto_fix_high,
+                                  label: 'Plan ready',
+                                  color: AppColors.secondary,
+                                  isDark: isDark,
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                    child: const Icon(Icons.trending_down,
-                        color: AppColors.error, size: 20),
                   ),
-                  AppSpacing.hGapSm,
-                  Text(
-                    'Topics Ranked by Weakness',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ],
+                ),
               ),
-              AppSpacing.gapMd,
-              ...stats.weakestTopics.map(
-                (topic) => TopicWeaknessRow(topic: topic),
+
+              // ── Body content ─────────────────────────────────────────
+              SliverPadding(
+                padding: AppSpacing.screenPadding,
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    const SizedBox(height: AppSpacing.sm),
+
+                    // ── Section header: Weakest Topics ─────────────────
+                    _SectionHeader(
+                      icon: Icons.trending_down,
+                      iconColor: AppColors.error,
+                      title: 'Topics Ranked by Weakness',
+                    ),
+                    AppSpacing.gapMd,
+
+                    // ── Topic rows (unchanged logic) ───────────────────
+                    ...stats.weakestTopics.map(
+                      (topic) => TopicWeaknessRow(topic: topic),
+                    ),
+
+                    AppSpacing.gapLg,
+
+                    // ── Generate Fix Plan button (unchanged logic) ─────
+                    PrimaryButton(
+                      label: 'Generate Fix Plan',
+                      isLoading: fixPlan.isLoading,
+                      icon: Icons.auto_fix_high,
+                      onPressed: () {
+                        ref
+                            .read(fixPlanProvider.notifier)
+                            .generateFixPlan(activeCourseId);
+                      },
+                    ),
+
+                    AppSpacing.gapMd,
+
+                    // ── Fix plan card (unchanged logic) ────────────────
+                    if (fixPlan.fixPlan != null)
+                      FixPlanCard(fixPlan: fixPlan.fixPlan!),
+
+                    AppSpacing.gapLg,
+                  ]),
+                ),
               ),
-              AppSpacing.gapLg,
-              PrimaryButton(
-                label: 'Generate Fix Plan',
-                isLoading: fixPlan.isLoading,
-                icon: Icons.auto_fix_high,
-                onPressed: () {
-                  ref
-                      .read(fixPlanProvider.notifier)
-                      .generateFixPlan(activeCourseId);
-                },
-              ),
-              AppSpacing.gapMd,
-              if (fixPlan.fixPlan != null)
-                FixPlanCard(fixPlan: fixPlan.fixPlan!),
-              AppSpacing.gapLg,
             ],
           );
         },
+      ),
+    );
+  }
+}
+
+// ── Private helpers ───────────────────────────────────────────────────────────
+
+class _SectionHeader extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+
+  const _SectionHeader({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Row(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: iconColor.withValues(alpha: isDark ? 0.15 : 0.1),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+          ),
+          child: Icon(icon, color: iconColor, size: 20),
+        ),
+        AppSpacing.hGapSm,
+        Expanded(
+          child: Text(
+            title,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SummaryChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool isDark;
+
+  const _SummaryChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isDark ? 0.15 : 0.08),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+        border: Border.all(
+          color: color.withValues(alpha: isDark ? 0.25 : 0.15),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ],
       ),
     );
   }

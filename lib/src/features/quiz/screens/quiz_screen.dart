@@ -151,15 +151,19 @@ class _ResultsView extends StatelessWidget {
 
     final Color scoreColor;
     final String scoreLabel;
+    final IconData scoreIcon;
     if (quiz.accuracy >= 0.8) {
       scoreColor = AppColors.success;
       scoreLabel = 'Excellent!';
+      scoreIcon = Icons.emoji_events_rounded;
     } else if (quiz.accuracy >= 0.6) {
       scoreColor = AppColors.warning;
       scoreLabel = 'Good effort';
+      scoreIcon = Icons.thumb_up_rounded;
     } else {
       scoreColor = AppColors.error;
       scoreLabel = 'Keep practicing';
+      scoreIcon = Icons.trending_up_rounded;
     }
 
     return Scaffold(
@@ -171,34 +175,56 @@ class _ResultsView extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 120,
-                height: 120,
+                width: 128,
+                height: 128,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: scoreColor.withValues(alpha: 0.1),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      scoreColor.withValues(alpha: 0.15),
+                      scoreColor.withValues(alpha: 0.05),
+                    ],
+                  ),
                   border: Border.all(
                     color: scoreColor.withValues(alpha: 0.3),
                     width: 3,
                   ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: scoreColor.withValues(alpha: 0.15),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
                 ),
                 child: Center(
                   child: Text(
                     '$percent%',
                     style: Theme.of(context).textTheme.displayMedium?.copyWith(
                           color: scoreColor,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w800,
                         ),
                   ),
                 ),
               ),
-              AppSpacing.gapLg,
-              Text(
-                scoreLabel,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      color: scoreColor,
-                    ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(scoreIcon, color: scoreColor, size: 24),
+                  const SizedBox(width: 8),
+                  Text(
+                    scoreLabel,
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          color: scoreColor,
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ],
               ),
-              AppSpacing.gapSm,
+              const SizedBox(height: 8),
               Text(
                 '${quiz.correctCount} out of ${quiz.totalAnswered} correct',
                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
@@ -207,7 +233,7 @@ class _ResultsView extends StatelessWidget {
                           : AppColors.textSecondary,
                     ),
               ),
-              AppSpacing.gapXl,
+              const SizedBox(height: 36),
               SizedBox(
                 width: 220,
                 child: PrimaryButton(

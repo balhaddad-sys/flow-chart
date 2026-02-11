@@ -17,13 +17,19 @@ class ErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.errorLight,
+        color: isDark
+            ? AppColors.error.withValues(alpha: 0.1)
+            : AppColors.errorLight,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
+        border: Border.all(
+          color: AppColors.error.withValues(alpha: isDark ? 0.25 : 0.15),
+        ),
       ),
       child: Row(
         children: [
@@ -34,7 +40,8 @@ class ErrorBanner extends StatelessWidget {
               color: AppColors.error.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
             ),
-            child: const Icon(Icons.error_outline, color: AppColors.error, size: 18),
+            child: const Icon(Icons.error_outline_rounded,
+                color: AppColors.error, size: 18),
           ),
           AppSpacing.hGapMd,
           Expanded(
@@ -42,17 +49,20 @@ class ErrorBanner extends StatelessWidget {
               message,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppColors.error,
+                    height: 1.4,
                   ),
             ),
           ),
           if (onRetry != null)
             TextButton(
               onPressed: onRetry,
+              style: TextButton.styleFrom(foregroundColor: AppColors.error),
               child: const Text('Retry'),
             ),
           if (onDismiss != null)
             IconButton(
-              icon: const Icon(Icons.close, size: 16, color: AppColors.error),
+              icon:
+                  const Icon(Icons.close_rounded, size: 16, color: AppColors.error),
               onPressed: onDismiss,
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),

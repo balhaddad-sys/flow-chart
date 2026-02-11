@@ -5,19 +5,33 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="MedQ - AI-powered adaptive study platform for medical students. Generate personalized quizzes, study schedules, and weakness analysis.">
-  <meta name="theme-color" content="#2563EB">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <meta name="description" content="MedQ - AI-powered adaptive study platform for medical students. Generate personalized quizzes, study schedules, and weakness analysis powered by Claude AI.">
+  <meta name="theme-color" content="#1E40AF" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0B1120" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
+
+  <!-- SEO -->
+  <meta name="keywords" content="medical study, AI tutor, quiz generator, adaptive learning, medical education, study planner, USMLE, COMLEX">
+  <meta name="author" content="MedQ">
+  <meta name="robots" content="index, follow">
 
   <!-- Open Graph -->
   <meta property="og:title" content="MedQ - Adaptive Medical Study Companion">
   <meta property="og:description" content="AI-powered adaptive study platform for medical students. Upload materials, generate quizzes, and track your progress.">
   <meta property="og:type" content="website">
+  <meta property="og:site_name" content="MedQ">
+  <meta property="og:image" content="icons/Icon-512.png">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="MedQ - Adaptive Medical Study Companion">
+  <meta name="twitter:description" content="AI-powered adaptive study platform for medical students.">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="MedQ">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
@@ -27,11 +41,22 @@
   <title>MedQ - Adaptive Medical Study Companion</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- Preconnect to Firebase -->
-  <link rel="preconnect" href="https://firestore.googleapis.com">
-  <link rel="preconnect" href="https://www.googleapis.com">
+  <!-- Preconnect to Firebase & Google Fonts -->
+  <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://www.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="dns-prefetch" href="https://firestore.googleapis.com">
 
   <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
     .loading-splash {
       position: fixed;
       inset: 0;
@@ -39,46 +64,104 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      background: #FFFFFF;
+      background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #1E3A8A 100%);
       z-index: 999;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      transition: opacity 0.4s ease-out;
     }
+
+    .loading-splash.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loading-logo {
+      width: 72px;
+      height: 72px;
+      background: linear-gradient(135deg, #1E40AF, #6D28D9, #7C3AED);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      box-shadow: 0 12px 40px rgba(30, 64, 175, 0.4);
+      animation: float 3s ease-in-out infinite;
+    }
+
+    .loading-logo span {
+      font-size: 34px;
+      font-weight: 800;
+      color: #FFFFFF;
+      letter-spacing: -1.5px;
+    }
+
     .loading-splash h1 {
-      font-size: 2rem;
+      font-size: 1.5rem;
       font-weight: 700;
-      color: #2563EB;
-      margin: 0 0 1rem;
+      color: #F1F5F9;
+      margin: 0 0 0.5rem;
+      letter-spacing: -0.3px;
     }
+
     .loading-splash p {
       font-size: 0.875rem;
-      color: #6B7280;
-      margin: 0;
+      color: #94A3B8;
+      margin: 0 0 2rem;
     }
-    .loading-spinner {
-      width: 40px;
-      height: 40px;
-      border: 3px solid #E5E7EB;
-      border-top-color: #2563EB;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin-bottom: 1.5rem;
+
+    .loading-bar-track {
+      width: 180px;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      overflow: hidden;
     }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
+
+    .loading-bar-fill {
+      height: 100%;
+      width: 40%;
+      background: linear-gradient(90deg, #3B82F6, #7C3AED);
+      border-radius: 2px;
+      animation: loading-slide 1.2s ease-in-out infinite;
+    }
+
+    @keyframes loading-slide {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(350%); }
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-6px); }
+    }
+
+    @media (prefers-color-scheme: light) {
+      .loading-splash {
+        background: linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%);
+      }
+      .loading-splash h1 { color: #0F172A; }
+      .loading-splash p { color: #64748B; }
+      .loading-bar-track { background: rgba(0, 0, 0, 0.06); }
     }
   </style>
 </head>
 <body>
   <div id="loading" class="loading-splash">
-    <div class="loading-spinner"></div>
+    <div class="loading-logo"><span>M</span></div>
     <h1>MedQ</h1>
-    <p>Loading your study companion...</p>
+    <p>Preparing your study companion</p>
+    <div class="loading-bar-track">
+      <div class="loading-bar-fill"></div>
+    </div>
   </div>
 
   <script>
     window.addEventListener('flutter-first-frame', function() {
       var loading = document.getElementById('loading');
-      if (loading) loading.remove();
+      if (loading) {
+        loading.classList.add('fade-out');
+        setTimeout(function() { loading.remove(); }, 400);
+      }
     });
   </script>
   <script src="flutter_bootstrap.js" async></script>

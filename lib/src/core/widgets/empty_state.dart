@@ -31,42 +31,58 @@ class EmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 80,
-              height: 80,
+              width: 88,
+              height: 88,
               decoration: BoxDecoration(
-                color: isDark
-                    ? AppColors.darkSurfaceVariant
-                    : AppColors.surfaceVariant,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: isDark
+                      ? [
+                          AppColors.darkSurfaceVariant,
+                          AppColors.darkSurfaceVariant.withValues(alpha: 0.5),
+                        ]
+                      : [
+                          AppColors.primarySubtle,
+                          AppColors.surfaceVariant,
+                        ],
+                ),
                 borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
               ),
               child: Icon(
                 icon,
-                size: 36,
+                size: 38,
                 color: isDark
                     ? AppColors.darkTextTertiary
-                    : AppColors.textTertiary,
+                    : AppColors.primary.withValues(alpha: 0.5),
               ),
             ),
-            AppSpacing.gapLg,
+            const SizedBox(height: 20),
             Text(
               title,
-              style: Theme.of(context).textTheme.titleLarge,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
               textAlign: TextAlign.center,
             ),
             if (subtitle != null) ...[
-              AppSpacing.gapSm,
-              Text(
-                subtitle!,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: isDark
-                          ? AppColors.darkTextSecondary
-                          : AppColors.textSecondary,
-                    ),
-                textAlign: TextAlign.center,
+              const SizedBox(height: 8),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 280),
+                child: Text(
+                  subtitle!,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.textSecondary,
+                        height: 1.5,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
               ),
             ],
             if (actionLabel != null && onAction != null) ...[
-              AppSpacing.gapLg,
+              const SizedBox(height: 24),
               SizedBox(
                 width: 220,
                 child: PrimaryButton(

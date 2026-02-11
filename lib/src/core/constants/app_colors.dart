@@ -4,9 +4,9 @@ class AppColors {
   AppColors._();
 
   // ── Primary palette ─────────────────────────────────────────────────────────
-  static const Color primary = Color(0xFF2563EB);
-  static const Color primaryLight = Color(0xFF60A5FA);
-  static const Color primaryDark = Color(0xFF1D4ED8);
+  static const Color primary = Color(0xFF1E40AF);
+  static const Color primaryLight = Color(0xFF3B82F6);
+  static const Color primaryDark = Color(0xFF1E3A8A);
   static const Color primarySubtle = Color(0xFFEFF6FF);
 
   // ── Secondary palette ───────────────────────────────────────────────────────
@@ -74,10 +74,16 @@ class AppColors {
   static const Color infoSurface = infoLight;
 
   // ── Gradients ───────────────────────────────────────────────────────────────
+  // ── Nav bar ───────────────────────────────────────────────────────────────
+  static const Color navBarBackground = Color(0xFFFFFFFF);
+  static const Color navBarDarkBackground = Color(0xFF111827);
+  static const Color navBarInactive = Color(0xFF94A3B8);
+
+  // ── Gradients ───────────────────────────────────────────────────────────────
   static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF2563EB), Color(0xFF7C3AED)],
+    colors: [Color(0xFF1E40AF), Color(0xFF7C3AED)],
   );
 
   static const LinearGradient accentGradient = LinearGradient(
@@ -96,5 +102,29 @@ class AppColors {
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
     colors: [Color(0xFF1E293B), Color(0xFF0B1120)],
+  );
+
+  static const LinearGradient authGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [
+      Color(0xFF0F172A),
+      Color(0xFF1E293B),
+      Color(0xFF1E3A8A),
+    ],
+    stops: [0.0, 0.5, 1.0],
+  );
+
+  static const LinearGradient heroGradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF1E40AF), Color(0xFF6D28D9), Color(0xFF7C3AED)],
+    stops: [0.0, 0.6, 1.0],
+  );
+
+  static const LinearGradient subtleGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [Color(0xFFF8FAFC), Color(0xFFEFF6FF)],
   );
 }

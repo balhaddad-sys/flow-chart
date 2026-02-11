@@ -18,13 +18,13 @@ class ExamCountdown extends StatelessWidget {
       width: double.infinity,
       padding: AppSpacing.cardPaddingLg,
       decoration: BoxDecoration(
-        gradient: isUrgent ? AppColors.urgentGradient : AppColors.primaryGradient,
+        gradient: isUrgent ? AppColors.urgentGradient : AppColors.heroGradient,
         borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
         boxShadow: [
           BoxShadow(
-            color: (isUrgent ? AppColors.error : AppColors.primary).withValues(alpha: 0.25),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
+            color: (isUrgent ? AppColors.error : AppColors.primary).withValues(alpha: 0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
