@@ -20,8 +20,14 @@ const { normaliseTutorResponse } = require("../lib/serialize");
 const { getTutorResponse } = require("../ai/aiClient");
 const { TUTOR_SYSTEM, tutorUserPrompt } = require("../ai/prompts");
 
+// Define the secret so the function can access it
+const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
+
 exports.getTutorHelp = functions
-  .runWith({ timeoutSeconds: 60 })
+  .runWith({
+    timeoutSeconds: 60,
+    secrets: [anthropicApiKey], // Grant access to the secret
+  })
   .https.onCall(async (data, context) => {
     const uid = requireAuth(context);
     requireStrings(data, [

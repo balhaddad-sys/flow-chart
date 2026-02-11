@@ -19,11 +19,15 @@ const { DIFFICULTY_DISTRIBUTION } = require("../lib/constants");
 
 const DEFAULT_QUESTION_COUNT = 10;
 
+// Define the secret so the function can access it
+const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
+
 exports.processSection = functions
   .runWith({
     timeoutSeconds: 120, // Reduced: Haiku 4.5 is much faster
     memory: "512MB",
     maxInstances: 10, // Process multiple sections in parallel
+    secrets: [anthropicApiKey], // Grant access to the secret
   })
   .firestore.document("users/{uid}/sections/{sectionId}")
   .onCreate(async (snap, context) => {

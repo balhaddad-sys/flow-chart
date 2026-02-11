@@ -24,8 +24,15 @@ const { normaliseQuestion } = require("../lib/serialize");
 const { generateQuestions: aiGenerateQuestions } = require("../ai/aiClient");
 const { QUESTIONS_SYSTEM, questionsUserPrompt } = require("../ai/prompts");
 
+// Define the secret so the function can access it
+const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
+
 exports.generateQuestions = functions
-  .runWith({ timeoutSeconds: 120, memory: "512MB" })
+  .runWith({
+    timeoutSeconds: 120,
+    memory: "512MB",
+    secrets: [anthropicApiKey], // Grant access to the secret
+  })
   .https.onCall(async (data, context) => {
     const uid = requireAuth(context);
     requireStrings(data, [
