@@ -77,7 +77,7 @@ function normaliseQuestion(raw, defaults) {
  */
 function normaliseTutorResponse(raw) {
   const tutor = raw?.tutor || raw;
-  if (!tutor.correct_answer && !tutor.why_correct) return null;
+  if (!tutor.correct_answer || !tutor.why_correct) return null;
 
   return {
     correctAnswer:  tutor.correct_answer || "",
