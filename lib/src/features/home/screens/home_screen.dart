@@ -126,7 +126,7 @@ class HomeScreen extends ConsumerWidget {
                             userAsync.when(
                               data: (user) {
                                 final name =
-                                    user?.name?.split(' ').first ?? '';
+                                    user?.name.split(' ').first ?? '';
                                 return Column(
                                   crossAxisAlignment:
                                       CrossAxisAlignment.start,

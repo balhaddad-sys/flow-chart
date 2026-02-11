@@ -232,7 +232,7 @@ class _PdfViewerPanel extends ConsumerWidget {
             }
             return PdfViewer.uri(
               Uri.parse(url),
-              params: PdfViewerParams(
+              params: const PdfViewerParams(
                 enableTextSelection: true,
                 maxScale: 5.0,
               ),
