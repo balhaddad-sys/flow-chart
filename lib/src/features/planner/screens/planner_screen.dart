@@ -120,12 +120,42 @@ class PlannerScreen extends ConsumerWidget {
                 error: (e, _) => Center(child: Text('Error: $e')),
                 data: (tasks) {
                   if (tasks.isEmpty) {
-                    return const EmptyState(
+                    return EmptyState(
                       icon: Icons.calendar_today,
                       title: 'No plan generated yet',
                       subtitle:
                           'Upload materials and generate a study plan',
                       actionLabel: 'Generate Plan',
+                      onAction: () async {
+                        try {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content:
+                                    Text('Generating study plan...')),
+                          );
+                          await ref
+                              .read(cloudFunctionsServiceProvider)
+                              .generateSchedule(
+                                courseId: courseId,
+                                availability: {},
+                                revisionPolicy: 'standard',
+                              );
+                          ref.invalidate(allTasksProvider(courseId));
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Plan generated!')),
+                            );
+                          }
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text('Failed: $e')),
+                            );
+                          }
+                        }
+                      },
                     );
                   }
 

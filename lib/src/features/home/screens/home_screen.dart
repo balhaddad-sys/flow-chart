@@ -265,6 +265,61 @@ class HomeScreen extends ConsumerWidget {
 
                       // ── Stats cards ───────────────────────────
                       StatsCards(courseId: activeCourseId),
+                      AppSpacing.gapMd,
+
+                      // ── Quick actions ────────────────────────
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _QuickAction(
+                              icon: Icons.quiz_rounded,
+                              label: 'Start Quiz',
+                              color: AppColors.secondary,
+                              isDark: isDark,
+                              onTap: () => context.push('/quiz/_all'),
+                            ),
+                          ),
+                          AppSpacing.hGapSm,
+                          Expanded(
+                            child: _QuickAction(
+                              icon: Icons.auto_fix_high_rounded,
+                              label: 'Generate Plan',
+                              color: AppColors.primary,
+                              isDark: isDark,
+                              onTap: () async {
+                                try {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content:
+                                            Text('Generating study plan...')),
+                                  );
+                                  await ref
+                                      .read(cloudFunctionsServiceProvider)
+                                      .generateSchedule(
+                                        courseId: activeCourseId,
+                                        availability: {},
+                                        revisionPolicy: 'standard',
+                                      );
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text('Plan generated!')),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                          content:
+                                              Text('Failed: $e')),
+                                    );
+                                  }
+                                }
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 28),
 
                       // ── Today's tasks ─────────────────────────
@@ -315,5 +370,65 @@ class HomeScreen extends ConsumerWidget {
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
+  }
+}
+
+class _QuickAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: isDark ? AppColors.darkSurface : AppColors.surface,
+      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            border: Border.all(
+              color: isDark
+                  ? AppColors.darkBorder.withValues(alpha: 0.5)
+                  : AppColors.border.withValues(alpha: 0.5),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

@@ -24,10 +24,39 @@ class TodayChecklist extends ConsumerWidget {
       error: (e, _) => Text('Error loading tasks: $e'),
       data: (tasks) {
         if (tasks.isEmpty) {
-          return const EmptyState(
+          return EmptyState(
             icon: Icons.check_circle_outline,
             title: 'No tasks for today',
             subtitle: 'Generate a plan to get started',
+            actionLabel: 'Generate Plan',
+            onAction: () async {
+              try {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text('Generating study plan...')),
+                  );
+                }
+                await ref
+                    .read(cloudFunctionsServiceProvider)
+                    .generateSchedule(
+                      courseId: courseId,
+                      availability: {},
+                      revisionPolicy: 'standard',
+                    );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Plan generated!')),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Failed: $e')),
+                  );
+                }
+              }
+            },
           );
         }
 
