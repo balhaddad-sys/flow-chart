@@ -40,7 +40,8 @@ class PlannerScreen extends ConsumerWidget {
       );
     }
 
-    final tasksAsync = ref.watch(allTasksProvider(activeCourseId));
+    final String courseId = activeCourseId;
+    final tasksAsync = ref.watch(allTasksProvider(courseId));
 
     return Scaffold(
       body: SafeArea(
@@ -75,9 +76,9 @@ class PlannerScreen extends ConsumerWidget {
                         try {
                           await ref
                               .read(cloudFunctionsServiceProvider)
-                              .regenSchedule(courseId: activeCourseId);
+                              .regenSchedule(courseId: courseId);
                           ref.invalidate(
-                              allTasksProvider(activeCourseId));
+                              allTasksProvider(courseId));
                           if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
