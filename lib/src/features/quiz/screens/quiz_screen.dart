@@ -26,9 +26,12 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final courseId = ref.read(activeCourseIdProvider);
       if (courseId != null) {
+        // '_all' means quiz all questions for the course
+        final sectionId =
+            widget.sectionId == '_all' ? null : widget.sectionId;
         ref.read(quizProvider.notifier).loadQuestions(
               courseId: courseId,
-              sectionId: widget.sectionId,
+              sectionId: sectionId,
             );
       }
     });

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_spacing.dart';
 import '../../../core/utils/date_utils.dart';
 import '../providers/library_provider.dart';
 
@@ -36,8 +38,12 @@ class SectionList extends ConsumerWidget {
 
         return Column(
           children: sections.map((section) {
+            final isReady = section.aiStatus == 'ANALYZED';
             return ListTile(
               dense: true,
+              onTap: isReady
+                  ? () => context.push('/quiz/${section.id}')
+                  : null,
               title: Text(
                 section.title,
                 style: Theme.of(context).textTheme.titleSmall,
@@ -47,7 +53,39 @@ class SectionList extends ConsumerWidget {
                 'Difficulty: ${section.difficulty}/5',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
-              trailing: _aiStatusIcon(section.aiStatus),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isReady)
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.withValues(alpha: 0.1),
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.radiusFull),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.quiz_rounded,
+                              size: 12, color: AppColors.secondary),
+                          const SizedBox(width: 3),
+                          Text(
+                            'Quiz',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.secondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  _aiStatusIcon(section.aiStatus),
+                ],
+              ),
             );
           }).toList(),
         );
