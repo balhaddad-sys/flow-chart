@@ -55,6 +55,7 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
   @override
   Widget build(BuildContext context) {
     final data = ref.watch(onboardingProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     ref.listen<OnboardingData>(onboardingProvider, (prev, next) {
       if (prev?.currentStep != next.currentStep) {
@@ -63,28 +64,55 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
     });
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Set Up Your Course'),
-        leading: data.currentStep > 0
-            ? IconButton(
-                icon: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: const BoxDecoration(
-                    color: AppColors.surfaceVariant,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.arrow_back_rounded, size: 18),
-                ),
-                onPressed: () =>
-                    ref.read(onboardingProvider.notifier).previousStep(),
-              )
-            : null,
-      ),
       body: Column(
         children: [
-          // Step indicator
+          // ── Top bar ──────────────────────────────────────────────
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 20, 0),
+              child: Row(
+                children: [
+                  if (data.currentStep > 0)
+                    IconButton(
+                      icon: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? AppColors.darkSurfaceVariant
+                              : AppColors.surfaceVariant,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.arrow_back_rounded,
+                          size: 18,
+                          color: isDark
+                              ? AppColors.darkTextPrimary
+                              : AppColors.textPrimary,
+                        ),
+                      ),
+                      onPressed: () =>
+                          ref.read(onboardingProvider.notifier).previousStep(),
+                    )
+                  else
+                    const SizedBox(width: 48),
+                  const Spacer(),
+                  Text(
+                    'Step ${data.currentStep + 1} of $_stepCount',
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: isDark
+                              ? AppColors.darkTextTertiary
+                              : AppColors.textTertiary,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // ── Step indicator ───────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: Row(
               children: List.generate(_stepCount, (i) {
                 final isActive = i <= data.currentStep;
@@ -92,18 +120,21 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
                 return Expanded(
                   child: Padding(
                     padding: EdgeInsets.only(
-                      left: i > 0 ? 4 : 0,
-                      right: i < _stepCount - 1 ? 4 : 0,
+                      left: i > 0 ? 3 : 0,
+                      right: i < _stepCount - 1 ? 3 : 0,
                     ),
                     child: Column(
                       children: [
                         AnimatedContainer(
-                          duration: const Duration(milliseconds: 300),
+                          duration: AppSpacing.animNormal,
                           height: 4,
                           decoration: BoxDecoration(
+                            gradient: isActive ? AppColors.heroGradient : null,
                             color: isActive
-                                ? AppColors.primary
-                                : AppColors.surfaceVariant,
+                                ? null
+                                : isDark
+                                    ? AppColors.darkSurfaceVariant
+                                    : AppColors.surfaceVariant,
                             borderRadius:
                                 BorderRadius.circular(AppSpacing.radiusFull),
                           ),
@@ -117,7 +148,9 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
                               ?.copyWith(
                                 color: isCurrent
                                     ? AppColors.primary
-                                    : AppColors.textTertiary,
+                                    : isDark
+                                        ? AppColors.darkTextTertiary
+                                        : AppColors.textTertiary,
                                 fontWeight: isCurrent
                                     ? FontWeight.w600
                                     : FontWeight.w400,
@@ -130,7 +163,6 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
               }),
             ),
           ),
-          AppSpacing.gapSm,
 
           // Page content
           Expanded(

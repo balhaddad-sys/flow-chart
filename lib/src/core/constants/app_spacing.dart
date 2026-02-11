@@ -63,4 +63,41 @@ class AppSpacing {
   static const SizedBox hGapSm = SizedBox(width: sm);
   static const SizedBox hGapMd = SizedBox(width: md);
   static const SizedBox hGapLg = SizedBox(width: lg);
+
+  // ── Animation durations ─────────────────────────────────────────────────
+  static const Duration animFast = Duration(milliseconds: 150);
+  static const Duration animNormal = Duration(milliseconds: 300);
+  static const Duration animSlow = Duration(milliseconds: 500);
+  static const Duration animPageTransition = Duration(milliseconds: 350);
+
+  // ── Elevation shadows (multi-layer for depth) ──────────────────────────
+  static const List<BoxShadow> shadowMd = [
+    BoxShadow(
+      color: Color(0x0A000000),
+      blurRadius: 4,
+      offset: Offset(0, 1),
+    ),
+    BoxShadow(
+      color: Color(0x0D000000),
+      blurRadius: 12,
+      offset: Offset(0, 4),
+    ),
+  ];
+
+  static const List<BoxShadow> shadowXl = [
+    BoxShadow(
+      color: Color(0x0D000000),
+      blurRadius: 8,
+      offset: Offset(0, 4),
+    ),
+    BoxShadow(
+      color: Color(0x1A000000),
+      blurRadius: 32,
+      offset: Offset(0, 12),
+    ),
+  ];
+
+  // ── Max content width for web ──────────────────────────────────────────
+  static const double maxContentWidth = 600;
+  static const double maxAuthWidth = 440;
 }

@@ -115,19 +115,23 @@ class _StatCard extends StatelessWidget {
           color: isDark ? AppColors.darkSurface : AppColors.surface,
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           border: Border.all(
-            color: isDark ? AppColors.darkBorder : AppColors.border,
+            color: isDark
+                ? AppColors.darkBorder.withValues(alpha: 0.5)
+                : AppColors.border.withValues(alpha: 0.5),
           ),
+          boxShadow: isDark ? null : AppSpacing.shadowSm,
         ),
         child: Column(
           children: [
             child,
-            AppSpacing.gapXs,
+            const SizedBox(height: 6),
             Text(
               label,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: isDark
                         ? AppColors.darkTextTertiary
                         : AppColors.textTertiary,
+                    fontWeight: FontWeight.w500,
                   ),
             ),
           ],

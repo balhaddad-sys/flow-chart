@@ -4,7 +4,7 @@
     "start_url": ".",
     "display": "standalone",
     "background_color": "#FFFFFF",
-    "theme_color": "#2563EB",
+    "theme_color": "#1E40AF",
     "description": "AI-powered adaptive study platform for medical students. Generate personalized quizzes, study schedules, and weakness analysis from your own study materials.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,

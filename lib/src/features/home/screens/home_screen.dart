@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../core/providers/user_provider.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../models/course_model.dart';
 import '../providers/home_provider.dart';
@@ -19,56 +20,11 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final coursesAsync = ref.watch(coursesProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final userAsync = ref.watch(userModelProvider);
+
+    final greeting = _greeting();
 
     return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                gradient: AppColors.primaryGradient,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Center(
-                child: Text(
-                  'M',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ),
-            ),
-            AppSpacing.hGapSm,
-            Text(
-              'MedQ',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.library_books_outlined, size: 22),
-            tooltip: 'Library',
-            onPressed: () => context.go('/library'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.bar_chart_outlined, size: 22),
-            tooltip: 'Dashboard',
-            onPressed: () => context.go('/dashboard'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined, size: 22),
-            tooltip: 'Settings',
-            onPressed: () => context.go('/settings'),
-          ),
-        ],
-      ),
       body: coursesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
@@ -93,102 +49,262 @@ class HomeScreen extends ConsumerWidget {
           final activeCourseId = activeCourse.id;
 
           return RefreshIndicator(
+            color: AppColors.primary,
             onRefresh: () async {
               ref.invalidate(todayTasksProvider(activeCourseId));
             },
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              children: [
-                // ── Course selector ─────────────────────────────────
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? AppColors.darkSurfaceVariant
-                        : AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                    border: Border.all(
-                      color: isDark ? AppColors.darkBorder : AppColors.border,
+            child: CustomScrollView(
+              slivers: [
+                // ── Hero Header ─────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: isDark
+                          ? AppColors.darkHeroGradient
+                          : AppColors.heroGradient,
                     ),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.school_outlined, size: 20),
-                      AppSpacing.hGapSm,
-                      Expanded(
-                        child: DropdownButtonHideUnderline(
-                          child: DropdownButton<String>(
-                            value: activeCourseId,
-                            isExpanded: true,
-                            isDense: true,
-                            style: Theme.of(context).textTheme.titleMedium,
-                            items: courses
-                                .map((c) => DropdownMenuItem(
-                                      value: c.id,
-                                      child: Text(c.title),
-                                    ))
-                                .toList(),
-                            onChanged: (v) =>
-                                ref.read(activeCourseIdProvider.notifier).state = v,
-                          ),
+                    child: SafeArea(
+                      bottom: false,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // ── Top bar ─────────────────────────────
+                            Row(
+                              children: [
+                                Container(
+                                  width: 36,
+                                  height: 36,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: const Center(
+                                    child: Text(
+                                      'M',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w800,
+                                        letterSpacing: -0.5,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                AppSpacing.hGapSm,
+                                Text(
+                                  'MedQ',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleLarge
+                                      ?.copyWith(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                ),
+                                const Spacer(),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(
+                                        AppSpacing.radiusFull),
+                                  ),
+                                  child: IconButton(
+                                    icon: const Icon(Icons.add_rounded,
+                                        color: Colors.white, size: 20),
+                                    tooltip: 'New Course',
+                                    onPressed: () => context.go('/onboarding'),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+
+                            // ── Greeting ────────────────────────────
+                            userAsync.when(
+                              data: (user) {
+                                final name =
+                                    user?.name?.split(' ').first ?? '';
+                                return Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      '$greeting${name.isNotEmpty ? ', $name' : ''}',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .headlineMedium
+                                          ?.copyWith(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Let\'s make today count.',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            color: Colors.white70,
+                                          ),
+                                    ),
+                                  ],
+                                );
+                              },
+                              loading: () => Text(
+                                greeting,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium
+                                    ?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                              ),
+                              error: (_, __) => Text(
+                                greeting,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium
+                                    ?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      Container(
-                        height: 28,
-                        width: 1,
-                        color: isDark ? AppColors.darkBorder : AppColors.border,
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.add, size: 20),
-                        tooltip: 'New Course',
-                        onPressed: () => context.go('/onboarding'),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-                AppSpacing.gapMd,
 
-                // ── Exam countdown ──────────────────────────────────
-                if (activeCourse.examDate != null) ...[
-                  ExamCountdown(examDate: activeCourse.examDate!),
-                  AppSpacing.gapMd,
-                ],
+                // ── Content ─────────────────────────────────────────
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+                  sliver: SliverList(
+                    delegate: SliverChildListDelegate([
+                      // ── Course selector ───────────────────────
+                      if (courses.length > 1) ...[
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? AppColors.darkSurface
+                                : AppColors.surface,
+                            borderRadius: BorderRadius.circular(
+                                AppSpacing.radiusMd),
+                            border: Border.all(
+                              color: isDark
+                                  ? AppColors.darkBorder.withValues(alpha: 0.5)
+                                  : AppColors.border.withValues(alpha: 0.5),
+                            ),
+                            boxShadow:
+                                isDark ? null : AppSpacing.shadowSm,
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary
+                                      .withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(7),
+                                ),
+                                child: const Icon(Icons.school_rounded,
+                                    size: 16, color: AppColors.primary),
+                              ),
+                              AppSpacing.hGapSm,
+                              Expanded(
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: activeCourseId,
+                                    isExpanded: true,
+                                    isDense: true,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleMedium,
+                                    items: courses
+                                        .map((c) => DropdownMenuItem(
+                                              value: c.id,
+                                              child: Text(c.title),
+                                            ))
+                                        .toList(),
+                                    onChanged: (v) => ref
+                                        .read(activeCourseIdProvider
+                                            .notifier)
+                                        .state = v,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        AppSpacing.gapMd,
+                      ],
 
-                // ── Stats cards ─────────────────────────────────────
-                StatsCards(courseId: activeCourseId),
-                AppSpacing.gapLg,
+                      // ── Exam countdown ────────────────────────
+                      if (activeCourse.examDate != null) ...[
+                        ExamCountdown(examDate: activeCourse.examDate!),
+                        AppSpacing.gapMd,
+                      ],
 
-                // ── Today's tasks ───────────────────────────────────
-                Row(
-                  children: [
-                    Text(
-                      'Today\'s Plan',
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                    const Spacer(),
-                    TextButton(
-                      onPressed: () => context.go('/planner'),
-                      child: const Text('View All'),
-                    ),
-                  ],
+                      // ── Stats cards ───────────────────────────
+                      StatsCards(courseId: activeCourseId),
+                      const SizedBox(height: 28),
+
+                      // ── Today's tasks ─────────────────────────
+                      Row(
+                        children: [
+                          Text(
+                            'Today\'s Plan',
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          const Spacer(),
+                          TextButton.icon(
+                            onPressed: () => context.go('/planner'),
+                            icon: const Icon(Icons.arrow_forward_rounded,
+                                size: 16),
+                            label: const Text('View All'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: AppColors.primaryLight,
+                              textStyle: Theme.of(context)
+                                  .textTheme
+                                  .labelLarge,
+                            ),
+                          ),
+                        ],
+                      ),
+                      AppSpacing.gapSm,
+                      TodayChecklist(courseId: activeCourseId),
+                      AppSpacing.gapLg,
+
+                      // ── Weak topics banner ────────────────────
+                      WeakTopicsBanner(courseId: activeCourseId),
+                      AppSpacing.gapLg,
+                    ]),
+                  ),
                 ),
-                AppSpacing.gapSm,
-                TodayChecklist(courseId: activeCourseId),
-                AppSpacing.gapMd,
-
-                // ── Weak topics banner ──────────────────────────────
-                WeakTopicsBanner(courseId: activeCourseId),
-                AppSpacing.gapLg,
               ],
             ),
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.go('/planner'),
-        child: const Icon(Icons.calendar_month),
-      ),
     );
+  }
+
+  String _greeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
   }
 }

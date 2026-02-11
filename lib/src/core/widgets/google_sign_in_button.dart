@@ -91,9 +91,12 @@ class GoogleSignInButton extends StatelessWidget {
         onPressed: isLoading ? null : onPressed,
         style: OutlinedButton.styleFrom(
           backgroundColor: isDark ? AppColors.darkSurface : Colors.white,
-          foregroundColor: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+          foregroundColor:
+              isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
           side: BorderSide(
-            color: isDark ? AppColors.darkBorder : AppColors.border,
+            color: isDark
+                ? AppColors.darkBorder.withValues(alpha: 0.5)
+                : AppColors.border.withValues(alpha: 0.7),
           ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -106,7 +109,7 @@ class GoogleSignInButton extends StatelessWidget {
                 height: 20,
                 width: 20,
                 child: CircularProgressIndicator(
-                  strokeWidth: 2,
+                  strokeWidth: 2.5,
                   color: isDark ? Colors.white70 : Colors.black54,
                 ),
               )
@@ -128,7 +131,9 @@ class GoogleSignInButton extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
-                      color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.textPrimary,
                     ),
                   ),
                 ],

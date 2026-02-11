@@ -19,15 +19,17 @@ class LoadingOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Stack(
       children: [
         child,
         if (isLoading)
           Positioned.fill(
             child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+              filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
               child: Container(
-                color: Colors.black12,
+                color: isDark ? Colors.black38 : Colors.black12,
                 child: Center(
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -35,10 +37,10 @@ class LoadingOverlay extends StatelessWidget {
                       vertical: AppSpacing.lg,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.surface,
+                      color: isDark ? AppColors.darkSurface : AppColors.surface,
                       borderRadius:
                           BorderRadius.circular(AppSpacing.radiusXl),
-                      boxShadow: AppSpacing.shadowLg,
+                      boxShadow: AppSpacing.shadowXl,
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -58,7 +60,11 @@ class LoadingOverlay extends StatelessWidget {
                             style: Theme.of(context)
                                 .textTheme
                                 .bodyMedium
-                                ?.copyWith(color: AppColors.textSecondary),
+                                ?.copyWith(
+                                  color: isDark
+                                      ? AppColors.darkTextSecondary
+                                      : AppColors.textSecondary,
+                                ),
                           ),
                         ],
                       ],
