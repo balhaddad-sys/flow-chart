@@ -88,7 +88,7 @@ class LibraryScreen extends ConsumerWidget {
         'originalName': file.name,
         'storagePath': storagePath,
         'sizeBytes': file.size,
-        'contentType':
+        'mimeType':
             StorageService.mimeTypes[ext] ?? 'application/octet-stream',
         'status': 'UPLOADED',
       });
