@@ -97,6 +97,20 @@ class CloudFunctionsService {
     });
   }
 
+  // --- Questions ---
+
+  Future<Map<String, dynamic>> generateQuestions({
+    required String courseId,
+    required String sectionId,
+    int count = 10,
+  }) {
+    return _call('generateQuestions', {
+      'courseId': courseId,
+      'sectionId': sectionId,
+      'count': count,
+    });
+  }
+
   // --- Quiz ---
 
   Future<Map<String, dynamic>> getQuiz({
