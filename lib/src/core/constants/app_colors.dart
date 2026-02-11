@@ -73,7 +73,6 @@ class AppColors {
   static const Color errorSurface = errorLight;
   static const Color infoSurface = infoLight;
 
-  // ── Gradients ───────────────────────────────────────────────────────────────
   // ── Nav bar ───────────────────────────────────────────────────────────────
   static const Color navBarBackground = Color(0xFFFFFFFF);
   static const Color navBarDarkBackground = Color(0xFF111827);

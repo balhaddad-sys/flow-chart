@@ -64,7 +64,7 @@ class SettingsScreen extends ConsumerWidget {
                       width: 64,
                       height: 64,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius:
                             BorderRadius.circular(AppSpacing.radiusMd),
                       ),
@@ -99,7 +99,7 @@ class SettingsScreen extends ConsumerWidget {
                             user?.email ?? '',
                             style:
                                 Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: Colors.white.withOpacity(0.7),
+                                      color: Colors.white.withValues(alpha: 0.7),
                                     ),
                           ),
                         ],
@@ -126,7 +126,7 @@ class SettingsScreen extends ConsumerWidget {
           // ── Appearance section ───────────────────────────────────────
           Padding(
             padding: AppSpacing.screenHorizontal,
-            child: _SectionHeader(
+            child: const _SectionHeader(
                 label: 'Appearance', icon: Icons.palette_outlined),
           ),
           AppSpacing.gapSm,
@@ -146,30 +146,30 @@ class SettingsScreen extends ConsumerWidget {
                     ref.read(themeModeProvider.notifier).state = value!,
                 child: Column(
                   children: [
-                    RadioListTile<ThemeMode>(
-                      title: const Text('System default'),
+                    const RadioListTile<ThemeMode>(
+                      title: Text('System default'),
                       value: ThemeMode.system,
-                      secondary: const Icon(Icons.phone_android, size: 20),
+                      secondary: Icon(Icons.phone_android, size: 20),
                     ),
                     Divider(
                       height: 1,
                       color:
                           isDark ? AppColors.darkBorder : AppColors.borderLight,
                     ),
-                    RadioListTile<ThemeMode>(
-                      title: const Text('Light'),
+                    const RadioListTile<ThemeMode>(
+                      title: Text('Light'),
                       value: ThemeMode.light,
-                      secondary: const Icon(Icons.light_mode, size: 20),
+                      secondary: Icon(Icons.light_mode, size: 20),
                     ),
                     Divider(
                       height: 1,
                       color:
                           isDark ? AppColors.darkBorder : AppColors.borderLight,
                     ),
-                    RadioListTile<ThemeMode>(
-                      title: const Text('Dark'),
+                    const RadioListTile<ThemeMode>(
+                      title: Text('Dark'),
                       value: ThemeMode.dark,
-                      secondary: const Icon(Icons.dark_mode, size: 20),
+                      secondary: Icon(Icons.dark_mode, size: 20),
                     ),
                   ],
                 ),
@@ -182,7 +182,7 @@ class SettingsScreen extends ConsumerWidget {
           // ── About section ───────────────────────────────────────────
           Padding(
             padding: AppSpacing.screenHorizontal,
-            child: _SectionHeader(label: 'About', icon: Icons.info_outline),
+            child: const _SectionHeader(label: 'About', icon: Icons.info_outline),
           ),
           AppSpacing.gapSm,
           Padding(
@@ -261,7 +261,7 @@ class SettingsScreen extends ConsumerWidget {
           // ── Account actions ─────────────────────────────────────────
           Padding(
             padding: AppSpacing.screenHorizontal,
-            child: _SectionHeader(
+            child: const _SectionHeader(
                 label: 'Account Actions', icon: Icons.manage_accounts),
           ),
           AppSpacing.gapSm,

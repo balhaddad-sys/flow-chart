@@ -125,7 +125,7 @@ class WeaknessDashboard extends ConsumerWidget {
                     const SizedBox(height: AppSpacing.sm),
 
                     // ── Section header: Weakest Topics ─────────────────
-                    _SectionHeader(
+                    const _SectionHeader(
                       icon: Icons.trending_down,
                       iconColor: AppColors.error,
                       title: 'Topics Ranked by Weakness',
