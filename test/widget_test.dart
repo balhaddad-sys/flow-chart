@@ -13,6 +13,6 @@ void main() {
 
     // The app should render without crashing.
     // Auth redirect should land on the login screen.
-    expect(find.text('MedQ'), findsOneWidget);
+    expect(find.text('Welcome back'), findsOneWidget);
   });
 }
