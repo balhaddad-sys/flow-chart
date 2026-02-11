@@ -27,18 +27,18 @@ class SessionTimer extends StatelessWidget {
         vertical: AppSpacing.sm,
       ),
       padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
+        horizontal: 14,
+        vertical: 6,
       ),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+        color: AppColors.primarySurface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
       ),
       child: Text(
         timeStr,
         style: Theme.of(context).textTheme.titleMedium?.copyWith(
               color: AppColors.primary,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
               fontFeatures: [const FontFeature.tabularFigures()],
             ),
       ),

@@ -403,4 +403,188 @@ class MedQApp extends ConsumerWidget {
       routerConfig: router,
     );
   }
+
+  ThemeData _buildLightTheme() {
+    return ThemeData(
+      useMaterial3: true,
+      colorSchemeSeed: AppColors.primary,
+      brightness: Brightness.light,
+      textTheme: AppTypography.textTheme,
+      scaffoldBackgroundColor: AppColors.background,
+      cardTheme: CardThemeData(
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          side: BorderSide(color: AppColors.border.withValues(alpha: 0.7)),
+        ),
+        color: AppColors.surface,
+      ),
+      dividerTheme: const DividerThemeData(
+        color: AppColors.divider,
+        thickness: 1,
+        space: 1,
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: AppColors.surfaceVariant.withValues(alpha: 0.5),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          borderSide: const BorderSide(color: AppColors.error),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+        hintStyle: AppTypography.textTheme.bodyMedium?.copyWith(
+          color: AppColors.textTertiary,
+        ),
+        labelStyle: AppTypography.textTheme.bodyMedium?.copyWith(
+          color: AppColors.textSecondary,
+        ),
+      ),
+      appBarTheme: AppBarTheme(
+        centerTitle: false,
+        elevation: 0,
+        scrolledUnderElevation: 0.5,
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.textPrimary,
+        surfaceTintColor: Colors.transparent,
+        titleTextStyle: AppTypography.textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: AppColors.surfaceVariant,
+        labelStyle: AppTypography.textTheme.labelMedium,
+        side: BorderSide.none,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        highlightElevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        ),
+      ),
+      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        backgroundColor: AppColors.surface,
+        elevation: 0,
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: AppColors.textPrimary,
+        contentTextStyle: AppTypography.textTheme.bodyMedium?.copyWith(
+          color: Colors.white,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+      dialogTheme: DialogThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+        ),
+        elevation: 8,
+        titleTextStyle: AppTypography.textTheme.titleLarge,
+        contentTextStyle: AppTypography.textTheme.bodyMedium,
+      ),
+      checkboxTheme: CheckboxThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(4),
+        ),
+      ),
+      tabBarTheme: TabBarThemeData(
+        labelColor: AppColors.primary,
+        unselectedLabelColor: AppColors.textTertiary,
+        indicatorColor: AppColors.primary,
+        labelStyle: AppTypography.textTheme.labelLarge,
+        unselectedLabelStyle: AppTypography.textTheme.labelLarge?.copyWith(
+          fontWeight: FontWeight.w400,
+        ),
+      ),
+      listTileTheme: ListTileThemeData(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        ),
+      ),
+    );
+  }
+
+  ThemeData _buildDarkTheme() {
+    return ThemeData(
+      useMaterial3: true,
+      colorSchemeSeed: AppColors.primary,
+      brightness: Brightness.dark,
+      textTheme: AppTypography.textTheme,
+      cardTheme: CardThemeData(
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+      ),
+      appBarTheme: AppBarTheme(
+        centerTitle: false,
+        elevation: 0,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
+        titleTextStyle: AppTypography.textTheme.titleLarge?.copyWith(
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+      dialogTheme: DialogThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+        ),
+        elevation: 8,
+      ),
+      checkboxTheme: CheckboxThemeData(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(4),
+        ),
+      ),
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        elevation: 2,
+        highlightElevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        ),
+      ),
+    );
+  }
 }

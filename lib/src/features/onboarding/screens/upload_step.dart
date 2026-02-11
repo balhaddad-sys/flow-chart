@@ -78,98 +78,211 @@ class _UploadStepState extends ConsumerState<UploadStep> {
       padding: AppSpacing.screenPadding,
       child: ListView(
         children: [
+          AppSpacing.gapLg,
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: AppColors.successSurface,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+            ),
+            child: const Icon(Icons.cloud_upload_rounded,
+                color: AppColors.success, size: 28),
+          ),
+          AppSpacing.gapMd,
           Text(
             'Upload your study materials',
             style: Theme.of(context).textTheme.headlineLarge,
           ),
-          AppSpacing.gapSm,
+          AppSpacing.gapXs,
           Text(
             'PDF, PowerPoint, Word, or ZIP files',
-            style: Theme.of(context).textTheme.bodyMedium,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
           ),
           AppSpacing.gapXl,
-          // Upload button — using OutlinedButton for reliable web taps
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _isPickingFile ? null : _pickFile,
-              icon: Icon(
-                Icons.cloud_upload_outlined,
-                size: 32,
-                color: _isPickingFile
-                    ? AppColors.textTertiary
-                    : AppColors.primary,
+
+          // Upload area
+          InkWell(
+            onTap: _isPickingFile ? null : _pickFile,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                  vertical: AppSpacing.xxl, horizontal: AppSpacing.lg),
+              decoration: BoxDecoration(
+                color: AppColors.primarySurface.withValues(alpha: 0.5),
+                borderRadius:
+                    BorderRadius.circular(AppSpacing.radiusLg),
+                border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.3),
+                  width: 2,
+                  strokeAlign: BorderSide.strokeAlignInside,
+                ),
               ),
-              label: Padding(
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-                child: Column(
-                  children: [
-                    Text(
+              child: Column(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: const BoxDecoration(
+                      color: AppColors.primarySurface,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
                       _isPickingFile
-                          ? 'Opening file picker...'
-                          : 'Tap to select files',
-                      style: Theme.of(context).textTheme.titleMedium,
+                          ? Icons.hourglass_top_rounded
+                          : Icons.cloud_upload_outlined,
+                      color: AppColors.primary,
+                      size: 24,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'PDF, PPTX, DOCX, ZIP (max 100MB)',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.border, width: 2),
-                shape: RoundedRectangleBorder(
-                  borderRadius:
-                      BorderRadius.circular(AppSpacing.radiusLg),
-                ),
-                padding: const EdgeInsets.all(AppSpacing.lg),
+                  ),
+                  AppSpacing.gapMd,
+                  Text(
+                    _isPickingFile
+                        ? 'Opening file picker...'
+                        : 'Tap to select files',
+                    style:
+                        Theme.of(context).textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                  ),
+                  AppSpacing.gapXs,
+                  Text(
+                    'PDF, PPTX, DOCX, ZIP (max 100MB)',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                  ),
+                ],
               ),
             ),
           ),
+
           if (_statusMessage != null) ...[
             AppSpacing.gapMd,
-            Text(
-              _statusMessage!,
-              style: TextStyle(
-                color: _isError ? AppColors.error : AppColors.success,
-                fontSize: 13,
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: _isError
+                    ? AppColors.errorSurface
+                    : AppColors.successSurface,
+                borderRadius:
+                    BorderRadius.circular(AppSpacing.radiusSm),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _isError
+                        ? Icons.error_outline_rounded
+                        : Icons.check_circle_outline_rounded,
+                    color: _isError ? AppColors.error : AppColors.success,
+                    size: 18,
+                  ),
+                  AppSpacing.hGapSm,
+                  Expanded(
+                    child: Text(
+                      _statusMessage!,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(
+                            color: _isError
+                                ? AppColors.error
+                                : AppColors.success,
+                          ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
+
           AppSpacing.gapLg,
+
           // Selected files list
           if (selectedFiles.isNotEmpty) ...[
             Text(
               'Selected files',
-              style: Theme.of(context).textTheme.titleMedium,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
             AppSpacing.gapSm,
             ...selectedFiles.map((file) {
-              return ListTile(
-                leading: const Icon(Icons.insert_drive_file_outlined),
-                title: Text(file.name),
-                subtitle: Text(
-                  '${(file.size / 1024).toStringAsFixed(0)} KB',
+              return Container(
+                margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius:
+                      BorderRadius.circular(AppSpacing.radiusMd),
+                  border: Border.all(
+                      color: AppColors.border.withValues(alpha: 0.7)),
+                  boxShadow: AppSpacing.shadowSm,
                 ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.close, size: 18),
-                  onPressed: () {
-                    ref
-                        .read(onboardingProvider.notifier)
-                        .removeFile(file.name);
-                  },
+                child: Row(
+                  children: [
+                    Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: AppColors.primarySurface,
+                        borderRadius: BorderRadius.circular(
+                            AppSpacing.radiusSm),
+                      ),
+                      child: const Icon(Icons.insert_drive_file_rounded,
+                          color: AppColors.primary, size: 18),
+                    ),
+                    AppSpacing.hGapSm,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            file.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall,
+                          ),
+                          Text(
+                            '${(file.size / 1024).toStringAsFixed(0)} KB',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  color: AppColors.textTertiary,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded,
+                          size: 18, color: AppColors.textTertiary),
+                      onPressed: () {
+                        ref
+                            .read(onboardingProvider.notifier)
+                            .removeFile(file.name);
+                      },
+                    ),
+                  ],
                 ),
               );
             }),
           ],
+
           if (selectedFiles.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.lg),
               child: Text(
                 'You can also upload files later from the Library',
-                style: Theme.of(context).textTheme.bodySmall,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
                 textAlign: TextAlign.center,
               ),
             ),

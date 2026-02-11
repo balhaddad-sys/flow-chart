@@ -48,30 +48,63 @@ class _TaskRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final isDone = task.status == 'DONE';
 
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: isDone
+            ? AppColors.successSurface
+            : AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(
+          color: isDone
+              ? AppColors.success.withValues(alpha: 0.2)
+              : AppColors.border,
+        ),
+        boxShadow: isDone ? null : AppSpacing.shadowSm,
+      ),
       child: ListTile(
-        leading: Checkbox(
-          value: isDone,
-          onChanged: (checked) {
-            if (checked == true) {
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+        leading: GestureDetector(
+          onTap: () async {
+            if (!isDone) {
               final uid = ref.read(uidProvider);
               if (uid != null) {
-                ref.read(firestoreServiceProvider).completeTask(uid, task.id);
+                await ref.read(firestoreServiceProvider).completeTask(uid, task.id);
               }
             }
           },
+          child: Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: isDone
+                  ? AppColors.success
+                  : AppColors.surface,
+              shape: BoxShape.circle,
+              border: isDone
+                  ? null
+                  : Border.all(color: AppColors.border, width: 2),
+            ),
+            child: isDone
+                ? const Icon(Icons.check_rounded,
+                    color: Colors.white, size: 16)
+                : null,
+          ),
         ),
         title: Text(
           task.title,
-          style: TextStyle(
-            decoration: isDone ? TextDecoration.lineThrough : null,
-            color: isDone ? AppColors.textTertiary : null,
-          ),
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                decoration: isDone ? TextDecoration.lineThrough : null,
+                color: isDone ? AppColors.textTertiary : AppColors.textPrimary,
+              ),
         ),
-        subtitle: Text(
-          '${AppDateUtils.formatDuration(task.estMinutes)} | ${task.type}',
-          style: Theme.of(context).textTheme.bodySmall,
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Text(
+            '${AppDateUtils.formatDuration(task.estMinutes)} | ${task.type}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
         ),
         trailing: _difficultyBadge(task.difficulty),
       ),
@@ -79,22 +112,27 @@ class _TaskRow extends ConsumerWidget {
   }
 
   Widget _difficultyBadge(int difficulty) {
+    final label = difficulty <= 2
+        ? 'Easy'
+        : difficulty <= 3
+            ? 'Med'
+            : 'Hard';
     final color = difficulty <= 2
         ? AppColors.difficultyEasy
         : difficulty <= 3
             ? AppColors.difficultyMedium
             : AppColors.difficultyHard;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
       ),
       child: Text(
-        'D$difficulty',
+        label,
         style: TextStyle(
           color: color,
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
       ),
