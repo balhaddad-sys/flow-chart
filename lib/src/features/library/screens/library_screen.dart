@@ -24,7 +24,15 @@ class LibraryScreen extends ConsumerWidget {
     final uid = ref.read(uidProvider);
     if (uid == null) return;
 
-    final activeCourseId = ref.read(activeCourseIdProvider);
+    var activeCourseId = ref.read(activeCourseIdProvider);
+    if (activeCourseId == null) {
+      // Fallback: pick the first course if the provider hasn't been set yet
+      final courses = ref.read(coursesProvider).valueOrNull ?? [];
+      if (courses.isNotEmpty) {
+        activeCourseId = courses.first.id;
+        ref.read(activeCourseIdProvider.notifier).state = activeCourseId;
+      }
+    }
     if (activeCourseId == null) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

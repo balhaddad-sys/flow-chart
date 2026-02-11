@@ -15,7 +15,18 @@ class WeaknessDashboard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final activeCourseId = ref.watch(activeCourseIdProvider);
+    var activeCourseId = ref.watch(activeCourseIdProvider);
+
+    // Fallback: pick the first course if the provider hasn't been set yet
+    if (activeCourseId == null) {
+      final courses = ref.watch(coursesProvider).valueOrNull ?? [];
+      if (courses.isNotEmpty) {
+        activeCourseId = courses.first.id;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ref.read(activeCourseIdProvider.notifier).state = activeCourseId;
+        });
+      }
+    }
 
     if (activeCourseId == null) {
       return const Scaffold(

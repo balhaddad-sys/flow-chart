@@ -48,6 +48,15 @@ class HomeScreen extends ConsumerWidget {
               : courses.first;
           final activeCourseId = activeCourse.id;
 
+          // Sync the provider so other screens (Library, Planner, etc.)
+          // can read the active course even when the dropdown is hidden.
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final current = ref.read(activeCourseIdProvider);
+            if (current != activeCourseId) {
+              ref.read(activeCourseIdProvider.notifier).state = activeCourseId;
+            }
+          });
+
           return RefreshIndicator(
             color: AppColors.primary,
             onRefresh: () async {
