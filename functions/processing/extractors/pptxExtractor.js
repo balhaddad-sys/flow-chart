@@ -18,7 +18,6 @@ async function extractPptxSections(filePath) {
   const zip = await JSZip.loadAsync(buffer);
 
   // Extract text from each slide
-  const slideTexts = [];
   const slideFiles = Object.keys(zip.files)
     .filter((name) => name.match(/^ppt\/slides\/slide\d+\.xml$/))
     .sort((a, b) => {
@@ -27,16 +26,18 @@ async function extractPptxSections(filePath) {
       return numA - numB;
     });
 
-  for (const slideFile of slideFiles) {
-    const xml = await zip.file(slideFile).async("text");
-    // Extract text content from XML (simple regex approach)
-    const texts = [];
-    const matches = xml.matchAll(/<a:t>(.*?)<\/a:t>/g);
-    for (const match of matches) {
-      texts.push(match[1]);
-    }
-    slideTexts.push(texts.join(" "));
-  }
+  // Extract all slides in parallel instead of sequentially
+  const slideTexts = await Promise.all(
+    slideFiles.map(async (slideFile) => {
+      const xml = await zip.file(slideFile).async("text");
+      const texts = [];
+      const matches = xml.matchAll(/<a:t>(.*?)<\/a:t>/g);
+      for (const match of matches) {
+        texts.push(match[1]);
+      }
+      return texts.join(" ");
+    })
+  );
 
   // Chunk into sections
   const sections = [];

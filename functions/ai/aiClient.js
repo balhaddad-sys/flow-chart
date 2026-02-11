@@ -83,6 +83,7 @@ function extractJsonFromText(text) {
 
 /**
  * Call Claude API with automatic retry and JSON validation.
+ * Uses prompt caching on system prompts for faster repeated calls.
  * @param {string} systemPrompt - System message
  * @param {string} userPrompt - User message
  * @param {string} tier - "LIGHT" or "HEAVY"
@@ -105,7 +106,14 @@ async function callClaude(
         model: model,
         max_tokens: maxTokens,
         messages: [{ role: "user", content: userPrompt }],
-        system: systemPrompt,
+        // Prompt caching: reuse system prompt across calls
+        system: [
+          {
+            type: "text",
+            text: systemPrompt,
+            cache_control: { type: "ephemeral" },
+          },
+        ],
       });
 
       // Extract text from response

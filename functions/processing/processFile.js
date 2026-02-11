@@ -7,7 +7,7 @@
  *  1. Validate MIME type against the supported set.
  *  2. Download the file to a temp path.
  *  3. Delegate to the appropriate extractor (PDF / PPTX / DOCX).
- *  4. Upload each extracted section's text blob to Cloud Storage.
+ *  4. Upload extracted section text blobs to Cloud Storage in parallel.
  *  5. Create section metadata documents in Firestore (status = PENDING).
  *  6. Mark the originating file document as READY.
  */
@@ -18,7 +18,7 @@ const os = require("os");
 const path = require("path");
 const fs = require("fs");
 
-const { db } = require("../lib/firestore");
+const { db, batchSet } = require("../lib/firestore");
 const { SUPPORTED_MIME_TYPES } = require("../lib/constants");
 const log = require("../lib/logger");
 const { extractPdfSections } = require("./extractors/pdfExtractor");
@@ -52,17 +52,21 @@ exports.processUploadedFile = functions
     const tempFilePath = path.join(os.tmpdir(), fileName);
 
     try {
-      // Mark processing started
-      await fileRef.set(
-        {
-          status: "PROCESSING",
-          processingStartedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
+      // Fetch courseId and mark processing started in parallel
+      const bucket = admin.storage().bucket(object.bucket);
+      const [fileSnap] = await Promise.all([
+        fileRef.get(),
+        fileRef.set(
+          {
+            status: "PROCESSING",
+            processingStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        ),
+      ]);
+      const courseId = fileSnap.data()?.courseId || null;
 
       // Download to tmp
-      const bucket = admin.storage().bucket(object.bucket);
       await bucket.file(filePath).download({ destination: tempFilePath });
 
       // Extract raw sections via the appropriate extractor
@@ -75,49 +79,45 @@ exports.processUploadedFile = functions
         rawSections = await extractDocxSections(tempFilePath);
       }
 
-      // Upload text blobs & build metadata entries
-      const sections = [];
-      for (const raw of rawSections) {
-        const sectionSlug = `${fileId}_s${sections.length}`;
-        const textBlobPath = `users/${uid}/derived/sections/${sectionSlug}.txt`;
-        await bucket.file(textBlobPath).save(raw.text, {
-          contentType: "text/plain",
-          metadata: { fileId },
-        });
+      // Upload all text blobs in parallel & build metadata entries
+      const sections = await Promise.all(
+        rawSections.map(async (raw, idx) => {
+          const sectionSlug = `${fileId}_s${idx}`;
+          const textBlobPath = `users/${uid}/derived/sections/${sectionSlug}.txt`;
+          await bucket.file(textBlobPath).save(raw.text, {
+            contentType: "text/plain",
+            metadata: { fileId },
+          });
 
-        sections.push({
-          fileId,
-          title: raw.title,
-          contentRef: {
-            type: raw.startPage != null ? "page" : raw.startSlide != null ? "slide" : "word",
-            startIndex: raw.startPage || raw.startSlide || raw.startWord || 0,
-            endIndex: raw.endPage || raw.endSlide || raw.endWord || 0,
-          },
-          textBlobPath,
-          textSizeBytes: Buffer.byteLength(raw.text, "utf8"),
-          estMinutes: raw.estMinutes || 15,
-          difficulty: 3,
-          topicTags: [],
-        });
-      }
+          return {
+            fileId,
+            title: raw.title,
+            contentRef: {
+              type: raw.startPage != null ? "page" : raw.startSlide != null ? "slide" : "word",
+              startIndex: raw.startPage || raw.startSlide || raw.startWord || 0,
+              endIndex: raw.endPage || raw.endSlide || raw.endWord || 0,
+            },
+            textBlobPath,
+            textSizeBytes: Buffer.byteLength(raw.text, "utf8"),
+            estMinutes: raw.estMinutes || 15,
+            difficulty: 3,
+            topicTags: [],
+          };
+        })
+      );
 
-      // Resolve the parent course
-      const fileData = (await fileRef.get()).data();
-      const courseId = fileData?.courseId || null;
-
-      // Batch-write section metadata
-      const batch = db.batch();
-      sections.forEach((sec, i) => {
-        const ref = db.collection(`users/${uid}/sections`).doc();
-        batch.set(ref, {
+      // Batch-write section metadata (handles >500 docs automatically)
+      const items = sections.map((sec, i) => ({
+        ref: db.collection(`users/${uid}/sections`).doc(),
+        data: {
           ...sec,
           courseId,
           orderIndex: i,
           aiStatus: "PENDING",
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-      });
-      await batch.commit();
+        },
+      }));
+      await batchSet(items);
 
       // Mark file as ready
       await fileRef.set(
