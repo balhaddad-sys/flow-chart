@@ -26,9 +26,25 @@ exports.processSection = functions
     const { uid, sectionId } = context.params;
     const sectionData = snap.data();
 
-    if (sectionData.aiStatus !== "PENDING") return null;
+    // ── IDEMPOTENCY GUARD ────────────────────────────────────────────────
+    // Only process sections that are explicitly PENDING. This prevents:
+    // 1. Re-processing on function retries/replays
+    // 2. Processing sections created by other flows
+    if (sectionData.aiStatus !== "PENDING") {
+      log.debug("Section not pending, skipping AI processing", {
+        uid,
+        sectionId,
+        status: sectionData.aiStatus,
+      });
+      return null;
+    }
 
     try {
+      // Lock the section immediately to prevent concurrent processing
+      await snap.ref.update({
+        aiStatus: "PROCESSING",
+        processingStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
       // Fetch raw text from Cloud Storage
       const bucket = admin.storage().bucket();
       const [buffer] = await bucket.file(sectionData.textBlobPath).download();

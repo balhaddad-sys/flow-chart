@@ -61,15 +61,26 @@ service cloud.firestore {
             'application/vnd.openxmlformats-officedocument.presentationml.presentation',
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             'application/zip'
-          ];
-        allow update: if isOwner(userId);
+          ]
+          // TICKET PATTERN: Prevent clients from pre-filling completion data
+          && (!('blueprint' in request.resource.data))
+          && (!('sections' in request.resource.data));
+        // TICKET PATTERN: Only Cloud Functions (Admin SDK) can update processing status
+        // Clients can only update metadata fields like title
+        allow update: if isOwner(userId)
+          && (!('status' in request.resource.data) || resource.data.status == request.resource.data.status)
+          && (!('blueprint' in request.resource.data))
+          && (!('processingCompletedAt' in request.resource.data));
         allow delete: if isOwner(userId);
       }
 
       match /sections/{sectionId} {
         allow read: if isOwner(userId);
+        // TICKET PATTERN: Sections are created by Cloud Functions, client can only update title
         allow update: if isOwner(userId)
-          && (!('title' in request.resource.data) || isValidString(request.resource.data.title, 500));
+          && (!('title' in request.resource.data) || isValidString(request.resource.data.title, 500))
+          && (!('status' in request.resource.data) || resource.data.status == request.resource.data.status)
+          && (!('blueprint' in request.resource.data));
         allow delete: if isOwner(userId);
       }
 

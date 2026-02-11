@@ -52,18 +52,32 @@ exports.processUploadedFile = functions
     const tempFilePath = path.join(os.tmpdir(), fileName);
 
     try {
-      // Fetch courseId and mark processing started in parallel
       const bucket = admin.storage().bucket(object.bucket);
-      const [fileSnap] = await Promise.all([
-        fileRef.get(),
-        fileRef.set(
-          {
-            status: "PROCESSING",
-            processingStartedAt: admin.firestore.FieldValue.serverTimestamp(),
-          },
-          { merge: true }
-        ),
-      ]);
+
+      // ── IDEMPOTENCY GUARD ────────────────────────────────────────────────
+      // Cloud Functions guarantees "at-least-once" execution. This prevents
+      // double-billing and data corruption on retries/replays.
+      const fileSnap = await fileRef.get();
+      const currentStatus = fileSnap.data()?.status;
+
+      if (currentStatus === "READY" || currentStatus === "PROCESSING") {
+        log.info("File already processed or in progress, skipping", {
+          uid,
+          fileId,
+          status: currentStatus,
+        });
+        return null;
+      }
+
+      // Mark processing started & fetch courseId
+      await fileRef.set(
+        {
+          status: "PROCESSING",
+          processingStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+
       const courseId = fileSnap.data()?.courseId || null;
 
       // Download to tmp

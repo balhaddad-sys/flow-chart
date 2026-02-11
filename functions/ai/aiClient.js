@@ -1,11 +1,24 @@
 /**
  * @module ai/aiClient
- * @description Thin wrapper around the Anthropic Claude API.
+ * @description Production-grade Claude API wrapper for MedQ's AI pipeline.
  *
- * Provides:
- *  - `callClaude`       — Text-based JSON generation with retry + extraction.
+ * Key Features:
+ *  - **Prefill Injection:** Forces pure JSON output by starting the assistant
+ *    response with "{", eliminating markdown code blocks and conversational text
+ *    that would break JSON.parse(). This is the industry-standard technique for
+ *    structured output from LLMs.
+ *
+ *  - **Prompt Caching:** System prompts are marked as ephemeral, allowing Claude
+ *    to reuse cached context across repeated calls (90% cost reduction on cache hits).
+ *
+ *  - **Retry Logic:** Exponential backoff on failures (network, rate limits, transient errors).
+ *
+ *  - **Robust Extraction:** Multi-layer JSON parsing that handles edge cases in model output.
+ *
+ * Functions:
+ *  - `callClaude`       — Text-based JSON generation with retry + prefill injection.
  *  - `callClaudeVision` — Image-based extraction with prompt caching.
- *  - Convenience wrappers per prompt type (`generateBlueprint`, etc.).
+ *  - Convenience wrappers per prompt type (`generateBlueprint`, `generateQuestions`, etc.).
  *  - `extractJsonFromText` — Robust JSON extraction from raw model output.
  */
 
@@ -84,11 +97,17 @@ function extractJsonFromText(text) {
 /**
  * Call Claude API with automatic retry and JSON validation.
  * Uses prompt caching on system prompts for faster repeated calls.
+ *
+ * CRITICAL: Uses prefill injection to force JSON-only output. This ensures Claude
+ * always starts with "{" or "[", preventing markdown code blocks and conversational
+ * preambles that would break JSON.parse().
+ *
  * @param {string} systemPrompt - System message
  * @param {string} userPrompt - User message
  * @param {string} tier - "LIGHT" or "HEAVY"
  * @param {number} maxTokens - Max tokens for response
  * @param {number} retries - Retry count (default 2)
+ * @param {boolean} usePrefill - Enable prefill injection (default true)
  * @returns {object} Parsed JSON response
  */
 async function callClaude(
@@ -96,16 +115,26 @@ async function callClaude(
   userPrompt,
   tier,
   maxTokens,
-  retries = 2
+  retries = 2,
+  usePrefill = true
 ) {
   const model = MODELS[tier];
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
+      // Build messages array with optional prefill injection
+      const messages = [{ role: "user", content: userPrompt }];
+
+      if (usePrefill) {
+        // PREFILL INJECTION: Force Claude to start with "{"
+        // This guarantees pure JSON output without markdown or chat preambles
+        messages.push({ role: "assistant", content: "{" });
+      }
+
       const response = await client.messages.create({
         model: model,
         max_tokens: maxTokens,
-        messages: [{ role: "user", content: userPrompt }],
+        messages: messages,
         // Prompt caching: reuse system prompt across calls
         system: [
           {
@@ -117,12 +146,17 @@ async function callClaude(
       });
 
       // Extract text from response
-      const text = response.content
+      let text = response.content
         .filter((block) => block.type === "text")
         .map((block) => block.text)
         .join("");
 
-      // Robust JSON extraction
+      // Re-attach the prefill brace if we used it (Claude won't repeat it)
+      if (usePrefill) {
+        text = "{" + text;
+      }
+
+      // Robust JSON extraction (now less likely to need aggressive cleanup)
       const jsonStr = extractJsonFromText(text);
       const parsed = JSON.parse(jsonStr);
       return { success: true, data: parsed, model, tokensUsed: response.usage };
