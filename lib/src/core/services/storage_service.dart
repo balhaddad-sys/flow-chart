@@ -21,6 +21,9 @@ class StorageService {
     'zip': 'application/zip',
   };
 
+  /// Maximum file size in bytes (100 MB — matches storage.rules).
+  static const int maxFileSizeBytes = 100 * 1024 * 1024;
+
   /// Pick a file from the device.
   Future<PlatformFile?> pickFile() async {
     final result = await FilePicker.platform.pickFiles(
@@ -38,6 +41,14 @@ class StorageService {
       throw UnsupportedError(
         'Unsupported file type: .${ext ?? 'unknown'}. '
         'Please select a PDF, PPTX, DOCX, or ZIP file.',
+      );
+    }
+
+    // Validate file size client-side
+    if (file.size > maxFileSizeBytes) {
+      throw UnsupportedError(
+        'File too large (${(file.size / 1024 / 1024).toStringAsFixed(1)} MB). '
+        'Maximum size is ${maxFileSizeBytes ~/ 1024 ~/ 1024} MB.',
       );
     }
 
@@ -80,10 +91,15 @@ class StorageService {
     }
 
     if (onProgress != null) {
+      double lastReported = -1;
       final subscription = uploadTask.snapshotEvents.listen((event) {
         if (event.totalBytes > 0) {
           final progress = event.bytesTransferred / event.totalBytes;
-          onProgress(progress);
+          // Throttle: only report if progress changed by >= 1%
+          if ((progress - lastReported).abs() >= 0.01 || progress >= 1.0) {
+            lastReported = progress;
+            onProgress(progress);
+          }
         }
       });
       try {
