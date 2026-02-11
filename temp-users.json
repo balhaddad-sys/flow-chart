@@ -1,0 +1,37 @@
+{"users": [
+{
+  "localId": "OvNFOBJcx4Uk50lMDc8wWiXyOdw1",
+  "email": "b.alhaddad13@gmail.com",
+  "emailVerified": true,
+  "displayName": "Bader Ahaddad",
+  "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocK2UETE0SDANaFsIqw6m1Rj7b-d_kF2G0-Hbtoy-vn-DzSOhw=s96-c",
+  "lastSignedInAt": "1770828177740",
+  "createdAt": "1770562988981",
+  "providerUserInfo": [
+    {
+      "providerId": "google.com",
+      "rawId": "111456606080301506975",
+      "email": "b.alhaddad13@gmail.com",
+      "displayName": "Bader Ahaddad",
+      "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocK2UETE0SDANaFsIqw6m1Rj7b-d_kF2G0-Hbtoy-vn-DzSOhw=s96-c"
+    }
+  ]
+},
+{
+  "localId": "opNMARMZ1CdyyJ5ByJhGCTm0T2m1",
+  "email": "bader.alhaddad.17@um.edu.mt",
+  "emailVerified": true,
+  "displayName": "Bader Alhaddad",
+  "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocL-L8UoaeOElIK-mnC8lPSmdV-CQGaYCLUBMr_9ShGZ1UgRtg=s96-c",
+  "lastSignedInAt": "1770808950640",
+  "createdAt": "1770808950639",
+  "providerUserInfo": [
+    {
+      "providerId": "google.com",
+      "rawId": "104912580513514490238",
+      "email": "bader.alhaddad.17@um.edu.mt",
+      "displayName": "Bader Alhaddad",
+      "photoUrl": "https://lh3.googleusercontent.com/a/ACg8ocL-L8UoaeOElIK-mnC8lPSmdV-CQGaYCLUBMr_9ShGZ1UgRtg=s96-c"
+    }
+  ]
+}]}
