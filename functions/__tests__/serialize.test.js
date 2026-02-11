@@ -189,16 +189,25 @@ describe("lib/serialize", () => {
       expect(normaliseTutorResponse({ tutor: {} })).toBeNull();
     });
 
+    it("returns null when only correct_answer is present (missing why_correct)", () => {
+      expect(normaliseTutorResponse({ correct_answer: "A" })).toBeNull();
+    });
+
+    it("returns null when only why_correct is present (missing correct_answer)", () => {
+      expect(normaliseTutorResponse({ why_correct: "Because..." })).toBeNull();
+    });
+
     it("defaults missing string fields to empty string", () => {
-      const raw = { correct_answer: "A" };
+      const raw = { correct_answer: "A", why_correct: "Because A is right" };
       const result = normaliseTutorResponse(raw);
-      expect(result.whyCorrect).toBe("");
+      expect(result.correctAnswer).toBe("A");
+      expect(result.whyCorrect).toBe("Because A is right");
       expect(result.whyStudentWrong).toBe("");
       expect(result.keyTakeaway).toBe("");
     });
 
     it("defaults follow_ups to empty array when not an array", () => {
-      const raw = { correct_answer: "A", follow_ups: "not-an-array" };
+      const raw = { correct_answer: "A", why_correct: "Because A", follow_ups: "not-an-array" };
       const result = normaliseTutorResponse(raw);
       expect(result.followUps).toEqual([]);
     });
