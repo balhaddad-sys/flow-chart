@@ -15,7 +15,20 @@ const MAX_TOKENS = {
   documentExtract: 1200,
 };
 
-const client = new Anthropic(); // Uses ANTHROPIC_API_KEY env variable
+let client = null;
+
+function getClient() {
+  if (!client) {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      throw new Error(
+        "ANTHROPIC_API_KEY is not configured. Set Firebase secret ANTHROPIC_API_KEY."
+      );
+    }
+    client = new Anthropic({ apiKey });
+  }
+  return client;
+}
 
 /**
  * Robust JSON extraction: handles code fences, leading/trailing text,
@@ -82,6 +95,7 @@ async function callClaude(
   maxTokens,
   retries = 2
 ) {
+  const client = getClient();
   const model = MODELS[tier];
 
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -147,6 +161,7 @@ async function callClaudeVision({
   maxTokens,
   retries = 2,
 }) {
+  const client = getClient();
   const model = MODELS[tier];
   const t0 = Date.now();
 

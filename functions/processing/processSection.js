@@ -12,7 +12,11 @@ const storage = new Storage();
  * fetch its text from Storage and generate a blueprint via AI.
  */
 exports.processSection = functions
-  .runWith({ timeoutSeconds: 120, memory: "512MB" })
+  .runWith({
+    timeoutSeconds: 120,
+    memory: "512MB",
+    secrets: ["ANTHROPIC_API_KEY"],
+  })
   .firestore.document("users/{uid}/sections/{sectionId}")
   .onCreate(async (snap, context) => {
     const { uid, sectionId } = context.params;

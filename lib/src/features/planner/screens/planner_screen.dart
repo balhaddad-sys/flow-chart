@@ -5,6 +5,7 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../models/course_model.dart';
 import '../../home/providers/home_provider.dart';
 import '../providers/planner_provider.dart';
 import '../widgets/day_header.dart';
@@ -38,9 +39,38 @@ class PlannerScreen extends ConsumerWidget {
             tooltip: 'Regenerate schedule',
             onPressed: () async {
               try {
-                await ref
-                    .read(cloudFunctionsServiceProvider)
-                    .regenSchedule(courseId: activeCourseId);
+                final functions = ref.read(cloudFunctionsServiceProvider);
+                final user = await ref.read(userModelProvider.future);
+                final courses = ref.read(coursesProvider).valueOrNull ?? const [];
+                CourseModel? course;
+                for (final c in courses) {
+                  if (c.id == activeCourseId) {
+                    course = c;
+                    break;
+                  }
+                }
+                final availabilityData = course?.availability;
+
+                final availability = <String, dynamic>{
+                  'defaultMinutesPerDay': user?.preferences.dailyMinutesDefault ?? 120,
+                  'excludedDates': availabilityData?.excludedDates ?? const <String>[],
+                  'perDayOverrides': <String, int>{
+                    if (availabilityData?.monday != null) 'monday': availabilityData!.monday!,
+                    if (availabilityData?.tuesday != null) 'tuesday': availabilityData!.tuesday!,
+                    if (availabilityData?.wednesday != null) 'wednesday': availabilityData!.wednesday!,
+                    if (availabilityData?.thursday != null) 'thursday': availabilityData!.thursday!,
+                    if (availabilityData?.friday != null) 'friday': availabilityData!.friday!,
+                    if (availabilityData?.saturday != null) 'saturday': availabilityData!.saturday!,
+                    if (availabilityData?.sunday != null) 'sunday': availabilityData!.sunday!,
+                  },
+                };
+
+                await functions.regenSchedule(courseId: activeCourseId);
+                await functions.generateSchedule(
+                  courseId: activeCourseId,
+                  availability: availability,
+                  revisionPolicy: user?.preferences.revisionPolicy ?? 'standard',
+                );
                 ref.invalidate(allTasksProvider(activeCourseId));
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

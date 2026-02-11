@@ -12,7 +12,10 @@ const db = admin.firestore();
  * Logs the attempt, updates question stats, and returns tutor response if wrong.
  */
 exports.submitAttempt = functions
-  .runWith({ timeoutSeconds: 60 })
+  .runWith({
+    timeoutSeconds: 60,
+    secrets: ["ANTHROPIC_API_KEY"],
+  })
   .https.onCall(async (data, context) => {
     const uid = requireAuth(context);
     requireStrings(data, [{ field: "questionId", maxLen: 128 }]);

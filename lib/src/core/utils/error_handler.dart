@@ -20,44 +20,32 @@ class ErrorHandler {
     return 'Something went wrong. Please try again.';
   }
 
+  static final Map<String, String> _authErrorMessages = {
+    'user-not-found': 'No account found with this email.',
+    'wrong-password': 'Incorrect password.',
+    'email-already-in-use': 'An account already exists with this email.',
+    'weak-password': 'Password is too weak. Use at least 6 characters.',
+    'invalid-email': 'Invalid email address.',
+    'too-many-requests': 'Too many attempts. Please wait and try again.',
+    'popup-closed-by-user': 'Sign-in was cancelled.',
+    'popup-blocked': 'Pop-up blocked by browser. Please allow pop-ups and try again.',
+    'account-exists-with-different-credential':
+        'An account already exists with this email using a different sign-in method.',
+    'redirect-failed': 'Google Sign-In redirect did not complete. Please try again.',
+  };
+
   static String _authError(FirebaseAuthException error) {
-    switch (error.code) {
-      case 'user-not-found':
-        return 'No account found with this email.';
-      case 'wrong-password':
-        return 'Incorrect password.';
-      case 'email-already-in-use':
-        return 'An account already exists with this email.';
-      case 'weak-password':
-        return 'Password is too weak. Use at least 6 characters.';
-      case 'invalid-email':
-        return 'Invalid email address.';
-      case 'too-many-requests':
-        return 'Too many attempts. Please wait and try again.';
-      case 'popup-closed-by-user':
-        return 'Sign-in was cancelled.';
-      case 'popup-blocked':
-        return 'Pop-up blocked by browser. Please allow pop-ups and try again.';
-      case 'account-exists-with-different-credential':
-        return 'An account already exists with this email using a different sign-in method.';
-      case 'redirect-failed':
-        return 'Google Sign-In redirect did not complete. Please try again.';
-      default:
-        return 'Authentication error. Please try again.';
-    }
+    return _authErrorMessages[error.code] ?? 'Authentication error. Please try again.';
   }
 
+  static final Map<String, String> _firebaseErrorMessages = {
+    'permission-denied': 'Permission denied. Please sign in again.',
+    'unavailable': 'Service unavailable. Check your connection.',
+    'not-found': 'The requested data was not found.',
+  };
+
   static String _firebaseError(FirebaseException error) {
-    switch (error.code) {
-      case 'permission-denied':
-        return 'Permission denied. Please sign in again.';
-      case 'unavailable':
-        return 'Service unavailable. Check your connection.';
-      case 'not-found':
-        return 'The requested data was not found.';
-      default:
-        return 'A server error occurred. Please try again.';
-    }
+    return _firebaseErrorMessages[error.code] ?? 'A server error occurred. Please try again.';
   }
 
   /// Log error for debugging (non-production).

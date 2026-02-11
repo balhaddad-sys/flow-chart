@@ -1,42 +1,48 @@
-const admin = require("firebase-admin");
+/**
+ * @module middleware/rateLimit
+ * @description Per-user, per-operation sliding-window rate limiter.
+ *
+ * Primary state lives in Firestore (`_rateLimits/{uid}:{operation}`) so that
+ * limits are enforced consistently across Cloud Functions instances.  A
+ * short-lived in-memory cache (10 s TTL) avoids a Firestore read on every
+ * call.  If the Firestore transaction fails for any reason other than an
+ * already-raised rate-limit error, the limiter falls back to in-memory
+ * tracking to avoid blocking legitimate requests.
+ */
 
+const functions = require("firebase-functions");
+const admin = require("firebase-admin");
 const db = admin.firestore();
 
-/**
- * In-memory rate limiter backed by Firestore for persistence across instances.
- * Uses a sliding window counter pattern.
- *
- * Rate limits are per-user, per-function.
- */
+// ── In-memory cache ──────────────────────────────────────────────────────────
 
-// In-memory cache to avoid Firestore reads on every call
 const cache = new Map();
-const CACHE_TTL_MS = 10_000; // 10 seconds
+const CACHE_TTL_MS = 10_000;
+
+// ── Core ─────────────────────────────────────────────────────────────────────
 
 /**
- * Check and enforce rate limit for a user + operation.
- * @param {string} uid - User ID
- * @param {string} operation - Operation name (e.g., "generateQuestions")
- * @param {object} limits - { maxCalls: number, windowMs: number }
- * @returns {Promise<void>} Resolves if allowed, throws HttpsError if rate limited
+ * Enforce the rate limit for a given user + operation pair.
+ *
+ * @param {string} uid - Firebase Auth UID.
+ * @param {string} operation - Logical operation name (must match a key in {@link RATE_LIMITS}).
+ * @param {{ maxCalls: number, windowMs: number }} limits
+ * @returns {Promise<void>} Resolves when the call is allowed.
+ * @throws {functions.https.HttpsError} `resource-exhausted` when the limit is exceeded.
  */
 async function checkRateLimit(uid, operation, { maxCalls, windowMs }) {
-  const functions = require("firebase-functions");
   const key = `${uid}:${operation}`;
   const now = Date.now();
 
-  // Check in-memory cache first
+  // Fast-path: reject from cache if already at the limit.
   const cached = cache.get(key);
-  if (cached && now - cached.timestamp < CACHE_TTL_MS) {
-    if (cached.count >= maxCalls) {
-      throw new functions.https.HttpsError(
-        "resource-exhausted",
-        `Rate limit exceeded for ${operation}. Please wait before trying again.`
-      );
-    }
+  if (cached && now - cached.timestamp < CACHE_TTL_MS && cached.count >= maxCalls) {
+    throw new functions.https.HttpsError(
+      "resource-exhausted",
+      `Rate limit exceeded for ${operation}. Please wait before trying again.`
+    );
   }
 
-  // Check Firestore for persistent rate tracking
   const rateLimitRef = db.doc(`_rateLimits/${key}`);
 
   try {
@@ -44,7 +50,6 @@ async function checkRateLimit(uid, operation, { maxCalls, windowMs }) {
       const doc = await txn.get(rateLimitRef);
       const data = doc.exists ? doc.data() : { calls: [], createdAt: now };
 
-      // Filter calls within the window
       const windowStart = now - windowMs;
       const recentCalls = (data.calls || []).filter((t) => t > windowStart);
 
@@ -52,7 +57,6 @@ async function checkRateLimit(uid, operation, { maxCalls, windowMs }) {
         return { allowed: false, count: recentCalls.length };
       }
 
-      // Add this call
       recentCalls.push(now);
       txn.set(rateLimitRef, {
         calls: recentCalls,
@@ -62,7 +66,6 @@ async function checkRateLimit(uid, operation, { maxCalls, windowMs }) {
       return { allowed: true, count: recentCalls.length };
     });
 
-    // Update cache
     cache.set(key, { count: result.count, timestamp: now });
 
     if (!result.allowed) {
@@ -72,26 +75,39 @@ async function checkRateLimit(uid, operation, { maxCalls, windowMs }) {
       );
     }
   } catch (error) {
-    // If it's already an HttpsError (rate limit), re-throw
     if (error.code === "resource-exhausted") throw error;
 
-    // For Firestore errors, log but don't block the request
-    console.warn(`Rate limit check failed for ${key}:`, error.message);
+    // Firestore failure — degrade to in-memory tracking.
+    // This logic allows the current request to succeed to avoid blocking
+    // legitimate users during transient backend errors. Subsequent calls are
+    // then subject to the in-memory limit.
+    console.warn(`Rate limit Firestore check failed for ${key}:`, error.message);
+    const fallback = cache.get(key);
+    if (fallback) {
+      fallback.count++;
+      fallback.timestamp = now;
+    } else {
+      cache.set(key, { count: 1, timestamp: now });
+    }
   }
 }
 
+// ── Predefined limits ────────────────────────────────────────────────────────
+
 /**
- * Predefined rate limits for different operations.
+ * Rate-limit presets for every callable endpoint.
+ * Format: `{ maxCalls, windowMs }`.
  */
 const RATE_LIMITS = {
-  generateQuestions: { maxCalls: 10, windowMs: 60_000 },     // 10/min
-  generateSchedule: { maxCalls: 5, windowMs: 60_000 },       // 5/min
-  regenSchedule: { maxCalls: 5, windowMs: 60_000 },          // 5/min
-  submitAttempt: { maxCalls: 60, windowMs: 60_000 },          // 60/min
-  getQuiz: { maxCalls: 30, windowMs: 60_000 },               // 30/min
-  catchUp: { maxCalls: 5, windowMs: 60_000 },                // 5/min
-  processDocumentBatch: { maxCalls: 5, windowMs: 300_000 },   // 5/5min
-  deleteUserData: { maxCalls: 1, windowMs: 3_600_000 },       // 1/hour
+  generateQuestions:    { maxCalls: 10, windowMs:    60_000 },
+  generateSchedule:    { maxCalls:  5, windowMs:    60_000 },
+  regenSchedule:       { maxCalls:  5, windowMs:    60_000 },
+  submitAttempt:       { maxCalls: 60, windowMs:    60_000 },
+  getQuiz:             { maxCalls: 30, windowMs:    60_000 },
+  catchUp:             { maxCalls:  5, windowMs:    60_000 },
+  processDocumentBatch:{ maxCalls:  5, windowMs:   300_000 },
+  deleteUserData:      { maxCalls:  1, windowMs: 3_600_000 },
+  runFixPlan:          { maxCalls:  3, windowMs:    60_000 },
 };
 
 module.exports = { checkRateLimit, RATE_LIMITS };

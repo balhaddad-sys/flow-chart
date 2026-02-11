@@ -12,7 +12,11 @@ const db = admin.firestore();
  * Pre-generates 10-20 questions and stores them permanently.
  */
 exports.generateQuestions = functions
-  .runWith({ timeoutSeconds: 120, memory: "512MB" })
+  .runWith({
+    timeoutSeconds: 120,
+    memory: "512MB",
+    secrets: ["ANTHROPIC_API_KEY"],
+  })
   .https.onCall(async (data, context) => {
     const uid = requireAuth(context);
     requireStrings(data, [

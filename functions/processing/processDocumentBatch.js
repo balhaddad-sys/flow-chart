@@ -1,5 +1,6 @@
 const functions = require("firebase-functions");
 const pLimit = require("p-limit");
+const { checkRateLimit, RATE_LIMITS } = require("../middleware/rateLimit");
 const { callClaudeVision, MAX_TOKENS } = require("../ai/aiClient");
 const {
   DOCUMENT_EXTRACT_SYSTEM,
@@ -121,6 +122,7 @@ exports.processDocumentBatch = functions
   .runWith({
     timeoutSeconds: 120,
     memory: "1GB",
+    secrets: ["ANTHROPIC_API_KEY"],
   })
   .https.onCall(async (data, context) => {
     const start = Date.now();
@@ -134,6 +136,7 @@ exports.processDocumentBatch = functions
     }
 
     const uid = context.auth.uid;
+    await checkRateLimit(uid, "processDocumentBatch", RATE_LIMITS.processDocumentBatch);
     const { images, concurrency } = data;
 
     // ── Validate input ──────────────────────────────────────────────────
