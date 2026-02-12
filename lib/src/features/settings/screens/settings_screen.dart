@@ -11,6 +11,7 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../core/widgets/course_selector_sheet.dart';
+import '../../../models/course_model.dart';
 import '../../home/providers/home_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {

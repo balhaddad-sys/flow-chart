@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dart run build_runner:*)",
+      "Bash(node -e:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nComprehensive deep fix: security, performance, reliability, and consistency\n\nSECURITY FIXES \\(CRITICAL\\):\n- Firestore rules: Prevent clients from modifying question correctIndex,\n  options, stem, and explanation fields \\(prevents answer tampering\\)\n- Firestore rules: Block client writes to processingPhase field\n- Input sanitization: All AI-generated text \\(questions, blueprints, tutor\n  responses\\) now sanitized against XSS/HTML injection before storage\n- getQuiz: Require sectionId for section mode, topicTag for topic mode\n  to prevent unfiltered queries returning all questions\n\nRELIABILITY FIXES \\(CRITICAL\\):\n- AI client: Lazy-initialize Anthropic client at invocation time instead\n  of module load time \\(Firebase secrets aren''t available at load time\\)\n- processSection: Atomic transaction lock prevents race conditions where\n  two function instances process the same section simultaneously\n- processFile: Clear processingPhase on failure to prevent stuck UI state\n- processFile: Wrapped error handler and temp file cleanup in try-catch\n  to prevent silent failures and orphaned temp files\n- submitAttempt: Deterministic attempt IDs prevent duplicate submissions\n  on function retries; use atomic FieldValue.increment\\(\\) for stats\n- processDocumentBatch: Added ANTHROPIC_API_KEY secret declaration\n- submitAttempt: Added ANTHROPIC_API_KEY secret declaration\n\nPERFORMANCE FIXES:\n- All extractors \\(PDF, DOCX, PPTX\\): Changed from synchronous\n  fs.readFileSync\\(\\) to async fs.promises.readFile\\(\\) to avoid blocking\n  the Cloud Functions event loop on large documents\n- Added 4 new composite Firestore indexes for efficient querying:\n  * questions by courseId + topicTags \\(array-contains\\)\n  * attempts by questionId + createdAt\n  * attempts by courseId + isCorrect + createdAt\n  * tasks by courseId + dueDate + status\n\nCONSISTENCY FIXES:\n- Added centralized AI constants to lib/constants.js \\(AI_MODEL,\n  AI_MAX_TOKENS, AI_MAX_RETRIES, timeout constants\\)\n- Created lib/sanitize.js module for reusable text sanitization\n- Integrated sanitization into serialize.js for all AI outputs\n- Enhanced error logging with stack traces, phases, and timestamps\n\nFiles changed: 14 \\(13 modified, 1 new\\)\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git reset:*)"
+    ]
+  }
+}
