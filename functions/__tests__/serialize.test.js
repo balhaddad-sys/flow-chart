@@ -67,7 +67,12 @@ describe("lib/serialize", () => {
       tags: ["cardio", "anatomy"],
       explanation: {
         correct_why: "The LV pumps oxygenated blood systemically.",
-        why_others_wrong: "Other options describe different structures.",
+        why_others_wrong: [
+          "Pumps to lungs is RV function",
+          "Body is correct (this is the answer)",
+          "Filtering is kidney function",
+          "Storage is not a cardiac chamber function"
+        ],
         key_takeaway: "LV = systemic pump.",
       },
       source_ref: { sectionLabel: "Heart Chambers" },
@@ -84,7 +89,12 @@ describe("lib/serialize", () => {
       expect(result.topicTags).toEqual(["cardio", "anatomy"]);
       expect(result.type).toBe("SBA");
       expect(result.explanation.correctWhy).toBe("The LV pumps oxygenated blood systemically.");
-      expect(result.explanation.whyOthersWrong).toBe("Other options describe different structures.");
+      expect(result.explanation.whyOthersWrong).toEqual([
+        "Pumps to lungs is RV function",
+        "Body is correct (this is the answer)",
+        "Filtering is kidney function",
+        "Storage is not a cardiac chamber function"
+      ]);
       expect(result.explanation.keyTakeaway).toBe("LV = systemic pump.");
       expect(result.sourceRef.fileId).toBe("f1");
       expect(result.sourceRef.sectionId).toBe("s1");
