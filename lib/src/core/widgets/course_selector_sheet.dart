@@ -247,9 +247,7 @@ class _CourseListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final daysUntilExam = course.examDate != null
-        ? course.examDate!.difference(DateTime.now()).inDays
-        : null;
+    final daysUntilExam = course.examDate?.difference(DateTime.now()).inDays;
 
     return Material(
       color: isActive

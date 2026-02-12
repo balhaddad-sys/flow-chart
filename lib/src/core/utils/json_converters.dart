@@ -94,7 +94,7 @@ class SafeStringConverter implements JsonConverter<String, dynamic> {
 /// Converts dynamic input to List<String>, with fallback to empty list.
 ///
 /// Handles:
-/// - List<dynamic> → List<String> (converts each item)
+/// - List\<dynamic\> → List\<String\> (converts each item)
 /// - null → []
 /// - String → [String] (single-item list)
 /// - Non-list → [] (invalid data)

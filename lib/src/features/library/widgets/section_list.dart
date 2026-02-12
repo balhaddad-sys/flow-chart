@@ -66,12 +66,12 @@ class SectionList extends ConsumerWidget {
                         borderRadius:
                             BorderRadius.circular(AppSpacing.radiusFull),
                       ),
-                      child: Row(
+                      child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.quiz_rounded,
                               size: 12, color: AppColors.secondary),
-                          const SizedBox(width: 3),
+                          SizedBox(width: 3),
                           Text(
                             'Quiz',
                             style: TextStyle(

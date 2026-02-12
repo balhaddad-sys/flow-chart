@@ -281,14 +281,16 @@ class SettingsScreen extends ConsumerWidget {
             padding: AppSpacing.screenHorizontal,
             child: coursesAsync.when(
               data: (courses) {
-                final activeCourse = activeCourseId != null
-                    ? courses
-                        .cast<dynamic>()
-                        .firstWhere((c) => c.id == activeCourseId,
-                            orElse: () => null)
-                    : courses.isNotEmpty
-                        ? courses.first
-                        : null;
+                CourseModel? activeCourse;
+                if (activeCourseId != null) {
+                  try {
+                    activeCourse = courses.firstWhere((c) => c.id == activeCourseId);
+                  } catch (_) {
+                    activeCourse = null;
+                  }
+                } else if (courses.isNotEmpty) {
+                  activeCourse = courses.first;
+                }
 
                 return Material(
                   color: isDark ? AppColors.darkSurface : AppColors.surface,
@@ -318,7 +320,7 @@ class SettingsScreen extends ConsumerWidget {
                             ),
                             child: Center(
                               child: Text(
-                                activeCourse != null
+                                (activeCourse != null && activeCourse.title.isNotEmpty)
                                     ? activeCourse.title[0].toUpperCase()
                                     : '?',
                                 style: const TextStyle(

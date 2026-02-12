@@ -82,7 +82,7 @@ class AuthService {
       idToken: googleAuth.idToken,
     );
 
-    return await _auth.signInWithCredential(credential);
+    return _auth.signInWithCredential(credential);
   }
 
   Future<void> signOut() async {
