@@ -42,11 +42,24 @@ const MAX_TOKENS = {
 // Retry delays in ms — fast retries to keep pipeline latency low
 const RETRY_DELAYS = [500, 1500, 4000];
 
-if (!process.env.ANTHROPIC_API_KEY) {
-  console.error("ANTHROPIC_API_KEY environment variable is not set. AI features will fail.");
-}
+// Lazy-initialized Anthropic client.
+// Firebase secrets are only available at function invocation time, NOT at module load.
+// So we create the client on first use rather than at import time.
+let _client = null;
 
-const client = new Anthropic(); // Uses ANTHROPIC_API_KEY env variable
+function getClient() {
+  if (_client) return _client;
+
+  if (!process.env.ANTHROPIC_API_KEY) {
+    throw new Error(
+      "ANTHROPIC_API_KEY environment variable is not set. " +
+      "Ensure the function declares `secrets: [anthropicApiKey]` in runWith()."
+    );
+  }
+
+  _client = new Anthropic();
+  return _client;
+}
 
 /**
  * Robust JSON extraction: handles code fences, leading/trailing text,
@@ -134,7 +147,7 @@ async function callClaude(
         messages.push({ role: "assistant", content: "{" });
       }
 
-      const response = await client.messages.create({
+      const response = await getClient().messages.create({
         model: model,
         max_tokens: maxTokens,
         messages: messages,
@@ -213,7 +226,7 @@ async function callClaudeVision({
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const response = await client.messages.create({
+      const response = await getClient().messages.create({
         model,
         max_tokens: maxTokens,
         temperature: 0,

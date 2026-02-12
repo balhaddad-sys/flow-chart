@@ -21,6 +21,9 @@ const {
   DEFAULT_VISION_CONCURRENCY,
   MAX_VISION_CONCURRENCY,
 } = require("../lib/constants");
+
+// Define the secret so the function can access it (used by callClaudeVision)
+const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
 const { clampInt } = require("../lib/utils");
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -91,7 +94,11 @@ async function analyzeSinglePage(base64Image, pageIndex) {
 // ── Callable ─────────────────────────────────────────────────────────────────
 
 exports.processDocumentBatch = functions
-  .runWith({ timeoutSeconds: 120, memory: "1GB" })
+  .runWith({
+    timeoutSeconds: 120,
+    memory: "1GB",
+    secrets: [anthropicApiKey],
+  })
   .https.onCall(async (data, context) => {
     const start = Date.now();
 

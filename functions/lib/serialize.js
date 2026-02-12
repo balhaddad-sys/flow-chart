@@ -6,7 +6,11 @@
  * Firestore documents and the Flutter client use `camelCase`.  This module
  * provides explicit, schema-aware transformers so that the mapping is defined
  * in one place rather than scattered across every consumer.
+ *
+ * SECURITY: All text fields are sanitized before storage to prevent stored XSS.
  */
+
+const { sanitizeText, sanitizeArray } = require("./sanitize");
 
 /**
  * Transform a raw AI blueprint response into the Firestore schema.
@@ -16,16 +20,16 @@
  */
 function normaliseBlueprint(raw) {
   return {
-    title: raw.title || "",
+    title: sanitizeText(raw.title) || "",
     difficulty: raw.difficulty || 3,
     estMinutes: raw.estimated_minutes || 15,
-    topicTags: raw.topic_tags || [],
+    topicTags: sanitizeArray(raw.topic_tags || []),
     blueprint: {
-      learningObjectives: raw.learning_objectives || [],
-      keyConcepts:        raw.key_concepts || [],
-      highYieldPoints:    raw.high_yield_points || [],
-      commonTraps:        raw.common_traps || [],
-      termsToDefine:      raw.terms_to_define || [],
+      learningObjectives: sanitizeArray(raw.learning_objectives || []),
+      keyConcepts:        sanitizeArray(raw.key_concepts || []),
+      highYieldPoints:    sanitizeArray(raw.high_yield_points || []),
+      commonTraps:        sanitizeArray(raw.common_traps || []),
+      termsToDefine:      sanitizeArray(raw.terms_to_define || []),
     },
   };
 }
@@ -49,21 +53,21 @@ function normaliseQuestion(raw, defaults) {
   const { truncate } = require("./utils");
 
   return {
-    topicTags:    Array.isArray(raw.tags) ? raw.tags.slice(0, 10) : (defaults.topicTags || []),
+    topicTags:    sanitizeArray(Array.isArray(raw.tags) ? raw.tags.slice(0, 10) : (defaults.topicTags || [])),
     difficulty:   Math.min(5, Math.max(1, raw.difficulty || 3)),
     type:         "SBA",
-    stem:         truncate(raw.stem, 2000),
-    options:      raw.options.slice(0, 8).map((o) => truncate(o, 500)),
+    stem:         sanitizeText(truncate(raw.stem, 2000)),
+    options:      raw.options.slice(0, 8).map((o) => sanitizeText(truncate(o, 500))),
     correctIndex: Math.min(raw.options.length - 1, Math.max(0, raw.correct_index)),
     explanation: {
-      correctWhy:    truncate(raw.explanation?.correct_why, 1000),
-      whyOthersWrong: truncate(raw.explanation?.why_others_wrong, 2000),
-      keyTakeaway:   truncate(raw.explanation?.key_takeaway, 500),
+      correctWhy:    sanitizeText(truncate(raw.explanation?.correct_why, 1000)),
+      whyOthersWrong: sanitizeText(truncate(raw.explanation?.why_others_wrong, 2000)),
+      keyTakeaway:   sanitizeText(truncate(raw.explanation?.key_takeaway, 500)),
     },
     sourceRef: {
       fileId:    defaults.fileId,
       sectionId: defaults.sectionId,
-      label:     truncate(raw.source_ref?.sectionLabel || defaults.sectionTitle, 200),
+      label:     sanitizeText(truncate(raw.source_ref?.sectionLabel || defaults.sectionTitle, 200)),
     },
     stats: { timesAnswered: 0, timesCorrect: 0, avgTimeSec: 0 },
   };
@@ -80,12 +84,12 @@ function normaliseTutorResponse(raw) {
   if (!tutor.correct_answer || !tutor.why_correct) return null;
 
   return {
-    correctAnswer:  tutor.correct_answer || "",
-    whyCorrect:     tutor.why_correct || "",
-    whyStudentWrong: tutor.why_student_wrong || "",
-    keyTakeaway:    tutor.key_takeaway || "",
+    correctAnswer:  sanitizeText(tutor.correct_answer) || "",
+    whyCorrect:     sanitizeText(tutor.why_correct) || "",
+    whyStudentWrong: sanitizeText(tutor.why_student_wrong) || "",
+    keyTakeaway:    sanitizeText(tutor.key_takeaway) || "",
     followUps:      Array.isArray(tutor.follow_ups)
-      ? tutor.follow_ups.map((f) => ({ q: f.q || "", a: f.a || "" }))
+      ? tutor.follow_ups.map((f) => ({ q: sanitizeText(f.q) || "", a: sanitizeText(f.a) || "" }))
       : [],
   };
 }

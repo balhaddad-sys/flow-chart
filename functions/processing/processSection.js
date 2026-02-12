@@ -49,11 +49,24 @@ exports.processSection = functions
     }
 
     try {
-      // Lock the section immediately to prevent concurrent processing
-      await snap.ref.update({
-        aiStatus: "PROCESSING",
-        processingStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+      // ATOMIC LOCK: Use transaction to prevent race conditions
+      // If two functions trigger simultaneously, only one will succeed
+      const lockSuccess = await db.runTransaction(async (transaction) => {
+        const currentSnap = await transaction.get(snap.ref);
+        if (!currentSnap.exists || currentSnap.data().aiStatus !== "PENDING") {
+          return false; // Another instance already claimed this section
+        }
+        transaction.update(snap.ref, {
+          aiStatus: "PROCESSING",
+          processingStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        return true;
       });
+
+      if (!lockSuccess) {
+        log.info("Section already being processed by another instance", { uid, sectionId });
+        return null;
+      }
 
       log.info("Section processing started", {
         uid,
@@ -214,7 +227,27 @@ exports.processSection = functions
         totalDurationMs: Date.now() - t0,
       });
     } catch (error) {
-      log.error("Section processing failed", { uid, sectionId, error: error.message });
-      await snap.ref.update({ aiStatus: "FAILED" });
+      log.error("Section processing failed", {
+        uid,
+        sectionId,
+        error: error.message,
+        stack: error.stack,
+        phase: "UNKNOWN", // Helps identify where failure occurred
+      });
+
+      // CRITICAL: Mark section as failed so it doesn't get stuck
+      try {
+        await snap.ref.update({
+          aiStatus: "FAILED",
+          lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
+          errorMessage: error.message?.slice(0, 500) || "AI processing failed",
+        });
+      } catch (updateError) {
+        log.error("Failed to update section status to FAILED", {
+          uid,
+          sectionId,
+          updateError: updateError.message,
+        });
+      }
     }
   });

@@ -14,7 +14,8 @@ const { WORDS_PER_SECTION, MIN_CHARS_PER_SECTION } = require("../../lib/constant
  * @returns {Array<{text: string, title: string, startWord: number, endWord: number, estMinutes: number}>}
  */
 async function extractDocxSections(filePath) {
-  const buffer = fs.readFileSync(filePath);
+  // Use async I/O to avoid blocking the event loop
+  const buffer = await fs.promises.readFile(filePath);
   const result = await mammoth.extractRawText({ buffer });
   const fullText = result.value;
 

@@ -29,14 +29,24 @@ exports.getQuiz = functions.https.onCall(async (data, context) => {
   const { courseId, sectionId, topicTag } = data;
   const mode = VALID_QUIZ_MODES.has(data.mode) ? data.mode : "section";
 
+  // SECURITY: Validate mode-specific required parameters
+  // Prevents unfiltered queries that could return thousands of questions
+  if (mode === "section" && !sectionId) {
+    return fail(Errors.INVALID_ARGUMENT, "sectionId is required for section mode");
+  }
+  if (mode === "topic" && !topicTag) {
+    return fail(Errors.INVALID_ARGUMENT, "topicTag is required for topic mode");
+  }
+
   try {
     let query = db.collection(`users/${uid}/questions`).where("courseId", "==", courseId);
 
-    if (mode === "section" && sectionId) {
+    if (mode === "section") {
       query = query.where("sectionId", "==", sectionId);
-    } else if (mode === "topic" && topicTag) {
+    } else if (mode === "topic") {
       query = query.where("topicTags", "array-contains", topicTag);
     }
+    // For "mixed" or "random" modes, courseId filter is sufficient
 
     const snap = await query.limit(count * 2).get();
 

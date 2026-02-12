@@ -171,15 +171,47 @@ exports.processUploadedFile = functions
 
       log.info("File processed", { uid, fileId, sectionCount: sections.length });
     } catch (error) {
-      log.error("File processing failed", { uid, fileId, error: error.message });
-      await fileRef.set(
-        {
-          status: "FAILED",
-          errorMessage: "Document processing failed. Please re-upload the file.",
-        },
-        { merge: true }
-      );
+      log.error("File processing failed", {
+        uid,
+        fileId,
+        error: error.message,
+        stack: error.stack,
+        contentType,
+      });
+
+      // CRITICAL: Clear processing phase and mark as failed
+      // This ensures the UI doesn't show stuck "Analyzing..." messages
+      try {
+        await fileRef.set(
+          {
+            status: "FAILED",
+            processingPhase: admin.firestore.FieldValue.delete(),
+            errorMessage: "Document processing failed. Please re-upload the file.",
+            lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+      } catch (updateError) {
+        log.error("Failed to update file status to FAILED", {
+          uid,
+          fileId,
+          updateError: updateError.message,
+        });
+      }
     } finally {
-      if (fs.existsSync(tempFilePath)) fs.unlinkSync(tempFilePath);
+      // CLEANUP: Always remove temp file, even if status update fails
+      try {
+        if (fs.existsSync(tempFilePath)) {
+          fs.unlinkSync(tempFilePath);
+          log.debug("Temp file cleaned up", { uid, fileId, tempFilePath });
+        }
+      } catch (cleanupError) {
+        log.warn("Failed to cleanup temp file", {
+          uid,
+          fileId,
+          tempFilePath,
+          cleanupError: cleanupError.message,
+        });
+      }
     }
   });

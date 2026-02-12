@@ -14,7 +14,8 @@ const { PAGES_PER_SECTION, MIN_CHARS_PER_SECTION } = require("../../lib/constant
  * @returns {Promise<Array<{ text: string, title: string, startPage: number, endPage: number, estMinutes: number }>>}
  */
 async function extractPdfSections(filePath) {
-  const buffer = fs.readFileSync(filePath);
+  // Use async I/O to avoid blocking the event loop on large PDFs
+  const buffer = await fs.promises.readFile(filePath);
   const data = await pdfParse(buffer);
 
   const totalPages = data.numpages;

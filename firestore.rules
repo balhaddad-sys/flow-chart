@@ -69,6 +69,7 @@ service cloud.firestore {
         // Clients can only update metadata fields like title
         allow update: if isOwner(userId)
           && (!('status' in request.resource.data) || resource.data.status == request.resource.data.status)
+          && (!('processingPhase' in request.resource.data) || resource.data.processingPhase == request.resource.data.processingPhase)
           && (!('blueprint' in request.resource.data))
           && (!('processingCompletedAt' in request.resource.data));
         allow delete: if isOwner(userId);
@@ -94,7 +95,13 @@ service cloud.firestore {
 
       match /questions/{questionId} {
         allow read: if isOwner(userId);
-        allow update: if isOwner(userId);
+        // SECURITY: Clients can only update non-critical fields
+        // Prevent tampering with correctIndex, options, or AI-generated content
+        allow update: if isOwner(userId)
+          && (!('correctIndex' in request.resource.data) || request.resource.data.correctIndex == resource.data.correctIndex)
+          && (!('options' in request.resource.data) || request.resource.data.options == resource.data.options)
+          && (!('stem' in request.resource.data) || request.resource.data.stem == resource.data.stem)
+          && (!('explanation' in request.resource.data) || request.resource.data.explanation == resource.data.explanation);
         allow delete: if isOwner(userId);
       }
 

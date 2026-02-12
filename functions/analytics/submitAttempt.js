@@ -24,8 +24,14 @@ const { normaliseTutorResponse } = require("../lib/serialize");
 const { getTutorResponse } = require("../ai/aiClient");
 const { TUTOR_SYSTEM, tutorUserPrompt } = require("../ai/prompts");
 
+// Define the secret so the function can access it (used by getTutorResponse)
+const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
+
 exports.submitAttempt = functions
-  .runWith({ timeoutSeconds: 60 })
+  .runWith({
+    timeoutSeconds: 60,
+    secrets: [anthropicApiKey],
+  })
   .https.onCall(async (data, context) => {
     const uid = requireAuth(context);
     requireStrings(data, [{ field: "questionId", maxLen: 128 }]);
@@ -45,8 +51,23 @@ exports.submitAttempt = functions
       const question = questionDoc.data();
       const correct = answerIndex === question.correctIndex;
 
-      // ── Create attempt record ───────────────────────────────────────────
-      const attemptRef = db.collection(`users/${uid}/attempts`).doc();
+      // ── IDEMPOTENCY: Use deterministic ID to prevent duplicate attempts ──
+      // Combines questionId + timestamp (rounded to 1s) to detect retries
+      const idempotencyKey = `${questionId}_${answerIndex}_${Math.floor(Date.now() / 1000)}`;
+      const attemptRef = db.collection(`users/${uid}/attempts`).doc(idempotencyKey);
+
+      // Check if this attempt already exists (function retry)
+      const existingAttempt = await attemptRef.get();
+      if (existingAttempt.exists) {
+        log.info("Duplicate attempt detected, returning cached result", { uid, questionId });
+        const cached = existingAttempt.data();
+        return ok({
+          correct: cached.correct,
+          attemptId: attemptRef.id,
+          tutorResponse: cached.tutorResponseCached,
+        });
+      }
+
       await attemptRef.set({
         questionId,
         courseId: question.courseId,
@@ -59,16 +80,11 @@ exports.submitAttempt = functions
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
-      // ── Update question stats ───────────────────────────────────────────
-      const stats = question.stats || { timesAnswered: 0, timesCorrect: 0, avgTimeSec: 0 };
-      const newTimesAnswered = stats.timesAnswered + 1;
-      const newTimesCorrect = stats.timesCorrect + (correct ? 1 : 0);
-      const newAvgTime = (stats.avgTimeSec * stats.timesAnswered + timeSpentSec) / newTimesAnswered;
-
+      // ── Update question stats atomically ──────────────────────────────
+      // Use Firestore increment to prevent race conditions with concurrent attempts
       await questionDoc.ref.update({
-        "stats.timesAnswered": newTimesAnswered,
-        "stats.timesCorrect": newTimesCorrect,
-        "stats.avgTimeSec": Math.round(newAvgTime * 100) / 100,
+        "stats.timesAnswered": admin.firestore.FieldValue.increment(1),
+        "stats.timesCorrect": admin.firestore.FieldValue.increment(correct ? 1 : 0),
       });
 
       // ── AI tutor response (incorrect answers only) ─────────────────────

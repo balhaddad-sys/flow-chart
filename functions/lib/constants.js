@@ -128,6 +128,40 @@ const USER_SUBCOLLECTIONS = [
   "courses",
 ];
 
+// ── AI / Anthropic ──────────────────────────────────────────────────────────
+
+/** Default model for all AI calls (Haiku 4.5 for speed + cost). */
+const AI_MODEL = "claude-haiku-4-5-20251001";
+
+/** Max tokens for AI responses. */
+const AI_MAX_TOKENS = 4096;
+
+/** Number of retry attempts for AI calls. */
+const AI_MAX_RETRIES = 2;
+
+/** Base delay in ms for exponential backoff on AI retries. */
+const AI_RETRY_BASE_MS = 1000;
+
+/** Default number of questions to auto-generate per section. */
+const DEFAULT_QUESTION_COUNT = 10;
+
+// ── Function timeouts ───────────────────────────────────────────────────────
+
+/** Timeout for file processing (extraction + section creation). */
+const TIMEOUT_PROCESS_FILE = 180;
+
+/** Timeout for section AI processing (blueprint + questions). */
+const TIMEOUT_PROCESS_SECTION = 120;
+
+/** Timeout for on-demand question generation. */
+const TIMEOUT_GENERATE_QUESTIONS = 120;
+
+/** Timeout for lightweight callable functions. */
+const TIMEOUT_LIGHT = 60;
+
+/** Timeout for data deletion (may need to delete thousands of docs). */
+const TIMEOUT_DELETE_DATA = 300;
+
 // ── Health check ─────────────────────────────────────────────────────────────
 
 const HEALTH_TIMEOUT_MS = 5_000;
@@ -158,5 +192,15 @@ module.exports = {
   DEFAULT_VISION_CONCURRENCY,
   MAX_VISION_CONCURRENCY,
   USER_SUBCOLLECTIONS,
+  AI_MODEL,
+  AI_MAX_TOKENS,
+  AI_MAX_RETRIES,
+  AI_RETRY_BASE_MS,
+  DEFAULT_QUESTION_COUNT,
+  TIMEOUT_PROCESS_FILE,
+  TIMEOUT_PROCESS_SECTION,
+  TIMEOUT_GENERATE_QUESTIONS,
+  TIMEOUT_LIGHT,
+  TIMEOUT_DELETE_DATA,
   HEALTH_TIMEOUT_MS,
 };

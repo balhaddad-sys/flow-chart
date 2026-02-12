@@ -14,7 +14,8 @@ const { SLIDES_PER_SECTION, MIN_CHARS_PER_SECTION } = require("../../lib/constan
  * @returns {Array<{text: string, title: string, startSlide: number, endSlide: number, estMinutes: number}>}
  */
 async function extractPptxSections(filePath) {
-  const buffer = fs.readFileSync(filePath);
+  // Use async I/O to avoid blocking the event loop
+  const buffer = await fs.promises.readFile(filePath);
   const zip = await JSZip.loadAsync(buffer);
 
   // Extract text from each slide
