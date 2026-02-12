@@ -97,4 +97,4 @@ jobs:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
       - name: Deploy to Firebase
-        run: firebase deploy --project ${{ env.FIREBASE_PROJECT_ID }}
+        run: firebase deploy --project ${{ env.FIREBASE_PROJECT_ID }} --force
