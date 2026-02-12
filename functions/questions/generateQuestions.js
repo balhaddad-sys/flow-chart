@@ -54,6 +54,12 @@ exports.generateQuestions = functions
       if (section.courseId !== courseId) return fail(Errors.INVALID_ARGUMENT, "Section does not belong to this course.");
       if (!section.blueprint) return fail(Errors.NOT_ANALYZED);
 
+      // Mark question generation as in progress (for retry scenario)
+      await sectionDoc.ref.update({
+        questionsStatus: "GENERATING",
+        questionsErrorMessage: admin.firestore.FieldValue.delete(),
+      });
+
       // ── Fetch section text ──────────────────────────────────────────────
       const bucket = admin.storage().bucket();
       const [buffer] = await bucket.file(section.textBlobPath).download();
@@ -70,7 +76,15 @@ exports.generateQuestions = functions
         questionsUserPrompt({ blueprintJSON: section.blueprint, sectionText, count, easyCount, mediumCount, hardCount })
       );
 
-      if (!result.success || !result.data.questions) return fail(Errors.AI_FAILED);
+      if (!result.success || !result.data.questions) {
+        // Mark question generation as failed
+        await sectionDoc.ref.update({
+          questionsStatus: "FAILED",
+          questionsErrorMessage: result.error || "Question generation failed",
+          lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        return fail(Errors.AI_FAILED);
+      }
 
       // ── Normalise & persist via serialize module ────────────────────────
       const defaults = { fileId: section.fileId, sectionId, sectionTitle: section.title, topicTags: section.topicTags };
@@ -95,6 +109,13 @@ exports.generateQuestions = functions
       }
 
       await batchSet(validItems);
+
+      // Mark question generation as complete
+      await sectionDoc.ref.update({
+        questionsStatus: "COMPLETED",
+        questionsCount: validItems.length,
+        questionsErrorMessage: admin.firestore.FieldValue.delete(),
+      });
 
       log.info("Questions generated", { uid, courseId, sectionId, generated: validItems.length, skipped: result.data.questions.length - validItems.length });
 

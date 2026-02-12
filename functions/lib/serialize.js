@@ -52,24 +52,38 @@ function normaliseQuestion(raw, defaults) {
 
   const { truncate } = require("./utils");
 
+  // Sanitize first, then truncate (safer - removes malicious content before length limiting)
+  const options = raw.options.slice(0, 8).map((o) => truncate(sanitizeText(o), 500));
+  const optionCount = options.length;
+
+  // Ensure whyOthersWrong array matches number of options for safe indexing
+  let whyOthersWrong = [];
+  if (Array.isArray(raw.explanation?.why_others_wrong)) {
+    whyOthersWrong = raw.explanation.why_others_wrong
+      .slice(0, optionCount)
+      .map(s => truncate(sanitizeText(s), 400));
+  }
+  // Pad with fallback text if AI didn't provide enough explanations
+  while (whyOthersWrong.length < optionCount) {
+    whyOthersWrong.push("This option is incorrect.");
+  }
+
   return {
     topicTags:    sanitizeArray(Array.isArray(raw.tags) ? raw.tags.slice(0, 10) : (defaults.topicTags || [])),
     difficulty:   Math.min(5, Math.max(1, raw.difficulty || 3)),
     type:         "SBA",
-    stem:         sanitizeText(truncate(raw.stem, 2000)),
-    options:      raw.options.slice(0, 8).map((o) => sanitizeText(truncate(o, 500))),
-    correctIndex: Math.min(raw.options.length - 1, Math.max(0, raw.correct_index)),
+    stem:         truncate(sanitizeText(raw.stem), 2000),
+    options,
+    correctIndex: Math.min(options.length - 1, Math.max(0, raw.correct_index)),
     explanation: {
-      correctWhy:    sanitizeText(truncate(raw.explanation?.correct_why, 1000)),
-      whyOthersWrong: Array.isArray(raw.explanation?.why_others_wrong)
-        ? raw.explanation.why_others_wrong.slice(0, 8).map(s => sanitizeText(truncate(s, 400)))
-        : [],
-      keyTakeaway:   sanitizeText(truncate(raw.explanation?.key_takeaway, 500)),
+      correctWhy:    truncate(sanitizeText(raw.explanation?.correct_why), 1000),
+      whyOthersWrong,
+      keyTakeaway:   truncate(sanitizeText(raw.explanation?.key_takeaway), 500),
     },
     sourceRef: {
       fileId:    defaults.fileId,
       sectionId: defaults.sectionId,
-      label:     sanitizeText(truncate(raw.source_ref?.sectionLabel || defaults.sectionTitle, 200)),
+      label:     truncate(sanitizeText(raw.source_ref?.sectionLabel || defaults.sectionTitle), 200),
     },
     stats: { timesAnswered: 0, timesCorrect: 0, avgTimeSec: 0 },
   };
