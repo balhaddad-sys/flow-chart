@@ -16,7 +16,7 @@ const { requireAuth, requireStrings, requireInt } = require("../middleware/valid
 const { checkRateLimit, RATE_LIMITS } = require("../middleware/rateLimit");
 const { db } = require("../lib/firestore");
 const { VALID_QUIZ_MODES } = require("../lib/constants");
-const { ok, safeError } = require("../lib/errors");
+const { Errors, fail, ok, safeError } = require("../lib/errors");
 const { shuffleArray } = require("../lib/utils");
 
 exports.getQuiz = functions.https.onCall(async (data, context) => {

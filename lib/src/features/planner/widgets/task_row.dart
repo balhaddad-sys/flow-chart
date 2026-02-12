@@ -116,25 +116,13 @@ class TaskRow extends ConsumerWidget {
   }
 
   Widget _typeIcon(String type, bool isDark) {
-    final IconData icon;
-    final Color color;
-    switch (type) {
-      case 'STUDY':
-        icon = Icons.menu_book;
-        color = AppColors.primary;
-      case 'QUESTIONS':
-        icon = Icons.quiz;
-        color = AppColors.secondary;
-      case 'REVIEW':
-        icon = Icons.refresh;
-        color = AppColors.warning;
-      case 'MOCK':
-        icon = Icons.assignment;
-        color = AppColors.error;
-      default:
-        icon = Icons.task;
-        color = isDark ? AppColors.darkTextTertiary : AppColors.textTertiary;
-    }
+    final (IconData icon, Color color) = switch (type) {
+      'STUDY' => (Icons.menu_book, AppColors.primary),
+      'QUESTIONS' => (Icons.quiz, AppColors.secondary),
+      'REVIEW' => (Icons.refresh, AppColors.warning),
+      'MOCK' => (Icons.assignment, AppColors.error),
+      _ => (Icons.task, isDark ? AppColors.darkTextTertiary : AppColors.textTertiary),
+    };
 
     return Container(
       width: 36,

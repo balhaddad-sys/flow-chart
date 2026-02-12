@@ -15,6 +15,7 @@ const functions = require("firebase-functions");
 const pLimit = require("p-limit");
 const { callClaudeVision, MAX_TOKENS, MODELS } = require("../ai/aiClient");
 const { DOCUMENT_EXTRACT_SYSTEM, documentExtractUserPrompt } = require("../ai/prompts");
+const { checkRateLimit, RATE_LIMITS } = require("../middleware/rateLimit");
 const {
   MAX_BATCH_PAGES,
   MAX_BASE64_LENGTH,
@@ -108,6 +109,9 @@ exports.processDocumentBatch = functions
 
     const uid = context.auth.uid;
     const { images, concurrency } = data;
+
+    // SECURITY: Rate limit expensive vision API calls to prevent abuse
+    await checkRateLimit(uid, "processDocumentBatch", RATE_LIMITS.processDocumentBatch);
 
     // ── Validate input ────────────────────────────────────────────────────
     if (!Array.isArray(images) || images.length === 0) {

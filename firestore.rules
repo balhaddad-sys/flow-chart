@@ -77,9 +77,11 @@ service cloud.firestore {
       match /sections/{sectionId} {
         allow read: if isOwner(userId);
         // TICKET PATTERN: Sections are created by Cloud Functions, client can only update title
+        // Protect AI lifecycle fields from client tampering
         allow update: if isOwner(userId)
           && (!('title' in request.resource.data) || isValidString(request.resource.data.title, 500))
-          && (!('status' in request.resource.data) || resource.data.status == request.resource.data.status)
+          && (!('aiStatus' in request.resource.data) || resource.data.aiStatus == request.resource.data.aiStatus)
+          && (!('questionsStatus' in request.resource.data) || resource.data.questionsStatus == request.resource.data.questionsStatus)
           && (!('blueprint' in request.resource.data));
         allow delete: if isOwner(userId);
       }
@@ -106,7 +108,9 @@ service cloud.firestore {
 
       match /attempts/{attemptId} {
         allow read: if isOwner(userId);
-        allow create: if isOwner(userId);
+        // SECURITY: Only Cloud Functions can create attempts (via submitAttempt callable)
+        // This prevents clients from forging correct/incorrect status and corrupting stats
+        allow create: if false;
       }
 
       match /stats/{statsId} {

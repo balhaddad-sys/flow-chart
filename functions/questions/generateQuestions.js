@@ -121,6 +121,16 @@ exports.generateQuestions = functions
 
       return ok({ questionCount: validItems.length, skippedCount: result.data.questions.length - validItems.length });
     } catch (error) {
+      // CRITICAL: Roll back questionsStatus to prevent stuck GENERATING state
+      try {
+        await sectionDoc.ref.update({
+          questionsStatus: "FAILED",
+          questionsErrorMessage: error.message || "Unexpected error during question generation",
+          lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (updateError) {
+        log.error("Failed to update section status after error", { uid, sectionId, updateError: updateError.message });
+      }
       return safeError(error, "question generation");
     }
   });
