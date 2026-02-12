@@ -129,6 +129,7 @@ exports.processSection = functions
 
       await snap.ref.update({
         aiStatus: "ANALYZED",
+        questionsStatus: "PENDING", // Initialize questions status
         title: normalised.title || sectionData.title,
         difficulty: normalised.difficulty || sectionData.difficulty,
         estMinutes: normalised.estMinutes || sectionData.estMinutes,
@@ -157,6 +158,12 @@ exports.processSection = functions
         phase: "GENERATING_QUESTIONS",
         distribution: { easy: easyCount, medium: mediumCount, hard: hardCount },
       });
+
+      // Mark question generation as in progress
+      await snap.ref.update({
+        questionsStatus: "GENERATING",
+      });
+
       const qT0 = Date.now();
 
       const qResult = await aiGenerateQuestions(
@@ -178,6 +185,14 @@ exports.processSection = functions
           error: qResult.error,
           durationMs: Date.now() - qT0,
         });
+
+        // Mark question generation as failed (blueprint is still valid)
+        await snap.ref.update({
+          questionsStatus: "FAILED",
+          questionsErrorMessage: qResult.error || "Question generation failed",
+          lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
         return null; // Blueprint saved; questions can be retried manually
       }
 
@@ -217,6 +232,13 @@ exports.processSection = functions
       if (validItems.length > 0) {
         await batchSet(validItems);
       }
+
+      // Mark question generation as complete
+      await snap.ref.update({
+        questionsStatus: "COMPLETED",
+        questionsCount: validItems.length,
+        questionsErrorMessage: admin.firestore.FieldValue.delete(),
+      });
 
       log.info("Section processing complete", {
         uid,

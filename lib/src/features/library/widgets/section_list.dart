@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../core/providers/user_provider.dart';
 import '../../../core/utils/date_utils.dart';
+import '../../../models/section_model.dart';
 import '../providers/library_provider.dart';
 
 class SectionList extends ConsumerWidget {
@@ -38,7 +40,11 @@ class SectionList extends ConsumerWidget {
 
         return Column(
           children: sections.map((section) {
-            final isReady = section.aiStatus == 'ANALYZED';
+            final isReady = section.aiStatus == 'ANALYZED' &&
+                            section.questionsStatus == 'COMPLETED';
+            final questionsFailedRetryable = section.aiStatus == 'ANALYZED' &&
+                                               section.questionsStatus == 'FAILED';
+
             return ListTile(
               dense: true,
               onTap: isReady
@@ -83,7 +89,15 @@ class SectionList extends ConsumerWidget {
                         ],
                       ),
                     ),
-                  _aiStatusIcon(section.aiStatus),
+                  if (questionsFailedRetryable)
+                    IconButton(
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      onPressed: () => _retryQuestionGeneration(ref, section),
+                      tooltip: 'Retry question generation',
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(),
+                    ),
+                  _statusIcon(section),
                 ],
               ),
             );
@@ -93,20 +107,42 @@ class SectionList extends ConsumerWidget {
     );
   }
 
-  Widget _aiStatusIcon(String status) {
-    switch (status) {
-      case 'ANALYZED':
-        return Container(
-          width: 22,
-          height: 22,
-          decoration: const BoxDecoration(
-            color: AppColors.successSurface,
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(Icons.auto_awesome_rounded,
-              color: AppColors.success, size: 13),
-        );
-      case 'PENDING':
+  Widget _statusIcon(SectionModel section) {
+    // Show questions status if section is analyzed
+    if (section.aiStatus == 'ANALYZED') {
+      switch (section.questionsStatus) {
+        case 'COMPLETED':
+          return Container(
+            width: 22,
+            height: 22,
+            decoration: const BoxDecoration(
+              color: AppColors.successSurface,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.check_rounded,
+                color: AppColors.success, size: 14),
+          );
+        case 'GENERATING':
+          return const SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          );
+        case 'FAILED':
+          return const Icon(Icons.error_outline_rounded,
+              color: AppColors.error, size: 18);
+        default:
+          return const SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          );
+      }
+    }
+
+    // Show section analysis status
+    switch (section.aiStatus) {
+      case 'PROCESSING':
         return const SizedBox(
           width: 16,
           height: 16,
@@ -117,6 +153,23 @@ class SectionList extends ConsumerWidget {
             color: AppColors.error, size: 18);
       default:
         return const SizedBox.shrink();
+    }
+  }
+
+  Future<void> _retryQuestionGeneration(
+      WidgetRef ref, SectionModel section) async {
+    try {
+      final cloudFunctions = ref.read(cloudFunctionsServiceProvider);
+      await cloudFunctions.generateQuestions(
+        courseId: section.courseId,
+        sectionId: section.id,
+        count: 10,
+      );
+
+      // Invalidate sections provider to refresh the list
+      ref.invalidate(sectionsProvider(section.fileId));
+    } catch (e) {
+      // Error handling will be shown by the provider
     }
   }
 }

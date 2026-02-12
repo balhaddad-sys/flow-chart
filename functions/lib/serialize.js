@@ -61,7 +61,9 @@ function normaliseQuestion(raw, defaults) {
     correctIndex: Math.min(raw.options.length - 1, Math.max(0, raw.correct_index)),
     explanation: {
       correctWhy:    sanitizeText(truncate(raw.explanation?.correct_why, 1000)),
-      whyOthersWrong: sanitizeText(truncate(raw.explanation?.why_others_wrong, 2000)),
+      whyOthersWrong: Array.isArray(raw.explanation?.why_others_wrong)
+        ? raw.explanation.why_others_wrong.slice(0, 8).map(s => sanitizeText(truncate(s, 400)))
+        : [],
       keyTakeaway:   sanitizeText(truncate(raw.explanation?.key_takeaway, 500)),
     },
     sourceRef: {

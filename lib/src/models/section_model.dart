@@ -47,6 +47,9 @@ class SectionModel with _$SectionModel {
     @Default([]) List<String> topicTags,
     SectionBlueprint? blueprint,
     @Default('PENDING') String aiStatus,
+    @Default('PENDING') String questionsStatus,
+    @Default(0) int questionsCount,
+    String? questionsErrorMessage,
     @Default(0) int orderIndex,
     @TimestampConverter() DateTime? createdAt,
   }) = _SectionModel;
