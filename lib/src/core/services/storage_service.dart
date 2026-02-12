@@ -9,7 +9,6 @@ class StorageService {
     'pdf',
     'pptx',
     'docx',
-    'zip',
   ];
 
   static const Map<String, String> mimeTypes = {
@@ -18,7 +17,6 @@ class StorageService {
         'application/vnd.openxmlformats-officedocument.presentationml.presentation',
     'docx':
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'zip': 'application/zip',
   };
 
   /// Maximum file size in bytes (100 MB — matches storage.rules).
@@ -40,7 +38,7 @@ class StorageService {
     if (ext == null || !supportedExtensions.contains(ext)) {
       throw UnsupportedError(
         'Unsupported file type: .${ext ?? 'unknown'}. '
-        'Please select a PDF, PPTX, DOCX, or ZIP file.',
+        'Please select a PDF, PPTX, or DOCX file.',
       );
     }
 

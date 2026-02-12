@@ -59,8 +59,7 @@ service cloud.firestore {
           && request.resource.data.mimeType in [
             'application/pdf',
             'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            'application/zip'
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
           ]
           // TICKET PATTERN: Prevent clients from pre-filling completion data
           && (!('blueprint' in request.resource.data))

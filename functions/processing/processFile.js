@@ -62,6 +62,11 @@ exports.processUploadedFile = functions
       // Cloud Functions guarantees "at-least-once" execution. This prevents
       // double-billing and data corruption on retries/replays.
       const fileSnap = await fileRef.get();
+      if (!fileSnap.exists) {
+        log.warn("File metadata missing, cannot process upload", { uid, fileId, filePath });
+        return null;
+      }
+
       const currentStatus = fileSnap.data()?.status;
 
       if (currentStatus === "READY" || currentStatus === "PROCESSING") {
@@ -83,7 +88,10 @@ exports.processUploadedFile = functions
         { merge: true }
       );
 
-      const courseId = fileSnap.data()?.courseId || null;
+      const courseId = fileSnap.data()?.courseId;
+      if (!courseId) {
+        throw new Error("File is missing courseId; cannot create sections.");
+      }
 
       log.info("Starting document extraction", { uid, fileId, contentType });
 

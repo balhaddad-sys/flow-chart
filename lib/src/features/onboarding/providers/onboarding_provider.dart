@@ -166,22 +166,32 @@ class OnboardingNotifier extends StateNotifier<OnboardingData> {
       // 2. Upload files and create file docs in Firestore
       for (final file in state.selectedFiles) {
         final fileId = _uuid.v4();
-        final storagePath = await storageService.uploadFile(
-          uid: uid,
-          fileId: fileId,
-          file: file,
-        );
+        final ext = (file.extension ?? '').toLowerCase();
+        if (!StorageService.supportedExtensions.contains(ext)) {
+          throw UnsupportedError(
+            'Unsupported file type: .${file.extension ?? 'unknown'}. '
+            'Please select a PDF, PPTX, or DOCX file.',
+          );
+        }
 
-        await firestoreService.createFile(uid, {
+        final storagePath = 'users/$uid/uploads/$fileId.$ext';
+
+        await firestoreService.createFile(uid, fileId, {
           'courseId': courseId,
           'originalName': file.name,
           'storagePath': storagePath,
           'sizeBytes': file.size,
           'mimeType':
-              StorageService.mimeTypes[file.extension] ??
+              StorageService.mimeTypes[ext] ??
               'application/octet-stream',
           'status': 'UPLOADED',
         });
+
+        await storageService.uploadFile(
+          uid: uid,
+          fileId: fileId,
+          file: file,
+        );
       }
 
       // 3. Update user preferences

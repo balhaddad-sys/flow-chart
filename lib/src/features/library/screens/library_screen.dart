@@ -97,7 +97,7 @@ class LibraryScreen extends ConsumerWidget {
             SnackBar(
               content: Text(
                 'Unsupported file type: .${ext ?? 'unknown'}. '
-                'Use PDF, PPTX, DOCX, or ZIP.',
+                'Use PDF, PPTX, or DOCX.',
               ),
             ),
           );
@@ -128,19 +128,13 @@ class LibraryScreen extends ConsumerWidget {
       );
 
       final storageService = StorageService();
-      final fileId = _uuid.v4();
-      final storagePath = await storageService.uploadFile(
-        uid: uid,
-        fileId: fileId,
-        file: file,
-        onProgress: (p) {
-          ref.read(_uploadStateProvider.notifier).state =
-              ref.read(_uploadStateProvider).copyWith(progress: p);
-        },
-      );
-
       final firestoreService = ref.read(firestoreServiceProvider);
-      await firestoreService.createFile(uid, {
+      final fileId = _uuid.v4();
+      final storagePath = 'users/$uid/uploads/$fileId.$ext';
+
+      // Create metadata first so the storage trigger can resolve courseId/fileId
+      // deterministically from users/{uid}/files/{fileId}.
+      await firestoreService.createFile(uid, fileId, {
         'courseId': activeCourseId,
         'originalName': file.name,
         'storagePath': storagePath,
@@ -149,6 +143,16 @@ class LibraryScreen extends ConsumerWidget {
             StorageService.mimeTypes[ext] ?? 'application/octet-stream',
         'status': 'UPLOADED',
       });
+
+      await storageService.uploadFile(
+        uid: uid,
+        fileId: fileId,
+        file: file,
+        onProgress: (p) {
+          ref.read(_uploadStateProvider.notifier).state =
+              ref.read(_uploadStateProvider).copyWith(progress: p);
+        },
+      );
 
       ref.read(_uploadStateProvider.notifier).state = const _UploadState();
 
@@ -526,7 +530,7 @@ class _UploadAreaState extends State<_UploadArea>
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'PDF, PPTX, DOCX, or ZIP (max 100 MB)',
+                        'PDF, PPTX, or DOCX (max 100 MB)',
                         style:
                             Theme.of(context).textTheme.bodySmall?.copyWith(
                                   color: widget.isDark

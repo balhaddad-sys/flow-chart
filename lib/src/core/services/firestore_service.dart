@@ -80,12 +80,16 @@ class FirestoreService {
         );
   }
 
-  Future<String> createFile(String uid, Map<String, dynamic> data) async {
-    final ref = await _files(uid).add({
+  Future<String> createFile(
+    String uid,
+    String fileId,
+    Map<String, dynamic> data,
+  ) async {
+    await _files(uid).doc(fileId).set({
       ...data,
       'uploadedAt': FieldValue.serverTimestamp(),
-    });
-    return ref.id;
+    }, SetOptions(merge: true));
+    return fileId;
   }
 
   // --- Sections ---
