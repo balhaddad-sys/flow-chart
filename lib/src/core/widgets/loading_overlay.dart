@@ -5,16 +5,24 @@ import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_spacing.dart';
 
+/// A polished loading overlay with optional progress, message, and step info.
+///
+/// Use this to block interaction during async operations while keeping the
+/// user informed of progress.
 class LoadingOverlay extends StatelessWidget {
   final bool isLoading;
   final Widget child;
   final String? message;
+  final double? progress;
+  final String? stepLabel;
 
   const LoadingOverlay({
     super.key,
     required this.isLoading,
     required this.child,
     this.message,
+    this.progress,
+    this.stepLabel,
   });
 
   @override
@@ -32,6 +40,7 @@ class LoadingOverlay extends StatelessWidget {
                 color: isDark ? Colors.black38 : Colors.black12,
                 child: Center(
                   child: Container(
+                    width: 280,
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.xl,
                       vertical: AppSpacing.lg,
@@ -45,25 +54,73 @@ class LoadingOverlay extends StatelessWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const SizedBox(
-                          width: 40,
-                          height: 40,
-                          child: CircularProgressIndicator(
-                            color: AppColors.primary,
-                            strokeWidth: 3,
+                        // Progress indicator
+                        if (progress != null) ...[
+                          SizedBox(
+                            width: 56,
+                            height: 56,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                CircularProgressIndicator(
+                                  value: progress,
+                                  color: AppColors.primary,
+                                  backgroundColor: isDark
+                                      ? AppColors.darkSurfaceVariant
+                                      : AppColors.surfaceVariant,
+                                  strokeWidth: 4,
+                                ),
+                                Text(
+                                  '${(progress! * 100).round()}%',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .labelSmall
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.primary,
+                                      ),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                        ] else ...[
+                          const SizedBox(
+                            width: 40,
+                            height: 40,
+                            child: CircularProgressIndicator(
+                              color: AppColors.primary,
+                              strokeWidth: 3,
+                            ),
+                          ),
+                        ],
                         if (message != null) ...[
                           const SizedBox(height: 20),
                           Text(
                             message!,
+                            textAlign: TextAlign.center,
                             style: Theme.of(context)
                                 .textTheme
                                 .bodyMedium
                                 ?.copyWith(
+                                  fontWeight: FontWeight.w600,
                                   color: isDark
-                                      ? AppColors.darkTextSecondary
-                                      : AppColors.textSecondary,
+                                      ? AppColors.darkTextPrimary
+                                      : AppColors.textPrimary,
+                                ),
+                          ),
+                        ],
+                        if (stepLabel != null) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            stepLabel!,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  color: isDark
+                                      ? AppColors.darkTextTertiary
+                                      : AppColors.textTertiary,
                                 ),
                           ),
                         ],
