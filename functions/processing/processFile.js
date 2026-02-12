@@ -27,8 +27,9 @@ const { extractDocxSections } = require("./extractors/docxExtractor");
 
 exports.processUploadedFile = functions
   .runWith({
-    timeoutSeconds: 180, // Reduced: extraction is fast, AI processing happens async
+    timeoutSeconds: 120, // Extraction is fast; AI processing is async via triggers
     memory: "1GB",
+    minInstances: 1, // Keep one warm instance to eliminate cold starts
   })
   .storage.object()
   .onFinalize(async (object) => {
@@ -149,7 +150,15 @@ exports.processUploadedFile = functions
 
       log.info("Extraction complete, AI analysis will begin", { uid, fileId, sectionCount: sections.length });
 
-      // Mark file as ready (sections will process async)
+      // Update phase: AI will now generate questions from sections
+      await fileRef.set(
+        {
+          processingPhase: "GENERATING_QUESTIONS",
+        },
+        { merge: true }
+      );
+
+      // Mark file as ready (section AI processing happens via triggers in parallel)
       await fileRef.set(
         {
           status: "READY",

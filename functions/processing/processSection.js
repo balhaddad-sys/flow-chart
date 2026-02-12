@@ -24,9 +24,10 @@ const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
 
 exports.processSection = functions
   .runWith({
-    timeoutSeconds: 120, // Reduced: Haiku 4.5 is much faster
+    timeoutSeconds: 90, // Haiku 4.5 is fast; most sections complete in <30s
     memory: "512MB",
-    maxInstances: 10, // Process multiple sections in parallel
+    maxInstances: 20, // Process many sections in parallel for speed
+    minInstances: 1, // Keep warm to eliminate cold start latency
     secrets: [anthropicApiKey], // Grant access to the secret
   })
   .firestore.document("users/{uid}/sections/{sectionId}")
@@ -61,10 +62,14 @@ exports.processSection = functions
         phase: "FETCHING_TEXT",
       });
 
-      // Fetch raw text from Cloud Storage
+      // Fetch raw text and file metadata in parallel for speed
       const bucket = admin.storage().bucket();
-      const [buffer] = await bucket.file(sectionData.textBlobPath).download();
-      const sectionText = buffer.toString("utf-8");
+      const [textResult, fileDoc] = await Promise.all([
+        bucket.file(sectionData.textBlobPath).download(),
+        db.doc(`users/${uid}/files/${sectionData.fileId}`).get(),
+      ]);
+      const sectionText = textResult[0].toString("utf-8");
+      const fileData = fileDoc.exists ? fileDoc.data() : {};
 
       log.info("Text fetched, starting blueprint generation", {
         uid,
@@ -72,10 +77,6 @@ exports.processSection = functions
         textLength: sectionText.length,
         phase: "GENERATING_BLUEPRINT",
       });
-
-      // Fetch parent file metadata for prompt context
-      const fileDoc = await db.doc(`users/${uid}/files/${sectionData.fileId}`).get();
-      const fileData = fileDoc.exists ? fileDoc.data() : {};
 
       // Generate blueprint via AI (Haiku 4.5 - FAST)
       log.info("Starting blueprint generation", { uid, sectionId, textLength: sectionText.length });

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/user_provider.dart';
+import '../../../core/widgets/course_selector_sheet.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../models/course_model.dart';
 import '../providers/home_provider.dart';
@@ -48,8 +49,7 @@ class HomeScreen extends ConsumerWidget {
               : courses.first;
           final activeCourseId = activeCourse.id;
 
-          // Sync the provider so other screens (Library, Planner, etc.)
-          // can read the active course even when the dropdown is hidden.
+          // Sync the provider so other screens can read the active course.
           WidgetsBinding.instance.addPostFrameCallback((_) {
             final current = ref.read(activeCourseIdProvider);
             if (current != activeCourseId) {
@@ -196,66 +196,15 @@ class HomeScreen extends ConsumerWidget {
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                      // ── Course selector ───────────────────────
-                      if (courses.length > 1) ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 16, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? AppColors.darkSurface
-                                : AppColors.surface,
-                            borderRadius: BorderRadius.circular(
-                                AppSpacing.radiusMd),
-                            border: Border.all(
-                              color: isDark
-                                  ? AppColors.darkBorder.withValues(alpha: 0.5)
-                                  : AppColors.border.withValues(alpha: 0.5),
-                            ),
-                            boxShadow:
-                                isDark ? null : AppSpacing.shadowSm,
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 28,
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  color: AppColors.primary
-                                      .withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(7),
-                                ),
-                                child: const Icon(Icons.school_rounded,
-                                    size: 16, color: AppColors.primary),
-                              ),
-                              AppSpacing.hGapSm,
-                              Expanded(
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<String>(
-                                    value: activeCourseId,
-                                    isExpanded: true,
-                                    isDense: true,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .titleMedium,
-                                    items: courses
-                                        .map((c) => DropdownMenuItem(
-                                              value: c.id,
-                                              child: Text(c.title),
-                                            ))
-                                        .toList(),
-                                    onChanged: (v) => ref
-                                        .read(activeCourseIdProvider
-                                            .notifier)
-                                        .state = v,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        AppSpacing.gapMd,
-                      ],
+                      // ── Course selector (always visible) ────────
+                      _CoursePickerCard(
+                        activeCourse: activeCourse,
+                        courseCount: courses.length,
+                        isDark: isDark,
+                        onTap: () =>
+                            CourseSelectorSheet.show(context),
+                      ),
+                      AppSpacing.gapMd,
 
                       // ── Exam countdown ────────────────────────
                       if (activeCourse.examDate != null) ...[
@@ -370,6 +319,134 @@ class HomeScreen extends ConsumerWidget {
     if (hour < 12) return 'Good morning';
     if (hour < 17) return 'Good afternoon';
     return 'Good evening';
+  }
+}
+
+/// Tappable course picker card that opens the course selector bottom sheet.
+class _CoursePickerCard extends StatelessWidget {
+  final CourseModel activeCourse;
+  final int courseCount;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _CoursePickerCard({
+    required this.activeCourse,
+    required this.courseCount,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: isDark ? AppColors.darkSurface : AppColors.surface,
+      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            border: Border.all(
+              color: isDark
+                  ? AppColors.darkBorder.withValues(alpha: 0.5)
+                  : AppColors.border.withValues(alpha: 0.5),
+            ),
+            boxShadow: isDark ? null : AppSpacing.shadowSm,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  gradient: AppColors.primaryGradient,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Center(
+                  child: Text(
+                    activeCourse.title.isNotEmpty
+                        ? activeCourse.title[0].toUpperCase()
+                        : '?',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      activeCourse.title,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 1),
+                    Row(
+                      children: [
+                        if (activeCourse.examType != null) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              activeCourse.examType!,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                        ],
+                        Text(
+                          '$courseCount course${courseCount == 1 ? '' : 's'}',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(
+                                fontSize: 11,
+                                color: isDark
+                                    ? AppColors.darkTextTertiary
+                                    : AppColors.textTertiary,
+                              ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.unfold_more_rounded,
+                  color: AppColors.primary,
+                  size: 20,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

@@ -30,7 +30,7 @@ const MODELS = {
   HEAVY: "claude-opus-4-6", // Tutoring, fix plans, complex reasoning
 };
 
-// Max tokens per prompt type
+// Max tokens per prompt type — tuned for speed vs completeness
 const MAX_TOKENS = {
   blueprint: 2048,
   questions: 4096,
@@ -38,6 +38,9 @@ const MAX_TOKENS = {
   fixPlan: 2048,
   documentExtract: 1200,
 };
+
+// Retry delays in ms — fast retries to keep pipeline latency low
+const RETRY_DELAYS = [500, 1500, 4000];
 
 if (!process.env.ANTHROPIC_API_KEY) {
   console.error("ANTHROPIC_API_KEY environment variable is not set. AI features will fail.");
@@ -176,8 +179,9 @@ async function callClaude(
         };
       }
 
-      // Wait before retry (exponential backoff)
-      await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
+      // Fast retry with short backoff
+      const delay = RETRY_DELAYS[attempt] || 4000;
+      await new Promise((r) => setTimeout(r, delay));
     }
   }
 }
@@ -272,7 +276,8 @@ async function callClaudeVision({
         };
       }
 
-      await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
+      const delay = RETRY_DELAYS[attempt] || 4000;
+      await new Promise((r) => setTimeout(r, delay));
     }
   }
 }

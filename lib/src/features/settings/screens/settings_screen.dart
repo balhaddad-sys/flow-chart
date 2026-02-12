@@ -1,12 +1,17 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../app.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
+import '../../../core/widgets/course_selector_sheet.dart';
+import '../../home/providers/home_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -14,14 +19,17 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(userModelProvider);
+    final firebaseUser = ref.watch(currentUserProvider);
     final themeMode = ref.watch(themeModeProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final coursesAsync = ref.watch(coursesProvider);
+    final activeCourseId = ref.watch(activeCourseIdProvider);
 
     return Scaffold(
       body: ListView(
         padding: EdgeInsets.zero,
         children: [
-          // ── SafeArea header instead of AppBar ────────────────────────
+          // ── SafeArea header ───────────────────────────────────────
           SafeArea(
             bottom: false,
             child: Padding(
@@ -45,7 +53,7 @@ class SettingsScreen extends ConsumerWidget {
 
           AppSpacing.gapLg,
 
-          // ── Account card (prominent) ─────────────────────────────────
+          // ── Profile card (prominent) ──────────────────────────────
           Padding(
             padding: AppSpacing.screenHorizontal,
             child: Container(
@@ -99,9 +107,31 @@ class SettingsScreen extends ConsumerWidget {
                             user?.email ?? '',
                             style:
                                 Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: Colors.white.withValues(alpha: 0.7),
+                                      color:
+                                          Colors.white.withValues(alpha: 0.7),
                                     ),
                           ),
+                          if (user?.subscriptionTier != null) ...[
+                            const SizedBox(height: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(
+                                    AppSpacing.radiusFull),
+                              ),
+                              child: Text(
+                                user!.subscriptionTier.toUpperCase(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.8,
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -123,7 +153,233 @@ class SettingsScreen extends ConsumerWidget {
 
           AppSpacing.gapXl,
 
-          // ── Appearance section ───────────────────────────────────────
+          // ── Login Information section ─────────────────────────────
+          const Padding(
+            padding: AppSpacing.screenHorizontal,
+            child: _SectionHeader(
+                label: 'Account Information', icon: Icons.person_outline),
+          ),
+          AppSpacing.gapSm,
+          Padding(
+            padding: AppSpacing.screenHorizontal,
+            child: Container(
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkSurface : AppColors.surface,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                border: Border.all(
+                  color: isDark ? AppColors.darkBorder : AppColors.border,
+                ),
+              ),
+              child: Column(
+                children: [
+                  // Email
+                  _InfoRow(
+                    icon: Icons.email_outlined,
+                    label: 'Email',
+                    value: firebaseUser?.email ?? 'Not set',
+                    isDark: isDark,
+                  ),
+                  _divider(isDark),
+
+                  // Sign-in method
+                  _InfoRow(
+                    icon: Icons.login_rounded,
+                    label: 'Sign-in Method',
+                    value: _getSignInMethod(firebaseUser),
+                    isDark: isDark,
+                  ),
+                  _divider(isDark),
+
+                  // Email verified
+                  _InfoRow(
+                    icon: Icons.verified_user_outlined,
+                    label: 'Email Verified',
+                    value: firebaseUser?.emailVerified == true ? 'Yes' : 'No',
+                    valueColor: firebaseUser?.emailVerified == true
+                        ? AppColors.success
+                        : AppColors.warning,
+                    isDark: isDark,
+                  ),
+                  _divider(isDark),
+
+                  // Account created
+                  _InfoRow(
+                    icon: Icons.calendar_today_outlined,
+                    label: 'Account Created',
+                    value: _formatDate(firebaseUser?.metadata.creationTime),
+                    isDark: isDark,
+                  ),
+                  _divider(isDark),
+
+                  // Last sign-in
+                  _InfoRow(
+                    icon: Icons.access_time_rounded,
+                    label: 'Last Sign-in',
+                    value:
+                        _formatDate(firebaseUser?.metadata.lastSignInTime),
+                    isDark: isDark,
+                  ),
+                  _divider(isDark),
+
+                  // User ID (copyable)
+                  ListTile(
+                    leading: Icon(Icons.fingerprint_rounded,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.textSecondary,
+                        size: 20),
+                    title: const Text('User ID'),
+                    subtitle: Text(
+                      firebaseUser?.uid ?? 'N/A',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: isDark
+                                ? AppColors.darkTextTertiary
+                                : AppColors.textTertiary,
+                            fontFamily: 'monospace',
+                            fontSize: 11,
+                          ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: IconButton(
+                      icon: Icon(
+                        Icons.copy_rounded,
+                        size: 18,
+                        color: isDark
+                            ? AppColors.darkTextTertiary
+                            : AppColors.textTertiary,
+                      ),
+                      onPressed: () {
+                        if (firebaseUser?.uid != null) {
+                          Clipboard.setData(
+                              ClipboardData(text: firebaseUser!.uid));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('User ID copied to clipboard'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          AppSpacing.gapXl,
+
+          // ── Active Course section ─────────────────────────────────
+          const Padding(
+            padding: AppSpacing.screenHorizontal,
+            child: _SectionHeader(
+                label: 'Active Course', icon: Icons.school_outlined),
+          ),
+          AppSpacing.gapSm,
+          Padding(
+            padding: AppSpacing.screenHorizontal,
+            child: coursesAsync.when(
+              data: (courses) {
+                final activeCourse = activeCourseId != null
+                    ? courses
+                        .cast<dynamic>()
+                        .firstWhere((c) => c.id == activeCourseId,
+                            orElse: () => null)
+                    : courses.isNotEmpty
+                        ? courses.first
+                        : null;
+
+                return Material(
+                  color: isDark ? AppColors.darkSurface : AppColors.surface,
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                    onTap: () => CourseSelectorSheet.show(context),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.radiusMd),
+                        border: Border.all(
+                          color: isDark
+                              ? AppColors.darkBorder
+                              : AppColors.border,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              gradient: AppColors.primaryGradient,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: Text(
+                                activeCourse != null
+                                    ? activeCourse.title[0].toUpperCase()
+                                    : '?',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  activeCourse?.title ??
+                                      'No course selected',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleSmall
+                                      ?.copyWith(
+                                          fontWeight: FontWeight.w600),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${courses.length} course${courses.length == 1 ? '' : 's'} \u00b7 Tap to switch',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: isDark
+                                            ? AppColors.darkTextTertiary
+                                            : AppColors.textTertiary,
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.swap_horiz_rounded,
+                            color: AppColors.primary,
+                            size: 22,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+              loading: () => const SizedBox(
+                height: 76,
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
+          ),
+
+          AppSpacing.gapXl,
+
+          // ── Appearance section ─────────────────────────────────────
           const Padding(
             padding: AppSpacing.screenHorizontal,
             child: _SectionHeader(
@@ -140,46 +396,42 @@ class SettingsScreen extends ConsumerWidget {
                   color: isDark ? AppColors.darkBorder : AppColors.border,
                 ),
               ),
-              child: RadioGroup<ThemeMode>(
-                groupValue: themeMode,
-                onChanged: (value) =>
-                    ref.read(themeModeProvider.notifier).state = value!,
-                child: Column(
-                  children: [
-                    const RadioListTile<ThemeMode>(
-                      title: Text('System default'),
-                      value: ThemeMode.system,
-                      secondary: Icon(Icons.phone_android, size: 20),
-                    ),
-                    Divider(
-                      height: 1,
-                      color:
-                          isDark ? AppColors.darkBorder : AppColors.borderLight,
-                    ),
-                    const RadioListTile<ThemeMode>(
-                      title: Text('Light'),
-                      value: ThemeMode.light,
-                      secondary: Icon(Icons.light_mode, size: 20),
-                    ),
-                    Divider(
-                      height: 1,
-                      color:
-                          isDark ? AppColors.darkBorder : AppColors.borderLight,
-                    ),
-                    const RadioListTile<ThemeMode>(
-                      title: Text('Dark'),
-                      value: ThemeMode.dark,
-                      secondary: Icon(Icons.dark_mode, size: 20),
-                    ),
-                  ],
-                ),
+              child: Column(
+                children: [
+                  RadioListTile<ThemeMode>(
+                    title: const Text('System default'),
+                    value: ThemeMode.system,
+                    groupValue: themeMode,
+                    secondary: const Icon(Icons.phone_android, size: 20),
+                    onChanged: (value) =>
+                        ref.read(themeModeProvider.notifier).state = value!,
+                  ),
+                  _divider(isDark),
+                  RadioListTile<ThemeMode>(
+                    title: const Text('Light'),
+                    value: ThemeMode.light,
+                    groupValue: themeMode,
+                    secondary: const Icon(Icons.light_mode, size: 20),
+                    onChanged: (value) =>
+                        ref.read(themeModeProvider.notifier).state = value!,
+                  ),
+                  _divider(isDark),
+                  RadioListTile<ThemeMode>(
+                    title: const Text('Dark'),
+                    value: ThemeMode.dark,
+                    groupValue: themeMode,
+                    secondary: const Icon(Icons.dark_mode, size: 20),
+                    onChanged: (value) =>
+                        ref.read(themeModeProvider.notifier).state = value!,
+                  ),
+                ],
               ),
             ),
           ),
 
           AppSpacing.gapXl,
 
-          // ── About section ───────────────────────────────────────────
+          // ── About section ─────────────────────────────────────────
           const Padding(
             padding: AppSpacing.screenHorizontal,
             child: _SectionHeader(label: 'About', icon: Icons.info_outline),
@@ -213,11 +465,7 @@ class SettingsScreen extends ConsumerWidget {
                           ),
                     ),
                   ),
-                  Divider(
-                    height: 1,
-                    color:
-                        isDark ? AppColors.darkBorder : AppColors.borderLight,
-                  ),
+                  _divider(isDark),
                   ListTile(
                     leading: Icon(Icons.privacy_tip_outlined,
                         color: isDark
@@ -232,11 +480,7 @@ class SettingsScreen extends ConsumerWidget {
                         size: 20),
                     onTap: () {},
                   ),
-                  Divider(
-                    height: 1,
-                    color:
-                        isDark ? AppColors.darkBorder : AppColors.borderLight,
-                  ),
+                  _divider(isDark),
                   ListTile(
                     leading: Icon(Icons.description_outlined,
                         color: isDark
@@ -258,7 +502,7 @@ class SettingsScreen extends ConsumerWidget {
 
           AppSpacing.gapXl,
 
-          // ── Account actions ─────────────────────────────────────────
+          // ── Account actions ───────────────────────────────────────
           const Padding(
             padding: AppSpacing.screenHorizontal,
             child: _SectionHeader(
@@ -291,11 +535,7 @@ class SettingsScreen extends ConsumerWidget {
                       }
                     },
                   ),
-                  Divider(
-                    height: 1,
-                    color:
-                        isDark ? AppColors.darkBorder : AppColors.borderLight,
-                  ),
+                  _divider(isDark),
                   ListTile(
                     leading: const Icon(
                       Icons.cleaning_services_outlined,
@@ -316,11 +556,7 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                     onTap: () => _showClearDataConfirmation(context, ref),
                   ),
-                  Divider(
-                    height: 1,
-                    color:
-                        isDark ? AppColors.darkBorder : AppColors.borderLight,
-                  ),
+                  _divider(isDark),
                   ListTile(
                     leading: const Icon(
                       Icons.delete_forever,
@@ -346,11 +582,47 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ),
 
-          // Extra bottom spacing so content clears the bottom nav bar
+          // Extra bottom spacing
           const SizedBox(height: 96),
         ],
       ),
     );
+  }
+
+  static Widget _divider(bool isDark) {
+    return Divider(
+      height: 1,
+      color: isDark ? AppColors.darkBorder : AppColors.borderLight,
+    );
+  }
+
+  String _getSignInMethod(User? user) {
+    if (user == null) return 'Unknown';
+    final providers = user.providerData;
+    if (providers.isEmpty) return 'Email';
+
+    final methods = <String>[];
+    for (final info in providers) {
+      switch (info.providerId) {
+        case 'google.com':
+          methods.add('Google');
+          break;
+        case 'password':
+          methods.add('Email/Password');
+          break;
+        case 'apple.com':
+          methods.add('Apple');
+          break;
+        default:
+          methods.add(info.providerId);
+      }
+    }
+    return methods.join(', ');
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'Unknown';
+    return DateFormat('MMM d, yyyy \u00b7 h:mm a').format(date);
   }
 
   void _showClearDataConfirmation(BuildContext context, WidgetRef ref) {
@@ -360,10 +632,10 @@ class SettingsScreen extends ConsumerWidget {
         title: const Text('Delete All Data?'),
         content: const Text(
           'This will permanently delete:\n'
-          '• All courses and study plans\n'
-          '• All uploaded files and materials\n'
-          '• All questions and quiz history\n'
-          '• All progress and statistics\n\n'
+          '\u2022 All courses and study plans\n'
+          '\u2022 All uploaded files and materials\n'
+          '\u2022 All questions and quiz history\n'
+          '\u2022 All progress and statistics\n\n'
           'Your account will remain active. You can start fresh after deletion.\n\n'
           'This action cannot be undone.',
         ),
@@ -394,7 +666,6 @@ class SettingsScreen extends ConsumerWidget {
                       backgroundColor: AppColors.success,
                     ),
                   );
-                  // Navigate to onboarding to start fresh
                   context.go('/onboarding');
                 }
               } catch (e) {
@@ -448,7 +719,8 @@ class SettingsScreen extends ConsumerWidget {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Failed to delete account. Please try again.'),
+                      content:
+                          Text('Failed to delete account. Please try again.'),
                     ),
                   );
                 }
@@ -496,6 +768,51 @@ class _SectionHeader extends StatelessWidget {
                 ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color? valueColor;
+  final bool isDark;
+
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.valueColor,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon,
+          color: isDark
+              ? AppColors.darkTextSecondary
+              : AppColors.textSecondary,
+          size: 20),
+      title: Text(label),
+      trailing: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 180),
+        child: Text(
+          value,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: valueColor ??
+                    (isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.textSecondary),
+                fontWeight:
+                    valueColor != null ? FontWeight.w600 : FontWeight.w400,
+              ),
+          textAlign: TextAlign.end,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
     );
   }

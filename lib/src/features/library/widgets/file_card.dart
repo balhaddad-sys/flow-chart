@@ -13,6 +13,7 @@ class FileCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isProcessing = file.status == 'PROCESSING';
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -20,22 +21,40 @@ class FileCard extends StatelessWidget {
         color: isDark ? AppColors.darkSurface : AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         border: Border.all(
-          color: isDark ? AppColors.darkBorder : AppColors.border,
+          color: isProcessing
+              ? AppColors.primary.withValues(alpha: 0.25)
+              : (isDark ? AppColors.darkBorder : AppColors.border),
         ),
+        boxShadow: isProcessing && !isDark ? AppSpacing.shadowSm : null,
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.xs,
-        ),
-        leading: _fileIcon(file.mimeType, isDark),
-        title: Text(
-          file.originalName,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: _buildSubtitle(context, isDark),
-        trailing: _statusIndicator(isDark),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.xs,
+            ),
+            leading: _fileIcon(file.mimeType, isDark),
+            title: Text(
+              file.originalName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: _buildSubtitle(context, isDark),
+            trailing: isProcessing ? null : _statusIndicator(isDark),
+          ),
+          // Show expanded processing indicator when processing
+          if (isProcessing)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md, 0, AppSpacing.md, AppSpacing.md),
+              child: ProcessingIndicator(
+                phase: file.processingPhase,
+                showLabel: true,
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -70,27 +89,29 @@ class FileCard extends StatelessWidget {
 
   Widget _buildSubtitle(BuildContext context, bool isDark) {
     final sizeStr = _formatSize(file.sizeBytes);
-    final sectionStr = file.status == 'READY'
-        ? ' · ${file.sectionCount} sections'
-        : '';
+    final statusStr = file.status == 'PROCESSING'
+        ? ' \u00b7 Processing'
+        : file.status == 'READY' || file.status == 'COMPLETE'
+            ? ' \u00b7 ${file.sectionCount} sections'
+            : file.status == 'FAILED'
+                ? ' \u00b7 Failed'
+                : '';
     return Text(
-      '$sizeStr$sectionStr',
+      '$sizeStr$statusStr',
       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: isDark
-                ? AppColors.darkTextTertiary
-                : AppColors.textTertiary,
+            color: file.status == 'FAILED'
+                ? AppColors.error
+                : (isDark
+                    ? AppColors.darkTextTertiary
+                    : AppColors.textTertiary),
           ),
     );
   }
 
   Widget _statusIndicator(bool isDark) {
     switch (file.status) {
-      case 'PROCESSING':
-        return ProcessingIndicator(
-          phase: file.processingPhase,
-          showLabel: true,
-        );
       case 'READY':
+      case 'COMPLETE':
         return Container(
           width: 28,
           height: 28,
