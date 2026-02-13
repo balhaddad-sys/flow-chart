@@ -1,8 +1,8 @@
 "use client";
 
-import { use } from "react";
+import { use, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, FileText, Trash2 } from "lucide-react";
+import { ArrowLeft, FileText, Trash2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useSectionsByFile } from "@/lib/hooks/useSections";
@@ -12,6 +12,7 @@ import { SectionList } from "@/components/library/section-list";
 import { deleteDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
+import * as fn from "@/lib/firebase/functions";
 
 export default function FileDetailPage({ params }: { params: Promise<{ fileId: string }> }) {
   const { fileId } = use(params);
@@ -21,7 +22,21 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
   const { files } = useFiles(courseId);
   const { sections, loading } = useSectionsByFile(fileId);
 
+  const [retrying, setRetrying] = useState(false);
+
   const file = files.find((f) => f.id === fileId);
+  const hasFailedSections = sections.some((s) => s.aiStatus === "FAILED");
+
+  async function handleRetry() {
+    setRetrying(true);
+    try {
+      await fn.retryFailedSections({ fileId });
+    } catch {
+      // silent
+    } finally {
+      setRetrying(false);
+    }
+  }
 
   async function handleDelete() {
     if (!uid || !file) return;
@@ -52,11 +67,19 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
             </div>
           )}
         </div>
-        {file && (
-          <Button variant="ghost" size="icon" onClick={handleDelete} className="text-destructive">
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        )}
+        <div className="flex items-center gap-1">
+          {hasFailedSections && (
+            <Button variant="outline" size="sm" onClick={handleRetry} disabled={retrying}>
+              <RefreshCw className={`mr-1 h-4 w-4 ${retrying ? "animate-spin" : ""}`} />
+              {retrying ? "Retrying..." : "Retry Failed"}
+            </Button>
+          )}
+          {file && (
+            <Button variant="ghost" size="icon" onClick={handleDelete} className="text-destructive">
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       <div>

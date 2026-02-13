@@ -103,6 +103,11 @@ export function processDocumentBatch(params: { images: string[]; concurrency?: n
   return callFunction("processDocumentBatch", params);
 }
 
+// --- Retry Failed Sections ---
+export function retryFailedSections(params: { fileId: string }) {
+  return callFunction<{ retriedCount: number; message: string }>("retryFailedSections", params);
+}
+
 // --- Chat ---
 export function sendChatMessage(params: {
   threadId: string;

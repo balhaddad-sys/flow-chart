@@ -22,6 +22,7 @@ admin.initializeApp();
 const { processUploadedFile } = require("./processing/processFile");
 const { processSection } = require("./processing/processSection");
 const { processDocumentBatch } = require("./processing/processDocumentBatch");
+const { retryFailedSections } = require("./processing/retryFailedSections");
 
 // ── Scheduling ───────────────────────────────────────────────────────────────
 const { generateSchedule } = require("./scheduling/generateSchedule");
@@ -47,6 +48,7 @@ const { healthCheck } = require("./admin/healthCheck");
 exports.processUploadedFile = processUploadedFile;
 exports.processSection = processSection;
 exports.processDocumentBatch = processDocumentBatch;
+exports.retryFailedSections = retryFailedSections;
 exports.generateSchedule = generateSchedule;
 exports.regenSchedule = regenSchedule;
 exports.catchUp = catchUp;
