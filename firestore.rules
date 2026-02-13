@@ -120,6 +120,38 @@ service cloud.firestore {
       match /jobs/{jobId} {
         allow read: if isOwner(userId);
       }
+
+      // Chat threads and messages (AI Study Assistant)
+      match /chatThreads/{threadId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && hasRequiredFields(['courseId', 'title']);
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
+      }
+
+      match /chatMessages/{messageId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId)
+          && hasRequiredFields(['threadId', 'role', 'content'])
+          && request.resource.data.role in ['user', 'assistant'];
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    // Study groups (top-level)
+    // Read allowed for any signed-in user (needed for join-by-invite-code lookup)
+    // Write restricted to members / creator
+    match /studyGroups/{groupId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && hasRequiredFields(['name', 'inviteCode', 'createdBy', 'members'])
+        && request.auth.uid == request.resource.data.createdBy
+        && request.auth.uid in request.resource.data.members;
+      // Allow update for signed-in users (members update metadata, new users join)
+      allow update: if isSignedIn();
+      allow delete: if isSignedIn()
+        && request.auth.uid == resource.data.createdBy;
     }
   }
 }
