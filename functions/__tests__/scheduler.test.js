@@ -11,8 +11,8 @@ describe("scheduling/scheduler", () => {
 
   describe("buildWorkUnits", () => {
     const sections = [
-      { id: "s1", title: "Cardiac Anatomy", estMinutes: 30, difficulty: 4, topicTags: ["cardio"] },
-      { id: "s2", title: "Renal Physiology", estMinutes: 20, difficulty: 2 },
+      { id: "s1", title: "Cardiac Anatomy", estMinutes: 30, difficulty: 4, topicTags: ["cardio"], questionsStatus: "COMPLETED" },
+      { id: "s2", title: "Renal Physiology", estMinutes: 20, difficulty: 2, questionsStatus: "COMPLETED" },
     ];
 
     it("creates STUDY + QUESTIONS tasks for each section", () => {
@@ -22,6 +22,21 @@ describe("scheduling/scheduler", () => {
 
       expect(studyTasks).toHaveLength(2);
       expect(questionTasks).toHaveLength(2);
+    });
+
+    it("only creates QUESTIONS tasks when questionsStatus is COMPLETED", () => {
+      const sectionsWithMixedStatus = [
+        { id: "s1", title: "Section 1", questionsStatus: "COMPLETED" },
+        { id: "s2", title: "Section 2", questionsStatus: "PENDING" },
+        { id: "s3", title: "Section 3", questionsStatus: "FAILED" },
+        { id: "s4", title: "Section 4" }, // missing questionsStatus
+      ];
+      const tasks = buildWorkUnits(sectionsWithMixedStatus, "c1", "off");
+      const questionTasks = tasks.filter((t) => t.type === "QUESTIONS");
+
+      // Only s1 should have QUESTIONS task
+      expect(questionTasks).toHaveLength(1);
+      expect(questionTasks[0].sectionIds[0]).toBe("s1");
     });
 
     it("creates REVIEW tasks according to revision policy", () => {
