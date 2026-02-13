@@ -1,0 +1,68 @@
+"use client";
+
+import { use } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, FileText, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useSectionsByFile } from "@/lib/hooks/useSections";
+import { useFiles } from "@/lib/hooks/useFiles";
+import { useCourseStore } from "@/lib/stores/course-store";
+import { SectionList } from "@/components/library/section-list";
+import { deleteDoc, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase/client";
+import { useAuth } from "@/lib/hooks/useAuth";
+
+export default function FileDetailPage({ params }: { params: Promise<{ fileId: string }> }) {
+  const { fileId } = use(params);
+  const router = useRouter();
+  const { uid } = useAuth();
+  const courseId = useCourseStore((s) => s.activeCourseId);
+  const { files } = useFiles(courseId);
+  const { sections, loading } = useSectionsByFile(fileId);
+
+  const file = files.find((f) => f.id === fileId);
+
+  async function handleDelete() {
+    if (!uid || !file) return;
+    if (!confirm("Delete this file and all its sections?")) return;
+    await deleteDoc(doc(db, "users", uid, "files", file.id));
+    router.replace("/library");
+  }
+
+  return (
+    <div className="mx-auto max-w-4xl space-y-6 p-6">
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" onClick={() => router.back()}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <FileText className="h-5 w-5 text-muted-foreground" />
+            <h1 className="truncate text-xl font-bold">
+              {file?.originalName ?? "Loading..."}
+            </h1>
+          </div>
+          {file && (
+            <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
+              <Badge variant="outline">{file.status}</Badge>
+              <span>
+                {file.sectionCount} {file.sectionCount === 1 ? "section" : "sections"}
+              </span>
+            </div>
+          )}
+        </div>
+        {file && (
+          <Button variant="ghost" size="icon" onClick={handleDelete} className="text-destructive">
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+
+      <div>
+        <h2 className="mb-3 text-lg font-semibold">Sections</h2>
+        <SectionList sections={sections} loading={loading} />
+      </div>
+    </div>
+  );
+}

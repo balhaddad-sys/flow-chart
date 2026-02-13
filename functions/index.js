@@ -59,3 +59,7 @@ exports.runFixPlan = runFixPlan;
 exports.createCourse = createCourse;
 exports.deleteUserData = deleteUserData;
 exports.healthCheck = healthCheck;
+
+// ── Chat ─────────────────────────────────────────────────────────────────
+const { sendChatMessage } = require("./chat/sendChatMessage");
+exports.sendChatMessage = sendChatMessage;
