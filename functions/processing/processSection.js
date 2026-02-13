@@ -24,9 +24,9 @@ const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
 
 exports.processSection = functions
   .runWith({
-    timeoutSeconds: 120, // Increased timeout for question generation (blueprint is fast, questions can take 60-90s)
+    timeoutSeconds: 540, // 9 minutes — accommodates 60s rate-limit retries for blueprint + questions
     memory: "512MB",
-    maxInstances: 20, // Process many sections in parallel for speed
+    maxInstances: 3, // Limit concurrency to avoid exceeding Anthropic 10K tokens/min rate limit
     minInstances: 1, // Keep warm to eliminate cold start latency
     secrets: [anthropicApiKey], // Grant access to the secret
   })

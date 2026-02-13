@@ -32,15 +32,19 @@ const MODELS = {
 
 // Max tokens per prompt type — tuned for speed vs completeness
 const MAX_TOKENS = {
-  blueprint: 2048,
-  questions: 3000, // Reduced from 4096 to stay within rate limits (8-10 questions fit comfortably)
+  blueprint: 2500, // Increased from 2048 to prevent truncation on content-rich sections
+  questions: 3000,
   tutoring: 1024,
   fixPlan: 2048,
   documentExtract: 1200,
 };
 
-// Retry delays in ms — fast retries to keep pipeline latency low
+// Retry delays in ms for non-rate-limit errors
 const RETRY_DELAYS = [500, 1500, 4000];
+
+// Rate limit retry: wait 60s (full rate window reset) before retrying
+const RATE_LIMIT_RETRY_DELAY = 60000;
+const RATE_LIMIT_MAX_RETRIES = 4; // Up to 5 attempts total for rate limits
 
 // Lazy-initialized Anthropic client.
 // Firebase secrets are only available at function invocation time, NOT at module load.
@@ -135,15 +139,15 @@ async function callClaude(
   usePrefill = true
 ) {
   const model = MODELS[tier];
+  let rateLimitRetries = 0;
+  let attempt = 0;
 
-  for (let attempt = 0; attempt <= retries; attempt++) {
+  while (true) {
     try {
       // Build messages array with optional prefill injection
       const messages = [{ role: "user", content: userPrompt }];
 
       if (usePrefill) {
-        // PREFILL INJECTION: Force Claude to start with "{"
-        // This guarantees pure JSON output without markdown or chat preambles
         messages.push({ role: "assistant", content: "{" });
       }
 
@@ -151,7 +155,6 @@ async function callClaude(
         model: model,
         max_tokens: maxTokens,
         messages: messages,
-        // Prompt caching: reuse system prompt across calls
         system: [
           {
             type: "text",
@@ -161,29 +164,36 @@ async function callClaude(
         ],
       });
 
-      // Extract text from response
       let text = response.content
         .filter((block) => block.type === "text")
         .map((block) => block.text)
         .join("");
 
-      // Re-attach the prefill brace if we used it (Claude won't repeat it)
       if (usePrefill) {
         text = "{" + text;
       }
 
-      // Robust JSON extraction (now less likely to need aggressive cleanup)
       const jsonStr = extractJsonFromText(text);
       const parsed = JSON.parse(jsonStr);
       return { success: true, data: parsed, model, tokensUsed: response.usage };
     } catch (error) {
+      const isRateLimit = error.status === 429 || error.message?.includes("rate_limit");
+
+      if (isRateLimit && rateLimitRetries < RATE_LIMIT_MAX_RETRIES) {
+        rateLimitRetries++;
+        console.warn(`Rate limited, waiting 60s before retry ${rateLimitRetries}/${RATE_LIMIT_MAX_RETRIES}`, { model, tier });
+        await new Promise((r) => setTimeout(r, RATE_LIMIT_RETRY_DELAY));
+        continue; // Don't increment attempt counter for rate limits
+      }
+
       console.error(`AI call attempt ${attempt + 1}/${retries + 1} failed:`, {
         model,
         tier,
         error: error.message,
+        isRateLimit,
       });
 
-      if (attempt === retries) {
+      if (attempt >= retries) {
         return {
           success: false,
           error: error.message,
@@ -192,8 +202,8 @@ async function callClaude(
         };
       }
 
-      // Fast retry with short backoff
-      const delay = RETRY_DELAYS[attempt] || 4000;
+      attempt++;
+      const delay = RETRY_DELAYS[attempt - 1] || 4000;
       await new Promise((r) => setTimeout(r, delay));
     }
   }
@@ -223,14 +233,15 @@ async function callClaudeVision({
 }) {
   const model = MODELS[tier];
   const t0 = Date.now();
+  let rateLimitRetries = 0;
+  let attempt = 0;
 
-  for (let attempt = 0; attempt <= retries; attempt++) {
+  while (true) {
     try {
       const response = await getClient().messages.create({
         model,
         max_tokens: maxTokens,
         temperature: 0,
-        // Prompt caching: mark system prompt as ephemeral for cache reuse
         system: [
           {
             type: "text",
@@ -275,12 +286,21 @@ async function callClaudeVision({
         ms: Date.now() - t0,
       };
     } catch (error) {
+      const isRateLimit = error.status === 429 || error.message?.includes("rate_limit");
+
+      if (isRateLimit && rateLimitRetries < RATE_LIMIT_MAX_RETRIES) {
+        rateLimitRetries++;
+        console.warn(`Vision rate limited, waiting 60s before retry ${rateLimitRetries}/${RATE_LIMIT_MAX_RETRIES}`, { model, tier });
+        await new Promise((r) => setTimeout(r, RATE_LIMIT_RETRY_DELAY));
+        continue;
+      }
+
       console.error(
         `Vision call attempt ${attempt + 1}/${retries + 1} failed:`,
-        { model, tier, error: error.message }
+        { model, tier, error: error.message, isRateLimit }
       );
 
-      if (attempt === retries) {
+      if (attempt >= retries) {
         return {
           success: false,
           error: error.message,
@@ -289,7 +309,8 @@ async function callClaudeVision({
         };
       }
 
-      const delay = RETRY_DELAYS[attempt] || 4000;
+      attempt++;
+      const delay = RETRY_DELAYS[attempt - 1] || 4000;
       await new Promise((r) => setTimeout(r, delay));
     }
   }
