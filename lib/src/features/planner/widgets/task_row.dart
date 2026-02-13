@@ -19,6 +19,8 @@ class TaskRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDone = task.status == 'DONE';
+    final isSkipped = task.status == 'SKIPPED';
+    final isInactive = isDone || isSkipped;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Slidable(
@@ -75,7 +77,7 @@ class TaskRow extends ConsumerWidget {
           color: isDark ? AppColors.darkSurface : AppColors.surface,
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           border: Border.all(
-            color: isDone
+            color: isInactive
                 ? (isDark ? AppColors.darkBorder : AppColors.borderLight)
                 : (isDark ? AppColors.darkBorder : AppColors.border),
           ),
@@ -83,21 +85,49 @@ class TaskRow extends ConsumerWidget {
         child: ListTile(
           leading: _typeIcon(task.type, isDark),
           title: Text(
-            task.title,
+            task.title.isNotEmpty ? task.title : 'Untitled Task',
             style: TextStyle(
               decoration: isDone ? TextDecoration.lineThrough : null,
-              color: isDone
-                  ? (isDark ? AppColors.darkTextTertiary : AppColors.textTertiary)
+              color: isInactive
+                  ? (isDark
+                      ? AppColors.darkTextTertiary
+                      : AppColors.textTertiary)
                   : null,
             ),
           ),
-          subtitle: Text(
-            AppDateUtils.formatDuration(task.estMinutes),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: isDark
-                      ? AppColors.darkTextTertiary
-                      : AppColors.textTertiary,
+          subtitle: Row(
+            children: [
+              Text(
+                AppDateUtils.formatDuration(task.estMinutes),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: isDark
+                          ? AppColors.darkTextTertiary
+                          : AppColors.textTertiary,
+                    ),
+              ),
+              if (isSkipped) ...[
+                AppSpacing.hGapSm,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 6, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: AppColors.warning.withValues(alpha: 0.1),
+                    borderRadius:
+                        BorderRadius.circular(AppSpacing.radiusSm),
+                  ),
+                  child: Text(
+                    'Skipped',
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelSmall
+                        ?.copyWith(
+                          color: AppColors.warning,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
                 ),
+              ],
+            ],
           ),
           trailing: Checkbox(
             value: isDone,
@@ -105,7 +135,9 @@ class TaskRow extends ConsumerWidget {
               if (checked == true) {
                 final uid = ref.read(uidProvider);
                 if (uid != null) {
-                  ref.read(firestoreServiceProvider).completeTask(uid, task.id);
+                  ref
+                      .read(firestoreServiceProvider)
+                      .completeTask(uid, task.id);
                 }
               }
             },
@@ -121,7 +153,8 @@ class TaskRow extends ConsumerWidget {
       'QUESTIONS' => (Icons.quiz, AppColors.secondary),
       'REVIEW' => (Icons.refresh, AppColors.warning),
       'MOCK' => (Icons.assignment, AppColors.error),
-      _ => (Icons.task, isDark ? AppColors.darkTextTertiary : AppColors.textTertiary),
+      _ => (Icons.task,
+          isDark ? AppColors.darkTextTertiary : AppColors.textTertiary),
     };
 
     return Container(

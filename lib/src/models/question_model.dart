@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../core/utils/json_converters.dart';
 import 'user_model.dart';
 
 part 'question_model.freezed.dart';
@@ -9,9 +10,9 @@ part 'question_model.g.dart';
 @freezed
 class QuestionExplanation with _$QuestionExplanation {
   const factory QuestionExplanation({
-    required String correctWhy,
-    @Default([]) List<String> whyOthersWrong,
-    required String keyTakeaway,
+    @SafeStringConverter() @Default('') String correctWhy,
+    @SafeStringListConverter() @Default([]) List<String> whyOthersWrong,
+    @SafeStringConverter() @Default('') String keyTakeaway,
   }) = _QuestionExplanation;
 
   factory QuestionExplanation.fromJson(Map<String, dynamic> json) =>
@@ -21,9 +22,9 @@ class QuestionExplanation with _$QuestionExplanation {
 @freezed
 class QuestionSourceRef with _$QuestionSourceRef {
   const factory QuestionSourceRef({
-    required String fileId,
-    required String sectionId,
-    required String label,
+    @SafeStringConverter() @Default('') String fileId,
+    @SafeStringConverter() @Default('') String sectionId,
+    @SafeStringConverter() @Default('') String label,
   }) = _QuestionSourceRef;
 
   factory QuestionSourceRef.fromJson(Map<String, dynamic> json) =>
@@ -33,9 +34,9 @@ class QuestionSourceRef with _$QuestionSourceRef {
 @freezed
 class QuestionStats with _$QuestionStats {
   const factory QuestionStats({
-    @Default(0) int timesAnswered,
-    @Default(0) int timesCorrect,
-    @Default(0.0) double avgTimeSec,
+    @SafeIntConverter() @Default(0) int timesAnswered,
+    @SafeIntConverter() @Default(0) int timesCorrect,
+    @SafeDoubleConverter() @Default(0.0) double avgTimeSec,
   }) = _QuestionStats;
 
   factory QuestionStats.fromJson(Map<String, dynamic> json) =>
@@ -45,17 +46,17 @@ class QuestionStats with _$QuestionStats {
 @freezed
 class QuestionModel with _$QuestionModel {
   const factory QuestionModel({
-    required String id,
-    required String courseId,
-    required String sectionId,
-    @Default([]) List<String> topicTags,
-    @Default(3) int difficulty,
-    @Default('SBA') String type,
-    required String stem,
-    @Default([]) List<String> options,
-    required int correctIndex,
-    required QuestionExplanation explanation,
-    required QuestionSourceRef sourceRef,
+    @SafeStringConverter() required String id,
+    @SafeStringConverter() required String courseId,
+    @SafeStringConverter() required String sectionId,
+    @SafeStringListConverter() @Default([]) List<String> topicTags,
+    @SafeIntConverter() @Default(3) int difficulty,
+    @SafeStringConverter() @Default('SBA') String type,
+    @SafeStringConverter() required String stem,
+    @SafeStringListConverter() @Default([]) List<String> options,
+    @SafeIntConverter() required int correctIndex,
+    @Default(QuestionExplanation()) QuestionExplanation explanation,
+    @Default(QuestionSourceRef()) QuestionSourceRef sourceRef,
     @Default(QuestionStats()) QuestionStats stats,
     @TimestampConverter() DateTime? createdAt,
   }) = _QuestionModel;
@@ -64,7 +65,7 @@ class QuestionModel with _$QuestionModel {
       _$QuestionModelFromJson(json);
 
   factory QuestionModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data = doc.data() as Map<String, dynamic>? ?? {};
     return QuestionModel.fromJson({...data, 'id': doc.id});
   }
 }

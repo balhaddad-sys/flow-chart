@@ -26,7 +26,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final courseId = ref.read(activeCourseIdProvider);
       if (courseId != null) {
-        // '_all' means quiz all questions for the course
         final sectionId =
             widget.sectionId == '_all' ? null : widget.sectionId;
         ref.read(quizProvider.notifier).loadQuestions(
@@ -40,7 +39,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   @override
   Widget build(BuildContext context) {
     final quiz = ref.watch(quizProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (quiz.isLoading && quiz.questions.isEmpty) {
       return const Scaffold(
@@ -48,7 +46,6 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       );
     }
 
-    // Show error state if there was an error loading questions
     if (quiz.errorMessage != null) {
       return _ErrorView(
         errorMessage: quiz.errorMessage!,
@@ -66,15 +63,11 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       );
     }
 
-    // Show empty state if no questions are available (not an error, just empty)
     if (quiz.questions.isEmpty) {
-      return _EmptyView(
-        onBack: () => context.pop(),
-      );
+      return _EmptyView(onBack: () => context.pop());
     }
 
-    // Show results only if quiz is complete AND has questions
-    if (quiz.isComplete && quiz.questions.isNotEmpty) {
+    if (quiz.isComplete) {
       return _ResultsView(quiz: quiz);
     }
 
@@ -85,9 +78,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       );
     }
 
-    final progress = quiz.questions.isNotEmpty
-        ? (quiz.currentIndex + 1) / quiz.questions.length
-        : 0.0;
+    final progress = (quiz.currentIndex + 1) / quiz.questions.length;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -108,22 +100,26 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         actions: [
           Container(
             margin: const EdgeInsets.only(right: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: AppColors.success.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+              borderRadius:
+                  BorderRadius.circular(AppSpacing.radiusFull),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.check_circle, color: AppColors.success, size: 14),
+                const Icon(Icons.check_circle,
+                    color: AppColors.success, size: 14),
                 const SizedBox(width: 4),
                 Text(
                   '${quiz.correctCount}/${quiz.totalAnswered}',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.success,
-                        fontWeight: FontWeight.w600,
-                      ),
+                  style:
+                      Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: AppColors.success,
+                            fontWeight: FontWeight.w600,
+                          ),
                 ),
               ],
             ),
@@ -152,14 +148,16 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             PrimaryButton(
               label: 'Submit Answer',
               onPressed: quiz.selectedOptionIndex != null
-                  ? () => ref.read(quizProvider.notifier).submitAnswer()
+                  ? () =>
+                      ref.read(quizProvider.notifier).submitAnswer()
                   : null,
               isLoading: quiz.isLoading,
             )
           else
             PrimaryButton(
               label: 'Next Question',
-              onPressed: () => ref.read(quizProvider.notifier).nextQuestion(),
+              onPressed: () =>
+                  ref.read(quizProvider.notifier).nextQuestion(),
             ),
           AppSpacing.gapLg,
         ],
@@ -231,7 +229,10 @@ class _ResultsView extends StatelessWidget {
                 child: Center(
                   child: Text(
                     '$percent%',
-                    style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                    style: Theme.of(context)
+                        .textTheme
+                        .displayMedium
+                        ?.copyWith(
                           color: scoreColor,
                           fontWeight: FontWeight.w800,
                         ),
@@ -246,7 +247,10 @@ class _ResultsView extends StatelessWidget {
                   const SizedBox(width: 8),
                   Text(
                     scoreLabel,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    style: Theme.of(context)
+                        .textTheme
+                        .headlineMedium
+                        ?.copyWith(
                           color: scoreColor,
                           fontWeight: FontWeight.w700,
                         ),
@@ -319,9 +323,10 @@ class _ErrorView extends StatelessWidget {
               const SizedBox(height: 24),
               Text(
                 'Unable to Load Quiz',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                style: Theme.of(context)
+                    .textTheme
+                    .headlineMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
@@ -354,9 +359,7 @@ class _ErrorView extends StatelessWidget {
 class _EmptyView extends StatelessWidget {
   final VoidCallback onBack;
 
-  const _EmptyView({
-    required this.onBack,
-  });
+  const _EmptyView({required this.onBack});
 
   @override
   Widget build(BuildContext context) {
@@ -390,9 +393,10 @@ class _EmptyView extends StatelessWidget {
               const SizedBox(height: 24),
               Text(
                 'No Questions Yet',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                style: Theme.of(context)
+                    .textTheme
+                    .headlineMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),

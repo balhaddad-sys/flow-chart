@@ -195,6 +195,38 @@ class SafeDateTimeConverter implements JsonConverter<DateTime, dynamic> {
 ///   }) = _Task;
 /// }
 /// ```
+/// Nullable variant of [SafeIntConverter] — returns null for null input.
+class SafeNullableIntConverter implements JsonConverter<int?, dynamic> {
+  const SafeNullableIntConverter();
+
+  @override
+  int? fromJson(dynamic json) {
+    if (json == null) return null;
+    if (json is int) return json;
+    if (json is double) return json.truncate();
+    if (json is String) return int.tryParse(json);
+    return null;
+  }
+
+  @override
+  dynamic toJson(int? object) => object;
+}
+
+/// Nullable variant of [SafeStringConverter] — returns null for null input.
+class SafeNullableStringConverter implements JsonConverter<String?, dynamic> {
+  const SafeNullableStringConverter();
+
+  @override
+  String? fromJson(dynamic json) {
+    if (json == null) return null;
+    if (json is String) return json;
+    return json.toString();
+  }
+
+  @override
+  dynamic toJson(String? object) => object;
+}
+
 class EnumConverter<T> implements JsonConverter<T, String> {
   final List<T> values;
   final T defaultValue;

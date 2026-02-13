@@ -31,7 +31,8 @@ class QuizState {
   QuestionModel? get currentQuestion =>
       currentIndex < questions.length ? questions[currentIndex] : null;
 
-  bool get isComplete => currentIndex >= questions.length;
+  bool get isComplete =>
+      questions.isNotEmpty && currentIndex >= questions.length;
 
   double get accuracy =>
       totalAnswered > 0 ? correctCount / totalAnswered : 0;
@@ -84,8 +85,14 @@ class QuizNotifier extends StateNotifier<QuizState> {
         sectionId: sectionId,
         limit: count,
       );
+
+      // Filter out questions with invalid data (empty stem or no options)
+      final validQuestions = questions
+          .where((q) => q.stem.isNotEmpty && q.options.isNotEmpty)
+          .toList();
+
       state = state.copyWith(
-        questions: questions,
+        questions: validQuestions,
         currentIndex: 0,
         isLoading: false,
         correctCount: 0,
@@ -117,7 +124,11 @@ class QuizNotifier extends StateNotifier<QuizState> {
 
     state = state.copyWith(hasSubmitted: true, isLoading: true);
 
-    final isCorrect = state.selectedOptionIndex == question.correctIndex;
+    // Guard: ensure correctIndex is within bounds
+    final safeCorrectIndex = question.options.isNotEmpty
+        ? question.correctIndex.clamp(0, question.options.length - 1)
+        : 0;
+    final isCorrect = state.selectedOptionIndex == safeCorrectIndex;
 
     try {
       final functionsService = _ref.read(cloudFunctionsServiceProvider);
@@ -135,6 +146,7 @@ class QuizNotifier extends StateNotifier<QuizState> {
       );
     } catch (e) {
       ErrorHandler.logError(e);
+      // Still record the answer even if submit fails
       state = state.copyWith(
         isLoading: false,
         correctCount: state.correctCount + (isCorrect ? 1 : 0),
@@ -150,7 +162,6 @@ class QuizNotifier extends StateNotifier<QuizState> {
       hasSubmitted: false,
       tutorResponse: null,
     );
-    // Reset stopwatch for next question
     _questionStopwatch
       ..reset()
       ..start();

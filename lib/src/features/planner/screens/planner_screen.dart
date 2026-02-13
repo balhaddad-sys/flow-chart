@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
-import '../../../core/providers/user_provider.dart';
 import '../../../core/utils/date_utils.dart';
+import '../../../core/utils/error_handler.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../home/providers/home_provider.dart';
 import '../providers/planner_provider.dart';
@@ -42,6 +42,27 @@ class PlannerScreen extends ConsumerWidget {
 
     final String courseId = activeCourseId;
     final tasksAsync = ref.watch(allTasksProvider(courseId));
+    final actionsState = ref.watch(plannerActionsProvider);
+
+    // Show snackbar on action error
+    ref.listen<AsyncValue<void>>(plannerActionsProvider, (prev, next) {
+      next.whenOrNull(
+        error: (e, _) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(ErrorHandler.userMessage(e))),
+            );
+          }
+        },
+        data: (_) {
+          if (prev is AsyncLoading && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Schedule updated')),
+            );
+          }
+        },
+      );
+    });
 
     return Scaffold(
       body: SafeArea(
@@ -72,39 +93,28 @@ class PlannerScreen extends ConsumerWidget {
                     child: InkWell(
                       borderRadius:
                           BorderRadius.circular(AppSpacing.radiusMd),
-                      onTap: () async {
-                        try {
-                          await ref
-                              .read(cloudFunctionsServiceProvider)
-                              .regenSchedule(courseId: courseId);
-                          ref.invalidate(
-                              allTasksProvider(courseId));
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content:
-                                      Text('Schedule regenerated')),
-                            );
-                          }
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                  content: Text(
-                                      'Failed to regenerate: $e')),
-                            );
-                          }
-                        }
-                      },
+                      onTap: actionsState is AsyncLoading
+                          ? null
+                          : () => ref
+                              .read(plannerActionsProvider.notifier)
+                              .regenSchedule(courseId),
                       child: Padding(
                         padding: const EdgeInsets.all(AppSpacing.sm),
-                        child: Icon(
-                          Icons.refresh_rounded,
-                          size: 20,
-                          color: isDark
-                              ? AppColors.darkTextSecondary
-                              : AppColors.textSecondary,
-                        ),
+                        child: actionsState is AsyncLoading
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Icon(
+                                Icons.refresh_rounded,
+                                size: 20,
+                                color: isDark
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.textSecondary,
+                              ),
                       ),
                     ),
                   ),
@@ -117,7 +127,14 @@ class PlannerScreen extends ConsumerWidget {
               child: tasksAsync.when(
                 loading: () =>
                     const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('Error: $e')),
+                error: (e, _) => EmptyState(
+                  icon: Icons.error_outline,
+                  title: 'Something went wrong',
+                  subtitle: ErrorHandler.userMessage(e),
+                  actionLabel: 'Retry',
+                  onAction: () =>
+                      ref.invalidate(allTasksProvider(courseId)),
+                ),
                 data: (tasks) {
                   if (tasks.isEmpty) {
                     return EmptyState(
@@ -126,36 +143,11 @@ class PlannerScreen extends ConsumerWidget {
                       subtitle:
                           'Upload materials and generate a study plan',
                       actionLabel: 'Generate Plan',
-                      onAction: () async {
-                        try {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content:
-                                    Text('Generating study plan...')),
-                          );
-                          await ref
-                              .read(cloudFunctionsServiceProvider)
-                              .generateSchedule(
-                                courseId: courseId,
-                                availability: {},
-                                revisionPolicy: 'standard',
-                              );
-                          ref.invalidate(allTasksProvider(courseId));
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Plan generated!')),
-                            );
-                          }
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                  content: Text('Failed: $e')),
-                            );
-                          }
-                        }
-                      },
+                      onAction: actionsState is AsyncLoading
+                          ? null
+                          : () => ref
+                              .read(plannerActionsProvider.notifier)
+                              .generateSchedule(courseId),
                     );
                   }
 

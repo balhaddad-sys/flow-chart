@@ -18,20 +18,27 @@ class ExplanationPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isCorrect = selectedIndex == question.correctIndex;
+    final safeCorrectIndex = question.options.isNotEmpty
+        ? question.correctIndex.clamp(0, question.options.length - 1)
+        : 0;
+    final isCorrect = selectedIndex == safeCorrectIndex;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       padding: AppSpacing.cardPaddingLg,
       decoration: BoxDecoration(
         color: isCorrect
-            ? AppColors.successLight.withValues(alpha: isDark ? 0.1 : 0.5)
-            : AppColors.errorLight.withValues(alpha: isDark ? 0.1 : 0.5),
+            ? AppColors.successLight
+                .withValues(alpha: isDark ? 0.1 : 0.5)
+            : AppColors.errorLight
+                .withValues(alpha: isDark ? 0.1 : 0.5),
         borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         border: Border.all(
           color: isCorrect
-              ? AppColors.success.withValues(alpha: isDark ? 0.2 : 0.15)
-              : AppColors.error.withValues(alpha: isDark ? 0.2 : 0.15),
+              ? AppColors.success
+                  .withValues(alpha: isDark ? 0.2 : 0.15)
+              : AppColors.error
+                  .withValues(alpha: isDark ? 0.2 : 0.15),
         ),
       ),
       child: Column(
@@ -43,36 +50,48 @@ class ExplanationPanel extends StatelessWidget {
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: (isCorrect ? AppColors.success : AppColors.error)
-                      .withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                  color:
+                      (isCorrect ? AppColors.success : AppColors.error)
+                          .withValues(alpha: 0.15),
+                  borderRadius:
+                      BorderRadius.circular(AppSpacing.radiusSm),
                 ),
                 child: Icon(
                   isCorrect ? Icons.check : Icons.close,
-                  color: isCorrect ? AppColors.success : AppColors.error,
+                  color:
+                      isCorrect ? AppColors.success : AppColors.error,
                   size: 16,
                 ),
               ),
               AppSpacing.hGapSm,
               Text(
                 isCorrect ? 'Correct!' : 'Incorrect',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: isCorrect ? AppColors.success : AppColors.error,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(
+                      color: isCorrect
+                          ? AppColors.success
+                          : AppColors.error,
                       fontWeight: FontWeight.w600,
                     ),
               ),
             ],
           ),
-          AppSpacing.gapMd,
-          Text(
-            'Why ${question.options[question.correctIndex]} is correct:',
-            style: Theme.of(context).textTheme.labelLarge,
-          ),
-          AppSpacing.gapXs,
-          Text(
-            question.explanation.correctWhy,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
+          if (question.explanation.correctWhy.isNotEmpty) ...[
+            AppSpacing.gapMd,
+            Text(
+              question.options.isNotEmpty
+                  ? 'Why ${question.options[safeCorrectIndex]} is correct:'
+                  : 'Why the correct answer is right:',
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
+            AppSpacing.gapXs,
+            Text(
+              question.explanation.correctWhy,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
           if (!isCorrect) ...[
             AppSpacing.gapMd,
             Text(
@@ -81,43 +100,49 @@ class ExplanationPanel extends StatelessWidget {
             ),
             AppSpacing.gapXs,
             Text(
-              selectedIndex < question.explanation.whyOthersWrong.length
+              selectedIndex <
+                      question.explanation.whyOthersWrong.length
                   ? question.explanation.whyOthersWrong[selectedIndex]
                   : 'This option is incorrect.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
-          AppSpacing.gapMd,
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.sm),
-            decoration: BoxDecoration(
-              color: AppColors.infoLight.withValues(alpha: isDark ? 0.1 : 0.5),
-              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: AppColors.info.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(6),
+          if (question.explanation.keyTakeaway.isNotEmpty) ...[
+            AppSpacing.gapMd,
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.sm),
+              decoration: BoxDecoration(
+                color: AppColors.infoLight
+                    .withValues(alpha: isDark ? 0.1 : 0.5),
+                borderRadius:
+                    BorderRadius.circular(AppSpacing.radiusSm),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 24,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: AppColors.info.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(Icons.lightbulb_outline,
+                        color: AppColors.info, size: 14),
                   ),
-                  child: const Icon(Icons.lightbulb_outline,
-                      color: AppColors.info, size: 14),
-                ),
-                AppSpacing.hGapSm,
-                Expanded(
-                  child: Text(
-                    question.explanation.keyTakeaway,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: AppColors.info,
-                        ),
+                  AppSpacing.hGapSm,
+                  Expanded(
+                    child: Text(
+                      question.explanation.keyTakeaway,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(color: AppColors.info),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );

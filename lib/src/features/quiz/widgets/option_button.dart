@@ -33,10 +33,12 @@ class OptionButton extends StatelessWidget {
     if (hasSubmitted) {
       if (isCorrect == true) {
         borderColor = AppColors.success;
-        bgColor = AppColors.successLight.withValues(alpha: isDark ? 0.15 : 0.5);
+        bgColor = AppColors.successLight
+            .withValues(alpha: isDark ? 0.15 : 0.5);
       } else if (isSelected && isCorrect == false) {
         borderColor = AppColors.error;
-        bgColor = AppColors.errorLight.withValues(alpha: isDark ? 0.15 : 0.5);
+        bgColor = AppColors.errorLight
+            .withValues(alpha: isDark ? 0.15 : 0.5);
       } else {
         borderColor = isDark ? AppColors.darkBorder : AppColors.border;
         bgColor = null;
@@ -48,7 +50,8 @@ class OptionButton extends StatelessWidget {
               ? AppColors.darkBorder
               : AppColors.border;
       bgColor = isSelected
-          ? AppColors.primarySubtle.withValues(alpha: isDark ? 0.15 : 1.0)
+          ? AppColors.primarySubtle
+              .withValues(alpha: isDark ? 0.15 : 1.0)
           : null;
     }
 
@@ -60,7 +63,8 @@ class OptionButton extends StatelessWidget {
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
           color: bgColor,
-          border: Border.all(color: borderColor, width: isSelected ? 2 : 1),
+          border: Border.all(
+              color: borderColor, width: isSelected ? 2 : 1),
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         ),
         child: Row(
@@ -96,14 +100,16 @@ class OptionButton extends StatelessWidget {
             AppSpacing.hGapMd,
             Expanded(
               child: Text(
-                text,
+                text.isNotEmpty ? text : 'Option ${index + 1}',
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
             ),
             if (hasSubmitted && isCorrect == true)
-              const Icon(Icons.check_circle, color: AppColors.success, size: 22),
+              const Icon(Icons.check_circle,
+                  color: AppColors.success, size: 22),
             if (hasSubmitted && isSelected && isCorrect == false)
-              const Icon(Icons.cancel, color: AppColors.error, size: 22),
+              const Icon(Icons.cancel,
+                  color: AppColors.error, size: 22),
           ],
         ),
       ),

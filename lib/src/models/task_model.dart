@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import '../core/utils/json_converters.dart';
 import 'user_model.dart';
 
 part 'task_model.freezed.dart';
@@ -20,24 +21,24 @@ class TimeWindow with _$TimeWindow {
 @freezed
 class TaskModel with _$TaskModel {
   const factory TaskModel({
-    required String id,
-    required String courseId,
-    required String type,
-    required String title,
-    @Default([]) List<String> sectionIds,
-    @Default([]) List<String> topicTags,
-    @Default(15) int estMinutes,
-    int? actualMinutes,
-    @Default(3) int difficulty,
+    @SafeStringConverter() required String id,
+    @SafeStringConverter() required String courseId,
+    @SafeStringConverter() required String type,
+    @SafeStringConverter() required String title,
+    @SafeStringListConverter() @Default([]) List<String> sectionIds,
+    @SafeStringListConverter() @Default([]) List<String> topicTags,
+    @SafeIntConverter() @Default(15) int estMinutes,
+    @SafeNullableIntConverter() int? actualMinutes,
+    @SafeIntConverter() @Default(3) int difficulty,
     @TimestampConverter() required DateTime dueDate,
     TimeWindow? timeWindow,
-    @Default('TODO') String status,
+    @SafeStringConverter() @Default('TODO') String status,
     @TimestampConverter() DateTime? completedAt,
-    @Default(false) bool isPinned,
-    @Default(0) int priority,
-    @Default(0) int orderIndex,
-    String? parentTaskId,
-    String? linkedQuestionSetId,
+    @SafeBoolConverter() @Default(false) bool isPinned,
+    @SafeIntConverter() @Default(0) int priority,
+    @SafeIntConverter() @Default(0) int orderIndex,
+    @SafeNullableStringConverter() String? parentTaskId,
+    @SafeNullableStringConverter() String? linkedQuestionSetId,
     @TimestampConverter() DateTime? createdAt,
   }) = _TaskModel;
 
@@ -45,25 +46,7 @@ class TaskModel with _$TaskModel {
       _$TaskModelFromJson(json);
 
   factory TaskModel.fromFirestore(DocumentSnapshot doc) {
-    final raw = doc.data() as Map<String, dynamic>;
-    return TaskModel.fromJson({
-      ...raw,
-      'id': doc.id,
-      // Guard against non-String values from Firestore / AI-generated data
-      if (raw['type'] != null) 'type': raw['type'].toString(),
-      if (raw['title'] != null) 'title': raw['title'].toString(),
-      if (raw['status'] != null) 'status': raw['status'].toString(),
-      if (raw['courseId'] != null) 'courseId': raw['courseId'].toString(),
-      if (raw['topicTags'] is List)
-        'topicTags': (raw['topicTags'] as List)
-            .map((e) => e?.toString() ?? '')
-            .where((s) => s.isNotEmpty)
-            .toList(),
-      if (raw['sectionIds'] is List)
-        'sectionIds': (raw['sectionIds'] as List)
-            .map((e) => e?.toString() ?? '')
-            .where((s) => s.isNotEmpty)
-            .toList(),
-    });
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    return TaskModel.fromJson({...data, 'id': doc.id});
   }
 }

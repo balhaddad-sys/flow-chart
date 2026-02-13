@@ -23,6 +23,18 @@ class QuestionCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
+    if (question.options.isEmpty) {
+      return Text(
+        'No options available for this question.',
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppColors.textTertiary,
+            ),
+      );
+    }
+
+    final safeCorrectIndex =
+        question.correctIndex.clamp(0, question.options.length - 1);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -32,16 +44,21 @@ class QuestionCard extends StatelessWidget {
           children: [
             _difficultyChip(question.difficulty),
             ...question.topicTags.take(2).map((tag) => Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: isDark
                         ? AppColors.darkSurfaceVariant
                         : AppColors.surfaceVariant,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                    borderRadius:
+                        BorderRadius.circular(AppSpacing.radiusSm),
                   ),
                   child: Text(
                     tag,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    style: Theme.of(context)
+                        .textTheme
+                        .labelSmall
+                        ?.copyWith(
                           color: isDark
                               ? AppColors.darkTextSecondary
                               : AppColors.textSecondary,
@@ -66,7 +83,8 @@ class QuestionCard extends StatelessWidget {
               index: i,
               text: question.options[i],
               isSelected: selectedIndex == i,
-              isCorrect: hasSubmitted ? i == question.correctIndex : null,
+              isCorrect:
+                  hasSubmitted ? i == safeCorrectIndex : null,
               hasSubmitted: hasSubmitted,
               onTap: () => onOptionSelected(i),
             ),

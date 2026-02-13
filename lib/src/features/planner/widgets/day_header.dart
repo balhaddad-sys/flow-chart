@@ -33,14 +33,16 @@ class DayHeader extends StatelessWidget {
           ),
           const Spacer(),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
               color: allDone
                   ? AppColors.success.withValues(alpha: 0.1)
                   : isDark
                       ? AppColors.darkSurfaceVariant
                       : AppColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+              borderRadius:
+                  BorderRadius.circular(AppSpacing.radiusSm),
             ),
             child: Text(
               '$completedCount/$totalCount',
