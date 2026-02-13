@@ -17,7 +17,7 @@ const { generateBlueprint, generateQuestions: aiGenerateQuestions } = require(".
 const { BLUEPRINT_SYSTEM, blueprintUserPrompt, QUESTIONS_SYSTEM, questionsUserPrompt } = require("../ai/prompts");
 const { DIFFICULTY_DISTRIBUTION } = require("../lib/constants");
 
-const DEFAULT_QUESTION_COUNT = 10;
+const DEFAULT_QUESTION_COUNT = 8; // Reduced from 10 to lower token usage and stay within rate limits
 
 // Define the secret so the function can access it
 const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
@@ -170,7 +170,6 @@ exports.processSection = functions
         QUESTIONS_SYSTEM,
         questionsUserPrompt({
           blueprintJSON: normalised.blueprint,
-          sectionText,
           count,
           easyCount,
           mediumCount,

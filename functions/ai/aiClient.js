@@ -33,7 +33,7 @@ const MODELS = {
 // Max tokens per prompt type — tuned for speed vs completeness
 const MAX_TOKENS = {
   blueprint: 2048,
-  questions: 4096,
+  questions: 3000, // Reduced from 4096 to stay within rate limits (8-10 questions fit comfortably)
   tutoring: 1024,
   fixPlan: 2048,
   documentExtract: 1200,

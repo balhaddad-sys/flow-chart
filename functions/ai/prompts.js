@@ -38,26 +38,19 @@ Return this exact JSON schema:
 }
 
 const QUESTIONS_SYSTEM = `You are MedQ Question Writer. Generate exam-style single-best-answer (SBA)
-questions for medical students based ONLY on the provided material.
-Do NOT use facts not present in the source text.
+questions for medical students based on the provided topic blueprint.
 Questions must be clinically relevant, unambiguous, and have exactly one
 correct answer. Output STRICT JSON only.`;
 
 function questionsUserPrompt({
   blueprintJSON,
-  sectionText,
   count,
   easyCount,
   mediumCount,
   hardCount,
 }) {
-  return `Topic blueprint:
+  return `Topic blueprint (contains all learning objectives, key concepts, high-yield points, and terms):
 ${JSON.stringify(blueprintJSON, null, 2)}
-
-Source material:
-"""
-${sectionText}
-"""
 
 Generate exactly ${count} SBA questions with this difficulty distribution:
 - ${easyCount} easy (difficulty 1-2)

@@ -60,20 +60,15 @@ exports.generateQuestions = functions
         questionsErrorMessage: admin.firestore.FieldValue.delete(),
       });
 
-      // ── Fetch section text ──────────────────────────────────────────────
-      const bucket = admin.storage().bucket();
-      const [buffer] = await bucket.file(section.textBlobPath).download();
-      const sectionText = buffer.toString("utf-8");
-
       // ── Difficulty distribution ─────────────────────────────────────────
       const easyCount = Math.round(count * DIFFICULTY_DISTRIBUTION.easy);
       const hardCount = Math.round(count * DIFFICULTY_DISTRIBUTION.hard);
       const mediumCount = count - easyCount - hardCount;
 
-      // ── AI generation ───────────────────────────────────────────────────
+      // ── AI generation (using blueprint only, no section text needed) ────
       const result = await aiGenerateQuestions(
         QUESTIONS_SYSTEM,
-        questionsUserPrompt({ blueprintJSON: section.blueprint, sectionText, count, easyCount, mediumCount, hardCount })
+        questionsUserPrompt({ blueprintJSON: section.blueprint, count, easyCount, mediumCount, hardCount })
       );
 
       if (!result.success || !result.data.questions) {
