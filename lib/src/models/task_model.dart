@@ -45,7 +45,25 @@ class TaskModel with _$TaskModel {
       _$TaskModelFromJson(json);
 
   factory TaskModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return TaskModel.fromJson({...data, 'id': doc.id});
+    final raw = doc.data() as Map<String, dynamic>;
+    return TaskModel.fromJson({
+      ...raw,
+      'id': doc.id,
+      // Guard against non-String values from Firestore / AI-generated data
+      if (raw['type'] != null) 'type': raw['type'].toString(),
+      if (raw['title'] != null) 'title': raw['title'].toString(),
+      if (raw['status'] != null) 'status': raw['status'].toString(),
+      if (raw['courseId'] != null) 'courseId': raw['courseId'].toString(),
+      if (raw['topicTags'] is List)
+        'topicTags': (raw['topicTags'] as List)
+            .map((e) => e?.toString() ?? '')
+            .where((s) => s.isNotEmpty)
+            .toList(),
+      if (raw['sectionIds'] is List)
+        'sectionIds': (raw['sectionIds'] as List)
+            .map((e) => e?.toString() ?? '')
+            .where((s) => s.isNotEmpty)
+            .toList(),
+    });
   }
 }
