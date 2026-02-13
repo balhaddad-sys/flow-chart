@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
-import '../../../core/utils/error_handler.dart';
 import '../../../models/task_model.dart';
 
 /// Streams all tasks for a course, ordered by dueDate and orderIndex.
