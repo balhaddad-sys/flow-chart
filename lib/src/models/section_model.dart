@@ -60,6 +60,13 @@ class SectionModel with _$SectionModel {
 
   factory SectionModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-    return SectionModel.fromJson({...data, 'id': doc.id});
+    // Handle legacy data: add missing fields with defaults
+    return SectionModel.fromJson({
+      ...data,
+      'id': doc.id,
+      'questionsStatus': data['questionsStatus'] ?? 'PENDING',
+      'questionsCount': data['questionsCount'] ?? 0,
+      // questionsErrorMessage and lastErrorAt are nullable, no default needed
+    });
   }
 }
