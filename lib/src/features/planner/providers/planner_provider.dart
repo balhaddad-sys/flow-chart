@@ -45,25 +45,65 @@ class PlannerActionsNotifier extends StateNotifier<AsyncValue<void>> {
   Future<void> generateSchedule(String courseId) async {
     state = const AsyncLoading();
     try {
-      await _ref.read(cloudFunctionsServiceProvider).generateSchedule(
-            courseId: courseId,
-            availability: {},
-            revisionPolicy: 'standard',
-          );
+      final result =
+          await _ref.read(cloudFunctionsServiceProvider).generateSchedule(
+                courseId: courseId,
+                availability: {},
+                revisionPolicy: 'standard',
+              );
       _ref.invalidate(allTasksProvider(courseId));
+
+      // Backend returns feasible: false when schedule doesn't fit
+      if (result['feasible'] == false) {
+        final deficit = result['deficit'] ?? 0;
+        state = AsyncError(
+          Exception(
+            'Not enough study days to fit all tasks '
+            '($deficit minutes over capacity). '
+            'Try extending your study period or increasing daily hours.',
+          ),
+          StackTrace.current,
+        );
+        return;
+      }
+
       state = const AsyncData(null);
     } catch (e, st) {
       state = AsyncError(e, st);
     }
   }
 
+  /// Deletes old tasks then generates a fresh schedule.
   Future<void> regenSchedule(String courseId) async {
     state = const AsyncLoading();
     try {
+      // Step 1: delete old non-completed tasks
       await _ref.read(cloudFunctionsServiceProvider).regenSchedule(
             courseId: courseId,
           );
+
+      // Step 2: generate new schedule
+      final result =
+          await _ref.read(cloudFunctionsServiceProvider).generateSchedule(
+                courseId: courseId,
+                availability: {},
+                revisionPolicy: 'standard',
+              );
       _ref.invalidate(allTasksProvider(courseId));
+
+      if (result['feasible'] == false) {
+        final deficit = result['deficit'] ?? 0;
+        state = AsyncError(
+          Exception(
+            'Not enough study days to fit all tasks '
+            '($deficit minutes over capacity). '
+            'Try extending your study period or increasing daily hours.',
+          ),
+          StackTrace.current,
+        );
+        return;
+      }
+
       state = const AsyncData(null);
     } catch (e, st) {
       state = AsyncError(e, st);
