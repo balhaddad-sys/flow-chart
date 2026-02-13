@@ -6,6 +6,10 @@
  * @param {string} data.title     - Course title.
  * @param {string} [data.examDate]  - ISO date string (YYYY-MM-DD) for the exam.
  * @param {string} [data.examType]  - Exam type label (e.g. "USMLE Step 1").
+ * @param {string[]} [data.tags]  - Topic tags for the course.
+ * @param {Object} [data.availability] - Study time availability settings.
+ * @param {number} [data.availability.defaultMinutesPerDay] - Default daily study minutes.
+ * @param {string[]} [data.availability.excludedDates] - ISO dates to exclude.
  * @returns {{ success: true, data: { courseId: string } }}
  */
 
@@ -21,7 +25,7 @@ exports.createCourse = functions.https.onCall(async (data, context) => {
   requireStrings(data, [{ field: "title", maxLen: 200 }]);
 
   try {
-    const { title, examDate, examType } = data;
+    const { title, examDate, examType, tags, availability } = data;
 
     // Parse exam date if provided
     let parsedExamDate = null;
@@ -44,6 +48,34 @@ exports.createCourse = functions.https.onCall(async (data, context) => {
       return fail(Errors.ALREADY_EXISTS, "A course with this title already exists.");
     }
 
+    // Validate and sanitize tags (max 20 tags, each max 50 chars)
+    let sanitizedTags = [];
+    if (Array.isArray(tags)) {
+      sanitizedTags = tags
+        .filter((t) => typeof t === "string" && t.trim().length > 0)
+        .map((t) => t.trim().substring(0, 50))
+        .slice(0, 20);
+    }
+
+    // Validate and sanitize availability
+    let sanitizedAvailability = {
+      defaultMinutesPerDay: 120,
+      excludedDates: [],
+    };
+    if (availability && typeof availability === "object") {
+      if (typeof availability.defaultMinutesPerDay === "number") {
+        sanitizedAvailability.defaultMinutesPerDay = Math.max(
+          15,
+          Math.min(480, Math.floor(availability.defaultMinutesPerDay))
+        );
+      }
+      if (Array.isArray(availability.excludedDates)) {
+        sanitizedAvailability.excludedDates = availability.excludedDates
+          .filter((d) => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d))
+          .slice(0, 365);
+      }
+    }
+
     // Create the course document
     const courseRef = db.collection(`users/${uid}/courses`).doc();
     const courseData = {
@@ -51,6 +83,8 @@ exports.createCourse = functions.https.onCall(async (data, context) => {
       examType: examType || null,
       examDate: parsedExamDate,
       status: "ACTIVE",
+      tags: sanitizedTags,
+      availability: sanitizedAvailability,
       fileCount: 0,
       sectionCount: 0,
       questionCount: 0,

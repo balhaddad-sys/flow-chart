@@ -48,7 +48,33 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
       );
     }
 
-    if (quiz.isComplete) {
+    // Show error state if there was an error loading questions
+    if (quiz.errorMessage != null) {
+      return _ErrorView(
+        errorMessage: quiz.errorMessage!,
+        onRetry: () {
+          final courseId = ref.read(activeCourseIdProvider);
+          if (courseId != null) {
+            final sectionId =
+                widget.sectionId == '_all' ? null : widget.sectionId;
+            ref.read(quizProvider.notifier).loadQuestions(
+                  courseId: courseId,
+                  sectionId: sectionId,
+                );
+          }
+        },
+      );
+    }
+
+    // Show empty state if no questions are available (not an error, just empty)
+    if (quiz.questions.isEmpty) {
+      return _EmptyView(
+        onBack: () => context.pop(),
+      );
+    }
+
+    // Show results only if quiz is complete AND has questions
+    if (quiz.isComplete && quiz.questions.isNotEmpty) {
       return _ResultsView(quiz: quiz);
     }
 
@@ -242,6 +268,149 @@ class _ResultsView extends StatelessWidget {
                 child: PrimaryButton(
                   label: 'Done',
                   onPressed: () => context.pop(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorView extends StatelessWidget {
+  final String errorMessage;
+  final VoidCallback onRetry;
+
+  const _ErrorView({
+    required this.errorMessage,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Quiz Error')),
+      body: Center(
+        child: Padding(
+          padding: AppSpacing.screenPadding,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 96,
+                height: 96,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.error.withValues(alpha: 0.1),
+                  border: Border.all(
+                    color: AppColors.error.withValues(alpha: 0.3),
+                    width: 2,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.error_outline_rounded,
+                  color: AppColors.error,
+                  size: 48,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Unable to Load Quiz',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                errorMessage,
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.textSecondary,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 36),
+              SizedBox(
+                width: 220,
+                child: PrimaryButton(
+                  label: 'Retry',
+                  onPressed: onRetry,
+                  icon: Icons.refresh_rounded,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyView extends StatelessWidget {
+  final VoidCallback onBack;
+
+  const _EmptyView({
+    required this.onBack,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Quiz')),
+      body: Center(
+        child: Padding(
+          padding: AppSpacing.screenPadding,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 96,
+                height: 96,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.warning.withValues(alpha: 0.1),
+                  border: Border.all(
+                    color: AppColors.warning.withValues(alpha: 0.3),
+                    width: 2,
+                  ),
+                ),
+                child: const Icon(
+                  Icons.quiz_outlined,
+                  color: AppColors.warning,
+                  size: 48,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'No Questions Yet',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Questions are still being generated for this section. Please check back in a few moments.',
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.textSecondary,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 36),
+              SizedBox(
+                width: 220,
+                child: PrimaryButton(
+                  label: 'Go Back',
+                  onPressed: onBack,
                 ),
               ),
             ],

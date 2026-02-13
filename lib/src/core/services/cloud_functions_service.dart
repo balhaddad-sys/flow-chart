@@ -65,11 +65,15 @@ class CloudFunctionsService {
     required String title,
     String? examDate,
     String? examType,
+    List<String>? tags,
+    Map<String, dynamic>? availability,
   }) {
     return _call('createCourse', {
       'title': title,
       if (examDate != null) 'examDate': examDate,
       if (examType != null) 'examType': examType,
+      if (tags != null) 'tags': tags,
+      if (availability != null) 'availability': availability,
     });
   }
 

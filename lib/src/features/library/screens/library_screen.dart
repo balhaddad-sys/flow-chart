@@ -144,15 +144,28 @@ class LibraryScreen extends ConsumerWidget {
         'status': 'UPLOADED',
       });
 
-      await storageService.uploadFile(
-        uid: uid,
-        fileId: fileId,
-        file: file,
-        onProgress: (p) {
-          ref.read(_uploadStateProvider.notifier).state =
-              ref.read(_uploadStateProvider).copyWith(progress: p);
-        },
-      );
+      // Upload to storage with cleanup on failure
+      try {
+        await storageService.uploadFile(
+          uid: uid,
+          fileId: fileId,
+          file: file,
+          onProgress: (p) {
+            ref.read(_uploadStateProvider.notifier).state =
+                ref.read(_uploadStateProvider).copyWith(progress: p);
+          },
+        );
+      } catch (uploadError) {
+        // CRITICAL: Clean up orphan Firestore record if storage upload fails
+        try {
+          await firestoreService.deleteFile(uid, fileId);
+        } catch (cleanupError) {
+          // Log cleanup error but don't hide the original upload error
+          debugPrint('Cleanup failed: $cleanupError');
+        }
+        // Re-throw the original upload error to outer catch block
+        rethrow;
+      }
 
       ref.read(_uploadStateProvider.notifier).state = const _UploadState();
 

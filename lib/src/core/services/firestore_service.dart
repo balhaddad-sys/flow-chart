@@ -92,6 +92,10 @@ class FirestoreService {
     return fileId;
   }
 
+  Future<void> deleteFile(String uid, String fileId) async {
+    await _files(uid).doc(fileId).delete();
+  }
+
   // --- Sections ---
 
   CollectionReference _sections(String uid) =>

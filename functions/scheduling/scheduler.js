@@ -34,6 +34,7 @@ const { clampInt, truncate, toISODate, weekdayName } = require("../lib/utils");
  * @property {number}   [estMinutes=15]
  * @property {number}   [difficulty=3]
  * @property {string[]} [topicTags=[]]
+ * @property {string}   [questionsStatus] - "PENDING"|"GENERATING"|"COMPLETED"|"FAILED"
  */
 
 /**
@@ -94,7 +95,11 @@ function buildWorkUnits(sections, courseId, revisionPolicy = "standard") {
     const base = { courseId, sectionIds: [section.id], topicTags, difficulty, status: "TODO", isPinned: false, priority: 0 };
 
     tasks.push({ ...base, type: "STUDY", title: `Study: ${title}`, estMinutes });
-    tasks.push({ ...base, type: "QUESTIONS", title: `Questions: ${title}`, estMinutes: Math.max(8, Math.round(estMinutes * 0.35)) });
+
+    // CRITICAL: Only create QUESTIONS task if questions are actually generated
+    if (section.questionsStatus === "COMPLETED") {
+      tasks.push({ ...base, type: "QUESTIONS", title: `Questions: ${title}`, estMinutes: Math.max(8, Math.round(estMinutes * 0.35)) });
+    }
 
     for (const review of REVISION_POLICIES[policy]) {
       tasks.push({ ...base, type: "REVIEW", title: `Review: ${title}`, estMinutes: review.minutes, _dayOffset: review.dayOffset });

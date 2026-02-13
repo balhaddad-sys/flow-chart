@@ -148,20 +148,21 @@ class OnboardingNotifier extends StateNotifier<OnboardingData> {
       if (uid == null) throw Exception('Not authenticated');
 
       final firestoreService = _ref.read(firestoreServiceProvider);
+      final functionsService = _ref.read(cloudFunctionsServiceProvider);
       final storageService = StorageService();
 
-      // 1. Create the course
-      final courseId = await firestoreService.createCourse(uid, {
-        'title': state.courseTitle.trim(),
-        if (state.examDate != null) 'examDate': state.examDate,
-        if (state.examType != null) 'examType': state.examType,
-        'status': 'ACTIVE',
-        'tags': <String>[],
-        'availability': {
+      // 1. Create the course via callable function (with validation)
+      final courseResult = await functionsService.createCourse(
+        title: state.courseTitle.trim(),
+        examDate: state.examDate?.toIso8601String().split('T')[0],
+        examType: state.examType,
+        tags: <String>[],
+        availability: {
           'defaultMinutesPerDay': state.dailyMinutes,
           'excludedDates': <String>[],
         },
-      });
+      );
+      final courseId = courseResult['courseId'] as String;
 
       // 2. Upload files and create file docs in Firestore
       for (final file in state.selectedFiles) {
@@ -176,6 +177,7 @@ class OnboardingNotifier extends StateNotifier<OnboardingData> {
 
         final storagePath = 'users/$uid/uploads/$fileId.$ext';
 
+        // Create Firestore document first (metadata-first pattern)
         await firestoreService.createFile(uid, fileId, {
           'courseId': courseId,
           'originalName': file.name,
@@ -187,11 +189,23 @@ class OnboardingNotifier extends StateNotifier<OnboardingData> {
           'status': 'UPLOADED',
         });
 
-        await storageService.uploadFile(
-          uid: uid,
-          fileId: fileId,
-          file: file,
-        );
+        // Upload to storage with cleanup on failure
+        try {
+          await storageService.uploadFile(
+            uid: uid,
+            fileId: fileId,
+            file: file,
+          );
+        } catch (uploadError) {
+          // CRITICAL: Clean up orphan Firestore record if storage upload fails
+          try {
+            await firestoreService.deleteFile(uid, fileId);
+          } catch (cleanupError) {
+            ErrorHandler.logError(cleanupError);
+          }
+          // Re-throw the original upload error
+          rethrow;
+        }
       }
 
       // 3. Update user preferences
