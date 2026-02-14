@@ -97,9 +97,10 @@ export async function getFileDownloadUrl(storagePath: string): Promise<string> {
   return getDownloadURL(ref(storage, storagePath));
 }
 
-/** Read a text file from Cloud Storage via its download URL (avoids CORS issues with getBytes). */
+/** Read a text file from Cloud Storage via a server-side proxy (avoids CORS). */
 export async function getTextBlob(storagePath: string): Promise<string> {
-  const url = await getDownloadURL(ref(storage, storagePath));
-  const res = await fetch(url);
+  const downloadUrl = await getDownloadURL(ref(storage, storagePath));
+  const res = await fetch(`/api/storage-proxy?url=${encodeURIComponent(downloadUrl)}`);
+  if (!res.ok) throw new Error(`Failed to fetch text blob: ${res.status}`);
   return res.text();
 }
