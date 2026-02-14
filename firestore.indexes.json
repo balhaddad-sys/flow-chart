@@ -48,6 +48,14 @@
       "collectionGroup": "sections",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "courseId", "order": "ASCENDING" },
+        { "fieldPath": "orderIndex", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "sections",
+      "queryScope": "COLLECTION",
+      "fields": [
         { "fieldPath": "fileId", "order": "ASCENDING" },
         { "fieldPath": "orderIndex", "order": "ASCENDING" }
       ]
@@ -92,6 +100,14 @@
         { "fieldPath": "courseId", "order": "ASCENDING" },
         { "fieldPath": "dueDate", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "chatMessages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "threadId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     }
   ],
