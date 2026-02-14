@@ -142,7 +142,7 @@ async function callClaude(
   let rateLimitRetries = 0;
   let attempt = 0;
 
-  while (true) {
+  for (;;) {
     try {
       // Build messages array with optional prefill injection
       const messages = [{ role: "user", content: userPrompt }];
@@ -236,7 +236,7 @@ async function callClaudeVision({
   let rateLimitRetries = 0;
   let attempt = 0;
 
-  while (true) {
+  for (;;) {
     try {
       const response = await getClient().messages.create({
         model,

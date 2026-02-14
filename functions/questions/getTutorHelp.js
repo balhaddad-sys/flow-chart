@@ -32,7 +32,6 @@ exports.getTutorHelp = functions
     const uid = requireAuth(context);
     requireStrings(data, [
       { field: "questionId", maxLen: 128 },
-      { field: "attemptId", maxLen: 128 },
     ]);
 
     await checkRateLimit(uid, "getTutorHelp", RATE_LIMITS.getTutorHelp);
@@ -40,9 +39,22 @@ exports.getTutorHelp = functions
     try {
       const { questionId, attemptId } = data;
 
-      // ── Fetch attempt ─────────────────────────────────────────────────
-      const attemptDoc = await db.doc(`users/${uid}/attempts/${attemptId}`).get();
-      if (!attemptDoc.exists) return fail(Errors.NOT_FOUND, "Attempt not found.");
+      // ── Fetch attempt (by ID or latest for this question) ─────────────
+      let attemptDoc;
+      if (attemptId) {
+        attemptDoc = await db.doc(`users/${uid}/attempts/${attemptId}`).get();
+      }
+      if (!attemptDoc || !attemptDoc.exists) {
+        // Look up latest attempt for this question
+        const snap = await db
+          .collection(`users/${uid}/attempts`)
+          .where("questionId", "==", questionId)
+          .orderBy("createdAt", "desc")
+          .limit(1)
+          .get();
+        if (snap.empty) return fail(Errors.NOT_FOUND, "No attempt found for this question.");
+        attemptDoc = snap.docs[0];
+      }
       const attempt = attemptDoc.data();
 
       // ── Return cached response if available ───────────────────────────

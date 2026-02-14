@@ -9,8 +9,6 @@ import { useSectionsByFile } from "@/lib/hooks/useSections";
 import { useFiles } from "@/lib/hooks/useFiles";
 import { useCourseStore } from "@/lib/stores/course-store";
 import { SectionList } from "@/components/library/section-list";
-import { deleteDoc, doc } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
 import * as fn from "@/lib/firebase/functions";
 import { toast } from "sonner";
@@ -42,10 +40,10 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
 
   async function handleDelete() {
     if (!uid || !file) return;
-    if (!confirm("Delete this file and all its sections?")) return;
+    if (!confirm("Delete this file and all its sections and questions?")) return;
     try {
-      await deleteDoc(doc(db, "users", uid, "files", file.id));
-      toast.success("File deleted.");
+      const result = await fn.deleteFile({ fileId: file.id });
+      toast.success(`File deleted (${result.deletedSections} sections, ${result.deletedQuestions} questions removed).`);
       router.replace("/library");
     } catch {
       toast.error("Failed to delete file.");

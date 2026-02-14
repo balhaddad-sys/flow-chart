@@ -121,6 +121,11 @@ export function sendChatMessage(params: {
   }>("sendChatMessage", params);
 }
 
+// --- File Management ---
+export function deleteFile(params: { fileId: string }) {
+  return callFunction<{ deletedSections: number; deletedQuestions: number }>("deleteFile", params);
+}
+
 // --- User Data ---
 export function deleteUserData() {
   return callFunction("deleteUserData", {});

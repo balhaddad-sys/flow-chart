@@ -42,6 +42,7 @@ const { runFixPlan } = require("./analytics/runFixPlan");
 // ── Admin ────────────────────────────────────────────────────────────────────
 const { createCourse } = require("./admin/createCourse");
 const { deleteUserData } = require("./admin/deleteUserData");
+const { deleteFile } = require("./admin/deleteFile");
 const { healthCheck } = require("./admin/healthCheck");
 
 // ── Exports ──────────────────────────────────────────────────────────────────
@@ -60,6 +61,7 @@ exports.computeWeakness = computeWeakness;
 exports.runFixPlan = runFixPlan;
 exports.createCourse = createCourse;
 exports.deleteUserData = deleteUserData;
+exports.deleteFile = deleteFile;
 exports.healthCheck = healthCheck;
 
 // ── Chat ─────────────────────────────────────────────────────────────────

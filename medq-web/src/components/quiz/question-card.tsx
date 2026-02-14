@@ -22,6 +22,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
   const [showExplanation, setShowExplanation] = useState(false);
   const [tutorText, setTutorText] = useState<string | null>(null);
   const [tutorLoading, setTutorLoading] = useState(false);
+  const [attemptId, setAttemptId] = useState<string | null>(null);
 
   const selectedIndex = answers.get(question.id);
   const isAnswered = selectedIndex !== undefined;
@@ -37,7 +38,9 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
         answerIndex: optionIndex,
         timeSpentSec: Math.round((Date.now() - useQuizStore.getState().startTime) / 1000),
       });
-      const correct = (result as { correct?: boolean }).correct ?? optionIndex === question.correctIndex;
+      const typedResult = result as { correct?: boolean; attemptId?: string };
+      const correct = typedResult.correct ?? optionIndex === question.correctIndex;
+      if (typedResult.attemptId) setAttemptId(typedResult.attemptId);
       answerQuestion(question.id, optionIndex, correct);
     } catch {
       // Fallback to local check if function fails
@@ -54,9 +57,10 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
     try {
       const result = await fn.getTutorHelp({
         questionId: question.id,
-        attemptId: "", // Will be resolved server-side
+        attemptId: attemptId ?? "",
       });
-      setTutorText((result as { explanation?: string }).explanation ?? "No explanation available.");
+      const tutor = (result as { tutorResponse?: { whyCorrect?: string; correctAnswer?: string } }).tutorResponse;
+      setTutorText(tutor?.whyCorrect || tutor?.correctAnswer || "No explanation available.");
     } catch {
       toast.error("Tutor unavailable right now.");
       setTutorText("Tutor unavailable right now. Try again later.");

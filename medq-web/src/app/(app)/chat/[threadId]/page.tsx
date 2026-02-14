@@ -2,7 +2,7 @@
 
 import { use, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, serverTimestamp, increment } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useCourseStore } from "@/lib/stores/course-store";
@@ -52,31 +52,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     setSending(true);
 
     try {
-      // The Cloud Function handles saving both user + assistant messages
-      // and updating thread metadata, so we just call it.
-      try {
-        await fn.sendChatMessage({ threadId, message: content, courseId });
-      } catch {
-        // Fallback: save user message locally if Cloud Function isn't deployed yet
-        await addDoc(collection(db, "users", uid, "chatMessages"), {
-          threadId,
-          role: "user",
-          content,
-          createdAt: serverTimestamp(),
-        });
-        await addDoc(collection(db, "users", uid, "chatMessages"), {
-          threadId,
-          role: "assistant",
-          content: "The AI chat backend is being set up. This feature will be available once the sendChatMessage Cloud Function is deployed.",
-          createdAt: serverTimestamp(),
-        });
-        const threadRef = doc(db, "users", uid, "chatThreads", threadId);
-        await updateDoc(threadRef, {
-          lastMessage: content,
-          messageCount: increment(2),
-          updatedAt: serverTimestamp(),
-        });
-      }
+      await fn.sendChatMessage({ threadId, message: content, courseId });
     } catch {
       toast.error("Failed to send message. Please try again.");
     } finally {

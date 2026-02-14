@@ -148,8 +148,10 @@ service cloud.firestore {
         && hasRequiredFields(['name', 'inviteCode', 'createdBy', 'members'])
         && request.auth.uid == request.resource.data.createdBy
         && request.auth.uid in request.resource.data.members;
-      // Allow update for signed-in users (members update metadata, new users join)
-      allow update: if isSignedIn();
+      // Members can update; non-members can only join (add themselves to members)
+      allow update: if isSignedIn()
+        && (request.auth.uid in resource.data.members
+            || request.auth.uid in request.resource.data.members);
       allow delete: if isSignedIn()
         && request.auth.uid == resource.data.createdBy;
     }

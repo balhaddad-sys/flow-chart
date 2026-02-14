@@ -108,7 +108,7 @@ exports.sendChatMessage = functions
       .reverse()
       .filter((m) => m.content !== message); // exclude the message we just saved
 
-    // Get section context from the course
+    // Get section context from the course (use blueprint data, not raw text)
     let sectionContext = [];
     try {
       const sectionsSnap = await db
@@ -116,15 +116,20 @@ exports.sendChatMessage = functions
         .doc(uid)
         .collection("sections")
         .where("courseId", "==", courseId)
-        .where("status", "==", "READY")
+        .where("aiStatus", "==", "ANALYZED")
         .limit(5)
         .get();
 
       sectionContext = sectionsSnap.docs.map((d) => {
         const data = d.data();
+        const bp = data.blueprint || {};
+        const parts = [];
+        if (bp.learningObjectives) parts.push("Objectives: " + bp.learningObjectives.join("; "));
+        if (bp.keyConcepts) parts.push("Key concepts: " + bp.keyConcepts.join("; "));
+        if (bp.highYieldPoints) parts.push("High-yield: " + bp.highYieldPoints.join("; "));
         return {
-          title: data.blueprint?.title || data.label || "Untitled",
-          text: (data.extractedText || "").slice(0, 2000), // limit context size
+          title: bp.title || data.title || "Untitled",
+          text: parts.join("\n").slice(0, 2000),
         };
       });
     } catch (err) {

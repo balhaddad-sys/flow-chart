@@ -43,11 +43,12 @@ exports.generateQuestions = functions
 
     await checkRateLimit(uid, "generateQuestions", RATE_LIMITS.generateQuestions);
 
-    try {
-      const { courseId, sectionId } = data;
+    const { courseId, sectionId } = data;
+    const sectionRef = db.doc(`users/${uid}/sections/${sectionId}`);
 
+    try {
       // ── Fetch & validate section ────────────────────────────────────────
-      const sectionDoc = await db.doc(`users/${uid}/sections/${sectionId}`).get();
+      const sectionDoc = await sectionRef.get();
       if (!sectionDoc.exists) return fail(Errors.NOT_FOUND, "Section not found.");
 
       const section = sectionDoc.data();
@@ -55,7 +56,7 @@ exports.generateQuestions = functions
       if (!section.blueprint) return fail(Errors.NOT_ANALYZED);
 
       // Mark question generation as in progress (for retry scenario)
-      await sectionDoc.ref.update({
+      await sectionRef.update({
         questionsStatus: "GENERATING",
         questionsErrorMessage: admin.firestore.FieldValue.delete(),
       });
@@ -73,7 +74,7 @@ exports.generateQuestions = functions
 
       if (!result.success || !result.data.questions) {
         // Mark question generation as failed
-        await sectionDoc.ref.update({
+        await sectionRef.update({
           questionsStatus: "FAILED",
           questionsErrorMessage: result.error || "Question generation failed",
           lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -106,7 +107,7 @@ exports.generateQuestions = functions
       await batchSet(validItems);
 
       // Mark question generation as complete
-      await sectionDoc.ref.update({
+      await sectionRef.update({
         questionsStatus: "COMPLETED",
         questionsCount: validItems.length,
         questionsErrorMessage: admin.firestore.FieldValue.delete(),
@@ -118,7 +119,7 @@ exports.generateQuestions = functions
     } catch (error) {
       // CRITICAL: Roll back questionsStatus to prevent stuck GENERATING state
       try {
-        await sectionDoc.ref.update({
+        await sectionRef.update({
           questionsStatus: "FAILED",
           questionsErrorMessage: error.message || "Unexpected error during question generation",
           lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),

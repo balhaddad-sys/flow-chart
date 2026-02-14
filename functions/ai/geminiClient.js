@@ -103,7 +103,7 @@ async function callGemini(systemPrompt, userPrompt, opts = {}) {
   });
 
   let attempt = 0;
-  while (true) {
+  for (;;) {
     try {
       const result = await model.generateContent(userPrompt);
       const text = result.response.text();
@@ -165,7 +165,7 @@ async function callGeminiVision({
   const t0 = Date.now();
   let attempt = 0;
 
-  while (true) {
+  for (;;) {
     try {
       const result = await model.generateContent([
         {
