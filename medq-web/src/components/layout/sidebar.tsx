@@ -2,7 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Calendar, Library, BarChart3, Settings, MessageSquare, Users, ChevronsUpDown, GraduationCap, TrendingUp } from "lucide-react";
+import {
+  Home,
+  Calendar,
+  Library,
+  CircleHelp,
+  BarChart3,
+  Settings,
+  MessageSquare,
+  Users,
+  ChevronsUpDown,
+  GraduationCap,
+  TrendingUp,
+  PlusCircle,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCourses } from "@/lib/hooks/useCourses";
 import { useCourseStore } from "@/lib/stores/course-store";
@@ -10,6 +23,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -17,6 +31,7 @@ const navItems = [
   { href: "/home", label: "Home", icon: Home },
   { href: "/planner", label: "Planner", icon: Calendar },
   { href: "/library", label: "Library", icon: Library },
+  { href: "/questions", label: "Questions", icon: CircleHelp },
   { href: "/dashboard", label: "Insights", icon: BarChart3 },
   { href: "/analytics", label: "Analytics", icon: TrendingUp },
   { href: "/chat", label: "AI Chat", icon: MessageSquare },
@@ -60,6 +75,13 @@ export function Sidebar() {
                   <span className="truncate">{course.title}</span>
                 </DropdownMenuItem>
               ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/onboarding?new=1">
+                  <PlusCircle className="h-4 w-4" />
+                  Create New Course
+                </Link>
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

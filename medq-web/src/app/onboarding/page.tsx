@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useOnboardingStore } from "@/lib/stores/onboarding-store";
 import { useCourseStore } from "@/lib/stores/course-store";
+import { useCourses } from "@/lib/hooks/useCourses";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -135,9 +136,88 @@ export default function OnboardingPage() {
   const router = useRouter();
   const { step, nextStep, prevStep, courseTitle, examDate, examType, availability, reset } =
     useOnboardingStore();
+  const { courses, loading: coursesLoading } = useCourses();
   const setActiveCourseId = useCourseStore((s) => s.setActiveCourseId);
+  const activeCourseId = useCourseStore((s) => s.activeCourseId);
+  const [showCreateFlow, setShowCreateFlow] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("new") === "1") {
+      setShowCreateFlow(true);
+    }
+  }, []);
+
+  function handleContinueWithCourse(courseId: string) {
+    setActiveCourseId(courseId);
+    reset();
+    router.replace("/home");
+  }
+
+  if (coursesLoading && !showCreateFlow) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10 p-4">
+        <Card className="w-full max-w-xl">
+          <CardContent className="p-8 text-center text-sm text-muted-foreground">
+            Loading your courses...
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (!coursesLoading && courses.length > 0 && !showCreateFlow) {
+    const selectedCourse =
+      courses.find((course) => course.id === activeCourseId) ?? courses[0];
+
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10 p-4">
+        <Card className="w-full max-w-xl">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-bold">You Already Have Courses</CardTitle>
+            <CardDescription>
+              Continue with an existing course or create a new one.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              {courses.map((course) => (
+                <button
+                  key={course.id}
+                  onClick={() => handleContinueWithCourse(course.id)}
+                  className={`w-full rounded-lg border px-4 py-3 text-left transition-colors ${
+                    selectedCourse.id === course.id
+                      ? "border-primary bg-primary/5"
+                      : "hover:bg-accent"
+                  }`}
+                >
+                  <p className="font-medium">{course.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {course.examType || "General"} {course.examDate ? "| exam date set" : ""}
+                  </p>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => handleContinueWithCourse(selectedCourse.id)}
+              >
+                Continue Existing
+              </Button>
+              <Button className="flex-1" onClick={() => setShowCreateFlow(true)}>
+                Create New Course
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const StepComponent = STEPS[step];
   const isFirst = step === 0;

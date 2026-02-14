@@ -77,7 +77,7 @@ export function catchUp(params: { courseId: string }) {
 
 // --- Questions ---
 export function generateQuestions(params: { courseId: string; sectionId: string; count?: number }) {
-  return callFunction("generateQuestions", params);
+  return callFunction<{ questionCount: number; skippedCount: number }>("generateQuestions", params);
 }
 
 export function getQuiz(params: {

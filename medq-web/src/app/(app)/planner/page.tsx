@@ -100,25 +100,36 @@ export default function PlannerPage() {
     }
   }
 
+  const pct = tasks.length > 0 ? Math.round((doneCount / tasks.length) * 100) : 0;
+
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-4 sm:space-y-6 sm:p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Study Planner</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold sm:text-2xl">Study Planner</h1>
           {tasks.length > 0 && (
-            <p className="mt-1 text-sm text-muted-foreground">
-              {doneCount}/{tasks.length} tasks completed
-            </p>
+            <div className="mt-2 space-y-1.5">
+              <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <span>{doneCount}/{tasks.length} tasks</span>
+                <span>{pct}%</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary transition-all duration-300"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+            </div>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0">
           {tasks.length === 0 ? (
-            <Button onClick={handleGenerate} disabled={generating || !courseId}>
+            <Button onClick={handleGenerate} disabled={generating || !courseId} className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" />
               {generating ? "Generating..." : "Generate Plan"}
             </Button>
           ) : (
-            <Button variant="outline" onClick={handleRegen} disabled={generating}>
+            <Button variant="outline" onClick={handleRegen} disabled={generating} className="w-full sm:w-auto">
               <RefreshCw className={`mr-2 h-4 w-4 ${generating ? "animate-spin" : ""}`} />
               {generating ? "Regenerating..." : "Regenerate"}
             </Button>

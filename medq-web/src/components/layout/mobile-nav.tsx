@@ -3,7 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Home, Calendar, Library, MessageSquare, MoreHorizontal, BarChart3, TrendingUp, Users, Settings } from "lucide-react";
+import {
+  Home,
+  Calendar,
+  Library,
+  CircleHelp,
+  MessageSquare,
+  MoreHorizontal,
+  BarChart3,
+  TrendingUp,
+  Users,
+  Settings,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Sheet,
@@ -16,11 +27,12 @@ import {
 const mainItems = [
   { href: "/home", label: "Home", icon: Home },
   { href: "/planner", label: "Plan", icon: Calendar },
+  { href: "/questions", label: "Questions", icon: CircleHelp },
   { href: "/library", label: "Library", icon: Library },
-  { href: "/chat", label: "Chat", icon: MessageSquare },
 ];
 
 const moreItems = [
+  { href: "/chat", label: "AI Chat", icon: MessageSquare },
   { href: "/dashboard", label: "Insights", icon: BarChart3 },
   { href: "/analytics", label: "Analytics", icon: TrendingUp },
   { href: "/groups", label: "Study Groups", icon: Users },

@@ -24,20 +24,27 @@ export default function HomePage() {
   const activeCourseId = useCourseStore((s) => s.activeCourseId);
   const setActiveCourseId = useCourseStore((s) => s.setActiveCourseId);
 
-  // Redirect to onboarding if user has no courses and none was just created
+  // Keep active course selection valid and redirect only when user has no courses.
   useEffect(() => {
-    if (!coursesLoading && courses.length === 0 && !activeCourseId) {
-      router.replace("/onboarding");
-    }
-  }, [coursesLoading, courses.length, activeCourseId, router]);
+    if (coursesLoading) return;
 
-  // Auto-select first course if none selected
-  const effectiveCourseId = activeCourseId ?? courses[0]?.id ?? null;
-  useEffect(() => {
-    if (effectiveCourseId && !activeCourseId && courses.length > 0) {
-      setActiveCourseId(effectiveCourseId);
+    if (courses.length === 0) {
+      if (activeCourseId) setActiveCourseId(null);
+      router.replace("/onboarding");
+      return;
     }
-  }, [effectiveCourseId, activeCourseId, courses.length, setActiveCourseId]);
+
+    const activeStillExists = activeCourseId
+      ? courses.some((course) => course.id === activeCourseId)
+      : false;
+
+    if (!activeStillExists) {
+      setActiveCourseId(courses[0].id);
+    }
+  }, [coursesLoading, courses, activeCourseId, setActiveCourseId, router]);
+
+  const effectiveCourseId =
+    courses.find((course) => course.id === activeCourseId)?.id ?? courses[0]?.id ?? null;
 
   const activeCourse = courses.find((c) => c.id === effectiveCourseId);
   const { files } = useFiles(effectiveCourseId);
