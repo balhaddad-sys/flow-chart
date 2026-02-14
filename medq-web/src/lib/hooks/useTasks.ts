@@ -9,22 +9,35 @@ export function useTasks(courseId: string | null) {
   const { uid } = useAuth();
   const [tasks, setTasks] = useState<TaskModel[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!uid || !courseId) {
       setTasks([]);
       setLoading(false);
+      setError(null);
       return;
     }
     setLoading(true);
-    const unsub = subscribeTasks(uid, courseId, (data) => {
-      setTasks(data);
-      setLoading(false);
-    });
+    setError(null);
+    const unsub = subscribeTasks(
+      uid,
+      courseId,
+      (data) => {
+        setTasks(data);
+        setLoading(false);
+        setError(null);
+      },
+      undefined,
+      (err) => {
+        setLoading(false);
+        setError(err.message);
+      }
+    );
     return unsub;
   }, [uid, courseId]);
 
-  return { tasks, loading };
+  return { tasks, loading, error };
 }
 
 export function useTodayTasks(courseId: string | null) {
@@ -41,6 +54,9 @@ export function useTodayTasks(courseId: string | null) {
     setLoading(true);
     const unsub = subscribeTodayTasks(uid, courseId, (data) => {
       setTasks(data);
+      setLoading(false);
+    }, (err) => {
+      console.error("useTodayTasks error:", err);
       setLoading(false);
     });
     return unsub;

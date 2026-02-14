@@ -18,7 +18,7 @@ export default function PlannerPage() {
   const courseId = useCourseStore((s) => s.activeCourseId);
   const { courses } = useCourses();
   const activeCourse = courses.find((c) => c.id === courseId);
-  const { tasks, loading } = useTasks(courseId);
+  const { tasks, loading, error: taskError } = useTasks(courseId);
   const { sections, loading: sectionsLoading } = useSections(courseId);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,9 +51,18 @@ export default function PlannerPage() {
     setError(null);
     setGenerating(true);
     try {
+      // Map course availability format to scheduler format
+      const courseAvail = activeCourse.availability ?? {};
+      const { defaultMinutesPerDay, excludedDates, ...dayOverrides } = courseAvail;
+      const availability = {
+        defaultMinutesPerDay,
+        perDayOverrides: dayOverrides,
+        excludedDates,
+      };
+
       const result = await fn.generateSchedule({
         courseId,
-        availability: JSON.parse(JSON.stringify(activeCourse.availability ?? {})),
+        availability,
         revisionPolicy: "standard",
       });
       if (!result.feasible) {
@@ -62,7 +71,7 @@ export default function PlannerPage() {
         );
         toast.warning("Schedule generated but not all topics fit.");
       } else {
-        toast.success("Study plan generated!");
+        toast.success(`Study plan generated! ${result.taskCount ?? 0} tasks created.`);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate schedule");
@@ -113,9 +122,9 @@ export default function PlannerPage() {
         </div>
       </div>
 
-      {error && (
+      {(error || taskError) && (
         <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-          {error}
+          {error || taskError}
         </div>
       )}
 

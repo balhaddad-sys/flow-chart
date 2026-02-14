@@ -129,7 +129,8 @@ export function subscribeTasks(
   uid: string,
   courseId: string,
   cb: (tasks: TaskModel[]) => void,
-  constraints?: QueryConstraint[]
+  constraints?: QueryConstraint[],
+  onError?: (err: Error) => void
 ) {
   const baseConstraints: QueryConstraint[] = [
     where("courseId", "==", courseId),
@@ -137,15 +138,23 @@ export function subscribeTasks(
     orderBy("orderIndex", "asc"),
   ];
   const q = query(userCollection(uid, "tasks"), ...baseConstraints, ...(constraints ?? []));
-  return onSnapshot(q, (snap) => {
-    cb(snap.docs.map((d) => withId<TaskModel>(d as never)));
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      cb(snap.docs.map((d) => withId<TaskModel>(d as never)));
+    },
+    (err) => {
+      console.error("subscribeTasks error:", err);
+      onError?.(err);
+    }
+  );
 }
 
 export function subscribeTodayTasks(
   uid: string,
   courseId: string,
-  cb: (tasks: TaskModel[]) => void
+  cb: (tasks: TaskModel[]) => void,
+  onError?: (err: Error) => void
 ) {
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -159,9 +168,16 @@ export function subscribeTodayTasks(
     orderBy("dueDate", "asc"),
     orderBy("orderIndex", "asc")
   );
-  return onSnapshot(q, (snap) => {
-    cb(snap.docs.map((d) => withId<TaskModel>(d as never)));
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      cb(snap.docs.map((d) => withId<TaskModel>(d as never)));
+    },
+    (err) => {
+      console.error("subscribeTodayTasks error:", err);
+      onError?.(err);
+    }
+  );
 }
 
 export async function updateTask(uid: string, taskId: string, data: Partial<TaskModel>) {
