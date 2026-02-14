@@ -13,7 +13,7 @@
 
 const functions = require("firebase-functions");
 const pLimit = require("p-limit");
-const { callClaudeVision, MAX_TOKENS, MODELS } = require("../ai/aiClient");
+const { callGeminiVision, MODEL_ID } = require("../ai/geminiClient");
 const { DOCUMENT_EXTRACT_SYSTEM, documentExtractUserPrompt } = require("../ai/prompts");
 const { checkRateLimit, RATE_LIMITS } = require("../middleware/rateLimit");
 const {
@@ -23,8 +23,8 @@ const {
   MAX_VISION_CONCURRENCY,
 } = require("../lib/constants");
 
-// Define the secret so the function can access it (used by callClaudeVision)
-const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
+// Define the secret so the function can access it (used by callGeminiVision)
+const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
 const { clampInt } = require("../lib/utils");
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -70,13 +70,12 @@ function validatePageResult(data) {
  * @returns {Promise<{ success: boolean, page: number, data?: object, error?: string, ms?: number }>}
  */
 async function analyzeSinglePage(base64Image, pageIndex) {
-  const result = await callClaudeVision({
+  const result = await callGeminiVision({
     systemPrompt: DOCUMENT_EXTRACT_SYSTEM,
     base64Image,
     mediaType: "image/jpeg",
     userText: documentExtractUserPrompt({ pageIndex }),
-    tier: "LIGHT",
-    maxTokens: MAX_TOKENS.documentExtract,
+    maxTokens: 2048,
     retries: 2,
   });
 
@@ -98,7 +97,7 @@ exports.processDocumentBatch = functions
   .runWith({
     timeoutSeconds: 120,
     memory: "1GB",
-    secrets: [anthropicApiKey],
+    secrets: [geminiApiKey],
   })
   .https.onCall(async (data, context) => {
     const start = Date.now();
@@ -170,7 +169,7 @@ exports.processDocumentBatch = functions
         pages: pagesSorted,
         failures,
         meta: {
-          model: MODELS.LIGHT,
+          model: MODEL_ID,
           totalMs,
           pagesTotal: cleanedImages.length,
           pagesSucceeded: successes.length,

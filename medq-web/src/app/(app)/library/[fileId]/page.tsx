@@ -13,6 +13,7 @@ import { deleteDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
 import * as fn from "@/lib/firebase/functions";
+import { toast } from "sonner";
 
 export default function FileDetailPage({ params }: { params: Promise<{ fileId: string }> }) {
   const { fileId } = use(params);
@@ -30,9 +31,10 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
   async function handleRetry() {
     setRetrying(true);
     try {
-      await fn.retryFailedSections({ fileId });
+      const result = await fn.retryFailedSections({ fileId });
+      toast.success(`Retrying ${result.retriedCount} section(s). Processing will begin shortly.`);
     } catch {
-      // silent
+      toast.error("Failed to retry sections. Please try again.");
     } finally {
       setRetrying(false);
     }
@@ -41,12 +43,17 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
   async function handleDelete() {
     if (!uid || !file) return;
     if (!confirm("Delete this file and all its sections?")) return;
-    await deleteDoc(doc(db, "users", uid, "files", file.id));
-    router.replace("/library");
+    try {
+      await deleteDoc(doc(db, "users", uid, "files", file.id));
+      toast.success("File deleted.");
+      router.replace("/library");
+    } catch {
+      toast.error("Failed to delete file.");
+    }
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6">
+    <div className="mx-auto max-w-4xl space-y-4 p-4 sm:space-y-6 sm:p-6">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={() => router.back()}>
           <ArrowLeft className="h-5 w-5" />

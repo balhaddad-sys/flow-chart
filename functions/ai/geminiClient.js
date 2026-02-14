@@ -107,13 +107,17 @@ async function callGemini(systemPrompt, userPrompt, opts = {}) {
     try {
       const result = await model.generateContent(userPrompt);
       const text = result.response.text();
+      const usage = result.response.usageMetadata;
+      const tokensUsed = usage
+        ? { input: usage.promptTokenCount || 0, output: usage.candidatesTokenCount || 0 }
+        : null;
 
       if (jsonMode) {
         const data = extractJson(text);
-        return { success: true, data, model: MODEL_ID };
+        return { success: true, data, model: MODEL_ID, tokensUsed };
       }
 
-      return { success: true, text, model: MODEL_ID };
+      return { success: true, text, model: MODEL_ID, tokensUsed };
     } catch (error) {
       console.error(`Gemini call attempt ${attempt + 1}/${retries + 1} failed:`, {
         error: error.message,
@@ -175,12 +179,17 @@ async function callGeminiVision({
 
       const text = result.response.text();
       const data = extractJson(text);
+      const usage = result.response.usageMetadata;
+      const tokensUsed = usage
+        ? { input: usage.promptTokenCount || 0, output: usage.candidatesTokenCount || 0 }
+        : null;
 
       return {
         success: true,
         data,
         model: MODEL_ID,
         ms: Date.now() - t0,
+        tokensUsed,
       };
     } catch (error) {
       console.error(`Gemini vision attempt ${attempt + 1}/${retries + 1} failed:`, {
@@ -233,11 +242,35 @@ Return this exact JSON schema:
   });
 }
 
+/**
+ * Generate a blueprint from section text using Gemini Flash.
+ * Drop-in replacement for aiClient.generateBlueprint.
+ */
+async function generateBlueprint(systemPrompt, userPrompt) {
+  return callGemini(systemPrompt, userPrompt, {
+    maxTokens: 2500,
+    jsonMode: true,
+  });
+}
+
+/**
+ * Generate questions from a blueprint using Gemini Flash.
+ * Drop-in replacement for aiClient.generateQuestions.
+ */
+async function generateQuestions(systemPrompt, userPrompt) {
+  return callGemini(systemPrompt, userPrompt, {
+    maxTokens: 3000,
+    jsonMode: true,
+  });
+}
+
 module.exports = {
   MODEL_ID,
   MAX_TOKENS,
   callGemini,
   callGeminiVision,
   generateSummary,
+  generateBlueprint,
+  generateQuestions,
   extractJson,
 };

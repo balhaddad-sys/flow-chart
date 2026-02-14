@@ -97,7 +97,7 @@ export default function QuizPage() {
   const progressPercent = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-4 p-4 sm:space-y-6 sm:p-6">
       <Progress value={progressPercent} className="h-2" />
       <QuestionCard
         question={currentQuestion}

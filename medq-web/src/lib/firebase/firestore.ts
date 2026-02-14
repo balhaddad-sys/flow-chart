@@ -165,7 +165,10 @@ export function subscribeTodayTasks(
 }
 
 export async function updateTask(uid: string, taskId: string, data: Partial<TaskModel>) {
-  await updateDoc(doc(db, "users", uid, "tasks", taskId), data);
+  await updateDoc(doc(db, "users", uid, "tasks", taskId), {
+    ...data,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 // --- Questions ---

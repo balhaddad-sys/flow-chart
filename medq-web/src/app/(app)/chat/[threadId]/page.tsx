@@ -11,6 +11,7 @@ import { ChatMessage } from "@/components/chat/chat-message";
 import { ChatInput } from "@/components/chat/chat-input";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import type { ChatMessage as ChatMessageType } from "@/lib/types/chat";
 
 export default function ChatThreadPage({ params }: { params: Promise<{ threadId: string }> }) {
@@ -77,7 +78,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         });
       }
     } catch {
-      // Error handling
+      toast.error("Failed to send message. Please try again.");
     } finally {
       setSending(false);
     }

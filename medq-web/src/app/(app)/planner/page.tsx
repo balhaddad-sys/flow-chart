@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RefreshCw, Plus, CalendarDays } from "lucide-react";
 import * as fn from "@/lib/firebase/functions";
+import { toast } from "sonner";
 
 export default function PlannerPage() {
   const courseId = useCourseStore((s) => s.activeCourseId);
@@ -37,9 +38,13 @@ export default function PlannerPage() {
         setError(
           `Not enough study days. You need ${result.deficit ?? 0} more minutes.`
         );
+        toast.warning("Schedule generated but not all topics fit.");
+      } else {
+        toast.success("Study plan generated!");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate schedule");
+      toast.error("Failed to generate schedule.");
     } finally {
       setGenerating(false);
     }
@@ -54,13 +59,14 @@ export default function PlannerPage() {
       await handleGenerate();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to regenerate");
+      toast.error("Failed to regenerate schedule.");
     } finally {
       setGenerating(false);
     }
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6">
+    <div className="mx-auto max-w-4xl space-y-4 p-4 sm:space-y-6 sm:p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Study Planner</h1>

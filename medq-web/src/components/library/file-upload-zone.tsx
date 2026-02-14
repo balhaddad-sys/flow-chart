@@ -5,6 +5,7 @@ import { Upload, FileText, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { uploadFile, validateFile, type UploadProgress } from "@/lib/firebase/storage";
+import { toast } from "sonner";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useCourseStore } from "@/lib/stores/course-store";
 
@@ -24,6 +25,7 @@ export function FileUploadZone() {
       for (const file of fileArray) {
         const error = validateFile(file);
         if (error) {
+          toast.error(`${file.name}: ${error}`);
           setUploads((prev) => {
             const next = new Map(prev);
             next.set(file.name, { name: file.name, progress: null, error });
@@ -61,6 +63,7 @@ export function FileUploadZone() {
             return next;
           });
 
+          toast.success(`${file.name} uploaded successfully.`);
           // Remove completed upload after 3 seconds
           setTimeout(() => {
             setUploads((prev) => {
@@ -70,6 +73,7 @@ export function FileUploadZone() {
             });
           }, 3000);
         } catch {
+          toast.error(`Failed to upload ${file.name}.`);
           setUploads((prev) => {
             const next = new Map(prev);
             next.set(file.name, { name: file.name, progress: null, error: "Upload failed" });

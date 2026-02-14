@@ -27,7 +27,7 @@ const Anthropic = require("@anthropic-ai/sdk");
 // Model identifiers — update here to roll out a new model globally.
 const MODELS = {
   LIGHT: "claude-haiku-4-5-20251001", // Blueprints, question generation, task planning
-  HEAVY: "claude-opus-4-6", // Tutoring, fix plans, complex reasoning
+  HEAVY: "claude-haiku-4-5-20251001", // Tutoring, fix plans, chat (cost-optimized)
 };
 
 // Max tokens per prompt type — tuned for speed vs completeness

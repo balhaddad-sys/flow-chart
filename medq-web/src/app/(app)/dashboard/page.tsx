@@ -10,6 +10,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertTriangle, TrendingDown, Wrench, Loader2 } from "lucide-react";
 import * as fn from "@/lib/firebase/functions";
+import { toast } from "sonner";
 
 export default function DashboardPage() {
   const courseId = useCourseStore((s) => s.activeCourseId);
@@ -24,8 +25,10 @@ export default function DashboardPage() {
     try {
       await fn.runFixPlan({ courseId });
       setFixPlanResult("Fix plan generated! Check your planner for new tasks.");
+      toast.success("Fix plan generated! Check your planner.");
     } catch (err) {
       setFixPlanResult(err instanceof Error ? err.message : "Failed to generate fix plan");
+      toast.error("Failed to generate fix plan.");
     } finally {
       setFixPlanLoading(false);
     }
@@ -33,7 +36,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl space-y-6 p-6">
+      <div className="mx-auto max-w-4xl space-y-4 p-4 sm:space-y-6 sm:p-6">
         <Skeleton className="h-8 w-48" />
         <div className="grid gap-4 md:grid-cols-2">
           {[1, 2, 3, 4].map((i) => (
@@ -47,7 +50,7 @@ export default function DashboardPage() {
   const weakTopics = stats?.weakestTopics ?? [];
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6">
+    <div className="mx-auto max-w-4xl space-y-4 p-4 sm:space-y-6 sm:p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Insights</h1>

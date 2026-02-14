@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Sun, Moon, Monitor, LogOut, Trash2, Loader2 } from "lucide-react";
 import * as fn from "@/lib/firebase/functions";
+import { toast } from "sonner";
 
 const themeOptions = [
   { value: "light" as const, label: "Light", icon: Sun },
@@ -26,6 +27,7 @@ export default function SettingsPage() {
 
   async function handleSignOut() {
     await signOut();
+    toast.success("Signed out.");
     router.replace("/login");
   }
 
@@ -37,16 +39,17 @@ export default function SettingsPage() {
     try {
       await fn.deleteUserData();
       await signOut();
+      toast.success("Account deleted.");
       router.replace("/login");
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to delete account");
+      toast.error(err instanceof Error ? err.message : "Failed to delete account");
     } finally {
       setDeleting(false);
     }
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 p-6">
+    <div className="mx-auto max-w-2xl space-y-4 p-4 sm:space-y-6 sm:p-6">
       <h1 className="text-2xl font-bold">Settings</h1>
 
       {/* Account */}

@@ -8,6 +8,7 @@
 
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const { db } = require("../lib/firestore");
 const { callClaude } = require("../ai/aiClient");
 const { defineSecret } = require("firebase-functions/params");
 
@@ -78,8 +79,6 @@ exports.sendChatMessage = functions
         "threadId, message, and courseId are required."
       );
     }
-
-    const db = admin.firestore();
 
     // Save user message
     const userMsgRef = await db

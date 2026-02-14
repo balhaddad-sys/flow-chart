@@ -21,17 +21,17 @@ const { Errors, fail, ok, safeError } = require("../lib/errors");
 const log = require("../lib/logger");
 const { DIFFICULTY_DISTRIBUTION } = require("../lib/constants");
 const { normaliseQuestion } = require("../lib/serialize");
-const { generateQuestions: aiGenerateQuestions } = require("../ai/aiClient");
+const { generateQuestions: aiGenerateQuestions } = require("../ai/geminiClient");
 const { QUESTIONS_SYSTEM, questionsUserPrompt } = require("../ai/prompts");
 
 // Define the secret so the function can access it
-const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
+const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
 
 exports.generateQuestions = functions
   .runWith({
     timeoutSeconds: 120,
     memory: "512MB",
-    secrets: [anthropicApiKey], // Grant access to the secret
+    secrets: [geminiApiKey], // Grant access to the secret
   })
   .https.onCall(async (data, context) => {
     const uid = requireAuth(context);

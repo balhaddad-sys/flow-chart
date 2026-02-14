@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 interface OnboardingStore {
   step: number;
@@ -18,7 +19,7 @@ interface OnboardingStore {
 
 const TOTAL_STEPS = 4;
 
-export const useOnboardingStore = create<OnboardingStore>((set) => ({
+export const useOnboardingStore = create<OnboardingStore>()(persist((set) => ({
   step: 0,
   courseTitle: "",
   examDate: "",
@@ -51,4 +52,4 @@ export const useOnboardingStore = create<OnboardingStore>((set) => ({
         thursday: 120, friday: 120, saturday: 60, sunday: 60,
       },
     }),
-}));
+}), { name: "medq-onboarding" }));

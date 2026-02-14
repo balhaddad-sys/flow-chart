@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Users, Plus, LogIn, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import type { StudyGroup } from "@/lib/types/group";
 
 export default function GroupsPage() {
@@ -69,9 +70,10 @@ export default function GroupsPage() {
       setCreateName("");
       setCreateDesc("");
       setCreateOpen(false);
+      toast.success("Study group created!");
       router.push(`/groups/${ref.id}`);
     } catch {
-      // silent
+      toast.error("Failed to create group.");
     } finally {
       setCreating(false);
     }
@@ -106,16 +108,18 @@ export default function GroupsPage() {
       });
       setJoinCode("");
       setJoinOpen(false);
+      toast.success("Joined group!");
       router.push(`/groups/${groupDoc.id}`);
     } catch {
       setJoinError("Failed to join group.");
+      toast.error("Failed to join group.");
     } finally {
       setJoining(false);
     }
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6">
+    <div className="mx-auto max-w-4xl space-y-4 p-4 sm:space-y-6 sm:p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Study Groups</h1>

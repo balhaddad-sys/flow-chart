@@ -33,7 +33,7 @@ export function Sidebar() {
   const activeCourse = courses.find((c) => c.id === activeCourseId);
 
   return (
-    <aside className="hidden md:flex w-64 flex-col border-r bg-card">
+    <aside className="hidden md:flex w-64 xl:w-72 flex-col border-r bg-card">
       <div className="flex h-14 items-center border-b px-6">
         <span className="text-xl font-bold text-primary">MedQ</span>
       </div>

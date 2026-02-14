@@ -13,14 +13,14 @@ const admin = require("firebase-admin");
 const { db, batchSet } = require("../lib/firestore");
 const log = require("../lib/logger");
 const { normaliseBlueprint, normaliseQuestion } = require("../lib/serialize");
-const { generateBlueprint, generateQuestions: aiGenerateQuestions } = require("../ai/aiClient");
+const { generateBlueprint, generateQuestions: aiGenerateQuestions } = require("../ai/geminiClient");
 const { BLUEPRINT_SYSTEM, blueprintUserPrompt, QUESTIONS_SYSTEM, questionsUserPrompt } = require("../ai/prompts");
 const { DIFFICULTY_DISTRIBUTION } = require("../lib/constants");
 
-const DEFAULT_QUESTION_COUNT = 8; // Reduced from 10 to lower token usage and stay within rate limits
+const DEFAULT_QUESTION_COUNT = 8;
 
 // Define the secret so the function can access it
-const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
+const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
 
 exports.processSection = functions
   .runWith({
@@ -28,7 +28,7 @@ exports.processSection = functions
     memory: "512MB",
     maxInstances: 3, // Limit concurrency to avoid exceeding Anthropic 10K tokens/min rate limit
     minInstances: 1, // Keep warm to eliminate cold start latency
-    secrets: [anthropicApiKey], // Grant access to the secret
+    secrets: [geminiApiKey], // Grant access to the secret
   })
   .firestore.document("users/{uid}/sections/{sectionId}")
   .onCreate(async (snap, context) => {
@@ -121,7 +121,7 @@ exports.processSection = functions
         sectionId,
         durationMs: Date.now() - t0,
         model: result.model,
-        tokens: result.tokensUsed,
+        tokens: result.tokensUsed || null,
       });
 
       // Normalise via serialize module

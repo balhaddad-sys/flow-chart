@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle, ChevronRight, Lightbulb } from "lucide-react";
 import { useQuizStore } from "@/lib/stores/quiz-store";
 import * as fn from "@/lib/firebase/functions";
+import { toast } from "sonner";
 import type { QuestionModel } from "@/lib/types/question";
 
 interface QuestionCardProps {
@@ -57,6 +58,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
       });
       setTutorText((result as { explanation?: string }).explanation ?? "No explanation available.");
     } catch {
+      toast.error("Tutor unavailable right now.");
       setTutorText("Tutor unavailable right now. Try again later.");
     } finally {
       setTutorLoading(false);
