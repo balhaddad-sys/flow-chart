@@ -41,8 +41,8 @@ export function CourseSwitcherBar() {
   }, [loading, courses, activeCourseId, setActiveCourseId]);
 
   return (
-    <div className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="mx-auto flex min-h-12 max-w-7xl items-center gap-3 px-4 py-2 sm:px-6">
+    <div className="sticky top-0 z-30 border-b border-border/70 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">
+      <div className="mx-auto flex min-h-14 max-w-7xl items-center gap-3 px-4 py-2 sm:px-6">
         {loading ? (
           <Skeleton className="h-9 w-52" />
         ) : courses.length === 0 ? (
@@ -58,31 +58,36 @@ export function CourseSwitcherBar() {
             </Link>
           </div>
         ) : (
-          <DropdownMenu>
-            <DropdownMenuTrigger className="flex min-w-0 items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold hover:bg-accent">
-              <GraduationCap className="h-4 w-4 shrink-0 text-primary" />
-              <span className="truncate text-left">{activeCourse?.title ?? "Select course"}</span>
-              <ChevronsUpDown className="ml-1 h-4 w-4 shrink-0 text-muted-foreground" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-64">
-              {courses.map((course) => (
-                <DropdownMenuItem
-                  key={course.id}
-                  onClick={() => setActiveCourseId(course.id)}
-                  className={cn(activeCourseId === course.id && "bg-accent font-medium")}
-                >
-                  <span className="truncate">{course.title}</span>
+          <div className="flex w-full items-center justify-between gap-3">
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex min-w-0 items-center gap-2 rounded-xl border border-border/70 bg-card/80 px-3 py-2 text-sm font-semibold shadow-[0_10px_24px_-18px_rgba(15,23,42,0.5)] hover:bg-accent">
+                <GraduationCap className="h-4 w-4 shrink-0 text-primary" />
+                <span className="truncate text-left">{activeCourse?.title ?? "Select course"}</span>
+                <ChevronsUpDown className="ml-1 h-4 w-4 shrink-0 text-muted-foreground" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-64">
+                {courses.map((course) => (
+                  <DropdownMenuItem
+                    key={course.id}
+                    onClick={() => setActiveCourseId(course.id)}
+                    className={cn(activeCourseId === course.id && "bg-accent font-medium")}
+                  >
+                    <span className="truncate">{course.title}</span>
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/onboarding?new=1">
+                    <PlusCircle className="h-4 w-4" />
+                    Create New Course
+                  </Link>
                 </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/onboarding?new=1">
-                  <PlusCircle className="h-4 w-4" />
-                  Create New Course
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <span className="hidden text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground sm:block">
+              Active course
+            </span>
+          </div>
         )}
       </div>
     </div>

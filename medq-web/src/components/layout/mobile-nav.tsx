@@ -41,7 +41,7 @@ export function MobileNav() {
   const isMoreActive = moreItems.some((item) => pathname.startsWith(item.href));
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t bg-card pb-[max(env(safe-area-inset-bottom),0.25rem)] md:hidden">
+    <nav className="fixed inset-x-3 bottom-3 z-50 flex rounded-2xl border border-border/70 bg-card/90 shadow-[0_20px_40px_-26px_rgba(15,23,42,0.9)] backdrop-blur-xl pb-[max(env(safe-area-inset-bottom),0.2rem)] md:hidden">
       {mainItems.map((item) => {
         const isActive = pathname.startsWith(item.href);
         return (
@@ -49,8 +49,8 @@ export function MobileNav() {
             key={item.href}
             href={item.href}
             className={cn(
-              "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-2 text-[11px] transition-colors",
-              isActive ? "text-primary" : "text-muted-foreground"
+              "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-[11px] transition-all",
+              isActive ? "bg-primary/12 text-primary" : "text-muted-foreground"
             )}
           >
             <item.icon className="h-5 w-5" />
@@ -63,15 +63,15 @@ export function MobileNav() {
         <SheetTrigger asChild>
           <button
             className={cn(
-              "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-2 text-[11px] transition-colors",
-              isMoreActive ? "text-primary" : "text-muted-foreground"
+              "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-[11px] transition-all",
+              isMoreActive ? "bg-primary/12 text-primary" : "text-muted-foreground"
             )}
           >
             <MoreHorizontal className="h-5 w-5" />
             <span className="truncate">More</span>
           </button>
         </SheetTrigger>
-        <SheetContent side="bottom" className="rounded-t-2xl pb-8">
+        <SheetContent side="bottom" className="rounded-t-3xl border-border/70 bg-card/95 pb-8 backdrop-blur-xl">
           <SheetHeader>
             <SheetTitle>More</SheetTitle>
           </SheetHeader>

@@ -37,13 +37,18 @@ export function PipelineProgress(props: PipelineProgressProps) {
   const progressPercent = (activeStep / steps.length) * 100;
 
   return (
-    <div className="space-y-3">
+    <div className="glass-card space-y-4 p-4 sm:p-5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold">Learning Pipeline</p>
+        <span className="text-xs text-muted-foreground">
+          Step {activeStep + 1} of {steps.length}
+        </span>
+      </div>
+
       {/* Mobile: compact single-line */}
       <div className="flex items-center gap-3 sm:hidden">
         <Progress value={progressPercent} className="h-2 flex-1" />
-        <span className="shrink-0 text-xs text-muted-foreground">
-          Step {activeStep + 1} of {steps.length}: {steps[activeStep].label}
-        </span>
+        <span className="shrink-0 text-xs text-muted-foreground">{steps[activeStep].label}</span>
       </div>
 
       {/* Desktop: horizontal stepper */}
@@ -58,10 +63,10 @@ export function PipelineProgress(props: PipelineProgressProps) {
               <Link
                 href={step.href}
                 className={cn(
-                  "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors",
-                  isComplete && "text-foreground",
-                  isCurrent && "bg-primary text-primary-foreground",
-                  !isComplete && !isCurrent && "text-muted-foreground"
+                  "flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium transition-all",
+                  isComplete && "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
+                  isCurrent && "bg-primary text-primary-foreground shadow-[0_8px_18px_-12px_rgba(30,64,175,0.8)]",
+                  !isComplete && !isCurrent && "bg-muted/70 text-muted-foreground"
                 )}
               >
                 <StepIcon className="h-3.5 w-3.5" />

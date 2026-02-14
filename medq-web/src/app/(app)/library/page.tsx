@@ -16,10 +16,10 @@ export default function LibraryPage() {
   const hasPlan = tasks.length > 0;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4 p-4 sm:space-y-6 sm:p-6">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Library</h1>
-        <p className="text-sm text-muted-foreground">
+    <div className="page-wrap page-stack">
+      <div className="glass-card p-5 sm:p-6">
+        <h1 className="page-title">Library</h1>
+        <p className="page-subtitle">
           Upload and manage your study materials.
         </p>
       </div>
@@ -32,13 +32,13 @@ export default function LibraryPage() {
             <Skeleton key={i} className="h-20 w-full rounded-lg" />
           ))
         ) : files.length === 0 ? (
-          <p className="py-12 text-center text-sm text-muted-foreground">
+          <div className="glass-card px-6 py-12 text-center text-sm text-muted-foreground">
             No files uploaded yet. Upload your first study material above.
-          </p>
+          </div>
         ) : (
           <>
             {hasFiles && !hasPlan && (
-              <div className="flex items-center justify-between rounded-lg border bg-accent/50 px-4 py-3 text-sm">
+              <div className="glass-card flex items-center justify-between gap-3 px-4 py-3 text-sm">
                 <span className="text-muted-foreground">Files uploaded. Head to Plan to generate your schedule.</span>
                 <Link href="/planner" className="font-medium text-primary hover:underline">
                   Go to Plan

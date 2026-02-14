@@ -60,9 +60,9 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="page-wrap flex h-full max-w-5xl flex-col gap-4">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b px-4 py-3">
+      <div className="glass-card flex items-center gap-3 px-4 py-3">
         <Button variant="ghost" size="icon" onClick={() => router.push("/chat")}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -70,7 +70,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="glass-card flex-1 overflow-y-auto p-4 space-y-4">
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />

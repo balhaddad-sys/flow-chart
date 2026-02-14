@@ -50,10 +50,11 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10 p-4">
-      <Card className="w-full max-w-md">
+    <div className="flex min-h-screen items-center justify-center p-4">
+      <Card className="w-full max-w-md overflow-hidden">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Create your account</CardTitle>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">MedQ</p>
+          <CardTitle className="text-2xl font-semibold">Create your account</CardTitle>
           <CardDescription>Start your medical study journey with MedQ</CardDescription>
         </CardHeader>
         <CardContent>

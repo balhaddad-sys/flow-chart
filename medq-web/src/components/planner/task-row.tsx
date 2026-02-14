@@ -42,7 +42,7 @@ export function TaskRow({ task }: TaskRowProps) {
   return (
     <button
       onClick={handleNavigate}
-      className={`group flex w-full items-center gap-3 rounded-lg border bg-card p-3.5 text-left transition-all hover:shadow-sm ${
+      className={`group flex w-full items-center gap-3 rounded-xl border border-border/70 bg-background/75 p-3.5 text-left transition-all hover:bg-accent/40 hover:shadow-[0_12px_24px_-20px_rgba(15,23,42,0.8)] ${
         isDone ? "opacity-60" : ""
       }`}
     >

@@ -21,12 +21,12 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex gap-2 border-t bg-card p-4">
+    <form onSubmit={handleSubmit} className="glass-card flex gap-2 p-3 sm:p-4">
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="Ask about your study material..."
-        className="flex-1 resize-none rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        className="flex-1 resize-none rounded-xl border border-border/70 bg-background/75 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         rows={1}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {

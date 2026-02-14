@@ -84,7 +84,7 @@ export default function AnalyticsPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-5xl space-y-4 p-4 sm:space-y-6 sm:p-6">
+      <div className="page-wrap page-stack max-w-6xl">
         <Skeleton className="h-8 w-48" />
         <div className="grid gap-4 md:grid-cols-2">
           {[1, 2, 3, 4].map((i) => (
@@ -96,16 +96,16 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4 p-4 sm:space-y-6 sm:p-6">
+    <div className="page-wrap page-stack max-w-6xl">
       <div className="flex items-center gap-3">
         <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
           <ArrowLeft className="h-4 w-4" /> Progress
         </Link>
       </div>
 
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Detailed Analytics</h1>
-        <p className="text-sm text-muted-foreground">
+      <div className="glass-card p-5 sm:p-6">
+        <h1 className="page-title">Detailed Analytics</h1>
+        <p className="page-subtitle">
           Visual breakdown of your study patterns and performance.
         </p>
       </div>
@@ -147,8 +147,8 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             {statusData.length > 0 ? (
-              <div className="flex flex-col items-center gap-4 sm:flex-row">
-                <ResponsiveContainer width="100%" height={180} className="sm:max-w-[50%]">
+              <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:items-center">
+                <ResponsiveContainer width="100%" height={180}>
                   <PieChart>
                     <Pie
                       data={statusData}

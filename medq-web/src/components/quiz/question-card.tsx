@@ -105,10 +105,10 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
       : "text-yellow-600 dark:text-yellow-400";
 
   return (
-    <Card className="mx-auto max-w-3xl">
+    <Card className="mx-auto max-w-3xl overflow-hidden">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
-          <Badge variant="outline" className="font-mono text-xs">
+          <Badge variant="outline" className="border-border/70 bg-background/70 font-mono text-xs">
             {index + 1} / {total}
           </Badge>
           <Badge variant="secondary" className={`text-xs ${difficultyColor}`}>
@@ -127,16 +127,16 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
           const isPending = pendingIndex === i && submitting;
           const isCorrectOption = i === question.correctIndex;
 
-          let style = "border-border hover:border-primary/40 hover:bg-accent/50 cursor-pointer";
+          let style = "border-border/70 bg-background/70 hover:border-primary/40 hover:bg-accent/45 cursor-pointer";
           if (isPending) {
-            style = "border-primary bg-primary/5 cursor-wait";
+            style = "border-primary bg-primary/10 cursor-wait";
           } else if (isAnswered) {
             if (isCorrectOption) {
-              style = "border-green-500 bg-green-500/8";
+              style = "border-green-500/60 bg-green-500/12";
             } else if (isSelected && !isCorrect) {
-              style = "border-red-500 bg-red-500/8";
+              style = "border-red-500/60 bg-red-500/12";
             } else {
-              style = "border-border opacity-60";
+              style = "border-border/70 opacity-65";
             }
           }
 
@@ -145,7 +145,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
               key={i}
               onClick={() => handleSelect(i)}
               disabled={isAnswered || submitting}
-              className={`flex w-full items-start gap-3 rounded-lg border p-4 text-left text-sm transition-all ${style} ${
+              className={`flex w-full items-start gap-3 rounded-xl border p-4 text-left text-sm transition-all ${style} ${
                 isAnswered ? "cursor-default" : ""
               }`}
             >
@@ -182,7 +182,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
           <div className="space-y-4 pt-4">
             {/* Result banner */}
             <div
-              className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium ${
+              className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium ${
                 isCorrect
                   ? "bg-green-500/10 text-green-700 dark:text-green-300"
                   : "bg-red-500/10 text-red-700 dark:text-red-300"
@@ -199,7 +199,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
             {/* Explanation toggle */}
             <button
               onClick={() => setShowExplanation(!showExplanation)}
-              className="flex w-full items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent/50"
+              className="flex w-full items-center gap-2 rounded-xl border border-border/70 bg-background/70 px-4 py-2.5 text-sm font-medium transition-colors hover:bg-accent/45"
             >
               <BookOpen className="h-4 w-4 text-primary" />
               <span className="flex-1 text-left">Explanation</span>
@@ -211,7 +211,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
             </button>
 
             {showExplanation && question.explanation && (
-              <div className="space-y-3 rounded-lg border bg-card p-4">
+              <div className="space-y-3 rounded-xl border border-border/70 bg-background/75 p-4">
                 <div className="space-y-1">
                   <p className="text-xs font-semibold uppercase tracking-wider text-green-600 dark:text-green-400">
                     Why this is correct
@@ -228,7 +228,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
                     <ul className="space-y-1 text-sm leading-relaxed text-foreground/80">
                       {question.explanation.whyOthersWrong.map((reason, i) => (
                         <li key={i} className="flex gap-2">
-                          <span className="shrink-0 text-muted-foreground">&bull;</span>
+                          <span className="shrink-0 text-muted-foreground">-</span>
                           <span>{reason}</span>
                         </li>
                       ))}
@@ -343,7 +343,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
                       </div>
                       <div className="space-y-2">
                         {tutorResponse.followUps.slice(0, 2).map((item, i) => (
-                          <details key={i} className="group rounded-md border bg-muted/30">
+                          <details key={i} className="group rounded-lg border border-border/70 bg-muted/30">
                             <summary className="cursor-pointer px-3 py-2 text-sm font-medium hover:bg-accent/50">
                               {item.q}
                             </summary>

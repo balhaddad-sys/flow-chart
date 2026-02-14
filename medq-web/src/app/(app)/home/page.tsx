@@ -77,26 +77,36 @@ export default function HomePage() {
   quickActions.push({ label: "AI Chat", href: "/chat", icon: MessageSquare });
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-4 sm:space-y-8 sm:p-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">
-            {greeting()}, {user?.displayName || "Student"}
-          </h1>
-          {activeCourse && (
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {activeCourse.title}
+    <div className="page-wrap page-stack">
+      <section className="glass-card overflow-hidden p-5 sm:p-7">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Study Command Center
             </p>
-          )}
+            <h1 className="page-title">
+              {greeting()}, {user?.displayName || "Student"}
+            </h1>
+            {activeCourse && <p className="page-subtitle">{activeCourse.title}</p>}
+          </div>
+          <ExamCountdown
+            examDate={activeCourse?.examDate}
+            courseTitle={activeCourse?.title}
+          />
         </div>
-        <ExamCountdown
-          examDate={activeCourse?.examDate}
-          courseTitle={activeCourse?.title}
-        />
-      </div>
 
-      {/* Pipeline Progress */}
+        <div className="mt-5 flex flex-wrap gap-2">
+          {quickActions.slice(0, 4).map((action) => (
+            <Link key={action.href} href={action.href}>
+              <Button variant={action.href === "/chat" ? "default" : "outline"} size="sm">
+                <action.icon className="mr-2 h-4 w-4" />
+                {action.label}
+              </Button>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       <PipelineProgress
         hasFiles={hasFiles}
         hasSections={hasSections}
@@ -104,26 +114,12 @@ export default function HomePage() {
         hasQuizAttempts={hasQuizAttempts}
       />
 
-      {/* Stats */}
       <StatsCards stats={stats} />
 
-      {/* Today's Tasks */}
-      <TodayChecklist tasks={todayTasks} loading={tasksLoading} />
-
-      {/* Quick Actions */}
-      <div className="flex flex-wrap gap-2">
-        {quickActions.slice(0, 3).map((action) => (
-          <Link key={action.href} href={action.href}>
-            <Button variant="outline" size="sm">
-              <action.icon className="mr-2 h-4 w-4" />
-              {action.label}
-            </Button>
-          </Link>
-        ))}
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
+        <TodayChecklist tasks={todayTasks} loading={tasksLoading} />
+        <WeakTopicsBanner topics={stats?.weakestTopics ?? []} />
       </div>
-
-      {/* Weak Topics */}
-      <WeakTopicsBanner topics={stats?.weakestTopics ?? []} />
     </div>
   );
 }

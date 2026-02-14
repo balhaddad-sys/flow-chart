@@ -110,11 +110,13 @@ export default function PlannerPage() {
   const upcomingGroups = groups.filter((g) => g.label !== "Today");
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-4 sm:space-y-8 sm:p-6">
-      {/* Header */}
-      <div>
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold tracking-tight">Plan</h1>
+    <div className="page-wrap page-stack">
+      <div className="glass-card p-5 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="page-title">Plan</h1>
+            <p className="page-subtitle">Generate and track a daily study roadmap.</p>
+          </div>
           {tasks.length === 0 ? (
             <Button onClick={handleGenerate} disabled={generating || !courseId} size="sm">
               <Plus className="mr-1.5 h-4 w-4" />
@@ -128,12 +130,11 @@ export default function PlannerPage() {
           )}
         </div>
 
-        {/* Progress overview */}
         {tasks.length > 0 && (
-          <div className="mt-4 rounded-xl border bg-card p-4">
+          <div className="mt-5 rounded-2xl border border-border/70 bg-background/70 p-4 sm:p-5">
             <div className="flex items-end justify-between">
               <div>
-                <p className="text-xl font-bold">{pct}%</p>
+                <p className="text-2xl font-semibold">{pct}%</p>
                 <p className="text-xs text-muted-foreground">{doneCount} of {tasks.length} tasks done</p>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -156,14 +157,12 @@ export default function PlannerPage() {
         )}
       </div>
 
-      {/* Errors */}
       {(error || taskError) && (
-        <div className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
           {error || taskError}
         </div>
       )}
 
-      {/* Content */}
       {loading ? (
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
@@ -175,7 +174,7 @@ export default function PlannerPage() {
           ))}
         </div>
       ) : tasks.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-20 text-center">
+        <div className="glass-card flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 text-center">
           <CalendarDays className="mb-3 h-10 w-10 text-muted-foreground/40" />
           <p className="font-medium">No study plan yet</p>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -187,11 +186,10 @@ export default function PlannerPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {/* Today section - highlighted */}
           {todayGroup && (
-            <div>
+            <div className="glass-card p-4 sm:p-5">
               <div className="mb-2 flex items-center gap-2">
-                <h2 className="text-sm font-semibold">Today</h2>
+                <h2 className="text-base font-semibold">Today</h2>
                 <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground">
                   {todayGroup.tasks.length}
                 </span>
@@ -204,11 +202,10 @@ export default function PlannerPage() {
             </div>
           )}
 
-          {/* Upcoming days */}
           {upcomingGroups.map((group) => (
-            <div key={group.label}>
+            <div key={group.label} className="glass-card p-4 sm:p-5">
               <div className="mb-2 flex items-center gap-2">
-                <h2 className="text-sm font-semibold">
+                <h2 className="text-base font-semibold">
                   {group.label}
                 </h2>
                 <span className="text-xs text-muted-foreground">

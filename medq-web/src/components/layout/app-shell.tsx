@@ -6,11 +6,15 @@ import { CourseSwitcherBar } from "./course-switcher-bar";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-[100dvh]">
+    <div className="min-h-[100dvh] md:grid md:grid-cols-[17rem_minmax(0,1fr)]">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+      <main className="relative overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-gradient-to-b from-primary/14 via-primary/5 to-transparent"
+        />
         <CourseSwitcherBar />
-        {children}
+        <div className="relative">{children}</div>
       </main>
       <MobileNav />
     </div>

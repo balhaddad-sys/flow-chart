@@ -158,7 +158,7 @@ export default function OnboardingPage() {
 
   if (coursesLoading && !showCreateFlow) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10 p-4">
+      <div className="flex min-h-screen items-center justify-center p-4">
         <Card className="w-full max-w-xl">
           <CardContent className="p-8 text-center text-sm text-muted-foreground">
             Loading your courses...
@@ -173,10 +173,10 @@ export default function OnboardingPage() {
       courses.find((course) => course.id === activeCourseId) ?? courses[0];
 
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10 p-4">
+      <div className="flex min-h-screen items-center justify-center p-4">
         <Card className="w-full max-w-xl">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold">You Already Have Courses</CardTitle>
+            <CardTitle className="text-2xl font-semibold">You Already Have Courses</CardTitle>
             <CardDescription>
               Continue with an existing course or create a new one.
             </CardDescription>
@@ -251,11 +251,11 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10 p-4">
+    <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-lg">
         <CardHeader className="text-center">
           <Progress value={((step + 1) / STEPS.length) * 100} className="mb-4 h-2" />
-          <CardTitle className="text-2xl font-bold">{STEP_TITLES[step]}</CardTitle>
+          <CardTitle className="text-2xl font-semibold">{STEP_TITLES[step]}</CardTitle>
           <CardDescription>
             Step {step + 1} of {STEPS.length}
           </CardDescription>

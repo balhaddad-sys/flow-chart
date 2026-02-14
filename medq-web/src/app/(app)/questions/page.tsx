@@ -72,15 +72,15 @@ function SectionQuestionCard({
       section.questionsCount === 0);
 
   return (
-    <Card>
+    <Card className="overflow-hidden">
       <CardContent className="flex items-start gap-3 p-4">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="truncate text-sm font-semibold">{section.title}</p>
+            <p className="truncate text-base font-semibold">{section.title}</p>
             {statusBadge(section)}
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            {section.estMinutes}m study time | Difficulty {section.difficulty}/5
+            {section.estMinutes}m study time - Difficulty {section.difficulty}/5
           </p>
           {section.questionsErrorMessage && section.questionsStatus === "FAILED" && (
             <p className="mt-2 text-xs text-destructive">{section.questionsErrorMessage}</p>
@@ -165,8 +165,8 @@ export default function QuestionsPage() {
 
   if (!courseId) {
     return (
-      <div className="mx-auto max-w-4xl space-y-4 p-4 sm:space-y-6 sm:p-6">
-        <h1 className="text-xl font-semibold tracking-tight">Practice</h1>
+      <div className="page-wrap page-stack">
+        <h1 className="page-title">Practice</h1>
         <Card>
           <CardContent className="flex items-center justify-between gap-4 p-6">
             <p className="text-sm text-muted-foreground">
@@ -182,17 +182,16 @@ export default function QuestionsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4 p-4 sm:space-y-6 sm:p-6">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Practice</h1>
-        <p className="text-sm text-muted-foreground">
+    <div className="page-wrap page-stack">
+      <div className="glass-card p-5 sm:p-6">
+        <h1 className="page-title">Practice</h1>
+        <p className="page-subtitle">
           {activeCourse ? `Quiz yourself on ${activeCourse.title}` : "Select sections and start quizzing"}
         </p>
       </div>
 
-      {/* Quick-start quiz modes — visible when sections have questions */}
       {!loading && categorized.ready.length > 0 && (
-        <div className="flex flex-wrap gap-2">
+        <div className="glass-card flex flex-wrap gap-2 p-4">
           <Link href="/quiz?mode=mixed">
             <Button variant="outline" size="sm">
               <Zap className="mr-2 h-4 w-4 text-amber-500" />
@@ -209,7 +208,7 @@ export default function QuestionsPage() {
       )}
 
       {loading ? (
-        <div className="space-y-3">
+        <div className="glass-card space-y-3 p-4">
           {[1, 2, 3].map((item) => (
             <Skeleton key={item} className="h-16 w-full rounded-lg" />
           ))}
@@ -222,8 +221,8 @@ export default function QuestionsPage() {
           action={{ label: "Go to Library", href: "/library" }}
         />
       ) : (
-        <Tabs defaultValue="ready">
-          <TabsList className="w-full justify-start">
+        <Tabs defaultValue="ready" className="glass-card p-4 sm:p-5">
+          <TabsList className="w-full justify-start rounded-xl bg-muted/70 p-1">
             <TabsTrigger value="ready">Ready to Quiz ({categorized.ready.length})</TabsTrigger>
             <TabsTrigger value="all">All Sections ({sections.length})</TabsTrigger>
           </TabsList>

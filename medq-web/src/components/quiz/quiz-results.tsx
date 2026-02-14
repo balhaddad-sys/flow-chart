@@ -17,13 +17,13 @@ export function QuizResults() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <Card>
+      <Card className="overflow-hidden">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Quiz Complete</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="text-center">
-            <p className="text-5xl font-bold">{accuracy}%</p>
+            <p className="text-5xl font-semibold">{accuracy}%</p>
             <p className="mt-1 text-muted-foreground">
               {correct} out of {total} correct
             </p>
@@ -34,7 +34,7 @@ export function QuizResults() {
             {questions.map((q, i) => {
               const isCorrect = results.get(q.id);
               return (
-                <div key={q.id} className="flex items-start gap-3 rounded-lg border p-3 text-sm">
+                <div key={q.id} className="flex items-start gap-3 rounded-xl border border-border/70 bg-background/65 p-3 text-sm">
                   {isCorrect ? (
                     <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-500" />
                   ) : (

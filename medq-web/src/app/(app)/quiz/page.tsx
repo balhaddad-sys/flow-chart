@@ -74,7 +74,7 @@ export default function QuizPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-24">
+      <div className="page-wrap flex flex-col items-center justify-center py-24">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p className="mt-4 text-sm text-muted-foreground">Loading questions...</p>
       </div>
@@ -83,7 +83,7 @@ export default function QuizPage() {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-md py-24 text-center">
+      <div className="page-wrap mx-auto max-w-md py-24 text-center">
         <p className="text-sm text-destructive">{error}</p>
         <Button variant="outline" className="mt-4" onClick={() => window.history.back()}>
           Go Back
@@ -94,7 +94,7 @@ export default function QuizPage() {
 
   if (!courseId || (needsSection && !sectionId)) {
     return (
-      <div className="mx-auto flex max-w-md flex-col items-center justify-center py-24 text-center">
+      <div className="page-wrap mx-auto flex max-w-md flex-col items-center justify-center py-24 text-center">
         <CircleHelp className="mb-3 h-10 w-10 text-muted-foreground/40" />
         <p className="font-medium">No section selected</p>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -111,7 +111,7 @@ export default function QuizPage() {
 
   if (isFinished) {
     return (
-      <div className="p-6">
+      <div className="page-wrap p-4 sm:p-6">
         <QuizResults />
       </div>
     );
@@ -123,16 +123,20 @@ export default function QuizPage() {
   const progressPercent = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4 p-4 sm:space-y-6 sm:p-6">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Link href="/questions" className="hover:text-foreground">Practice</Link>
-        <span>/</span>
-        <span className="text-foreground">Quiz</span>
-        {mode !== "section" && (
-          <Badge variant="secondary" className="ml-1 text-xs">{MODE_LABELS[mode]}</Badge>
-        )}
+    <div className="page-wrap page-stack">
+      <div className="glass-card space-y-3 p-4 sm:p-5">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Link href="/questions" className="hover:text-foreground">Practice</Link>
+          <span>/</span>
+          <span className="text-foreground">Quiz</span>
+          {mode !== "section" && (
+            <Badge variant="secondary" className="ml-1 text-xs">{MODE_LABELS[mode]}</Badge>
+          )}
+        </div>
+        <Progress value={progressPercent} className="h-2.5" />
       </div>
-      <Progress value={progressPercent} className="h-2" />
+
+      <div className="divider-fade" />
       <QuestionCard
         question={currentQuestion}
         index={currentIndex}

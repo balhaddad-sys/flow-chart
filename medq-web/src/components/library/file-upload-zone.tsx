@@ -98,7 +98,7 @@ export function FileUploadZone() {
 
   if (!courseId) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 text-center">
+      <div className="glass-card flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center">
         <p className="text-sm text-muted-foreground">Select a course first to upload files.</p>
       </div>
     );
@@ -110,12 +110,12 @@ export function FileUploadZone() {
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={() => setIsDragging(false)}
-        className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 text-center transition-colors ${
-          isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50"
+        className={`glass-card flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-7 text-center transition-colors ${
+          isDragging ? "border-primary bg-primary/10" : "border-muted-foreground/25 hover:border-primary/50"
         }`}
       >
-        <Upload className="mb-3 h-8 w-8 text-muted-foreground" />
-        <p className="text-sm font-medium">Drag & drop files here</p>
+        <Upload className="mb-3 h-9 w-9 text-primary" />
+        <p className="text-base font-semibold">Drag and drop files here</p>
         <p className="mt-1 text-xs text-muted-foreground">PDF, PPTX, or DOCX (max 100MB)</p>
         <label className="mt-4">
           <Button variant="outline" size="sm" asChild>
@@ -134,7 +134,7 @@ export function FileUploadZone() {
       {uploads.size > 0 && (
         <div className="space-y-2">
           {Array.from(uploads.entries()).map(([key, upload]) => (
-            <div key={key} className="flex items-center gap-3 rounded-lg border p-3">
+            <div key={key} className="glass-card flex items-center gap-3 rounded-xl p-3">
               <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
               <div className="flex-1 min-w-0">
                 <p className="truncate text-sm">{upload.name}</p>

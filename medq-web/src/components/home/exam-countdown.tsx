@@ -28,7 +28,7 @@ export function ExamCountdown({ examDate }: ExamCountdownProps) {
   });
 
   return (
-    <span className={`text-sm ${urgencyColor}`}>
+    <span className={`inline-flex rounded-full border border-border/70 bg-card/70 px-3 py-1 text-sm shadow-[0_8px_22px_-18px_rgba(15,23,42,0.55)] ${urgencyColor}`}>
       {daysLeft} {daysLeft === 1 ? "day" : "days"} until exam · {dateStr}
     </span>
   );

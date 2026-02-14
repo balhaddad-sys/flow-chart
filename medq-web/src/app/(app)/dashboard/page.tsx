@@ -37,7 +37,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="mx-auto max-w-4xl space-y-4 p-4 sm:space-y-6 sm:p-6">
+      <div className="page-wrap page-stack">
         <Skeleton className="h-8 w-48" />
         <div className="grid gap-4 md:grid-cols-2">
           {[1, 2, 3, 4].map((i) => (
@@ -51,23 +51,23 @@ export default function DashboardPage() {
   const weakTopics = stats?.weakestTopics ?? [];
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4 p-4 sm:space-y-6 sm:p-6">
-      <div className="flex items-center justify-between">
+    <div className="page-wrap page-stack">
+      <div className="glass-card flex items-center justify-between p-5 sm:p-6">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Progress</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="page-title">Progress</h1>
+          <p className="page-subtitle">
             Identify and address your weak areas.
           </p>
         </div>
       </div>
 
       {fixPlanResult && (
-        <div className="rounded-lg bg-muted p-3 text-sm">{fixPlanResult}</div>
+        <div className="glass-card rounded-xl bg-muted/70 p-3 text-sm">{fixPlanResult}</div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
-        <div>
-          <p className="text-xl font-bold tabular-nums sm:text-2xl">
+      <div className="glass-card grid grid-cols-1 gap-4 p-4 sm:grid-cols-3 sm:gap-6 sm:p-6">
+        <div className="metric-card">
+          <p className="text-xl font-semibold tabular-nums sm:text-2xl">
             {stats ? `${Math.round(stats.overallAccuracy * 100)}%` : "--"}
           </p>
           <p className="text-xs text-muted-foreground">
@@ -75,12 +75,12 @@ export default function DashboardPage() {
           </p>
           <Progress value={stats ? stats.overallAccuracy * 100 : 0} className="mt-2 h-1.5" />
         </div>
-        <div className="border-t pt-4 sm:border-t-0 sm:pt-0 sm:border-l sm:pl-6 border-border">
-          <p className="text-xl font-bold tabular-nums sm:text-2xl">{stats?.totalQuestionsAnswered ?? 0}</p>
+        <div className="metric-card">
+          <p className="text-xl font-semibold tabular-nums sm:text-2xl">{stats?.totalQuestionsAnswered ?? 0}</p>
           <p className="text-xs text-muted-foreground">Questions Answered</p>
         </div>
-        <div className="border-t pt-4 sm:border-t-0 sm:pt-0 sm:border-l sm:pl-6 border-border">
-          <p className="text-xl font-bold tabular-nums sm:text-2xl">
+        <div className="metric-card">
+          <p className="text-xl font-semibold tabular-nums sm:text-2xl">
             {stats ? `${Math.round(stats.completionPercent * 100)}%` : "0%"}
           </p>
           <p className="text-xs text-muted-foreground">Completion</p>

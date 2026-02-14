@@ -45,10 +45,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/5 to-primary/10 p-4">
-      <Card className="w-full max-w-md">
+    <div className="flex min-h-screen items-center justify-center p-4">
+      <Card className="w-full max-w-md overflow-hidden">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">MedQ</p>
+          <CardTitle className="text-2xl font-semibold">Welcome back</CardTitle>
           <CardDescription>Sign in to your MedQ account</CardDescription>
         </CardHeader>
         <CardContent>

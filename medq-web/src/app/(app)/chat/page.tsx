@@ -41,11 +41,11 @@ export default function ChatPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4 p-4 sm:space-y-6 sm:p-6">
-      <div className="flex items-center justify-between">
+    <div className="page-wrap page-stack">
+      <div className="glass-card flex items-center justify-between p-5 sm:p-6">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">AI Chat</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="page-title">AI Chat</h1>
+          <p className="page-subtitle">
             Chat with AI about your course material.
           </p>
         </div>
