@@ -48,7 +48,9 @@ export function PipelineProgress(props: PipelineProgressProps) {
       {/* Mobile: compact single-line */}
       <div className="flex items-center gap-3 sm:hidden">
         <Progress value={progressPercent} className="h-2 flex-1" />
-        <span className="shrink-0 text-xs text-muted-foreground">{steps[activeStep].label}</span>
+        <span className="min-w-0 max-w-[42%] truncate text-right text-xs text-muted-foreground">
+          {steps[activeStep].label}
+        </span>
       </div>
 
       {/* Desktop: horizontal stepper */}

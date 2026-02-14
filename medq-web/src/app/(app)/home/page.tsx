@@ -80,14 +80,14 @@ export default function HomePage() {
     <div className="page-wrap page-stack">
       <section className="glass-card overflow-hidden p-5 sm:p-7">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="space-y-2">
+          <div className="min-w-0 space-y-2">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
               Study Command Center
             </p>
-            <h1 className="page-title">
+            <h1 className="page-title break-words">
               {greeting()}, {user?.displayName || "Student"}
             </h1>
-            {activeCourse && <p className="page-subtitle">{activeCourse.title}</p>}
+            {activeCourse && <p className="page-subtitle break-words">{activeCourse.title}</p>}
           </div>
           <ExamCountdown
             examDate={activeCourse?.examDate}
@@ -95,10 +95,14 @@ export default function HomePage() {
           />
         </div>
 
-        <div className="mt-5 flex flex-wrap gap-2">
+        <div className="mt-5 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
           {quickActions.slice(0, 4).map((action) => (
-            <Link key={action.href} href={action.href}>
-              <Button variant={action.href === "/chat" ? "default" : "outline"} size="sm">
+            <Link key={action.href} href={action.href} className="w-full sm:w-auto">
+              <Button
+                variant={action.href === "/chat" ? "default" : "outline"}
+                size="sm"
+                className="w-full justify-start sm:w-auto sm:justify-center"
+              >
                 <action.icon className="mr-2 h-4 w-4" />
                 {action.label}
               </Button>
