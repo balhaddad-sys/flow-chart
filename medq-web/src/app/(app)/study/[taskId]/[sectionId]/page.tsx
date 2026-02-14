@@ -2,7 +2,6 @@
 
 import { use, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
   ArrowLeft,
   Play,
@@ -17,7 +16,6 @@ import {
   Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -37,41 +35,30 @@ interface AISummary {
   mnemonics: string[];
 }
 
-/** Detect if a line looks like a heading (all-caps, short, no trailing punctuation). */
 function isHeadingLine(line: string): boolean {
   const t = line.trim();
   if (!t || t.length > 120) return false;
-  // All-caps line (at least 3 chars) → heading
   if (t.length >= 3 && t === t.toUpperCase() && /[A-Z]/.test(t)) return true;
-  // Short line without ending punctuation and contains a capital letter
   if (t.length < 80 && !/[.!?:,;]$/.test(t) && /^[A-Z]/.test(t) && !t.includes("□")) return true;
   return false;
 }
 
-/** Split raw text into structured paragraphs with heading detection. */
 function parseTextBlocks(text: string) {
   const blocks: { type: "heading" | "paragraph"; content: string }[] = [];
-  // Split on double newlines, or single newlines between short lines
   const raw = text.split(/\n\n+/);
-
   for (const chunk of raw) {
     const trimmed = chunk.trim();
     if (!trimmed) continue;
-
-    // Check if the whole chunk is a heading
     if (isHeadingLine(trimmed) && !trimmed.includes("\n")) {
       blocks.push({ type: "heading", content: trimmed });
       continue;
     }
-
-    // Check for embedded headings (line before paragraph)
     const lines = trimmed.split("\n");
     if (lines.length >= 2 && isHeadingLine(lines[0]) && lines[0].length < 100) {
       blocks.push({ type: "heading", content: lines[0].trim() });
       blocks.push({ type: "paragraph", content: lines.slice(1).join(" ").trim() });
       continue;
     }
-
     blocks.push({ type: "paragraph", content: trimmed.replace(/\n/g, " ") });
   }
   return blocks;
@@ -94,7 +81,6 @@ export default function StudySessionPage({
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
 
-  // Load section data
   useEffect(() => {
     if (!uid) return;
     const unsub = onSnapshot(doc(db, "users", uid, "sections", sectionId), (snap) => {
@@ -105,7 +91,6 @@ export default function StudySessionPage({
     return unsub;
   }, [uid, sectionId]);
 
-  // Fetch section text blob
   useEffect(() => {
     if (!section?.textBlobPath) return;
     let cancelled = false;
@@ -117,9 +102,8 @@ export default function StudySessionPage({
         if (!cancelled) setSectionText(text);
       } catch (error) {
         if (!cancelled) {
-          const message = error instanceof Error ? error.message : "Failed to load section text.";
           setSectionText(null);
-          setTextError(message);
+          setTextError(error instanceof Error ? error.message : "Failed to load section text.");
         }
       } finally {
         if (!cancelled) setTextLoading(false);
@@ -128,47 +112,39 @@ export default function StudySessionPage({
     return () => { cancelled = true; };
   }, [section?.textBlobPath]);
 
-  // Auto-start timer
   useEffect(() => {
     start();
     return () => { pause(); reset(); };
   }, [start, pause, reset]);
 
-  // Parse text blocks for Notes tab
   const textBlocks = useMemo(() => {
     if (!sectionText) return [];
     return parseTextBlocks(sectionText);
   }, [sectionText]);
 
-  // Generate AI summary on demand
   const generateSummary = useCallback(async () => {
     if (!sectionText || !section?.title || summaryLoading) return;
     setSummaryLoading(true);
     setSummaryError(null);
     try {
       const input = { sectionText: sectionText.slice(0, 8000), title: section.title };
-
       try {
         const data = await fn.generateSectionSummary(input);
         if (data?.summary || data?.keyPoints?.length || data?.mnemonics?.length) {
           setSummary(data);
           return;
         }
-      } catch {
-        // Fall through to local API route
-      }
+      } catch { /* fall through */ }
 
       const res = await fetch("/api/summary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
       });
-
       const json = await res.json();
       if (!res.ok || !json?.success || !json?.data) {
         throw new Error(json?.error || "Failed to generate summary.");
       }
-
       setSummary(json.data as AISummary);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to generate summary.";
@@ -199,206 +175,206 @@ export default function StudySessionPage({
   const defaultTab = hasGuide ? "guide" : "notes";
 
   return (
-    <div className="flex min-h-[100dvh] flex-col">
-      {/* Sticky header */}
-      <div className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="mx-auto max-w-3xl px-4 py-3">
-          {/* Row 1: Back + title + timer */}
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="shrink-0 -ml-2" onClick={() => router.back()}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
+    <div className="flex flex-col">
+      {/* ── Sticky header ── sits below the CourseSwitcherBar (min-h-12) */}
+      <div className="sticky top-12 z-10 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        {/* Row 1: back + title + timer */}
+        <div className="flex items-center gap-2 px-4 pt-3 pb-2">
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Back</span>
+          </button>
 
-            <div className="min-w-0 flex-1">
-              <h1 className="text-sm font-semibold tracking-tight truncate">
-                {section?.title ?? "Loading..."}
-              </h1>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Link href="/planner" className="hover:text-foreground">Plan</Link>
-                <span>/</span>
-                <span className="truncate">Study Session</span>
-              </div>
-            </div>
-
-            {/* Timer + controls */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <div className="flex items-center gap-1 rounded-md bg-muted px-2 py-1">
-                <Clock className="h-3 w-3 text-muted-foreground" />
-                <span className="font-mono text-xs tabular-nums font-medium">{formatted}</span>
-              </div>
-              {isRunning ? (
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={pause}>
-                  <Pause className="h-3.5 w-3.5" />
-                </Button>
-              ) : (
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={start}>
-                  <Play className="h-3.5 w-3.5" />
-                </Button>
-              )}
-              <Button size="sm" className="h-7 text-xs px-2.5" onClick={handleComplete}>
-                <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-                Done
-              </Button>
-            </div>
+          <div className="min-w-0 flex-1 text-center">
+            <p className="text-xs font-medium truncate px-2">
+              {section?.title ?? "Loading..."}
+            </p>
           </div>
 
-          {/* Row 2: Topic tags */}
-          {section?.topicTags && section.topicTags.length > 0 && (
-            <div className="mt-2 flex items-center gap-1.5 overflow-x-auto">
-              {section.estMinutes && (
-                <Badge variant="outline" className="text-[10px] shrink-0">
-                  ~{section.estMinutes} min
-                </Badge>
+          {/* Timer pill */}
+          <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center gap-1.5 rounded-full bg-muted/80 pl-2.5 pr-1 py-1">
+              <Clock className="h-3 w-3 text-muted-foreground" />
+              <span className="font-mono text-xs tabular-nums font-medium min-w-[2.5rem] text-center">
+                {formatted}
+              </span>
+              {isRunning ? (
+                <button onClick={pause} className="rounded-full p-1 hover:bg-background/60 transition-colors">
+                  <Pause className="h-3 w-3" />
+                </button>
+              ) : (
+                <button onClick={start} className="rounded-full p-1 hover:bg-background/60 transition-colors">
+                  <Play className="h-3 w-3" />
+                </button>
               )}
-              {section.topicTags.slice(0, 4).map((tag, i) => (
-                <Badge key={i} variant="secondary" className="text-[10px] shrink-0">
-                  {tag}
-                </Badge>
-              ))}
             </div>
-          )}
+            <Button size="sm" className="h-7 rounded-full text-xs px-3 ml-1" onClick={handleComplete}>
+              <CheckCircle2 className="mr-1 h-3 w-3" />
+              Done
+            </Button>
+          </div>
         </div>
+
+        {/* Row 2: topic tags */}
+        {section && (section.estMinutes || (section.topicTags && section.topicTags.length > 0)) && (
+          <div className="flex items-center gap-1.5 px-4 pb-2.5 overflow-x-auto scrollbar-none">
+            {section.estMinutes && (
+              <Badge variant="outline" className="text-[10px] shrink-0 rounded-full">
+                ~{section.estMinutes} min
+              </Badge>
+            )}
+            {section.topicTags?.slice(0, 5).map((tag, i) => (
+              <Badge key={i} variant="secondary" className="text-[10px] shrink-0 rounded-full">
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Content */}
-      <div className="mx-auto w-full max-w-3xl flex-1 px-4 py-4 sm:px-6 sm:py-6">
-        <Tabs defaultValue={defaultTab} className="space-y-4">
-          <TabsList className="grid h-9 w-full grid-cols-3">
-            <TabsTrigger value="guide" className="gap-1.5 text-xs sm:text-sm">
+      {/* ── Content ── */}
+      <div className="mx-auto w-full max-w-2xl flex-1 px-4 pt-5 pb-8 sm:px-6">
+        <Tabs defaultValue={defaultTab} className="space-y-5">
+          {/* Tab selector */}
+          <TabsList className="grid w-full grid-cols-3 h-10 rounded-xl p-1">
+            <TabsTrigger value="guide" className="rounded-lg gap-1.5 text-xs sm:text-sm data-[state=active]:shadow-sm">
               <BookOpen className="h-3.5 w-3.5" />
               Guide
             </TabsTrigger>
-            <TabsTrigger value="notes" className="gap-1.5 text-xs sm:text-sm">
+            <TabsTrigger value="notes" className="rounded-lg gap-1.5 text-xs sm:text-sm data-[state=active]:shadow-sm">
               <FileText className="h-3.5 w-3.5" />
               Notes
             </TabsTrigger>
-            <TabsTrigger value="summary" className="gap-1.5 text-xs sm:text-sm">
+            <TabsTrigger value="summary" className="rounded-lg gap-1.5 text-xs sm:text-sm data-[state=active]:shadow-sm">
               <Lightbulb className="h-3.5 w-3.5" />
-              Summary
+              AI Summary
             </TabsTrigger>
           </TabsList>
 
-          {/* Tab: Study Guide — blueprint */}
-          <TabsContent value="guide">
+          {/* ─── Guide Tab ─── */}
+          <TabsContent value="guide" className="space-y-4 mt-0">
             {hasGuide ? (
-              <div className="space-y-4">
-                {/* Learning Objectives */}
+              <>
                 {bp.learningObjectives?.length > 0 && (
-                  <section>
-                    <div className="mb-2 flex items-center gap-2">
-                      <Target className="h-4 w-4 text-blue-500" />
+                  <div className="rounded-2xl border bg-card p-4 sm:p-5">
+                    <div className="flex items-center gap-2.5 mb-3">
+                      <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-blue-100 dark:bg-blue-950/60">
+                        <Target className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      </div>
                       <h3 className="text-sm font-semibold">Learning Objectives</h3>
                     </div>
-                    <ul className="space-y-1.5 pl-6">
+                    <ul className="space-y-3">
                       {bp.learningObjectives.map((obj, i) => (
-                        <li key={i} className="flex gap-2 text-sm leading-relaxed">
-                          <span className="mt-2 shrink-0 h-1.5 w-1.5 rounded-full bg-blue-500" />
-                          <span>{obj}</span>
+                        <li key={i} className="flex gap-3 text-[13px] sm:text-sm leading-relaxed">
+                          <span className="mt-1.5 shrink-0 h-2 w-2 rounded-full bg-blue-500/60" />
+                          <span className="text-foreground/80">{obj}</span>
                         </li>
                       ))}
                     </ul>
-                  </section>
+                  </div>
                 )}
 
-                {/* Key Concepts */}
                 {bp.keyConcepts?.length > 0 && (
-                  <section>
-                    <h3 className="mb-2 text-sm font-semibold">Key Concepts</h3>
-                    <div className="flex flex-wrap gap-1.5">
+                  <div className="rounded-2xl border bg-card p-4 sm:p-5">
+                    <h3 className="text-sm font-semibold mb-3">Key Concepts</h3>
+                    <div className="flex flex-wrap gap-2">
                       {bp.keyConcepts.map((concept, i) => (
-                        <Badge key={i} variant="secondary" className="text-xs">
+                        <span key={i} className="inline-flex rounded-full bg-secondary/80 px-3 py-1.5 text-xs font-medium">
                           {concept}
-                        </Badge>
+                        </span>
                       ))}
                     </div>
-                  </section>
+                  </div>
                 )}
 
-                {/* High-Yield Points */}
                 {bp.highYieldPoints?.length > 0 && (
-                  <Card className="border-green-200 bg-green-50/50 dark:border-green-900 dark:bg-green-950/20">
-                    <CardContent className="p-4">
-                      <div className="mb-2 flex items-center gap-2">
+                  <div className="rounded-2xl border border-green-200/80 bg-green-50/50 p-4 sm:p-5 dark:border-green-900/50 dark:bg-green-950/20">
+                    <div className="flex items-center gap-2.5 mb-3">
+                      <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-green-100 dark:bg-green-900/40">
                         <Lightbulb className="h-4 w-4 text-green-600 dark:text-green-400" />
-                        <h3 className="text-sm font-semibold">High-Yield Points</h3>
                       </div>
-                      <ul className="space-y-1.5">
-                        {bp.highYieldPoints.map((point, i) => (
-                          <li key={i} className="flex gap-2 text-sm leading-relaxed">
-                            <span className="mt-2 shrink-0 h-1.5 w-1.5 rounded-full bg-green-500" />
-                            <span>{point}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </CardContent>
-                  </Card>
+                      <h3 className="text-sm font-semibold">High-Yield Points</h3>
+                    </div>
+                    <ul className="space-y-3">
+                      {bp.highYieldPoints.map((point, i) => (
+                        <li key={i} className="flex gap-3 text-[13px] sm:text-sm leading-relaxed">
+                          <span className="mt-1.5 shrink-0 h-2 w-2 rounded-full bg-green-500/60" />
+                          <span className="text-foreground/80">{point}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
 
-                {/* Common Traps */}
                 {bp.commonTraps?.length > 0 && (
-                  <Card className="border-orange-200 bg-orange-50/50 dark:border-orange-900 dark:bg-orange-950/20">
-                    <CardContent className="p-4">
-                      <div className="mb-2 flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4 text-orange-500" />
-                        <h3 className="text-sm font-semibold">Common Traps</h3>
+                  <div className="rounded-2xl border border-orange-200/80 bg-orange-50/50 p-4 sm:p-5 dark:border-orange-900/50 dark:bg-orange-950/20">
+                    <div className="flex items-center gap-2.5 mb-3">
+                      <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-orange-100 dark:bg-orange-900/40">
+                        <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
                       </div>
-                      <ul className="space-y-1.5">
-                        {bp.commonTraps.map((trap, i) => (
-                          <li key={i} className="flex gap-2 text-sm leading-relaxed">
-                            <span className="mt-2 shrink-0 h-1.5 w-1.5 rounded-full bg-orange-500" />
-                            <span>{trap}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </CardContent>
-                  </Card>
+                      <h3 className="text-sm font-semibold">Common Traps</h3>
+                    </div>
+                    <ul className="space-y-3">
+                      {bp.commonTraps.map((trap, i) => (
+                        <li key={i} className="flex gap-3 text-[13px] sm:text-sm leading-relaxed">
+                          <span className="mt-1.5 shrink-0 h-2 w-2 rounded-full bg-orange-500/60" />
+                          <span className="text-foreground/80">{trap}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
 
-                {/* Terms to Define */}
                 {bp.termsToDefine?.length > 0 && (
-                  <section>
-                    <h3 className="mb-2 text-sm font-semibold">Terms to Know</h3>
-                    <div className="flex flex-wrap gap-1.5">
+                  <div className="rounded-2xl border bg-card p-4 sm:p-5">
+                    <h3 className="text-sm font-semibold mb-3">Terms to Know</h3>
+                    <div className="flex flex-wrap gap-2">
                       {bp.termsToDefine.map((term, i) => (
-                        <Badge key={i} variant="outline" className="text-xs">
+                        <span key={i} className="inline-flex rounded-full border px-3 py-1.5 text-xs font-medium">
                           {term}
-                        </Badge>
+                        </span>
                       ))}
                     </div>
-                  </section>
+                  </div>
                 )}
-              </div>
+              </>
             ) : (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <BookOpen className="mb-3 h-8 w-8 text-muted-foreground/40" />
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="flex items-center justify-center h-14 w-14 rounded-2xl bg-muted mb-4">
+                  <BookOpen className="h-6 w-6 text-muted-foreground" />
+                </div>
                 <p className="text-sm font-medium">No study guide available</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  This section hasn&apos;t been analyzed yet. Try the Notes tab.
+                <p className="mt-1.5 text-xs text-muted-foreground max-w-[260px] leading-relaxed">
+                  This section hasn&apos;t been analyzed yet. Check the Notes tab for the full text.
                 </p>
               </div>
             )}
           </TabsContent>
 
-          {/* Tab: Notes — full section text */}
-          <TabsContent value="notes">
+          {/* ─── Notes Tab ─── */}
+          <TabsContent value="notes" className="mt-0">
             {textLoading ? (
-              <div className="space-y-4">
-                <Skeleton className="h-6 w-2/3" />
+              <div className="space-y-5 py-2">
+                <Skeleton className="h-7 w-3/4" />
                 <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-[90%]" />
-                <Skeleton className="h-4 w-[95%]" />
-                <Skeleton className="h-6 w-1/2 mt-4" />
+                <Skeleton className="h-4 w-[92%]" />
+                <Skeleton className="h-4 w-[88%]" />
+                <div className="pt-3" />
+                <Skeleton className="h-7 w-1/2" />
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-[85%]" />
               </div>
             ) : sectionText ? (
-              <article className="max-w-none">
+              <article className="py-1">
                 {textBlocks.map((block, i) => {
                   if (block.type === "heading") {
                     return (
                       <h3
                         key={i}
-                        className="mt-8 mb-3 text-base font-semibold tracking-tight text-foreground first:mt-0"
+                        className="mt-10 mb-4 text-base sm:text-lg font-bold tracking-tight text-foreground first:mt-0 leading-snug"
                       >
                         {block.content}
                       </h3>
@@ -407,7 +383,7 @@ export default function StudySessionPage({
                   return (
                     <p
                       key={i}
-                      className="mb-4 text-[14px] leading-[1.75] text-foreground/85"
+                      className="mb-5 text-[15px] sm:text-base leading-[1.85] text-foreground/75"
                     >
                       {block.content}
                     </p>
@@ -415,88 +391,93 @@ export default function StudySessionPage({
                 })}
               </article>
             ) : (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <FileText className="mb-3 h-8 w-8 text-muted-foreground/40" />
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="flex items-center justify-center h-14 w-14 rounded-2xl bg-muted mb-4">
+                  <FileText className="h-6 w-6 text-muted-foreground" />
+                </div>
                 <p className="text-sm font-medium">No text content available</p>
-                <p className="mt-1 text-xs text-muted-foreground">
+                <p className="mt-1.5 text-xs text-muted-foreground max-w-[260px] leading-relaxed">
                   {textError ?? "The extracted text for this section could not be loaded."}
                 </p>
               </div>
             )}
           </TabsContent>
 
-          {/* Tab: AI Summary — generated on demand */}
-          <TabsContent value="summary">
+          {/* ─── Summary Tab ─── */}
+          <TabsContent value="summary" className="space-y-4 mt-0">
             {summary ? (
-              <div className="space-y-4">
-                <section>
-                  <h3 className="mb-2 text-sm font-semibold">Overview</h3>
-                  <p className="text-sm leading-relaxed text-foreground/85">
+              <>
+                <div className="rounded-2xl border bg-card p-4 sm:p-5">
+                  <h3 className="text-sm font-semibold mb-2">Overview</h3>
+                  <p className="text-[13px] sm:text-sm leading-relaxed text-foreground/80">
                     {summary.summary}
                   </p>
-                </section>
+                </div>
 
                 {summary.keyPoints?.length > 0 && (
-                  <section>
-                    <h3 className="mb-2 text-sm font-semibold">Key Points</h3>
-                    <ul className="space-y-1.5">
+                  <div className="rounded-2xl border bg-card p-4 sm:p-5">
+                    <h3 className="text-sm font-semibold mb-3">Key Points</h3>
+                    <ul className="space-y-3">
                       {summary.keyPoints.map((point, i) => (
-                        <li key={i} className="flex gap-2 text-sm leading-relaxed">
-                          <span className="mt-2 shrink-0 h-1.5 w-1.5 rounded-full bg-primary" />
-                          <span>{point}</span>
+                        <li key={i} className="flex gap-3 text-[13px] sm:text-sm leading-relaxed">
+                          <span className="mt-1.5 shrink-0 h-2 w-2 rounded-full bg-primary/60" />
+                          <span className="text-foreground/80">{point}</span>
                         </li>
                       ))}
                     </ul>
-                  </section>
+                  </div>
                 )}
 
                 {summary.mnemonics?.length > 0 && (
-                  <Card className="border-violet-200 bg-violet-50/50 dark:border-violet-900 dark:bg-violet-950/20">
-                    <CardContent className="p-4">
-                      <div className="mb-2 flex items-center gap-2">
-                        <Lightbulb className="h-4 w-4 text-violet-500" />
-                        <h3 className="text-sm font-semibold">Memory Aids</h3>
+                  <div className="rounded-2xl border border-violet-200/80 bg-violet-50/50 p-4 sm:p-5 dark:border-violet-900/50 dark:bg-violet-950/20">
+                    <div className="flex items-center gap-2.5 mb-3">
+                      <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-violet-100 dark:bg-violet-900/40">
+                        <Lightbulb className="h-4 w-4 text-violet-600 dark:text-violet-400" />
                       </div>
-                      <ul className="space-y-1.5">
-                        {summary.mnemonics.map((m, i) => (
-                          <li key={i} className="text-sm leading-relaxed text-violet-700 dark:text-violet-300">
-                            {m}
-                          </li>
-                        ))}
-                      </ul>
-                    </CardContent>
-                  </Card>
+                      <h3 className="text-sm font-semibold">Memory Aids</h3>
+                    </div>
+                    <ul className="space-y-2">
+                      {summary.mnemonics.map((m, i) => (
+                        <li key={i} className="text-[13px] sm:text-sm leading-relaxed text-violet-700 dark:text-violet-300">
+                          {m}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
-              </div>
+              </>
             ) : (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <Lightbulb className="mb-3 h-8 w-8 text-muted-foreground/40" />
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="flex items-center justify-center h-14 w-14 rounded-2xl bg-muted mb-4">
+                  <Lightbulb className="h-6 w-6 text-muted-foreground" />
+                </div>
                 <p className="text-sm font-medium">AI-Powered Summary</p>
-                <p className="mt-1 mb-4 text-xs text-muted-foreground">
-                  Generate a concise summary with key points and mnemonics.
+                <p className="mt-1.5 mb-5 text-xs text-muted-foreground max-w-[260px] leading-relaxed">
+                  Get a concise summary with key takeaways and memory aids.
                 </p>
                 {summaryError && (
-                  <p className="mb-3 max-w-md text-xs text-destructive">{summaryError}</p>
+                  <p className="mb-3 max-w-xs text-xs text-destructive">{summaryError}</p>
                 )}
                 <Button
                   onClick={generateSummary}
                   disabled={summaryLoading || !sectionText}
+                  className="rounded-full px-5"
                   size="sm"
                 >
                   {summaryLoading ? (
                     <>
-                      <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                       Generating...
                     </>
                   ) : (
                     <>
-                      <Lightbulb className="mr-1.5 h-4 w-4" />
+                      <Lightbulb className="mr-1.5 h-3.5 w-3.5" />
                       Generate Summary
                     </>
                   )}
                 </Button>
                 {!sectionText && !textLoading && (
-                  <p className="mt-2 text-xs text-muted-foreground">
+                  <p className="mt-3 text-[11px] text-muted-foreground">
                     Section text must be loaded first.
                   </p>
                 )}
