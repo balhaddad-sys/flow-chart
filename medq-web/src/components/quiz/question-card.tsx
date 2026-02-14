@@ -35,6 +35,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
   const [tutorResponse, setTutorResponse] = useState<TutorResponse | null>(null);
   const [tutorLoading, setTutorLoading] = useState(false);
 
+  const [pendingIndex, setPendingIndex] = useState<number | null>(null);
   const selectedIndex = answers.get(question.id);
   const isAnswered = selectedIndex !== undefined;
   const isCorrect = results.get(question.id) === true;
@@ -44,6 +45,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
 
   useEffect(() => {
     setSubmitting(false);
+    setPendingIndex(null);
     setShowExplanation(false);
     setTutorResponse(null);
     setTutorLoading(false);
@@ -51,19 +53,22 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
 
   async function handleSelect(optionIndex: number) {
     if (isAnswered || submitting) return;
+    setPendingIndex(optionIndex);
     setSubmitting(true);
     try {
+      const elapsed = Math.round((Date.now() - useQuizStore.getState().startTime) / 1000);
       const result = await fn.submitAttempt({
         questionId: question.id,
         answerIndex: optionIndex,
-        timeSpentSec: Math.round((Date.now() - useQuizStore.getState().startTime) / 1000),
+        timeSpentSec: Math.min(elapsed, 3600),
       });
       const correct = result.correct ?? optionIndex === question.correctIndex;
       answerQuestion(question.id, optionIndex, correct, result.attemptId);
       if (result.tutorResponse) {
         setTutorResponse(result.tutorResponse);
       }
-    } catch {
+    } catch (err) {
+      console.warn("submitAttempt failed, using local check:", err);
       const correct = optionIndex === question.correctIndex;
       answerQuestion(question.id, optionIndex, correct);
     } finally {
@@ -119,10 +124,13 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
         {/* Options */}
         {question.options.map((option, i) => {
           const isSelected = selectedIndex === i;
+          const isPending = pendingIndex === i && submitting;
           const isCorrectOption = i === question.correctIndex;
 
           let style = "border-border hover:border-primary/40 hover:bg-accent/50 cursor-pointer";
-          if (isAnswered) {
+          if (isPending) {
+            style = "border-primary bg-primary/5 cursor-wait";
+          } else if (isAnswered) {
             if (isCorrectOption) {
               style = "border-green-500 bg-green-500/8";
             } else if (isSelected && !isCorrect) {
@@ -143,14 +151,20 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
             >
               <span
                 className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors ${
-                  isAnswered && isCorrectOption
-                    ? "bg-green-500 text-white"
-                    : isAnswered && isSelected && !isCorrect
-                      ? "bg-red-500 text-white"
-                      : "border bg-muted"
+                  isPending
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : isAnswered && isCorrectOption
+                      ? "bg-green-500 text-white"
+                      : isAnswered && isSelected && !isCorrect
+                        ? "bg-red-500 text-white"
+                        : "border bg-muted"
                 }`}
               >
-                {String.fromCharCode(65 + i)}
+                {isPending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  String.fromCharCode(65 + i)
+                )}
               </span>
               <span className="flex-1 leading-relaxed">{option}</span>
               {isAnswered && isCorrectOption && (

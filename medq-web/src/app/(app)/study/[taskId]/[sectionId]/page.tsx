@@ -22,7 +22,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useTimerStore } from "@/lib/stores/timer-store";
 import { updateTask } from "@/lib/firebase/firestore";
-import { getFileDownloadUrl } from "@/lib/firebase/storage";
+import { getTextBlob } from "@/lib/firebase/storage";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { toast } from "sonner";
@@ -60,16 +60,14 @@ export default function StudySessionPage({
     return unsub;
   }, [uid, sectionId]);
 
-  // Fetch section text blob from Cloud Storage
+  // Fetch section text blob from Cloud Storage (uses Firebase SDK, no CORS needed)
   useEffect(() => {
     if (!section?.textBlobPath) return;
     let cancelled = false;
     setTextLoading(true);
     (async () => {
       try {
-        const url = await getFileDownloadUrl(section.textBlobPath);
-        const res = await fetch(url);
-        const text = await res.text();
+        const text = await getTextBlob(section.textBlobPath);
         if (!cancelled) setSectionText(text);
       } catch {
         if (!cancelled) setSectionText(null);
