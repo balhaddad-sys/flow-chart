@@ -24,7 +24,7 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
   const [retrying, setRetrying] = useState(false);
 
   const file = files.find((f) => f.id === fileId);
-  const hasFailedSections = sections.some((s) => s.aiStatus === "FAILED");
+  const hasFailedSections = sections.some((s) => s.aiStatus === "FAILED" || s.questionsStatus === "FAILED");
 
   async function handleRetry() {
     setRetrying(true);

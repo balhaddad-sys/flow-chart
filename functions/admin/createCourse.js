@@ -64,7 +64,7 @@ exports.createCourse = functions.https.onCall(async (data, context) => {
     const WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
     let sanitizedAvailability = {
       defaultMinutesPerDay: 120,
-      perDay: {},
+      perDayOverrides: {},
       excludedDates: [],
     };
     if (availability && typeof availability === "object") {
@@ -76,7 +76,7 @@ exports.createCourse = functions.https.onCall(async (data, context) => {
         for (const day of WEEKDAYS) {
           if (typeof availability[day] === "number") {
             const mins = Math.max(0, Math.min(480, Math.floor(availability[day])));
-            sanitizedAvailability.perDay[day] = mins;
+            sanitizedAvailability.perDayOverrides[day] = mins;
             total += mins;
             count++;
           }

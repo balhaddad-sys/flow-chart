@@ -2,13 +2,9 @@ import { Timestamp } from "firebase/firestore";
 
 export interface CourseAvailability {
   defaultMinutesPerDay?: number;
-  monday?: number;
-  tuesday?: number;
-  wednesday?: number;
-  thursday?: number;
-  friday?: number;
-  saturday?: number;
-  sunday?: number;
+  perDayOverrides?: Record<string, number>;
+  /** @deprecated Use perDayOverrides — kept for backward compat with old courses */
+  perDay?: Record<string, number>;
   excludedDates?: string[];
 }
 

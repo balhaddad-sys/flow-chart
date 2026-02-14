@@ -288,7 +288,7 @@ describe("scheduling/scheduler", () => {
       expect(review._dayOffset).toBeUndefined();
     });
 
-    it("drops tasks that don't fit any remaining day", () => {
+    it("force-places oversized tasks on the day with most capacity", () => {
       const tasks = [
         { type: "STUDY", sectionIds: ["s1"], estMinutes: 100, difficulty: 3 },
       ];
@@ -297,7 +297,9 @@ describe("scheduling/scheduler", () => {
       ];
 
       const placed = placeTasks(tasks, days);
-      expect(placed).toHaveLength(0);
+      // Task is force-placed even though it exceeds day capacity
+      expect(placed).toHaveLength(1);
+      expect(placed[0].dueDate).toEqual(new Date("2025-01-01"));
     });
   });
 });

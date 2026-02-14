@@ -26,7 +26,7 @@ exports.processSection = functions
   .runWith({
     timeoutSeconds: 540, // 9 minutes — accommodates 60s rate-limit retries for blueprint + questions
     memory: "512MB",
-    maxInstances: 3, // Limit concurrency to avoid exceeding Anthropic 10K tokens/min rate limit
+    maxInstances: 10, // Increased to avoid "no available instance" aborts (now using Gemini, not Anthropic)
     minInstances: 1, // Keep warm to eliminate cold start latency
     secrets: [geminiApiKey], // Grant access to the secret
   })

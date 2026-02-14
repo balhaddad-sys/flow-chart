@@ -30,24 +30,67 @@ exports.retryFailedSections = functions
       throw new functions.https.HttpsError("invalid-argument", "fileId is required.");
     }
 
-    // Find all FAILED sections for this file
-    const sectionsSnap = await db
-      .collection(`users/${uid}/sections`)
-      .where("fileId", "==", fileId)
-      .where("aiStatus", "==", "FAILED")
-      .get();
+    // Find all FAILED sections for this file (aiStatus or questionsStatus)
+    const [aiFailedSnap, qFailedSnap] = await Promise.all([
+      db.collection(`users/${uid}/sections`)
+        .where("fileId", "==", fileId)
+        .where("aiStatus", "==", "FAILED")
+        .get(),
+      db.collection(`users/${uid}/sections`)
+        .where("fileId", "==", fileId)
+        .where("questionsStatus", "==", "FAILED")
+        .get(),
+    ]);
 
-    if (sectionsSnap.empty) {
+    // Deduplicate (a section could match both queries)
+    const sectionMap = new Map();
+    for (const doc of aiFailedSnap.docs) sectionMap.set(doc.id, doc);
+    for (const doc of qFailedSnap.docs) sectionMap.set(doc.id, doc);
+
+    if (sectionMap.size === 0) {
       return { success: true, data: { retriedCount: 0, message: "No failed sections found." } };
     }
 
     let retriedCount = 0;
 
-    for (const sectionDoc of sectionsSnap.docs) {
+    for (const [sectionId, sectionDoc] of sectionMap) {
       const sectionData = sectionDoc.data();
-      const sectionId = sectionDoc.id;
 
       try {
+        // If only questions failed (blueprint is fine), just reset questionsStatus
+        if (sectionData.aiStatus === "ANALYZED" && sectionData.questionsStatus === "FAILED") {
+          await sectionDoc.ref.update({
+            questionsStatus: "PENDING",
+            questionsErrorMessage: admin.firestore.FieldValue.delete(),
+          });
+          // Re-trigger by delete + re-create (processSection triggers on onCreate)
+          const preserved = { ...sectionData };
+          delete preserved.questionsErrorMessage;
+          delete preserved.lastErrorAt;
+
+          const questionsSnap = await db
+            .collection(`users/${uid}/questions`)
+            .where("sectionId", "==", sectionId)
+            .get();
+          const batch = db.batch();
+          for (const qDoc of questionsSnap.docs) batch.delete(qDoc.ref);
+          batch.delete(sectionDoc.ref);
+          await batch.commit();
+
+          await db.collection(`users/${uid}/sections`).doc(sectionId).set({
+            ...preserved,
+            aiStatus: "PENDING",
+            questionsStatus: "PENDING",
+            questionsCount: 0,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+
+          retriedCount++;
+          log.info("Section re-created for question retry", { uid, sectionId, fileId });
+          continue;
+        }
+
+        // Full retry: aiStatus === FAILED
         // Delete any existing questions for this section
         const questionsSnap = await db
           .collection(`users/${uid}/questions`)

@@ -134,7 +134,7 @@ function computeTotalLoad(tasks) {
  */
 function buildDayCapacities(today, examDate, availability = {}) {
   const endDate = examDate || new Date(today.getTime() + DEFAULT_STUDY_PERIOD_DAYS * MS_PER_DAY);
-  const defaultMinutes = clampInt(availability.defaultMinutesPerDay || DEFAULT_MINUTES_PER_DAY, MIN_DAILY_MINUTES, MAX_DAILY_MINUTES);
+  const defaultMinutes = clampInt(availability.defaultMinutesPerDay ?? DEFAULT_MINUTES_PER_DAY, MIN_DAILY_MINUTES, MAX_DAILY_MINUTES);
   const excludedDates = new Set((availability.excludedDates || []).slice(0, 365));
   const catchUpBuffer = clampInt(availability.catchUpBufferPercent ?? 15, 0, 50) / 100;
 
@@ -147,7 +147,7 @@ function buildDayCapacities(today, examDate, availability = {}) {
     const dayName = weekdayName(cursor);
 
     if (!excludedDates.has(iso)) {
-      const override = availability.perDayOverrides?.[dayName];
+      const override = (availability.perDayOverrides ?? availability.perDay)?.[dayName];
       const capacity = override != null ? clampInt(override, 0, MAX_DAILY_MINUTES) : defaultMinutes;
       const usable = Math.floor(capacity * (1 - catchUpBuffer));
       days.push({ date: new Date(cursor), usableCapacity: usable, remaining: usable });
@@ -198,17 +198,39 @@ function placeTasks(tasks, days) {
   let dayIndex = 0;
   let orderIndex = 0;
   const placed = [];
+  const skipped = [];
 
-  // Place study + question tasks
+  // Place study + question tasks (hardest first)
   for (const task of studyTasks) {
-    while (dayIndex < days.length && days[dayIndex].remaining < task.estMinutes) {
-      dayIndex++;
-      orderIndex = 0;
+    // Find a day with enough remaining capacity
+    let placed_this = false;
+    for (let d = dayIndex; d < days.length; d++) {
+      if (days[d].remaining >= task.estMinutes) {
+        placed.push({ ...task, dueDate: days[d].date, orderIndex: d === dayIndex ? orderIndex++ : 0 });
+        days[d].remaining -= task.estMinutes;
+        // Advance dayIndex pointer if current day is full
+        while (dayIndex < days.length && days[dayIndex].remaining < MIN_DAILY_MINUTES) {
+          dayIndex++;
+          orderIndex = 0;
+        }
+        placed_this = true;
+        break;
+      }
     }
-    if (dayIndex >= days.length) break;
+    if (!placed_this) {
+      skipped.push(task);
+    }
+  }
 
-    placed.push({ ...task, dueDate: days[dayIndex].date, orderIndex: orderIndex++ });
-    days[dayIndex].remaining -= task.estMinutes;
+  // Second pass: force-place skipped tasks on the day with the most remaining capacity
+  for (const task of skipped) {
+    if (days.length === 0) break;
+    let bestIdx = 0;
+    for (let d = 1; d < days.length; d++) {
+      if (days[d].remaining > days[bestIdx].remaining) bestIdx = d;
+    }
+    placed.push({ ...task, dueDate: days[bestIdx].date, orderIndex: 0 });
+    days[bestIdx].remaining -= task.estMinutes;
   }
 
   // Place review tasks at offset from their study task's day

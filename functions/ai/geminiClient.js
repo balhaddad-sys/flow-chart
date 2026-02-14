@@ -93,13 +93,18 @@ function extractJson(text) {
  */
 async function callGemini(systemPrompt, userPrompt, opts = {}) {
   const { maxTokens = MAX_TOKENS.summary, retries = 2, jsonMode = false } = opts;
+  const generationConfig = {
+    maxOutputTokens: maxTokens,
+    temperature: 0.3,
+  };
+  // Enforce structured JSON output when jsonMode is enabled
+  if (jsonMode) {
+    generationConfig.responseMimeType = "application/json";
+  }
   const model = getClient().getGenerativeModel({
     model: MODEL_ID,
     systemInstruction: systemPrompt,
-    generationConfig: {
-      maxOutputTokens: maxTokens,
-      temperature: 0.3,
-    },
+    generationConfig,
   });
 
   let attempt = 0;

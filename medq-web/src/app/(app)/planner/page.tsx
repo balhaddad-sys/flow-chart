@@ -24,8 +24,11 @@ export default function PlannerPage() {
   const [error, setError] = useState<string | null>(null);
   const autoGenTriggered = useRef(false);
 
-  // Auto-generate plan when sections are analyzed but no tasks exist
+  // Auto-generate plan when ALL sections are done processing and no tasks exist
   const analyzedCount = sections.filter((s) => s.aiStatus === "ANALYZED").length;
+  const pendingOrProcessing = sections.filter(
+    (s) => s.aiStatus === "PENDING" || s.aiStatus === "PROCESSING"
+  ).length;
   useEffect(() => {
     if (
       !loading &&
@@ -34,6 +37,7 @@ export default function PlannerPage() {
       !autoGenTriggered.current &&
       tasks.length === 0 &&
       analyzedCount > 0 &&
+      pendingOrProcessing === 0 &&
       courseId &&
       activeCourse
     ) {
@@ -41,7 +45,7 @@ export default function PlannerPage() {
       handleGenerate();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading, sectionsLoading, tasks.length, analyzedCount, courseId]);
+  }, [loading, sectionsLoading, tasks.length, analyzedCount, pendingOrProcessing, courseId]);
 
   const groups = groupTasksByDay(tasks);
   const doneCount = tasks.filter((t) => t.status === "DONE").length;
@@ -51,13 +55,13 @@ export default function PlannerPage() {
     setError(null);
     setGenerating(true);
     try {
-      // Map course availability format to scheduler format
+      // Map course availability to scheduler format
+      // createCourse stores { perDayOverrides: { monday: 120, ... } }
       const courseAvail = activeCourse.availability ?? {};
-      const { defaultMinutesPerDay, excludedDates, ...dayOverrides } = courseAvail;
       const availability = {
-        defaultMinutesPerDay,
-        perDayOverrides: dayOverrides,
-        excludedDates,
+        defaultMinutesPerDay: courseAvail.defaultMinutesPerDay,
+        perDayOverrides: courseAvail.perDayOverrides ?? courseAvail.perDay ?? {},
+        excludedDates: courseAvail.excludedDates,
       };
 
       const result = await fn.generateSchedule({
