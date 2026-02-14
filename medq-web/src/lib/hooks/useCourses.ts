@@ -6,11 +6,16 @@ import { useAuth } from "./useAuth";
 import type { CourseModel } from "../types/course";
 
 export function useCourses() {
-  const { uid } = useAuth();
+  const { uid, loading: authLoading } = useAuth();
   const [courses, setCourses] = useState<CourseModel[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Stay in loading state until auth resolves
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
     if (!uid) {
       setCourses([]);
       setLoading(false);
@@ -22,7 +27,7 @@ export function useCourses() {
       setLoading(false);
     });
     return unsub;
-  }, [uid]);
+  }, [uid, authLoading]);
 
   return { courses, loading };
 }
