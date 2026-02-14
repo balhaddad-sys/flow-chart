@@ -10,11 +10,11 @@ export interface StatsModel {
   courseId: string;
   totalStudyMinutes: number;
   totalQuestionsAnswered: number;
-  overallAccuracy: number;
-  weeklyStudyMinutes: number;
-  completionPercent: number;
+  overallAccuracy: number; // 0-1 range
+  weeklyStudyMinutes?: number; // Not yet populated by backend
+  completionPercent: number; // 0-1 range (multiply by 100 for display)
   weakestTopics: WeakTopic[];
-  streakDays: number;
+  streakDays?: number; // Not yet populated by backend
   lastStudiedAt?: Timestamp;
   updatedAt?: Timestamp;
 }

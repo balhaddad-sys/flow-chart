@@ -16,7 +16,7 @@ const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { requireAuth, requireStrings } = require("../middleware/validate");
 const { checkRateLimit, RATE_LIMITS } = require("../middleware/rateLimit");
-const { db, batchSet } = require("../lib/firestore");
+const { db, batchSet, batchDelete } = require("../lib/firestore");
 const { Errors, fail, ok, safeError } = require("../lib/errors");
 const log = require("../lib/logger");
 const { buildWorkUnits, computeTotalLoad, buildDayCapacities, checkFeasibility, placeTasks } = require("./scheduler");
@@ -76,6 +76,20 @@ exports.generateSchedule = functions
       }
 
       const placed = placeTasks(tasks, days);
+
+      // ── IDEMPOTENCY: Clear non-DONE tasks before writing ──────────────
+      // Prevents duplicate tasks on repeated calls without using regenSchedule
+      const existingSnap = await db
+        .collection(`users/${uid}/tasks`)
+        .where("courseId", "==", courseId)
+        .get();
+      const toDelete = existingSnap.docs
+        .filter((d) => d.data().status !== "DONE")
+        .map((d) => d.ref);
+      if (toDelete.length > 0) {
+        await batchDelete(toDelete);
+        log.info("Cleared existing non-DONE tasks", { uid, courseId, count: toDelete.length });
+      }
 
       // ── Persist (convert plain Dates to Firestore Timestamps) ─────────
       await batchSet(

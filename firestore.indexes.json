@@ -107,7 +107,7 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "threadId", "order": "ASCENDING" },
-        { "fieldPath": "createdAt", "order": "DESCENDING" }
+        { "fieldPath": "createdAt", "order": "ASCENDING" }
       ]
     }
   ],

@@ -22,6 +22,8 @@ const MAX_TOKENS = {
 };
 
 const RETRY_DELAYS = [500, 1500, 4000];
+const RATE_LIMIT_RETRY_DELAY = 60000;
+const RATE_LIMIT_MAX_RETRIES = 3;
 
 let _client = null;
 
@@ -40,17 +42,40 @@ function getClient() {
 }
 
 /**
- * Extract JSON from Gemini output, handling code fences and extra text.
+ * Repair common JSON issues from LLM output:
+ * - trailing commas before } or ]
+ * - unescaped control characters inside strings
+ * @param {string} text
+ * @returns {string}
+ */
+function repairJson(text) {
+  // Remove trailing commas before closing brackets
+  let fixed = text.replace(/,\s*([\]}])/g, "$1");
+  // Replace unescaped control chars (newlines/tabs) that appear between quotes
+  fixed = fixed.replace(/(["'])(?:(?=(\\?))\2[\s\S])*?\1/g, (match) =>
+    match
+      .replace(/(?<!\\)\n/g, "\\n")
+      .replace(/(?<!\\)\r/g, "\\r")
+      .replace(/(?<!\\)\t/g, "\\t")
+  );
+  return fixed;
+}
+
+/**
+ * Extract JSON from Gemini output, handling code fences, trailing commas,
+ * control characters, and extra text around JSON.
  * @param {string} text - Raw model output
  * @returns {object} Parsed JSON
  */
 function extractJson(text) {
+  // Step 1: Try raw parse
   try {
     return JSON.parse(text);
   } catch {
     // continue
   }
 
+  // Step 2: Strip code fences and whitespace
   const cleaned = text
     .replace(/```json\s*/gi, "")
     .replace(/```\s*/g, "")
@@ -59,9 +84,17 @@ function extractJson(text) {
   try {
     return JSON.parse(cleaned);
   } catch {
-    // continue to brace matching
+    // continue
   }
 
+  // Step 3: Try repairing common issues (trailing commas, control chars)
+  try {
+    return JSON.parse(repairJson(cleaned));
+  } catch {
+    // continue to brace extraction
+  }
+
+  // Step 4: Extract by brace matching
   const firstOpen = Math.min(
     cleaned.indexOf("{") === -1 ? Infinity : cleaned.indexOf("{"),
     cleaned.indexOf("[") === -1 ? Infinity : cleaned.indexOf("[")
@@ -78,7 +111,14 @@ function extractJson(text) {
     throw new Error("Malformed JSON in Gemini output.");
   }
 
-  return JSON.parse(cleaned.slice(firstOpen, lastClose + 1));
+  const extracted = cleaned.slice(firstOpen, lastClose + 1);
+
+  // Try raw extracted, then repaired
+  try {
+    return JSON.parse(extracted);
+  } catch {
+    return JSON.parse(repairJson(extracted));
+  }
 }
 
 /**
@@ -108,6 +148,7 @@ async function callGemini(systemPrompt, userPrompt, opts = {}) {
   });
 
   let attempt = 0;
+  let rateLimitRetries = 0;
   for (;;) {
     try {
       const result = await model.generateContent(userPrompt);
@@ -124,8 +165,18 @@ async function callGemini(systemPrompt, userPrompt, opts = {}) {
 
       return { success: true, text, model: MODEL_ID, tokensUsed };
     } catch (error) {
+      const isRateLimit = error.status === 429 || error.message?.includes("429") || error.message?.includes("RESOURCE_EXHAUSTED");
+
+      if (isRateLimit && rateLimitRetries < RATE_LIMIT_MAX_RETRIES) {
+        rateLimitRetries++;
+        console.warn(`Gemini rate limited, waiting 60s before retry ${rateLimitRetries}/${RATE_LIMIT_MAX_RETRIES}`);
+        await new Promise((r) => setTimeout(r, RATE_LIMIT_RETRY_DELAY));
+        continue;
+      }
+
       console.error(`Gemini call attempt ${attempt + 1}/${retries + 1} failed:`, {
         error: error.message,
+        isRateLimit,
       });
 
       if (attempt >= retries) {
@@ -169,6 +220,7 @@ async function callGeminiVision({
 
   const t0 = Date.now();
   let attempt = 0;
+  let rateLimitRetries = 0;
 
   for (;;) {
     try {
@@ -197,8 +249,18 @@ async function callGeminiVision({
         tokensUsed,
       };
     } catch (error) {
+      const isRateLimit = error.status === 429 || error.message?.includes("429") || error.message?.includes("RESOURCE_EXHAUSTED");
+
+      if (isRateLimit && rateLimitRetries < RATE_LIMIT_MAX_RETRIES) {
+        rateLimitRetries++;
+        console.warn(`Gemini vision rate limited, waiting 60s before retry ${rateLimitRetries}/${RATE_LIMIT_MAX_RETRIES}`);
+        await new Promise((r) => setTimeout(r, RATE_LIMIT_RETRY_DELAY));
+        continue;
+      }
+
       console.error(`Gemini vision attempt ${attempt + 1}/${retries + 1} failed:`, {
         error: error.message,
+        isRateLimit,
       });
 
       if (attempt >= retries) {

@@ -104,7 +104,14 @@ export function subscribeSections(
     orderBy("orderIndex", "asc")
   );
   return onSnapshot(q, (snap) => {
-    cb(snap.docs.map((d) => withId<SectionModel>(d as never)));
+    // Sort by fileId then orderIndex to prevent cross-file interleaving
+    const sections = snap.docs.map((d) => withId<SectionModel>(d as never));
+    sections.sort((a, b) => {
+      const fileCompare = (a.fileId ?? "").localeCompare(b.fileId ?? "");
+      if (fileCompare !== 0) return fileCompare;
+      return (a.orderIndex ?? 0) - (b.orderIndex ?? 0);
+    });
+    cb(sections);
   });
 }
 

@@ -80,7 +80,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ groupId:
         </CardContent>
       </Card>
 
-      {/* Members placeholder */}
+      {/* Members */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -109,7 +109,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ groupId:
         </CardContent>
       </Card>
 
-      {/* Challenges placeholder */}
+      {/* Challenges — coming soon */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -119,7 +119,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ groupId:
         </CardHeader>
         <CardContent>
           <p className="py-8 text-center text-sm text-muted-foreground">
-            Quiz challenges will be available once the backend Cloud Functions are deployed.
+            Group quiz challenges are coming soon.
           </p>
         </CardContent>
       </Card>

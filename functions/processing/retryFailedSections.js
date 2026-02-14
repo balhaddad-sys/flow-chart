@@ -10,13 +10,21 @@
 
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-const { db } = require("../lib/firestore");
+const { db, batchSet } = require("../lib/firestore");
 const log = require("../lib/logger");
+const { normaliseQuestion } = require("../lib/serialize");
+const { generateQuestions: aiGenerateQuestions } = require("../ai/geminiClient");
+const { QUESTIONS_SYSTEM, questionsUserPrompt } = require("../ai/prompts");
+const { DIFFICULTY_DISTRIBUTION } = require("../lib/constants");
+
+// Define the secret so the function can access it
+const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
 
 exports.retryFailedSections = functions
   .runWith({
-    timeoutSeconds: 60,
-    memory: "256MB",
+    timeoutSeconds: 300,
+    memory: "512MB",
+    secrets: [geminiApiKey],
   })
   .https.onCall(async (data, context) => {
     if (!context.auth) {
@@ -57,36 +65,86 @@ exports.retryFailedSections = functions
       const sectionData = sectionDoc.data();
 
       try {
-        // If only questions failed (blueprint is fine), just reset questionsStatus
+        // If only questions failed (blueprint is fine), regenerate questions in-place
+        // without re-running the expensive blueprint AI
         if (sectionData.aiStatus === "ANALYZED" && sectionData.questionsStatus === "FAILED") {
-          await sectionDoc.ref.update({
-            questionsStatus: "PENDING",
-            questionsErrorMessage: admin.firestore.FieldValue.delete(),
-          });
-          // Re-trigger by delete + re-create (processSection triggers on onCreate)
-          const preserved = { ...sectionData };
-          delete preserved.questionsErrorMessage;
-          delete preserved.lastErrorAt;
-
-          const questionsSnap = await db
+          // Delete old questions for this section
+          const oldQSnap = await db
             .collection(`users/${uid}/questions`)
             .where("sectionId", "==", sectionId)
             .get();
-          const batch = db.batch();
-          for (const qDoc of questionsSnap.docs) batch.delete(qDoc.ref);
-          batch.delete(sectionDoc.ref);
-          await batch.commit();
+          if (!oldQSnap.empty) {
+            const delBatch = db.batch();
+            for (const qDoc of oldQSnap.docs) delBatch.delete(qDoc.ref);
+            await delBatch.commit();
+          }
 
-          await db.collection(`users/${uid}/sections`).doc(sectionId).set({
-            ...preserved,
-            aiStatus: "PENDING",
-            questionsStatus: "PENDING",
-            questionsCount: 0,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          // Mark as generating
+          await sectionDoc.ref.update({
+            questionsStatus: "GENERATING",
+            questionsErrorMessage: admin.firestore.FieldValue.delete(),
           });
 
+          // Generate questions directly from existing blueprint
+          const count = 8;
+          const easyCount = Math.round(count * DIFFICULTY_DISTRIBUTION.easy);
+          const hardCount = Math.round(count * DIFFICULTY_DISTRIBUTION.hard);
+          const mediumCount = count - easyCount - hardCount;
+
+          const fileDoc = await db.doc(`users/${uid}/files/${sectionData.fileId}`).get();
+          const fileName = fileDoc.exists ? fileDoc.data().originalName : "Unknown";
+
+          const qResult = await aiGenerateQuestions(
+            QUESTIONS_SYSTEM,
+            questionsUserPrompt({
+              blueprintJSON: sectionData.blueprint,
+              count,
+              easyCount,
+              mediumCount,
+              hardCount,
+              sectionTitle: sectionData.title,
+              sourceFileName: fileName,
+            })
+          );
+
+          if (!qResult.success || !qResult.data?.questions) {
+            await sectionDoc.ref.update({
+              questionsStatus: "FAILED",
+              questionsErrorMessage: qResult.error || "Question generation failed",
+              lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
+            });
+            log.warn("Question-only retry failed", { uid, sectionId, error: qResult.error });
+          } else {
+            const defaults = {
+              fileId: sectionData.fileId,
+              fileName,
+              sectionId,
+              sectionTitle: sectionData.title,
+              topicTags: sectionData.topicTags || [],
+            };
+            const validItems = [];
+            for (const raw of qResult.data.questions) {
+              const q = normaliseQuestion(raw, defaults);
+              if (!q) continue;
+              validItems.push({
+                ref: db.collection(`users/${uid}/questions`).doc(),
+                data: {
+                  courseId: sectionData.courseId,
+                  sectionId,
+                  ...q,
+                  createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                },
+              });
+            }
+            if (validItems.length > 0) await batchSet(validItems);
+            await sectionDoc.ref.update({
+              questionsStatus: "COMPLETED",
+              questionsCount: validItems.length,
+            });
+            log.info("Question-only retry succeeded", { uid, sectionId, count: validItems.length });
+          }
+
           retriedCount++;
-          log.info("Section re-created for question retry", { uid, sectionId, fileId });
           continue;
         }
 

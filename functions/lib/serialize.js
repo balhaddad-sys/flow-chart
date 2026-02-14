@@ -19,17 +19,18 @@ const { sanitizeText, sanitizeArray } = require("./sanitize");
  * @returns {{ title: string, difficulty: number, estMinutes: number, topicTags: string[], blueprint: object }}
  */
 function normaliseBlueprint(raw) {
+  // Handle both snake_case (prompt schema) and camelCase (Gemini sometimes returns)
   return {
     title: sanitizeText(raw.title) || "",
     difficulty: raw.difficulty || 3,
-    estMinutes: raw.estimated_minutes || 15,
-    topicTags: sanitizeArray(raw.topic_tags || []),
+    estMinutes: raw.estimated_minutes || raw.estimatedMinutes || 15,
+    topicTags: sanitizeArray(raw.topic_tags || raw.topicTags || []),
     blueprint: {
-      learningObjectives: sanitizeArray(raw.learning_objectives || []),
-      keyConcepts:        sanitizeArray(raw.key_concepts || []),
-      highYieldPoints:    sanitizeArray(raw.high_yield_points || []),
-      commonTraps:        sanitizeArray(raw.common_traps || []),
-      termsToDefine:      sanitizeArray(raw.terms_to_define || []),
+      learningObjectives: sanitizeArray(raw.learning_objectives || raw.learningObjectives || []),
+      keyConcepts:        sanitizeArray(raw.key_concepts || raw.keyConcepts || []),
+      highYieldPoints:    sanitizeArray(raw.high_yield_points || raw.highYieldPoints || []),
+      commonTraps:        sanitizeArray(raw.common_traps || raw.commonTraps || []),
+      termsToDefine:      sanitizeArray(raw.terms_to_define || raw.termsToDefine || []),
     },
   };
 }
@@ -47,7 +48,9 @@ function normaliseBlueprint(raw) {
  * @returns {object|null} Normalised question or `null` if structurally invalid.
  */
 function normaliseQuestion(raw, defaults) {
-  if (!raw.stem || !Array.isArray(raw.options) || raw.correct_index == null) {
+  // Accept both snake_case and camelCase for correctIndex
+  const correctIdx = raw.correct_index ?? raw.correctIndex;
+  if (!raw.stem || !Array.isArray(raw.options) || correctIdx == null) {
     return null;
   }
 
@@ -57,10 +60,14 @@ function normaliseQuestion(raw, defaults) {
   const options = raw.options.slice(0, 8).map((o) => truncate(sanitizeText(o), 500));
   const optionCount = options.length;
 
+  // Accept both snake_case and camelCase for explanation fields
+  const expl = raw.explanation || {};
+  const whyOthersRaw = expl.why_others_wrong || expl.whyOthersWrong;
+
   // Ensure whyOthersWrong array matches number of options for safe indexing
   let whyOthersWrong = [];
-  if (Array.isArray(raw.explanation?.why_others_wrong)) {
-    whyOthersWrong = raw.explanation.why_others_wrong
+  if (Array.isArray(whyOthersRaw)) {
+    whyOthersWrong = whyOthersRaw
       .slice(0, optionCount)
       .map(s => truncate(sanitizeText(s), 400));
   }
@@ -70,22 +77,22 @@ function normaliseQuestion(raw, defaults) {
   }
 
   return {
-    topicTags:    sanitizeArray(Array.isArray(raw.tags) ? raw.tags.slice(0, 10) : (defaults.topicTags || [])),
+    topicTags:    sanitizeArray(Array.isArray(raw.tags || raw.topicTags) ? (raw.tags || raw.topicTags).slice(0, 10) : (defaults.topicTags || [])),
     difficulty:   Math.min(5, Math.max(1, raw.difficulty || 3)),
     type:         "SBA",
     stem:         truncate(sanitizeText(raw.stem), 2000),
     options,
-    correctIndex: Math.min(options.length - 1, Math.max(0, raw.correct_index)),
+    correctIndex: Math.min(options.length - 1, Math.max(0, correctIdx)),
     explanation: {
-      correctWhy:    truncate(sanitizeText(raw.explanation?.correct_why), 1000),
+      correctWhy:    truncate(sanitizeText(expl.correct_why || expl.correctWhy), 1000),
       whyOthersWrong,
-      keyTakeaway:   truncate(sanitizeText(raw.explanation?.key_takeaway), 500),
+      keyTakeaway:   truncate(sanitizeText(expl.key_takeaway || expl.keyTakeaway), 500),
     },
     sourceRef: {
       fileId:    defaults.fileId,
-      fileName:  truncate(sanitizeText(raw.source_ref?.fileName || defaults.fileName), 200),
+      fileName:  truncate(sanitizeText(raw.source_ref?.fileName || raw.sourceRef?.fileName || defaults.fileName), 200),
       sectionId: defaults.sectionId,
-      label:     truncate(sanitizeText(raw.source_ref?.sectionLabel || defaults.sectionTitle), 200),
+      label:     truncate(sanitizeText(raw.source_ref?.sectionLabel || raw.sourceRef?.sectionLabel || defaults.sectionTitle), 200),
     },
     stats: { timesAnswered: 0, timesCorrect: 0, avgTimeSec: 0 },
   };

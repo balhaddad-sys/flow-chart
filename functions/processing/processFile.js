@@ -161,26 +161,18 @@ exports.processUploadedFile = functions
 
       log.info("Extraction complete, AI analysis will begin", { uid, fileId, sectionCount: sections.length });
 
-      // Update phase: AI will now generate questions from sections
+      // Keep file in PROCESSING/ANALYZING status — processSection will
+      // update to READY once ALL sections finish AI processing.
       await fileRef.set(
         {
-          processingPhase: "GENERATING_QUESTIONS",
-        },
-        { merge: true }
-      );
-
-      // Mark file as ready (section AI processing happens via triggers in parallel)
-      await fileRef.set(
-        {
-          status: "READY",
-          processingPhase: admin.firestore.FieldValue.delete(),
+          status: "PROCESSING",
+          processingPhase: "ANALYZING",
           sectionCount: sections.length,
-          processedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
         { merge: true }
       );
 
-      log.info("File processed", { uid, fileId, sectionCount: sections.length });
+      log.info("File sections created, awaiting AI analysis", { uid, fileId, sectionCount: sections.length });
     } catch (error) {
       log.error("File processing failed", {
         uid,

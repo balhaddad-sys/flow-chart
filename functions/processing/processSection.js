@@ -250,6 +250,9 @@ exports.processSection = functions
         questionsSkipped: qResult.data.questions.length - validItems.length,
         totalDurationMs: Date.now() - t0,
       });
+
+      // ── Check if ALL sibling sections are done → mark file READY ──────
+      await maybeMarkFileReady(uid, sectionData.fileId);
     } catch (error) {
       log.error("Section processing failed", {
         uid,
@@ -266,6 +269,8 @@ exports.processSection = functions
           lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
           errorMessage: error.message?.slice(0, 500) || "AI processing failed",
         });
+        // Still check if all siblings are done (file should become READY even with failures)
+        await maybeMarkFileReady(uid, sectionData.fileId);
       } catch (updateError) {
         log.error("Failed to update section status to FAILED", {
           uid,
@@ -275,3 +280,36 @@ exports.processSection = functions
       }
     }
   });
+
+/**
+ * Check if all sections for a file are done processing (ANALYZED or FAILED).
+ * If so, mark the parent file as READY.
+ */
+async function maybeMarkFileReady(uid, fileId) {
+  if (!fileId) return;
+  try {
+    const siblingsSnap = await db
+      .collection(`users/${uid}/sections`)
+      .where("fileId", "==", fileId)
+      .get();
+
+    const allDone = siblingsSnap.docs.every((d) => {
+      const s = d.data().aiStatus;
+      return s === "ANALYZED" || s === "FAILED";
+    });
+
+    if (allDone && !siblingsSnap.empty) {
+      await db.doc(`users/${uid}/files/${fileId}`).set(
+        {
+          status: "READY",
+          processingPhase: admin.firestore.FieldValue.delete(),
+          processedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      );
+      log.info("All sections done, file marked READY", { uid, fileId });
+    }
+  } catch (err) {
+    log.warn("maybeMarkFileReady failed", { uid, fileId, error: err.message });
+  }
+}

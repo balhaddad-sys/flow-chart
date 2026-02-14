@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MessageSquare, Plus, Loader2 } from "lucide-react";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
+import { toast } from "sonner";
 
 export default function ChatPage() {
   const router = useRouter();
@@ -32,7 +33,7 @@ export default function ChatPage() {
       });
       router.push(`/chat/${ref.id}`);
     } catch {
-      // silently fail
+      toast.error("Failed to create conversation. Please try again.");
     } finally {
       setCreating(false);
     }

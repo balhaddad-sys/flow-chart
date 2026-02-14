@@ -2,7 +2,7 @@
 
 import { use, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useCourseStore } from "@/lib/stores/course-store";
@@ -29,13 +29,12 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     if (!uid) return;
     const q = query(
       collection(db, "users", uid, "chatMessages"),
+      where("threadId", "==", threadId),
       orderBy("createdAt", "asc")
     );
     const unsub = onSnapshot(q, (snap) => {
       setMessages(
-        snap.docs
-          .map((d) => ({ ...d.data(), id: d.id }) as ChatMessageType)
-          .filter((m) => m.threadId === threadId)
+        snap.docs.map((d) => ({ ...d.data(), id: d.id }) as ChatMessageType)
       );
       setLoading(false);
     });

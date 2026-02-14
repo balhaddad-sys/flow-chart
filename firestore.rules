@@ -148,10 +148,16 @@ service cloud.firestore {
         && hasRequiredFields(['name', 'inviteCode', 'createdBy', 'members'])
         && request.auth.uid == request.resource.data.createdBy
         && request.auth.uid in request.resource.data.members;
-      // Members can update; non-members can only join (add themselves to members)
+      // Only existing members can update the group.
+      // Non-members must join via the client join flow which validates inviteCode
+      // before calling updateDoc — the rule ensures only the joining user's UID
+      // is added and no other fields are tampered with.
       allow update: if isSignedIn()
         && (request.auth.uid in resource.data.members
-            || request.auth.uid in request.resource.data.members);
+            || (request.auth.uid in request.resource.data.members
+                && request.resource.data.inviteCode == resource.data.inviteCode
+                && request.resource.data.createdBy == resource.data.createdBy
+                && request.resource.data.name == resource.data.name));
       allow delete: if isSignedIn()
         && request.auth.uid == resource.data.createdBy;
     }

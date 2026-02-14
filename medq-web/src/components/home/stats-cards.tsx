@@ -9,11 +9,15 @@ interface StatsCardsProps {
 }
 
 export function StatsCards({ stats }: StatsCardsProps) {
+  // completionPercent is stored as 0-1 in backend, convert to 0-100 for display
+  const completionPct = stats ? Math.round(stats.completionPercent * 100) : 0;
+  const totalHours = stats ? Math.round(stats.totalStudyMinutes / 60) : 0;
+
   const cards = [
     {
       label: "Study Time",
-      value: stats ? `${Math.round(stats.totalStudyMinutes / 60)}h` : "0h",
-      sub: stats ? `${stats.weeklyStudyMinutes}m this week` : "No data yet",
+      value: `${totalHours}h`,
+      sub: stats ? `${stats.totalStudyMinutes ?? 0}m total` : "No data yet",
       icon: Clock,
       color: "text-blue-500",
     },
@@ -26,7 +30,7 @@ export function StatsCards({ stats }: StatsCardsProps) {
     },
     {
       label: "Completion",
-      value: stats ? `${Math.round(stats.completionPercent)}%` : "0%",
+      value: `${completionPct}%`,
       sub: "of course content",
       icon: BookOpen,
       color: "text-purple-500",
@@ -34,7 +38,7 @@ export function StatsCards({ stats }: StatsCardsProps) {
     {
       label: "Streak",
       value: stats?.streakDays?.toString() ?? "0",
-      sub: stats?.streakDays === 1 ? "day" : "days",
+      sub: (stats?.streakDays ?? 0) === 1 ? "day" : "days",
       icon: Flame,
       color: "text-orange-500",
     },

@@ -92,9 +92,9 @@ export default function DashboardPage() {
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Completion</p>
             <p className="text-3xl font-bold">
-              {stats ? `${Math.round(stats.completionPercent)}%` : "0%"}
+              {stats ? `${Math.round(stats.completionPercent * 100)}%` : "0%"}
             </p>
-            <Progress value={stats?.completionPercent ?? 0} className="mt-2 h-2" />
+            <Progress value={stats ? stats.completionPercent * 100 : 0} className="mt-2 h-2" />
           </CardContent>
         </Card>
       </div>
