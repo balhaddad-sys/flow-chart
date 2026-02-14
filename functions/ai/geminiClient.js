@@ -13,6 +13,7 @@
  */
 
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { jsonrepair } = require("jsonrepair");
 
 const MODEL_ID = "gemini-2.0-flash";
 
@@ -62,18 +63,50 @@ function repairJson(text) {
 }
 
 /**
+ * Parse JSON with layered repair strategies.
+ * @param {string} text
+ * @returns {object|null}
+ */
+function parseJsonSafely(text) {
+  if (!text || typeof text !== "string") return null;
+  const trimmed = text.trim();
+  const looksLikeJson = trimmed.startsWith("{") || trimmed.startsWith("[");
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    // continue
+  }
+
+  if (looksLikeJson) {
+    try {
+      return JSON.parse(repairJson(trimmed));
+    } catch {
+      // continue
+    }
+  }
+
+  if (looksLikeJson) {
+    try {
+      return JSON.parse(jsonrepair(trimmed));
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
+/**
  * Extract JSON from Gemini output, handling code fences, trailing commas,
  * control characters, and extra text around JSON.
  * @param {string} text - Raw model output
  * @returns {object} Parsed JSON
  */
 function extractJson(text) {
-  // Step 1: Try raw parse
-  try {
-    return JSON.parse(text);
-  } catch {
-    // continue
-  }
+  // Step 1: Try raw parse + repair paths
+  const parsedRaw = parseJsonSafely(text);
+  if (parsedRaw != null) return parsedRaw;
 
   // Step 2: Strip code fences and whitespace
   const cleaned = text
@@ -81,18 +114,8 @@ function extractJson(text) {
     .replace(/```\s*/g, "")
     .trim();
 
-  try {
-    return JSON.parse(cleaned);
-  } catch {
-    // continue
-  }
-
-  // Step 3: Try repairing common issues (trailing commas, control chars)
-  try {
-    return JSON.parse(repairJson(cleaned));
-  } catch {
-    // continue to brace extraction
-  }
+  const parsedCleaned = parseJsonSafely(cleaned);
+  if (parsedCleaned != null) return parsedCleaned;
 
   // Step 4: Extract by brace matching
   const firstOpen = Math.min(
@@ -113,12 +136,10 @@ function extractJson(text) {
 
   const extracted = cleaned.slice(firstOpen, lastClose + 1);
 
-  // Try raw extracted, then repaired
-  try {
-    return JSON.parse(extracted);
-  } catch {
-    return JSON.parse(repairJson(extracted));
-  }
+  const parsedExtracted = parseJsonSafely(extracted);
+  if (parsedExtracted != null) return parsedExtracted;
+
+  throw new Error("Failed to parse JSON from Gemini output.");
 }
 
 /**

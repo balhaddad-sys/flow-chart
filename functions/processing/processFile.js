@@ -138,6 +138,22 @@ exports.processUploadedFile = functions
         })
       );
 
+      if (sections.length === 0) {
+        log.warn("No readable text extracted from file", { uid, fileId, contentType });
+        await fileRef.set(
+          {
+            status: "FAILED",
+            processingPhase: admin.firestore.FieldValue.delete(),
+            sectionCount: 0,
+            errorMessage:
+              "No readable text was found in this document. If this is a scanned file, run OCR first and upload again.",
+            lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+        return null;
+      }
+
       // Update phase: moving to AI analysis
       await fileRef.set(
         {

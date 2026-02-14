@@ -6,9 +6,9 @@ import { CourseSwitcherBar } from "./course-switcher-bar";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-screen">
+    <div className="flex min-h-[100dvh]">
       <Sidebar />
-      <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
+      <main className="flex-1 overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
         <CourseSwitcherBar />
         {children}
       </main>

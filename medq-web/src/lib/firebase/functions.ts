@@ -44,6 +44,12 @@ export interface TutorResponse {
   followUps: Array<{ q: string; a: string }>;
 }
 
+export interface SectionSummaryResponse {
+  summary: string;
+  keyPoints: string[];
+  mnemonics: string[];
+}
+
 // --- Course ---
 export function createCourse(params: {
   title: string;
@@ -105,6 +111,10 @@ export function submitAttempt(params: {
 
 export function getTutorHelp(params: { questionId: string; attemptId: string }) {
   return callFunction<{ tutorResponse: TutorResponse }>("getTutorHelp", params);
+}
+
+export function generateSectionSummary(params: { title: string; sectionText: string }) {
+  return callFunction<SectionSummaryResponse>("generateSectionSummary", params);
 }
 
 // --- Fix Plan ---

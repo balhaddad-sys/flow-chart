@@ -43,6 +43,20 @@ async function extractDocxSections(filePath) {
     startWord = endWord;
   }
 
+  // Ensure short documents still produce at least one section.
+  if (sections.length === 0) {
+    const trimmed = fullText.trim();
+    if (trimmed.length > 0) {
+      sections.push({
+        text: trimmed,
+        title: `Section 1 (words 1\u2013${Math.max(totalWords, 1)})`,
+        startWord: 1,
+        endWord: Math.max(totalWords, 1),
+        estMinutes: Math.max(1, Math.ceil(Math.max(totalWords, 1) / 150)),
+      });
+    }
+  }
+
   return sections;
 }
 

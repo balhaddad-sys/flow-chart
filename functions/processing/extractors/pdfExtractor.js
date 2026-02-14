@@ -90,6 +90,20 @@ async function extractPdfSections(filePath) {
     startPage = endPage + 1;
   }
 
+  // Ensure short documents still produce at least one section.
+  if (sections.length === 0) {
+    const trimmed = fullText.trim();
+    if (trimmed.length > 0) {
+      sections.push({
+        text: trimmed,
+        title: `Pages 1\u2013${Math.max(totalPages, 1)}`,
+        startPage: 1,
+        endPage: Math.max(totalPages, 1),
+        estMinutes: Math.max(1, Math.ceil(trimmed.split(/\s+/).length / 180)),
+      });
+    }
+  }
+
   return sections;
 }
 

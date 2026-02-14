@@ -112,7 +112,13 @@ exports.processSection = functions
           error: result.error,
           durationMs: Date.now() - t0,
         });
-        await snap.ref.update({ aiStatus: "FAILED" });
+        await snap.ref.update({
+          aiStatus: "FAILED",
+          questionsStatus: "FAILED",
+          questionsErrorMessage: result.error || "Blueprint generation failed",
+          lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        await maybeMarkFileReady(uid, sectionData.fileId);
         return null;
       }
 
@@ -194,6 +200,7 @@ exports.processSection = functions
           lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
         });
 
+        await maybeMarkFileReady(uid, sectionData.fileId);
         return null; // Blueprint saved; questions can be retried manually
       }
 

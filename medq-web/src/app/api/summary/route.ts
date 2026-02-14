@@ -1,14 +1,65 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
+import { jsonrepair } from "jsonrepair";
 
 const MODEL_ID = "gemini-2.0-flash";
+
+function extractJson(text: string) {
+  const parse = (value: string) => {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return null;
+    }
+  };
+
+  const raw = parse(text);
+  if (raw) return raw;
+
+  const cleaned = text
+    .replace(/```json\s*/gi, "")
+    .replace(/```\s*/g, "")
+    .trim();
+
+  const cleanedParsed = parse(cleaned);
+  if (cleanedParsed) return cleanedParsed;
+
+  try {
+    return JSON.parse(jsonrepair(cleaned));
+  } catch {
+    // continue
+  }
+
+  const start = Math.min(
+    cleaned.indexOf("{") === -1 ? Infinity : cleaned.indexOf("{"),
+    cleaned.indexOf("[") === -1 ? Infinity : cleaned.indexOf("[")
+  );
+  if (start === Infinity) {
+    throw new Error("Could not parse model output as JSON.");
+  }
+  const isArray = cleaned[start] === "[";
+  const end = cleaned.lastIndexOf(isArray ? "]" : "}");
+  if (end <= start) {
+    throw new Error("Malformed JSON in model output.");
+  }
+
+  const sliced = cleaned.slice(start, end + 1);
+  const slicedParsed = parse(sliced);
+  if (slicedParsed) return slicedParsed;
+
+  return JSON.parse(jsonrepair(sliced));
+}
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
-      { error: "GEMINI_API_KEY not configured" },
-      { status: 500 }
+      {
+        success: false,
+        error:
+          "Summary API key is not configured for the web server. Use the Firebase callable summary endpoint.",
+      },
+      { status: 503 }
     );
   }
 
@@ -56,27 +107,11 @@ Return this exact JSON schema:
 
     const text = result.response.text();
 
-    // Extract JSON from response
-    let parsed;
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      const cleaned = text
-        .replace(/```json\s*/gi, "")
-        .replace(/```\s*/g, "")
-        .trim();
-      const start = cleaned.indexOf("{");
-      const end = cleaned.lastIndexOf("}");
-      if (start !== -1 && end > start) {
-        parsed = JSON.parse(cleaned.slice(start, end + 1));
-      } else {
-        throw new Error("Could not parse Gemini response as JSON");
-      }
-    }
+    const parsed = extractJson(text);
 
     return NextResponse.json({ success: true, data: parsed });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Gemini API error";
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

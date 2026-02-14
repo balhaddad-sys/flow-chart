@@ -67,6 +67,20 @@ async function extractPptxSections(filePath) {
     startSlide = endSlide + 1;
   }
 
+  // Ensure short slide decks still produce at least one section.
+  if (sections.length === 0) {
+    const merged = slideTexts.join("\n\n").trim();
+    if (merged.length > 0) {
+      sections.push({
+        text: merged,
+        title: `Slides 1\u2013${Math.max(slideTexts.length, 1)}`,
+        startSlide: 1,
+        endSlide: Math.max(slideTexts.length, 1),
+        estMinutes: Math.max(1, Math.ceil(Math.max(slideTexts.length, 1) * 2)),
+      });
+    }
+  }
+
   return sections;
 }
 

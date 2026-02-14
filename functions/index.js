@@ -33,6 +33,7 @@ const { catchUp } = require("./scheduling/catchUp");
 const { generateQuestions } = require("./questions/generateQuestions");
 const { getQuiz } = require("./questions/getQuiz");
 const { getTutorHelp } = require("./questions/getTutorHelp");
+const { generateSectionSummary } = require("./study/generateSectionSummary");
 
 // ── Analytics ────────────────────────────────────────────────────────────────
 const { submitAttempt } = require("./analytics/submitAttempt");
@@ -56,6 +57,7 @@ exports.catchUp = catchUp;
 exports.generateQuestions = generateQuestions;
 exports.getQuiz = getQuiz;
 exports.getTutorHelp = getTutorHelp;
+exports.generateSectionSummary = generateSectionSummary;
 exports.submitAttempt = submitAttempt;
 exports.computeWeakness = computeWeakness;
 exports.runFixPlan = runFixPlan;

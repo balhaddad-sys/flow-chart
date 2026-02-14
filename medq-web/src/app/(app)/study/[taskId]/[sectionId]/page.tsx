@@ -23,6 +23,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { useTimerStore } from "@/lib/stores/timer-store";
 import { updateTask } from "@/lib/firebase/firestore";
 import { getTextBlob } from "@/lib/firebase/storage";
+import * as fn from "@/lib/firebase/functions";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { toast } from "sonner";
@@ -46,8 +47,10 @@ export default function StudySessionPage({
   const [section, setSection] = useState<SectionModel | null>(null);
   const [sectionText, setSectionText] = useState<string | null>(null);
   const [textLoading, setTextLoading] = useState(false);
+  const [textError, setTextError] = useState<string | null>(null);
   const [summary, setSummary] = useState<AISummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
 
   // Load section data
   useEffect(() => {
@@ -65,12 +68,17 @@ export default function StudySessionPage({
     if (!section?.textBlobPath) return;
     let cancelled = false;
     setTextLoading(true);
+    setTextError(null);
     (async () => {
       try {
         const text = await getTextBlob(section.textBlobPath);
         if (!cancelled) setSectionText(text);
-      } catch {
-        if (!cancelled) setSectionText(null);
+      } catch (error) {
+        if (!cancelled) {
+          const message = error instanceof Error ? error.message : "Failed to load section text.";
+          setSectionText(null);
+          setTextError(message);
+        }
       } finally {
         if (!cancelled) setTextLoading(false);
       }
@@ -88,18 +96,37 @@ export default function StudySessionPage({
   const generateSummary = useCallback(async () => {
     if (!sectionText || !section?.title || summaryLoading) return;
     setSummaryLoading(true);
+    setSummaryError(null);
     try {
+      const input = { sectionText: sectionText.slice(0, 8000), title: section.title };
+
+      // Primary path: Firebase callable uses backend secret configuration.
+      try {
+        const data = await fn.generateSectionSummary(input);
+        if (data?.summary || data?.keyPoints?.length || data?.mnemonics?.length) {
+          setSummary(data);
+          return;
+        }
+      } catch {
+        // Fall through to local API route for local-only environments.
+      }
+
       const res = await fetch("/api/summary", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sectionText: sectionText.slice(0, 8000), title: section.title }),
+        body: JSON.stringify(input),
       });
+
       const json = await res.json();
-      if (json.success && json.data) {
-        setSummary(json.data);
+      if (!res.ok || !json?.success || !json?.data) {
+        throw new Error(json?.error || "Failed to generate summary.");
       }
-    } catch {
-      toast.error("Failed to generate summary.");
+
+      setSummary(json.data as AISummary);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to generate summary.";
+      setSummaryError(message);
+      toast.error(message);
     } finally {
       setSummaryLoading(false);
     }
@@ -119,14 +146,14 @@ export default function StudySessionPage({
   const bp = section?.blueprint;
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-[100dvh] flex-col">
       {/* Sticky top bar */}
       <div className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="mx-auto flex max-w-3xl items-center gap-3 p-3">
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2 p-3 sm:gap-3">
           <Button variant="ghost" size="icon" className="shrink-0" onClick={() => router.back()}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div className="flex-1 min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="text-sm font-semibold truncate">
               {section?.title ?? "Loading..."}
             </h1>
@@ -137,7 +164,7 @@ export default function StudySessionPage({
             )}
           </div>
           {/* Timer */}
-          <div className="flex items-center gap-2">
+          <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
             <span className="font-mono text-sm tabular-nums font-medium">{formatted}</span>
             {isRunning ? (
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={pause}>
@@ -148,7 +175,7 @@ export default function StudySessionPage({
                 <Play className="h-4 w-4" />
               </Button>
             )}
-            <Button size="sm" onClick={handleComplete}>
+            <Button size="sm" className="h-8 sm:h-9" onClick={handleComplete}>
               <CheckCircle2 className="mr-1.5 h-4 w-4" />
               Done
             </Button>
@@ -159,18 +186,18 @@ export default function StudySessionPage({
       {/* Content */}
       <div className="mx-auto w-full max-w-3xl flex-1 p-4 sm:p-6">
         <Tabs defaultValue="notes" className="space-y-4">
-          <TabsList className="w-full">
+          <TabsList className="grid h-auto w-full grid-cols-3">
             <TabsTrigger value="notes" className="flex-1 gap-1.5">
               <FileText className="h-4 w-4" />
-              <span className="hidden sm:inline">Notes</span>
+              <span className="text-[11px] sm:text-sm">Notes</span>
             </TabsTrigger>
             <TabsTrigger value="guide" className="flex-1 gap-1.5">
               <BookOpen className="h-4 w-4" />
-              <span className="hidden sm:inline">Study Guide</span>
+              <span className="text-[11px] sm:text-sm">Guide</span>
             </TabsTrigger>
             <TabsTrigger value="summary" className="flex-1 gap-1.5">
               <Lightbulb className="h-4 w-4" />
-              <span className="hidden sm:inline">AI Summary</span>
+              <span className="text-[11px] sm:text-sm">Summary</span>
             </TabsTrigger>
           </TabsList>
 
@@ -186,7 +213,7 @@ export default function StudySessionPage({
                 <Skeleton className="h-4 w-[85%]" />
               </div>
             ) : sectionText ? (
-              <article className="prose prose-sm dark:prose-invert max-w-none">
+              <article className="prose prose-sm max-w-none break-words dark:prose-invert">
                 {sectionText.split("\n\n").map((paragraph, i) => {
                   const trimmed = paragraph.trim();
                   if (!trimmed) return null;
@@ -206,7 +233,9 @@ export default function StudySessionPage({
                 <FileText className="mb-3 h-10 w-10 text-muted-foreground/40" />
                 <p className="font-medium">No text content available</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  The extracted text for this section could not be loaded.
+                  {textError
+                    ? `The extracted text could not be loaded: ${textError}`
+                    : "The extracted text for this section could not be loaded."}
                 </p>
               </div>
             )}
@@ -373,6 +402,9 @@ export default function StudySessionPage({
                 <p className="mt-1 mb-4 text-sm text-muted-foreground">
                   Generate a concise summary with key points and mnemonics.
                 </p>
+                {summaryError && (
+                  <p className="mb-3 max-w-md text-xs text-destructive">{summaryError}</p>
+                )}
                 <Button
                   onClick={generateSummary}
                   disabled={summaryLoading || !sectionText}
