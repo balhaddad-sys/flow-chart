@@ -1,0 +1,7 @@
+{
+  "buildCommand": "cd medq-web && npm run build",
+  "outputDirectory": "medq-web/.next",
+  "installCommand": "cd medq-web && npm install",
+  "framework": "nextjs",
+  "rootDirectory": "medq-web"
+}
