@@ -24,6 +24,19 @@ const typeColor: Record<string, string> = {
   REVIEW: "bg-purple-500/10 text-purple-600",
 };
 
+const typeLabel: Record<string, string> = {
+  STUDY: "Study",
+  QUESTIONS: "Questions",
+  REVIEW: "Review",
+};
+
+function normalizeTaskTitle(title: string): string {
+  let value = title.trim();
+  value = value.replace(/^(study|questions|review)\s*:\s*/i, "");
+  value = value.replace(/^\[\d+\]\s*/, "");
+  return value;
+}
+
 export function TodayChecklist({ tasks, loading }: TodayChecklistProps) {
   const { uid } = useAuth();
   const router = useRouter();
@@ -71,14 +84,17 @@ export function TodayChecklist({ tasks, loading }: TodayChecklistProps) {
           {tasks.map((task) => {
             const Icon = typeIcon[task.type] ?? BookOpen;
             const isDone = task.status === "DONE";
+            const cleanTitle = normalizeTaskTitle(task.title);
+            const taskTypeLabel = typeLabel[task.type] ?? task.type;
+            const typeTone = typeColor[task.type] ?? "";
             return (
               <div
                 key={task.id}
-                className="flex items-center gap-3 rounded-xl border border-border/70 bg-background/70 p-4 transition-colors hover:bg-accent/45"
+                className="flex items-start gap-3 rounded-xl border border-border/70 bg-background/70 p-3.5 transition-colors hover:bg-accent/45"
               >
                 <button
                   onClick={() => toggleTask(task)}
-                  className="shrink-0"
+                  className="shrink-0 pt-1"
                   aria-label={isDone ? "Mark incomplete" : "Mark complete"}
                 >
                   {isDone ? (
@@ -89,14 +105,23 @@ export function TodayChecklist({ tasks, loading }: TodayChecklistProps) {
                 </button>
                 <button
                   onClick={() => handleNavigate(task)}
-                  className={`flex flex-1 items-center gap-2 text-left text-sm ${isDone ? "text-muted-foreground line-through" : ""}`}
+                  className={`min-w-0 flex flex-1 flex-col items-start gap-2 text-left ${isDone ? "text-muted-foreground" : ""}`}
                 >
-                  <span className={`rounded p-1 ${typeColor[task.type] ?? ""}`}>
-                    <Icon className="h-3.5 w-3.5" />
-                  </span>
-                  <span className="flex-1 truncate">{task.title}</span>
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {task.estMinutes}m
+                  <div className="flex w-full min-w-0 items-center justify-between gap-2">
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-semibold ${typeTone}`}>
+                      <Icon className="h-3.5 w-3.5" />
+                      {taskTypeLabel}
+                    </span>
+                    <span className="shrink-0 text-[11px] font-medium text-muted-foreground">
+                      {task.estMinutes}m
+                    </span>
+                  </div>
+                  <span
+                    className={`min-w-0 text-sm leading-relaxed text-foreground/85 ${
+                      isDone ? "line-through text-muted-foreground" : ""
+                    } [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] overflow-hidden`}
+                  >
+                    {cleanTitle}
                   </span>
                 </button>
               </div>

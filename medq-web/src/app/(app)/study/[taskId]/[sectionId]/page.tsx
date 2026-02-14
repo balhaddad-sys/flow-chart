@@ -14,6 +14,10 @@ import {
   Lightbulb,
   Loader2,
   Clock,
+  ListChecks,
+  BrainCircuit,
+  Sparkles,
+  ChevronsRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +37,19 @@ interface AISummary {
   summary: string;
   keyPoints: string[];
   mnemonics: string[];
+}
+
+interface NoteSection {
+  id: string;
+  title: string;
+  paragraphs: string[];
+}
+
+interface FallbackGuide {
+  roadmap: string[];
+  objectives: string[];
+  highYield: string[];
+  recallPrompts: string[];
 }
 
 function isHeadingLine(line: string): boolean {
@@ -62,6 +79,121 @@ function parseTextBlocks(text: string) {
     blocks.push({ type: "paragraph", content: trimmed.replace(/\n/g, " ") });
   }
   return blocks;
+}
+
+function sectionIdFromTitle(title: string, i: number): string {
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .slice(0, 50);
+  return slug ? `sec-${slug}-${i}` : `sec-${i}`;
+}
+
+function buildNoteSections(blocks: { type: "heading" | "paragraph"; content: string }[]): NoteSection[] {
+  if (blocks.length === 0) return [];
+
+  const sections: NoteSection[] = [];
+  let currentTitle = "Core Notes";
+  let currentParagraphs: string[] = [];
+
+  for (const block of blocks) {
+    if (block.type === "heading") {
+      if (currentParagraphs.length > 0) {
+        sections.push({
+          id: sectionIdFromTitle(currentTitle, sections.length),
+          title: currentTitle,
+          paragraphs: currentParagraphs,
+        });
+        currentParagraphs = [];
+      }
+      currentTitle = block.content;
+      continue;
+    }
+
+    currentParagraphs.push(block.content);
+  }
+
+  if (currentParagraphs.length > 0) {
+    sections.push({
+      id: sectionIdFromTitle(currentTitle, sections.length),
+      title: currentTitle,
+      paragraphs: currentParagraphs,
+    });
+  }
+
+  return sections;
+}
+
+function dedupe(strings: string[], max = 6): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+
+  for (const raw of strings) {
+    const value = raw.trim();
+    if (!value) continue;
+
+    const key = value.toLowerCase();
+    if (seen.has(key)) continue;
+
+    seen.add(key);
+    out.push(value);
+    if (out.length >= max) break;
+  }
+
+  return out;
+}
+
+function splitSentences(text: string): string[] {
+  return text
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 40 && s.length <= 220 && !s.includes("http"));
+}
+
+function deriveFallbackGuide(
+  sectionTitle: string | undefined,
+  noteSections: NoteSection[],
+  blocks: { type: "heading" | "paragraph"; content: string }[]
+): FallbackGuide {
+  const roadmap = dedupe(
+    noteSections
+      .map((s) => s.title)
+      .filter((t) => t && t.toLowerCase() !== "core notes")
+  );
+
+  const paragraphText = blocks
+    .filter((b) => b.type === "paragraph")
+    .map((b) => b.content)
+    .join(" ");
+
+  const keySentences = dedupe(splitSentences(paragraphText), 5);
+
+  const objectives = dedupe(
+    [
+      ...roadmap.map((topic) => `Explain ${topic} clearly and clinically.`),
+      sectionTitle ? `Summarize the full section: ${sectionTitle}.` : "",
+      "Identify the highest-yield exam points and common pitfalls.",
+    ],
+    5
+  );
+
+  const recallPrompts = dedupe(
+    [
+      ...roadmap.map((topic) => `What are the key mechanisms, clues, and traps in ${topic}?`),
+      "How would you teach this section in 60 seconds?",
+      "Which details here are most likely to appear in an SBA question?",
+    ],
+    6
+  );
+
+  return {
+    roadmap: roadmap.length > 0 ? roadmap : dedupe([sectionTitle ?? "Section overview"], 3),
+    objectives,
+    highYield: keySentences,
+    recallPrompts,
+  };
 }
 
 export default function StudySessionPage({
@@ -122,6 +254,24 @@ export default function StudySessionPage({
     return parseTextBlocks(sectionText);
   }, [sectionText]);
 
+  const noteSections = useMemo(() => {
+    const built = buildNoteSections(textBlocks);
+    if (built.length > 0) return built;
+    if (!sectionText?.trim()) return [];
+    return [
+      {
+        id: "sec-core-notes-0",
+        title: "Core Notes",
+        paragraphs: [sectionText.replace(/\s+/g, " ").trim()],
+      },
+    ];
+  }, [textBlocks, sectionText]);
+
+  const fallbackGuide = useMemo(
+    () => deriveFallbackGuide(section?.title, noteSections, textBlocks),
+    [section?.title, noteSections, textBlocks]
+  );
+
   const generateSummary = useCallback(async () => {
     if (!sectionText || !section?.title || summaryLoading) return;
     setSummaryLoading(true);
@@ -171,11 +321,16 @@ export default function StudySessionPage({
 
   const formatted = getFormatted();
   const bp = section?.blueprint;
-  const hasGuide = bp && (
+  const hasBlueprintGuide = !!bp && (
     (bp.learningObjectives?.length ?? 0) > 0 ||
     (bp.keyConcepts?.length ?? 0) > 0 ||
     (bp.highYieldPoints?.length ?? 0) > 0
   );
+  const hasFallbackGuide =
+    fallbackGuide.roadmap.length > 0 ||
+    fallbackGuide.objectives.length > 0 ||
+    fallbackGuide.highYield.length > 0;
+  const hasGuide = hasBlueprintGuide || hasFallbackGuide;
   const defaultTab = hasGuide ? "guide" : "notes";
 
   return (
@@ -260,7 +415,7 @@ export default function StudySessionPage({
 
           {/* ─── Guide Tab ─── */}
           <TabsContent value="guide" className="space-y-4 mt-0">
-            {hasGuide ? (
+            {hasBlueprintGuide ? (
               <>
                 {bp.learningObjectives?.length > 0 && (
                   <div className="rounded-2xl border bg-card p-4 sm:p-5">
@@ -345,6 +500,77 @@ export default function StudySessionPage({
                   </div>
                 )}
               </>
+            ) : hasFallbackGuide ? (
+              <div className="space-y-4">
+                <div className="rounded-2xl border bg-card p-4 sm:p-5">
+                  <div className="mb-3 flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10">
+                      <ListChecks className="h-4 w-4 text-primary" />
+                    </div>
+                    <h3 className="text-sm font-semibold">Study Roadmap</h3>
+                  </div>
+                  <div className="space-y-2">
+                    {fallbackGuide.roadmap.map((item, i) => (
+                      <div key={i} className="flex items-start gap-2.5 rounded-xl border border-border/70 bg-background/65 p-3">
+                        <ChevronsRight className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                        <p className="text-[13px] sm:text-sm leading-relaxed text-foreground/85">{item}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-blue-200/80 bg-blue-50/45 p-4 sm:p-5 dark:border-blue-900/50 dark:bg-blue-950/20">
+                  <div className="mb-3 flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/50">
+                      <Target className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <h3 className="text-sm font-semibold">What to Master</h3>
+                  </div>
+                  <ul className="space-y-2.5">
+                    {fallbackGuide.objectives.map((item, i) => (
+                      <li key={i} className="flex gap-2.5 text-[13px] sm:text-sm leading-relaxed">
+                        <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-blue-500/60" />
+                        <span className="text-foreground/85">{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                {fallbackGuide.highYield.length > 0 && (
+                  <div className="rounded-2xl border border-green-200/80 bg-green-50/45 p-4 sm:p-5 dark:border-green-900/50 dark:bg-green-950/20">
+                    <div className="mb-3 flex items-center gap-2.5">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-green-100 dark:bg-green-900/50">
+                        <Sparkles className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      </div>
+                      <h3 className="text-sm font-semibold">High-Yield Highlights</h3>
+                    </div>
+                    <ul className="space-y-2.5">
+                      {fallbackGuide.highYield.map((item, i) => (
+                        <li key={i} className="flex gap-2.5 text-[13px] sm:text-sm leading-relaxed">
+                          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-green-500/60" />
+                          <span className="text-foreground/85">{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="rounded-2xl border border-violet-200/80 bg-violet-50/45 p-4 sm:p-5 dark:border-violet-900/50 dark:bg-violet-950/20">
+                  <div className="mb-3 flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/50">
+                      <BrainCircuit className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                    </div>
+                    <h3 className="text-sm font-semibold">Active Recall Prompts</h3>
+                  </div>
+                  <ul className="space-y-2.5">
+                    {fallbackGuide.recallPrompts.map((prompt, i) => (
+                      <li key={i} className="rounded-xl border border-violet-200/60 bg-violet-50/40 px-3 py-2 text-[13px] sm:text-sm text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/20 dark:text-violet-300">
+                        {prompt}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <div className="flex items-center justify-center h-14 w-14 rounded-2xl bg-muted mb-4">
@@ -372,28 +598,49 @@ export default function StudySessionPage({
                 <Skeleton className="h-4 w-[85%]" />
               </div>
             ) : sectionText ? (
-              <article className="py-1">
-                {textBlocks.map((block, i) => {
-                  if (block.type === "heading") {
-                    return (
-                      <h3
-                        key={i}
-                        className="mt-10 mb-4 text-base sm:text-lg font-bold tracking-tight text-foreground first:mt-0 leading-snug"
-                      >
-                        {block.content}
-                      </h3>
-                    );
-                  }
-                  return (
-                    <p
-                      key={i}
-                      className="mb-5 text-[15px] sm:text-base leading-[1.85] text-foreground/75"
-                    >
-                      {block.content}
-                    </p>
-                  );
-                })}
-              </article>
+              <div className="space-y-4 py-1">
+                {noteSections.length > 1 && (
+                  <div className="rounded-2xl border bg-card p-4 sm:p-5">
+                    <div className="mb-3 flex items-center gap-2">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary/10">
+                        <FileText className="h-3.5 w-3.5 text-primary" />
+                      </div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                        Notes Navigator
+                      </p>
+                    </div>
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {noteSections.map((sec) => (
+                        <a
+                          key={sec.id}
+                          href={`#${sec.id}`}
+                          className="shrink-0 rounded-full border border-border/70 bg-background/70 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                        >
+                          {sec.title}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {noteSections.map((sec) => (
+                  <section key={sec.id} id={sec.id} className="rounded-2xl border bg-card p-4 sm:p-6">
+                    <div className="mb-4 flex items-center gap-2">
+                      <span className="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                        Section
+                      </span>
+                      <h3 className="text-base font-semibold tracking-tight sm:text-lg">{sec.title}</h3>
+                    </div>
+                    <div className="space-y-4">
+                      {sec.paragraphs.map((paragraph, i) => (
+                        <p key={i} className="text-[15px] leading-[1.85] text-foreground/80 sm:text-base">
+                          {paragraph}
+                        </p>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <div className="flex items-center justify-center h-14 w-14 rounded-2xl bg-muted mb-4">
