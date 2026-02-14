@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useTasks } from "@/lib/hooks/useTasks";
 import { useSections } from "@/lib/hooks/useSections";
 import { useCourseStore } from "@/lib/stores/course-store";
@@ -109,18 +110,18 @@ export default function PlannerPage() {
   const upcomingGroups = groups.filter((g) => g.label !== "Today");
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6">
+    <div className="mx-auto max-w-4xl space-y-6 p-4 sm:space-y-8 sm:p-6">
       {/* Header */}
       <div>
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold sm:text-2xl">Study Planner</h1>
+          <h1 className="text-xl font-semibold tracking-tight">Plan</h1>
           {tasks.length === 0 ? (
             <Button onClick={handleGenerate} disabled={generating || !courseId} size="sm">
               <Plus className="mr-1.5 h-4 w-4" />
               {generating ? "Generating..." : "Generate Plan"}
             </Button>
           ) : (
-            <Button variant="ghost" size="sm" onClick={handleRegen} disabled={generating}>
+            <Button variant="outline" size="sm" onClick={handleRegen} disabled={generating}>
               <RefreshCw className={`mr-1.5 h-4 w-4 ${generating ? "animate-spin" : ""}`} />
               {generating ? "Regenerating..." : "Regenerate"}
             </Button>
@@ -132,7 +133,7 @@ export default function PlannerPage() {
           <div className="mt-4 rounded-xl border bg-card p-4">
             <div className="flex items-end justify-between">
               <div>
-                <p className="text-2xl font-bold">{pct}%</p>
+                <p className="text-xl font-bold">{pct}%</p>
                 <p className="text-xs text-muted-foreground">{doneCount} of {tasks.length} tasks done</p>
               </div>
               <p className="text-xs text-muted-foreground">
@@ -174,12 +175,15 @@ export default function PlannerPage() {
           ))}
         </div>
       ) : tasks.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed py-20 text-center">
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-20 text-center">
           <CalendarDays className="mb-3 h-10 w-10 text-muted-foreground/40" />
           <p className="font-medium">No study plan yet</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Upload materials, then generate your plan.
+            Upload materials first, then your plan generates automatically.
           </p>
+          <Link href="/library">
+            <Button variant="outline" size="sm" className="mt-4">Go to Library</Button>
+          </Link>
         </div>
       ) : (
         <div className="space-y-6">
@@ -204,7 +208,7 @@ export default function PlannerPage() {
           {upcomingGroups.map((group) => (
             <div key={group.label}>
               <div className="mb-2 flex items-center gap-2">
-                <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                <h2 className="text-sm font-semibold">
                   {group.label}
                 </h2>
                 <span className="text-xs text-muted-foreground">

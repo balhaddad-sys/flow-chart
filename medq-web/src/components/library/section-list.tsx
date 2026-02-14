@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { BookOpen, Loader2, CheckCircle2, AlertCircle, HelpCircle } from "lucide-react";
 import type { SectionModel } from "@/lib/types/section";
 
@@ -46,10 +47,8 @@ export function SectionList({ sections, loading }: SectionListProps) {
 
         return (
           <Card key={section.id} className="transition-colors hover:bg-accent/50">
-            <CardContent className="flex items-center gap-4 p-4">
-              <div className="rounded bg-muted p-1.5">
-                <BookOpen className="h-4 w-4 text-muted-foreground" />
-              </div>
+            <CardContent className="flex items-center gap-3 p-4">
+              <BookOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
               <div className="flex-1 min-w-0">
                 <p className="truncate text-sm font-medium">{section.title}</p>
                 <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
@@ -68,7 +67,7 @@ export function SectionList({ sections, loading }: SectionListProps) {
                 </div>
                 {section.topicTags.length > 0 && (
                   <div className="mt-1.5 flex flex-wrap gap-1">
-                    {section.topicTags.slice(0, 4).map((tag) => (
+                    {section.topicTags.slice(0, 3).map((tag) => (
                       <Badge key={tag} variant="secondary" className="text-xs px-1.5 py-0">
                         {tag}
                       </Badge>
@@ -84,10 +83,11 @@ export function SectionList({ sections, loading }: SectionListProps) {
                 {section.aiStatus === "ANALYZED" && section.questionsCount > 0 && (
                   <Link
                     href={`/quiz?section=${section.id}`}
-                    className="text-xs text-primary hover:underline"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    Quiz
+                    <Button variant="outline" size="sm" className="h-7 text-xs">
+                      Quiz
+                    </Button>
                   </Link>
                 )}
               </div>

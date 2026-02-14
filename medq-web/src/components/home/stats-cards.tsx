@@ -1,7 +1,5 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
-import { BookOpen, Target, Clock, Flame } from "lucide-react";
 import type { StatsModel } from "@/lib/types/stats";
 
 interface StatsCardsProps {
@@ -9,56 +7,26 @@ interface StatsCardsProps {
 }
 
 export function StatsCards({ stats }: StatsCardsProps) {
-  // completionPercent is stored as 0-1 in backend, convert to 0-100 for display
   const completionPct = stats ? Math.round(stats.completionPercent * 100) : 0;
   const totalHours = stats ? Math.round(stats.totalStudyMinutes / 60) : 0;
 
-  const cards = [
-    {
-      label: "Study Time",
-      value: `${totalHours}h`,
-      sub: stats ? `${stats.totalStudyMinutes ?? 0}m total` : "No data yet",
-      icon: Clock,
-      color: "text-blue-500",
-    },
-    {
-      label: "Questions",
-      value: stats?.totalQuestionsAnswered?.toString() ?? "0",
-      sub: stats ? `${Math.round(stats.overallAccuracy * 100)}% accuracy` : "No data yet",
-      icon: Target,
-      color: "text-green-500",
-    },
-    {
-      label: "Completion",
-      value: `${completionPct}%`,
-      sub: "of course content",
-      icon: BookOpen,
-      color: "text-purple-500",
-    },
-    {
-      label: "Streak",
-      value: stats?.streakDays?.toString() ?? "0",
-      sub: (stats?.streakDays ?? 0) === 1 ? "day" : "days",
-      icon: Flame,
-      color: "text-orange-500",
-    },
+  const items = [
+    { label: "Study Time", value: `${totalHours}h` },
+    { label: "Accuracy", value: stats ? `${Math.round(stats.overallAccuracy * 100)}%` : "--" },
+    { label: "Completion", value: `${completionPct}%` },
+    { label: "Streak", value: `${stats?.streakDays ?? 0}d` },
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
-      {cards.map((card) => (
-        <Card key={card.label}>
-          <CardContent className="flex items-start gap-3 p-4">
-            <div className={`rounded-lg bg-muted p-2 ${card.color}`}>
-              <card.icon className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{card.value}</p>
-              <p className="text-xs text-muted-foreground">{card.label}</p>
-              <p className="text-xs text-muted-foreground">{card.sub}</p>
-            </div>
-          </CardContent>
-        </Card>
+    <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+      {items.map((item, i) => (
+        <div
+          key={item.label}
+          className={i > 0 ? "md:border-l md:pl-6 border-border" : ""}
+        >
+          <p className="text-xl font-bold tabular-nums sm:text-2xl">{item.value}</p>
+          <p className="text-xs text-muted-foreground">{item.label}</p>
+        </div>
       ))}
     </div>
   );

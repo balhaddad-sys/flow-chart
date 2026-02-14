@@ -7,13 +7,11 @@ import {
   Calendar,
   Library,
   CircleHelp,
-  BarChart3,
   Settings,
   MessageSquare,
   Users,
   ChevronsUpDown,
   GraduationCap,
-  TrendingUp,
   PlusCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,12 +27,13 @@ import {
 
 const navItems = [
   { href: "/home", label: "Home", icon: Home },
-  { href: "/planner", label: "Planner", icon: Calendar },
   { href: "/library", label: "Library", icon: Library },
-  { href: "/questions", label: "Questions", icon: CircleHelp },
-  { href: "/dashboard", label: "Insights", icon: BarChart3 },
-  { href: "/analytics", label: "Analytics", icon: TrendingUp },
+  { href: "/planner", label: "Plan", icon: Calendar },
+  { href: "/questions", label: "Practice", icon: CircleHelp },
   { href: "/chat", label: "AI Chat", icon: MessageSquare },
+];
+
+const secondaryItems = [
   { href: "/groups", label: "Groups", icon: Users },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
@@ -48,7 +47,7 @@ export function Sidebar() {
   const activeCourse = courses.find((c) => c.id === activeCourseId);
 
   return (
-    <aside className="hidden md:flex w-64 xl:w-72 flex-col border-r bg-card">
+    <aside className="hidden md:flex w-60 flex-col border-r bg-background">
       <div className="flex h-14 items-center border-b px-6">
         <span className="text-xl font-bold text-primary">MedQ</span>
       </div>
@@ -95,9 +94,9 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors",
                 isActive
-                  ? "bg-primary/10 text-primary"
+                  ? "bg-accent text-foreground font-semibold"
                   : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               )}
             >
@@ -107,6 +106,27 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      <div className="border-t p-3 space-y-1">
+        {secondaryItems.map((item) => {
+          const isActive = pathname.startsWith(item.href);
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-colors",
+                isActive
+                  ? "bg-accent text-foreground font-semibold"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              )}
+            >
+              <item.icon className="h-5 w-5" />
+              {item.label}
+            </Link>
+          );
+        })}
+      </div>
     </aside>
   );
 }

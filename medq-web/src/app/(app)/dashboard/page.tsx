@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useStats } from "@/lib/hooks/useStats";
 import { useCourseStore } from "@/lib/stores/course-store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,50 +54,38 @@ export default function DashboardPage() {
     <div className="mx-auto max-w-4xl space-y-4 p-4 sm:space-y-6 sm:p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Insights</h1>
-          <p className="mt-1 text-muted-foreground">
+          <h1 className="text-xl font-semibold tracking-tight">Progress</h1>
+          <p className="text-sm text-muted-foreground">
             Identify and address your weak areas.
           </p>
         </div>
-        <Button onClick={handleFixPlan} disabled={fixPlanLoading || !courseId || weakTopics.length === 0}>
-          {fixPlanLoading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Wrench className="mr-2 h-4 w-4" />
-          )}
-          Generate Fix Plan
-        </Button>
       </div>
 
       {fixPlanResult && (
         <div className="rounded-lg bg-muted p-3 text-sm">{fixPlanResult}</div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Overall Accuracy</p>
-            <p className="text-3xl font-bold">
-              {stats ? `${Math.round(stats.overallAccuracy * 100)}%` : "--"}
-            </p>
-            <Progress value={stats ? stats.overallAccuracy * 100 : 0} className="mt-2 h-2" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Questions Answered</p>
-            <p className="text-3xl font-bold">{stats?.totalQuestionsAnswered ?? 0}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <p className="text-sm text-muted-foreground">Completion</p>
-            <p className="text-3xl font-bold">
-              {stats ? `${Math.round(stats.completionPercent * 100)}%` : "0%"}
-            </p>
-            <Progress value={stats ? stats.completionPercent * 100 : 0} className="mt-2 h-2" />
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-3 gap-6">
+        <div>
+          <p className="text-xl font-bold tabular-nums sm:text-2xl">
+            {stats ? `${Math.round(stats.overallAccuracy * 100)}%` : "--"}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Accuracy{stats?.totalQuestionsAnswered ? ` (n=${stats.totalQuestionsAnswered})` : ""}
+          </p>
+          <Progress value={stats ? stats.overallAccuracy * 100 : 0} className="mt-2 h-1.5" />
+        </div>
+        <div className="border-l pl-6 border-border">
+          <p className="text-xl font-bold tabular-nums sm:text-2xl">{stats?.totalQuestionsAnswered ?? 0}</p>
+          <p className="text-xs text-muted-foreground">Questions Answered</p>
+        </div>
+        <div className="border-l pl-6 border-border">
+          <p className="text-xl font-bold tabular-nums sm:text-2xl">
+            {stats ? `${Math.round(stats.completionPercent * 100)}%` : "0%"}
+          </p>
+          <p className="text-xs text-muted-foreground">Completion</p>
+          <Progress value={stats ? stats.completionPercent * 100 : 0} className="mt-2 h-1.5" />
+        </div>
       </div>
 
       <Card>
@@ -134,6 +123,26 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      <Button
+        variant="outline"
+        className="w-full"
+        onClick={handleFixPlan}
+        disabled={fixPlanLoading || !courseId || weakTopics.length === 0}
+      >
+        {fixPlanLoading ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <Wrench className="mr-2 h-4 w-4" />
+        )}
+        Generate Fix Plan
+      </Button>
+
+      <div className="text-center">
+        <Link href="/analytics" className="text-sm text-muted-foreground hover:text-foreground">
+          View Detailed Analytics
+        </Link>
+      </div>
     </div>
   );
 }

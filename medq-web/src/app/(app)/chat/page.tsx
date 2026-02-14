@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { MessageSquare, Plus, Loader2 } from "lucide-react";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
@@ -43,8 +44,8 @@ export default function ChatPage() {
     <div className="mx-auto max-w-4xl space-y-4 p-4 sm:space-y-6 sm:p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">AI Study Assistant</h1>
-          <p className="mt-1 text-muted-foreground">
+          <h1 className="text-xl font-semibold tracking-tight">AI Chat</h1>
+          <p className="text-sm text-muted-foreground">
             Chat with AI about your course material.
           </p>
         </div>
@@ -64,13 +65,12 @@ export default function ChatPage() {
             <Skeleton key={i} className="h-16 w-full rounded-lg" />
           ))
         ) : threads.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <MessageSquare className="mb-4 h-12 w-12 text-muted-foreground" />
-            <p className="text-lg font-medium">No conversations yet</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Start a new chat to ask questions about your study material.
-            </p>
-          </div>
+          <EmptyState
+            icon={MessageSquare}
+            title="No conversations yet"
+            description="Start a new chat about your study material."
+            action={{ label: "New Chat", onClick: handleNewThread }}
+          />
         ) : (
           threads.map((thread) => (
             <Card

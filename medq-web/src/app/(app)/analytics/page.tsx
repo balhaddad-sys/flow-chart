@@ -1,13 +1,14 @@
 "use client";
 
 import { useMemo } from "react";
+import Link from "next/link";
 import { useStats } from "@/lib/hooks/useStats";
 import { useTasks } from "@/lib/hooks/useTasks";
 import { useCourseStore } from "@/lib/stores/course-store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, Target, Clock, BarChart3 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -96,55 +97,17 @@ export default function AnalyticsPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-4 p-4 sm:space-y-6 sm:p-6">
-      <div>
-        <h1 className="text-2xl font-bold">Progress Analytics</h1>
-        <p className="mt-1 text-muted-foreground">
-          Detailed breakdown of your study progress.
-        </p>
+      <div className="flex items-center gap-3">
+        <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
+          <ArrowLeft className="h-4 w-4" /> Progress
+        </Link>
       </div>
 
-      {/* Summary row */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <Clock className="h-5 w-5 text-blue-500" />
-            <div>
-              <p className="text-2xl font-bold">
-                {stats ? Math.round(stats.totalStudyMinutes / 60) : 0}h
-              </p>
-              <p className="text-xs text-muted-foreground">Total study time</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <Target className="h-5 w-5 text-green-500" />
-            <div>
-              <p className="text-2xl font-bold">
-                {stats ? Math.round(stats.overallAccuracy * 100) : 0}%
-              </p>
-              <p className="text-xs text-muted-foreground">Accuracy</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <BarChart3 className="h-5 w-5 text-purple-500" />
-            <div>
-              <p className="text-2xl font-bold">{tasks.length}</p>
-              <p className="text-xs text-muted-foreground">Total tasks</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <TrendingUp className="h-5 w-5 text-orange-500" />
-            <div>
-              <p className="text-2xl font-bold">{stats?.streakDays ?? 0}</p>
-              <p className="text-xs text-muted-foreground">Day streak</p>
-            </div>
-          </CardContent>
-        </Card>
+      <div>
+        <h1 className="text-xl font-semibold tracking-tight">Detailed Analytics</h1>
+        <p className="text-sm text-muted-foreground">
+          Visual breakdown of your study patterns and performance.
+        </p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -152,6 +115,7 @@ export default function AnalyticsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Study Time by Day</CardTitle>
+            <p className="text-xs text-muted-foreground">Minutes spent studying each day of the week.</p>
           </CardHeader>
           <CardContent>
             {weeklyMinutes.some((d) => d.minutes > 0) ? (
@@ -179,6 +143,7 @@ export default function AnalyticsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Task Status</CardTitle>
+            <p className="text-xs text-muted-foreground">Breakdown of your task completion status.</p>
           </CardHeader>
           <CardContent>
             {statusData.length > 0 ? (
@@ -227,6 +192,7 @@ export default function AnalyticsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Topic Accuracy Radar</CardTitle>
+            <p className="text-xs text-muted-foreground">Performance across your weakest topics.</p>
           </CardHeader>
           <CardContent>
             {radarData.length > 0 ? (
@@ -257,6 +223,7 @@ export default function AnalyticsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Task Types</CardTitle>
+            <p className="text-xs text-muted-foreground">Distribution of task types in your plan.</p>
           </CardHeader>
           <CardContent>
             {taskBreakdown.length > 0 ? (

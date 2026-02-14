@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCourseStore } from "@/lib/stores/course-store";
 import { useQuizStore } from "@/lib/stores/quiz-store";
@@ -8,7 +9,7 @@ import { QuestionCard } from "@/components/quiz/question-card";
 import { QuizResults } from "@/components/quiz/quiz-results";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader2 } from "lucide-react";
+import { Loader2, CircleHelp } from "lucide-react";
 import * as fn from "@/lib/firebase/functions";
 import type { QuestionModel } from "@/lib/types/question";
 
@@ -77,8 +78,17 @@ export default function QuizPage() {
 
   if (!courseId || !sectionId) {
     return (
-      <div className="p-6 text-center">
-        <p className="text-muted-foreground">Select a section to start a quiz.</p>
+      <div className="mx-auto flex max-w-md flex-col items-center justify-center py-24 text-center">
+        <CircleHelp className="mb-3 h-10 w-10 text-muted-foreground/40" />
+        <p className="font-medium">No section selected</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Pick a section from the Practice page to start quizzing.
+        </p>
+        <Link href="/questions">
+          <Button variant="outline" size="sm" className="mt-4">
+            Go to Practice
+          </Button>
+        </Link>
       </div>
     );
   }
@@ -97,7 +107,12 @@ export default function QuizPage() {
   const progressPercent = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
 
   return (
-    <div className="space-y-4 p-4 sm:space-y-6 sm:p-6">
+    <div className="mx-auto max-w-4xl space-y-4 p-4 sm:space-y-6 sm:p-6">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Link href="/questions" className="hover:text-foreground">Practice</Link>
+        <span>/</span>
+        <span className="text-foreground">Quiz</span>
+      </div>
       <Progress value={progressPercent} className="h-2" />
       <QuestionCard
         question={currentQuestion}

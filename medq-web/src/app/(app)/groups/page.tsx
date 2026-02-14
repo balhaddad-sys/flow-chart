@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Users, Plus, LogIn, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { StudyGroup } from "@/lib/types/group";
@@ -122,8 +123,8 @@ export default function GroupsPage() {
     <div className="mx-auto max-w-4xl space-y-4 p-4 sm:space-y-6 sm:p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Study Groups</h1>
-          <p className="mt-1 text-muted-foreground">
+          <h1 className="text-xl font-semibold tracking-tight">Groups</h1>
+          <p className="text-sm text-muted-foreground">
             Collaborate with other students.
           </p>
         </div>
@@ -198,19 +199,21 @@ export default function GroupsPage() {
         </div>
       </div>
 
+      <div className="rounded-lg border bg-accent/50 px-4 py-3 text-sm text-muted-foreground">
+        Share invite codes with classmates. Group challenges coming soon.
+      </div>
+
       <div className="space-y-3">
         {loading ? (
           Array.from({ length: 3 }).map((_, i) => (
             <Skeleton key={i} className="h-20 w-full rounded-lg" />
           ))
         ) : groups.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <Users className="mb-4 h-12 w-12 text-muted-foreground" />
-            <p className="text-lg font-medium">No groups yet</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Create a study group or join one with an invite code.
-            </p>
-          </div>
+          <EmptyState
+            icon={Users}
+            title="No groups yet"
+            description="Create a group or join with an invite code."
+          />
         ) : (
           groups.map((group) => (
             <Card

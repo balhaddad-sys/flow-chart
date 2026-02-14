@@ -10,8 +10,6 @@ import {
   CircleHelp,
   MessageSquare,
   MoreHorizontal,
-  BarChart3,
-  TrendingUp,
   Users,
   Settings,
 } from "lucide-react";
@@ -26,16 +24,14 @@ import {
 
 const mainItems = [
   { href: "/home", label: "Home", icon: Home },
-  { href: "/planner", label: "Plan", icon: Calendar },
-  { href: "/questions", label: "Questions", icon: CircleHelp },
   { href: "/library", label: "Library", icon: Library },
+  { href: "/planner", label: "Plan", icon: Calendar },
+  { href: "/questions", label: "Practice", icon: CircleHelp },
 ];
 
 const moreItems = [
   { href: "/chat", label: "AI Chat", icon: MessageSquare },
-  { href: "/dashboard", label: "Insights", icon: BarChart3 },
-  { href: "/analytics", label: "Analytics", icon: TrendingUp },
-  { href: "/groups", label: "Study Groups", icon: Users },
+  { href: "/groups", label: "Groups", icon: Users },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -45,7 +41,7 @@ export function MobileNav() {
   const isMoreActive = moreItems.some((item) => pathname.startsWith(item.href));
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t bg-card md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t bg-card pb-[max(env(safe-area-inset-bottom),0.25rem)] md:hidden">
       {mainItems.map((item) => {
         const isActive = pathname.startsWith(item.href);
         return (
@@ -53,12 +49,12 @@ export function MobileNav() {
             key={item.href}
             href={item.href}
             className={cn(
-              "flex flex-1 flex-col items-center gap-0.5 py-2 text-xs transition-colors",
+              "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-2 text-[11px] transition-colors",
               isActive ? "text-primary" : "text-muted-foreground"
             )}
           >
             <item.icon className="h-5 w-5" />
-            {item.label}
+            <span className="truncate">{item.label}</span>
           </Link>
         );
       })}
@@ -67,19 +63,19 @@ export function MobileNav() {
         <SheetTrigger asChild>
           <button
             className={cn(
-              "flex flex-1 flex-col items-center gap-0.5 py-2 text-xs transition-colors",
+              "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-2 text-[11px] transition-colors",
               isMoreActive ? "text-primary" : "text-muted-foreground"
             )}
           >
             <MoreHorizontal className="h-5 w-5" />
-            More
+            <span className="truncate">More</span>
           </button>
         </SheetTrigger>
         <SheetContent side="bottom" className="rounded-t-2xl pb-8">
           <SheetHeader>
             <SheetTitle>More</SheetTitle>
           </SheetHeader>
-          <div className="mt-4 grid grid-cols-4 gap-4">
+          <div className="mt-4 grid grid-cols-3 gap-3">
             {moreItems.map((item) => {
               const isActive = pathname.startsWith(item.href);
               return (
@@ -90,7 +86,7 @@ export function MobileNav() {
                   className={cn(
                     "flex flex-col items-center gap-1.5 rounded-xl p-3 text-xs transition-colors",
                     isActive
-                      ? "bg-primary/10 text-primary"
+                      ? "bg-accent text-foreground font-medium"
                       : "text-muted-foreground hover:bg-accent"
                   )}
                 >

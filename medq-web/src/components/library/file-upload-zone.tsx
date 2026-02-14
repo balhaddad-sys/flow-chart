@@ -110,11 +110,11 @@ export function FileUploadZone() {
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={() => setIsDragging(false)}
-        className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 text-center transition-colors ${
+        className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 text-center transition-colors ${
           isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50"
         }`}
       >
-        <Upload className="mb-3 h-10 w-10 text-muted-foreground" />
+        <Upload className="mb-3 h-8 w-8 text-muted-foreground" />
         <p className="text-sm font-medium">Drag & drop files here</p>
         <p className="mt-1 text-xs text-muted-foreground">PDF, PPTX, or DOCX (max 100MB)</p>
         <label className="mt-4">

@@ -105,7 +105,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
       : "text-yellow-600 dark:text-yellow-400";
 
   return (
-    <Card className="mx-auto max-w-2xl">
+    <Card className="mx-auto max-w-3xl">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <Badge variant="outline" className="font-mono text-xs">
@@ -145,7 +145,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
               key={i}
               onClick={() => handleSelect(i)}
               disabled={isAnswered || submitting}
-              className={`flex w-full items-start gap-3 rounded-lg border p-3.5 text-left text-sm transition-all ${style} ${
+              className={`flex w-full items-start gap-3 rounded-lg border p-4 text-left text-sm transition-all ${style} ${
                 isAnswered ? "cursor-default" : ""
               }`}
             >
@@ -179,7 +179,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
 
         {/* Post-answer section */}
         {isAnswered && (
-          <div className="space-y-3 pt-3">
+          <div className="space-y-4 pt-4">
             {/* Result banner */}
             <div
               className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium ${

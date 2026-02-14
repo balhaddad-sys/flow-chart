@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
   AlertCircle,
-  BookOpen,
   CircleHelp,
   Loader2,
   RefreshCw,
   Sparkles,
 } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useCourseStore } from "@/lib/stores/course-store";
 import { useCourses } from "@/lib/hooks/useCourses";
 import { useSections } from "@/lib/hooks/useSections";
@@ -71,10 +71,7 @@ function SectionQuestionCard({
 
   return (
     <Card>
-      <CardContent className="flex items-start gap-4 p-4">
-        <div className="rounded-md bg-muted p-2">
-          <BookOpen className="h-4 w-4 text-muted-foreground" />
-        </div>
+      <CardContent className="flex items-start gap-3 p-4">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="truncate text-sm font-semibold">{section.title}</p>
@@ -167,7 +164,7 @@ export default function QuestionsPage() {
   if (!courseId) {
     return (
       <div className="mx-auto max-w-4xl space-y-4 p-4 sm:space-y-6 sm:p-6">
-        <h1 className="text-2xl font-bold">Questions</h1>
+        <h1 className="text-xl font-semibold tracking-tight">Practice</h1>
         <Card>
           <CardContent className="flex items-center justify-between gap-4 p-6">
             <p className="text-sm text-muted-foreground">
@@ -184,67 +181,38 @@ export default function QuestionsPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-4 sm:space-y-6 sm:p-6">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Questions</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {activeCourse ? `Manage question sets for ${activeCourse.title}` : "Manage section question sets"}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary">{categorized.ready.length} ready</Badge>
-          <Badge variant="outline">{categorized.needs.length} need generation</Badge>
-          <Badge variant="outline">{categorized.processing.length} processing</Badge>
-        </div>
+      <div>
+        <h1 className="text-xl font-semibold tracking-tight">Practice</h1>
+        <p className="text-sm text-muted-foreground">
+          {activeCourse ? `Quiz yourself on ${activeCourse.title}` : "Select sections and start quizzing"}
+        </p>
       </div>
 
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((item) => (
-            <Skeleton key={item} className="h-24 w-full" />
+            <Skeleton key={item} className="h-16 w-full rounded-lg" />
           ))}
         </div>
       ) : sections.length === 0 ? (
-        <Card>
-          <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
-            <AlertCircle className="h-8 w-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              No sections found yet. Upload materials in the library first.
-            </p>
-            <Link href="/library">
-              <Button size="sm" variant="outline">
-                Go to Library
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={AlertCircle}
+          title="No sections found"
+          description="Upload materials in the Library first."
+          action={{ label: "Go to Library", href: "/library" }}
+        />
       ) : (
-        <Tabs defaultValue="all">
+        <Tabs defaultValue="ready">
           <TabsList className="w-full justify-start">
-            <TabsTrigger value="all">All ({sections.length})</TabsTrigger>
-            <TabsTrigger value="ready">Ready ({categorized.ready.length})</TabsTrigger>
-            <TabsTrigger value="needs">Needs Work ({categorized.needs.length})</TabsTrigger>
-            <TabsTrigger value="processing">Processing ({categorized.processing.length})</TabsTrigger>
+            <TabsTrigger value="ready">Ready to Quiz ({categorized.ready.length})</TabsTrigger>
+            <TabsTrigger value="all">All Sections ({sections.length})</TabsTrigger>
           </TabsList>
-
-          <TabsContent value="all" className="space-y-3">
-            {sections.map((section) => (
-              <SectionQuestionCard
-                key={section.id}
-                section={section}
-                generating={!!generatingIds[section.id]}
-                onGenerate={handleGenerate}
-              />
-            ))}
-          </TabsContent>
 
           <TabsContent value="ready" className="space-y-3">
             {categorized.ready.length === 0 ? (
-              <Card>
-                <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                  No ready question sets yet.
-                </CardContent>
-              </Card>
+              <p className="py-12 text-center text-sm text-muted-foreground">
+                No sections are ready to quiz yet. Generate questions from the All Sections tab.
+              </p>
             ) : (
               categorized.ready.map((section) => (
                 <SectionQuestionCard
@@ -257,42 +225,15 @@ export default function QuestionsPage() {
             )}
           </TabsContent>
 
-          <TabsContent value="needs" className="space-y-3">
-            {categorized.needs.length === 0 ? (
-              <Card>
-                <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                  No sections need action right now.
-                </CardContent>
-              </Card>
-            ) : (
-              categorized.needs.map((section) => (
-                <SectionQuestionCard
-                  key={section.id}
-                  section={section}
-                  generating={!!generatingIds[section.id]}
-                  onGenerate={handleGenerate}
-                />
-              ))
-            )}
-          </TabsContent>
-
-          <TabsContent value="processing" className="space-y-3">
-            {categorized.processing.length === 0 ? (
-              <Card>
-                <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                  Nothing is processing right now.
-                </CardContent>
-              </Card>
-            ) : (
-              categorized.processing.map((section) => (
-                <SectionQuestionCard
-                  key={section.id}
-                  section={section}
-                  generating={!!generatingIds[section.id]}
-                  onGenerate={handleGenerate}
-                />
-              ))
-            )}
+          <TabsContent value="all" className="space-y-3">
+            {sections.map((section) => (
+              <SectionQuestionCard
+                key={section.id}
+                section={section}
+                generating={!!generatingIds[section.id]}
+                onGenerate={handleGenerate}
+              />
+            ))}
           </TabsContent>
         </Tabs>
       )}

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { signOut } from "@/lib/firebase/auth";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useThemeStore } from "@/lib/stores/theme-store";
@@ -9,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Sun, Moon, Monitor, LogOut, Trash2, Loader2 } from "lucide-react";
+import { Sun, Moon, Monitor, LogOut, Trash2, Loader2, GraduationCap } from "lucide-react";
 import * as fn from "@/lib/firebase/functions";
 import { toast } from "sonner";
 
@@ -50,7 +51,7 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-4 sm:space-y-6 sm:p-6">
-      <h1 className="text-2xl font-bold">Settings</h1>
+      <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
 
       {/* Account */}
       <Card>
@@ -95,6 +96,22 @@ export default function SettingsPage() {
               </Button>
             ))}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Courses */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Courses</CardTitle>
+          <CardDescription>Manage your courses and create new ones</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Link href="/onboarding?new=1">
+            <Button variant="outline">
+              <GraduationCap className="mr-2 h-4 w-4" />
+              Manage Courses
+            </Button>
+          </Link>
         </CardContent>
       </Card>
 

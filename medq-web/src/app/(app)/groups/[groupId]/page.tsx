@@ -49,7 +49,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ groupId:
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-xl font-bold">{group.name}</h1>
+          <h1 className="text-xl font-semibold tracking-tight">{group.name}</h1>
           {group.description && (
             <p className="text-sm text-muted-foreground">{group.description}</p>
           )}

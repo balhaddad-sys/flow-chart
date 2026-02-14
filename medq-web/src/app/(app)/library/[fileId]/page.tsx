@@ -2,7 +2,8 @@
 
 import { use, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, FileText, Trash2, RefreshCw } from "lucide-react";
+import Link from "next/link";
+import { FileText, Trash2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useSectionsByFile } from "@/lib/hooks/useSections";
@@ -52,14 +53,17 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-4 sm:space-y-6 sm:p-6">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => router.back()}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Link href="/library" className="hover:text-foreground">Library</Link>
+        <span>/</span>
+        <span className="truncate text-foreground">{file?.originalName ?? "Loading..."}</span>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <FileText className="h-5 w-5 text-muted-foreground" />
-            <h1 className="truncate text-xl font-bold">
+            <h1 className="truncate text-xl font-semibold tracking-tight">
               {file?.originalName ?? "Loading..."}
             </h1>
           </div>
@@ -72,7 +76,7 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
             </div>
           )}
         </div>
-        <div className="flex items-center gap-1">
+        <div className="ml-auto flex items-center gap-1">
           {hasFailedSections && (
             <Button variant="outline" size="sm" onClick={handleRetry} disabled={retrying}>
               <RefreshCw className={`mr-1 h-4 w-4 ${retrying ? "animate-spin" : ""}`} />
@@ -88,7 +92,7 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
       </div>
 
       <div>
-        <h2 className="mb-3 text-lg font-semibold">Sections</h2>
+        <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Sections</h2>
         <SectionList sections={sections} loading={loading} />
       </div>
     </div>
