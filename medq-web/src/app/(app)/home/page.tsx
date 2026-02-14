@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useCourses } from "@/lib/hooks/useCourses";
 import { useTodayTasks } from "@/lib/hooks/useTasks";
@@ -12,10 +13,18 @@ import { ExamCountdown } from "@/components/home/exam-countdown";
 import { WeakTopicsBanner } from "@/components/home/weak-topics-banner";
 
 export default function HomePage() {
+  const router = useRouter();
   const { user } = useAuth();
-  const { courses } = useCourses();
+  const { courses, loading: coursesLoading } = useCourses();
   const activeCourseId = useCourseStore((s) => s.activeCourseId);
   const setActiveCourseId = useCourseStore((s) => s.setActiveCourseId);
+
+  // Redirect to onboarding if user has no courses
+  useEffect(() => {
+    if (!coursesLoading && courses.length === 0) {
+      router.replace("/onboarding");
+    }
+  }, [coursesLoading, courses.length, router]);
 
   // Auto-select first course if none selected
   const effectiveCourseId = activeCourseId ?? courses[0]?.id ?? null;
