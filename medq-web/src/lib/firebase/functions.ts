@@ -34,6 +34,16 @@ export class CloudFunctionError extends Error {
   }
 }
 
+export type QuizMode = "section" | "topic" | "mixed" | "random";
+
+export interface TutorResponse {
+  correctAnswer: string;
+  whyCorrect: string;
+  whyStudentWrong: string;
+  keyTakeaway: string;
+  followUps: Array<{ q: string; a: string }>;
+}
+
 // --- Course ---
 export function createCourse(params: {
   title: string;
@@ -74,10 +84,10 @@ export function getQuiz(params: {
   courseId: string;
   sectionId?: string;
   topicTag?: string;
-  mode: string;
+  mode: QuizMode;
   count?: number;
 }) {
-  return callFunction("getQuiz", params);
+  return callFunction<{ questions: Record<string, unknown>[] }>("getQuiz", params);
 }
 
 export function submitAttempt(params: {
@@ -86,11 +96,15 @@ export function submitAttempt(params: {
   timeSpentSec: number;
   confidence?: number;
 }) {
-  return callFunction("submitAttempt", params);
+  return callFunction<{
+    correct: boolean;
+    attemptId: string;
+    tutorResponse: TutorResponse | null;
+  }>("submitAttempt", params);
 }
 
 export function getTutorHelp(params: { questionId: string; attemptId: string }) {
-  return callFunction("getTutorHelp", params);
+  return callFunction<{ tutorResponse: TutorResponse }>("getTutorHelp", params);
 }
 
 // --- Fix Plan ---

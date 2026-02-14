@@ -160,7 +160,7 @@ export default function OnboardingPage() {
         setActiveCourseId(courseId);
       }
       reset();
-      router.replace("/home");
+      router.replace("/library");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to create course";
       setError(msg);

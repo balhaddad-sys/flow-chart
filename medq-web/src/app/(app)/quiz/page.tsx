@@ -31,10 +31,10 @@ export default function QuizPage() {
         const result = await fn.getQuiz({
           courseId: courseId!,
           sectionId: sectionId!,
-          mode: "practice",
+          mode: "section",
           count: 10,
         });
-        const quizQuestions = (result as { questions?: QuestionModel[] }).questions ?? [];
+        const quizQuestions = (result as unknown as { questions?: QuestionModel[] }).questions ?? [];
         if (quizQuestions.length === 0) {
           setError("No questions available for this section yet.");
         } else {

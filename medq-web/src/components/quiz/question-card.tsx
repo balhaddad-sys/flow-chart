@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle, ChevronRight, Lightbulb } from "lucide-react";
 import { useQuizStore } from "@/lib/stores/quiz-store";
 import * as fn from "@/lib/firebase/functions";
+import type { TutorResponse } from "@/lib/firebase/functions";
 import { toast } from "sonner";
 import type { QuestionModel } from "@/lib/types/question";
 
@@ -17,17 +18,25 @@ interface QuestionCardProps {
 }
 
 export function QuestionCard({ question, index, total }: QuestionCardProps) {
-  const { answers, results, answerQuestion, nextQuestion, finishQuiz } = useQuizStore();
+  const { answers, results, answerQuestion, nextQuestion, finishQuiz, getAttemptId } = useQuizStore();
   const [submitting, setSubmitting] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
-  const [tutorText, setTutorText] = useState<string | null>(null);
+  const [tutorResponse, setTutorResponse] = useState<TutorResponse | null>(null);
   const [tutorLoading, setTutorLoading] = useState(false);
-  const [attemptId, setAttemptId] = useState<string | null>(null);
 
   const selectedIndex = answers.get(question.id);
   const isAnswered = selectedIndex !== undefined;
-  const isCorrect = results.get(question.id);
+  const isCorrect = results.get(question.id) === true;
   const isLast = index === total - 1;
+  const attemptId = getAttemptId(question.id);
+  const correctOptionText = question.options[question.correctIndex] ?? "Not available";
+
+  useEffect(() => {
+    setSubmitting(false);
+    setShowExplanation(false);
+    setTutorResponse(null);
+    setTutorLoading(false);
+  }, [question.id]);
 
   async function handleSelect(optionIndex: number) {
     if (isAnswered || submitting) return;
@@ -38,10 +47,11 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
         answerIndex: optionIndex,
         timeSpentSec: Math.round((Date.now() - useQuizStore.getState().startTime) / 1000),
       });
-      const typedResult = result as { correct?: boolean; attemptId?: string };
-      const correct = typedResult.correct ?? optionIndex === question.correctIndex;
-      if (typedResult.attemptId) setAttemptId(typedResult.attemptId);
-      answerQuestion(question.id, optionIndex, correct);
+      const correct = result.correct ?? optionIndex === question.correctIndex;
+      answerQuestion(question.id, optionIndex, correct, result.attemptId);
+      if (result.tutorResponse) {
+        setTutorResponse(result.tutorResponse);
+      }
     } catch {
       // Fallback to local check if function fails
       const correct = optionIndex === question.correctIndex;
@@ -52,18 +62,21 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
   }
 
   async function handleTutor() {
-    if (tutorText || tutorLoading) return;
+    if (tutorResponse || tutorLoading) return;
+    if (!attemptId) {
+      toast.error("Tutor help is available after your answer is synced.");
+      return;
+    }
+
     setTutorLoading(true);
     try {
       const result = await fn.getTutorHelp({
         questionId: question.id,
-        attemptId: attemptId ?? "",
+        attemptId,
       });
-      const tutor = (result as { tutorResponse?: { whyCorrect?: string; correctAnswer?: string } }).tutorResponse;
-      setTutorText(tutor?.whyCorrect || tutor?.correctAnswer || "No explanation available.");
+      setTutorResponse(result.tutorResponse);
     } catch {
       toast.error("Tutor unavailable right now.");
-      setTutorText("Tutor unavailable right now. Try again later.");
     } finally {
       setTutorLoading(false);
     }
@@ -135,8 +148,9 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
             </button>
 
             {showExplanation && question.explanation && (
-              <div className="rounded-lg bg-muted p-4 text-sm space-y-2">
-                <p><strong>Why correct:</strong> {question.explanation.correctWhy}</p>
+              <div className="space-y-2 rounded-lg border bg-muted/40 p-4 text-sm">
+                <p><strong>Correct answer:</strong> {correctOptionText}</p>
+                <p><strong>Why this is correct:</strong> {question.explanation.correctWhy}</p>
                 <p><strong>Key takeaway:</strong> {question.explanation.keyTakeaway}</p>
               </div>
             )}
@@ -146,15 +160,38 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
               variant="outline"
               size="sm"
               onClick={handleTutor}
-              disabled={tutorLoading}
+              disabled={tutorLoading || !attemptId || Boolean(tutorResponse)}
             >
               <Lightbulb className="mr-2 h-4 w-4" />
-              {tutorLoading ? "Asking tutor..." : "Ask Tutor"}
+              {tutorLoading ? "Asking tutor..." : tutorResponse ? "Tutor ready" : "Ask Tutor"}
             </Button>
 
-            {tutorText && (
-              <div className="rounded-lg bg-blue-50 p-4 text-sm dark:bg-blue-950/30">
-                {tutorText}
+            {isAnswered && !attemptId && (
+              <p className="text-xs text-muted-foreground">
+                Tutor help is temporarily unavailable while answer sync is pending.
+              </p>
+            )}
+
+            {tutorResponse && (
+              <div className="space-y-2 rounded-lg border bg-muted/40 p-4 text-sm">
+                <p><strong>Correct answer:</strong> {tutorResponse.correctAnswer || correctOptionText}</p>
+                <p><strong>Why this is correct:</strong> {tutorResponse.whyCorrect || "No detail provided."}</p>
+                {tutorResponse.whyStudentWrong && (
+                  <p><strong>Why your choice was incorrect:</strong> {tutorResponse.whyStudentWrong}</p>
+                )}
+                {tutorResponse.keyTakeaway && (
+                  <p><strong>Clinical takeaway:</strong> {tutorResponse.keyTakeaway}</p>
+                )}
+                {(tutorResponse.followUps?.length ?? 0) > 0 && (
+                  <div className="space-y-1 pt-1">
+                    <p className="font-semibold">Follow-up checks</p>
+                    {tutorResponse.followUps.slice(0, 2).map((item, i) => (
+                      <p key={i}>
+                        <strong>Q:</strong> {item.q} <strong>A:</strong> {item.a}
+                      </p>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

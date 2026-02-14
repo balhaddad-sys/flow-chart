@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTasks } from "@/lib/hooks/useTasks";
+import { useSections } from "@/lib/hooks/useSections";
 import { useCourseStore } from "@/lib/stores/course-store";
 import { useCourses } from "@/lib/hooks/useCourses";
 import { groupTasksByDay } from "@/lib/utils/date";
@@ -18,8 +19,29 @@ export default function PlannerPage() {
   const { courses } = useCourses();
   const activeCourse = courses.find((c) => c.id === courseId);
   const { tasks, loading } = useTasks(courseId);
+  const { sections, loading: sectionsLoading } = useSections(courseId);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const autoGenTriggered = useRef(false);
+
+  // Auto-generate plan when sections are analyzed but no tasks exist
+  const analyzedCount = sections.filter((s) => s.aiStatus === "ANALYZED").length;
+  useEffect(() => {
+    if (
+      !loading &&
+      !sectionsLoading &&
+      !generating &&
+      !autoGenTriggered.current &&
+      tasks.length === 0 &&
+      analyzedCount > 0 &&
+      courseId &&
+      activeCourse
+    ) {
+      autoGenTriggered.current = true;
+      handleGenerate();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, sectionsLoading, tasks.length, analyzedCount, courseId]);
 
   const groups = groupTasksByDay(tasks);
   const doneCount = tasks.filter((t) => t.status === "DONE").length;
