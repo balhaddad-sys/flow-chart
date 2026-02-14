@@ -66,8 +66,9 @@ exports.processUploadedFile = functions
         log.warn("File metadata missing, cannot process upload", { uid, fileId, filePath });
         return null;
       }
+      const fileMeta = fileSnap.data() || {};
 
-      const currentStatus = fileSnap.data()?.status;
+      const currentStatus = fileMeta.status;
 
       if (currentStatus === "READY" || currentStatus === "PROCESSING") {
         log.info("File already processed or in progress, skipping", {
@@ -88,10 +89,11 @@ exports.processUploadedFile = functions
         { merge: true }
       );
 
-      const courseId = fileSnap.data()?.courseId;
+      const courseId = fileMeta.courseId;
       if (!courseId) {
         throw new Error("File is missing courseId; cannot create sections.");
       }
+      const sourceLabel = (fileMeta.originalName || fileName || "Document").replace(/\.[^/.]+$/, "");
 
       log.info("Starting document extraction", { uid, fileId, contentType });
 
@@ -120,7 +122,8 @@ exports.processUploadedFile = functions
 
           return {
             fileId,
-            title: raw.title,
+            // Prefix with source label to prevent ambiguous "Pages 1-10" section names across files.
+            title: `${sourceLabel}: ${raw.title}`,
             contentRef: {
               type: raw.startPage != null ? "page" : raw.startSlide != null ? "slide" : "word",
               startIndex: raw.startPage || raw.startSlide || raw.startWord || 0,

@@ -213,17 +213,18 @@ describe("scheduling/scheduler", () => {
       expect(placed[0].dueDate).toEqual(days[0].date);
     });
 
-    it("sorts study tasks hardest-first", () => {
+    it("keeps study tasks in section order for a holistic flow", () => {
       const tasks = [
-        { type: "STUDY", sectionIds: ["s1"], estMinutes: 10, difficulty: 1 },
-        { type: "STUDY", sectionIds: ["s2"], estMinutes: 10, difficulty: 5 },
+        { type: "STUDY", sectionIds: ["s1"], estMinutes: 10, difficulty: 1, sourceOrder: 0 },
+        { type: "STUDY", sectionIds: ["s2"], estMinutes: 10, difficulty: 5, sourceOrder: 1 },
       ];
       const days = [
         { date: new Date("2025-01-01"), usableCapacity: 60, remaining: 60 },
       ];
 
       const placed = placeTasks(tasks, days);
-      expect(placed[0].sectionIds[0]).toBe("s2"); // harder first
+      expect(placed[0].sectionIds[0]).toBe("s1");
+      expect(placed[1].sectionIds[0]).toBe("s2");
     });
 
     it("spills to next day when capacity exhausted", () => {
@@ -288,7 +289,7 @@ describe("scheduling/scheduler", () => {
       expect(review._dayOffset).toBeUndefined();
     });
 
-    it("force-places oversized tasks on the day with most capacity", () => {
+    it("splits oversized tasks instead of overfilling a day", () => {
       const tasks = [
         { type: "STUDY", sectionIds: ["s1"], estMinutes: 100, difficulty: 3 },
       ];
@@ -297,8 +298,8 @@ describe("scheduling/scheduler", () => {
       ];
 
       const placed = placeTasks(tasks, days);
-      // Task is force-placed even though it exceeds day capacity
       expect(placed).toHaveLength(1);
+      expect(placed[0].estMinutes).toBe(30);
       expect(placed[0].dueDate).toEqual(new Date("2025-01-01"));
     });
   });

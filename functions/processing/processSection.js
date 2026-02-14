@@ -174,6 +174,8 @@ exports.processSection = functions
           easyCount,
           mediumCount,
           hardCount,
+          sectionTitle: normalised.title || sectionData.title,
+          sourceFileName: fileData.originalName || "Unknown",
         })
       );
 
@@ -205,6 +207,7 @@ exports.processSection = functions
 
       const defaults = {
         fileId: sectionData.fileId,
+        fileName: fileData.originalName || "Unknown",
         sectionId,
         sectionTitle: normalised.title || sectionData.title,
         topicTags: normalised.topicTags,

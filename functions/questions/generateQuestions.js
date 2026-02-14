@@ -54,6 +54,8 @@ exports.generateQuestions = functions
       const section = sectionDoc.data();
       if (section.courseId !== courseId) return fail(Errors.INVALID_ARGUMENT, "Section does not belong to this course.");
       if (!section.blueprint) return fail(Errors.NOT_ANALYZED);
+      const fileDoc = section.fileId ? await db.doc(`users/${uid}/files/${section.fileId}`).get() : null;
+      const sourceFileName = fileDoc?.exists ? fileDoc.data()?.originalName || "Unknown" : "Unknown";
 
       // Mark question generation as in progress (for retry scenario)
       await sectionRef.update({
@@ -69,7 +71,15 @@ exports.generateQuestions = functions
       // ── AI generation (using blueprint only, no section text needed) ────
       const result = await aiGenerateQuestions(
         QUESTIONS_SYSTEM,
-        questionsUserPrompt({ blueprintJSON: section.blueprint, count, easyCount, mediumCount, hardCount })
+        questionsUserPrompt({
+          blueprintJSON: section.blueprint,
+          count,
+          easyCount,
+          mediumCount,
+          hardCount,
+          sectionTitle: section.title || "Section",
+          sourceFileName,
+        })
       );
 
       if (!result.success || !result.data.questions) {
@@ -83,7 +93,13 @@ exports.generateQuestions = functions
       }
 
       // ── Normalise & persist via serialize module ────────────────────────
-      const defaults = { fileId: section.fileId, sectionId, sectionTitle: section.title, topicTags: section.topicTags };
+      const defaults = {
+        fileId: section.fileId,
+        fileName: sourceFileName,
+        sectionId,
+        sectionTitle: section.title,
+        topicTags: section.topicTags,
+      };
       const validItems = [];
 
       for (const raw of result.data.questions) {

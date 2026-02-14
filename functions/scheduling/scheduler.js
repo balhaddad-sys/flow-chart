@@ -57,6 +57,7 @@ const { clampInt, truncate, toISODate, weekdayName } = require("../lib/utils");
  * @property {string}   status
  * @property {boolean}  isPinned
  * @property {number}   priority
+ * @property {number}   [sourceOrder] - Section order in the course sequence.
  * @property {number}   [_dayOffset] - Internal: review offset from study day.
  */
 
@@ -87,12 +88,21 @@ function buildWorkUnits(sections, courseId, revisionPolicy = "standard") {
   const policy = VALID_REVISION_POLICIES.has(revisionPolicy) ? revisionPolicy : "standard";
   const tasks = [];
 
-  for (const section of sections) {
+  for (const [sourceOrder, section] of sections.entries()) {
     const estMinutes = clampInt(section.estMinutes || 15, 5, 240);
     const difficulty = clampInt(section.difficulty || 3, 1, 5);
     const title = truncate(section.title, 200);
     const topicTags = (section.topicTags || []).slice(0, 10);
-    const base = { courseId, sectionIds: [section.id], topicTags, difficulty, status: "TODO", isPinned: false, priority: 0 };
+    const base = {
+      courseId,
+      sectionIds: [section.id],
+      topicTags,
+      difficulty,
+      status: "TODO",
+      isPinned: false,
+      priority: 0,
+      sourceOrder,
+    };
 
     tasks.push({ ...base, type: "STUDY", title: `Study: ${title}`, estMinutes });
 
@@ -182,7 +192,7 @@ function checkFeasibility(totalMinutes, days) {
 /**
  * Place work units onto day-slots using a balanced-fill heuristic.
  *
- * Study and question tasks are placed first (hardest-first), then review tasks
+ * Study and question tasks are placed first in section order, then review tasks
  * are anchored at their spaced-repetition offset from the corresponding study
  * task's day.
  *
@@ -193,44 +203,58 @@ function checkFeasibility(totalMinutes, days) {
 function placeTasks(tasks, days) {
   const studyTasks = tasks.filter((t) => t.type === "STUDY" || t.type === "QUESTIONS");
   const reviewTasks = tasks.filter((t) => t.type === "REVIEW");
-  studyTasks.sort((a, b) => b.difficulty - a.difficulty);
+  const maxDayCapacity = days.reduce((max, d) => Math.max(max, d.usableCapacity), 0);
+
+  // Keep an intentional learning flow by defaulting to section order.
+  studyTasks.sort((a, b) => {
+    const orderA = a.sourceOrder ?? 0;
+    const orderB = b.sourceOrder ?? 0;
+    if (orderA !== orderB) return orderA - orderB;
+    return b.difficulty - a.difficulty;
+  });
 
   let dayIndex = 0;
   let orderIndex = 0;
   const placed = [];
-  const skipped = [];
 
-  // Place study + question tasks (hardest first)
-  for (const task of studyTasks) {
-    // Find a day with enough remaining capacity
-    let placed_this = false;
-    for (let d = dayIndex; d < days.length; d++) {
-      if (days[d].remaining >= task.estMinutes) {
-        placed.push({ ...task, dueDate: days[d].date, orderIndex: d === dayIndex ? orderIndex++ : 0 });
-        days[d].remaining -= task.estMinutes;
-        // Advance dayIndex pointer if current day is full
-        while (dayIndex < days.length && days[dayIndex].remaining < MIN_DAILY_MINUTES) {
-          dayIndex++;
-          orderIndex = 0;
-        }
-        placed_this = true;
-        break;
+  // Split oversized tasks so they can be distributed across multiple days.
+  const expandTask = (task) => {
+    if (maxDayCapacity <= 0 || task.estMinutes <= maxDayCapacity) return [task];
+    const parts = [];
+    let remaining = task.estMinutes;
+    let part = 1;
+    while (remaining > 0) {
+      const chunk = Math.min(maxDayCapacity, remaining);
+      parts.push({
+        ...task,
+        estMinutes: chunk,
+        title: `${task.title} (Part ${part})`,
+      });
+      remaining -= chunk;
+      part++;
+    }
+    return parts;
+  };
+
+  // Place study + question tasks.
+  for (const originalTask of studyTasks) {
+    for (const task of expandTask(originalTask)) {
+      // Find first day with enough remaining capacity.
+      let targetDay = dayIndex;
+      while (targetDay < days.length && days[targetDay].remaining < task.estMinutes) {
+        targetDay++;
       }
-    }
-    if (!placed_this) {
-      skipped.push(task);
-    }
-  }
 
-  // Second pass: force-place skipped tasks on the day with the most remaining capacity
-  for (const task of skipped) {
-    if (days.length === 0) break;
-    let bestIdx = 0;
-    for (let d = 1; d < days.length; d++) {
-      if (days[d].remaining > days[bestIdx].remaining) bestIdx = d;
+      if (targetDay >= days.length) continue;
+
+      if (targetDay !== dayIndex) {
+        dayIndex = targetDay;
+        orderIndex = 0;
+      }
+
+      placed.push({ ...task, dueDate: days[dayIndex].date, orderIndex: orderIndex++ });
+      days[dayIndex].remaining -= task.estMinutes;
     }
-    placed.push({ ...task, dueDate: days[bestIdx].date, orderIndex: 0 });
-    days[bestIdx].remaining -= task.estMinutes;
   }
 
   // Place review tasks at offset from their study task's day

@@ -8,6 +8,7 @@ export interface QuestionExplanation {
 
 export interface QuestionSourceRef {
   fileId: string;
+  fileName?: string;
   sectionId: string;
   label: string;
 }

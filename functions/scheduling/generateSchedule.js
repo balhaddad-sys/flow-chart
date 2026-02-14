@@ -47,7 +47,14 @@ exports.generateSchedule = functions
 
       if (sectionsSnap.empty) return fail(Errors.NO_SECTIONS);
 
-      const sections = sectionsSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const sections = sectionsSnap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => {
+          const aCreated = a.createdAt?.toMillis?.() ?? 0;
+          const bCreated = b.createdAt?.toMillis?.() ?? 0;
+          if (aCreated !== bCreated) return aCreated - bCreated;
+          return (a.orderIndex ?? 0) - (b.orderIndex ?? 0);
+        });
 
       // ── Pure algorithm ────────────────────────────────────────────────
       const tasks = buildWorkUnits(sections, courseId, revisionPolicy);

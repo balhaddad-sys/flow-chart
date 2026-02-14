@@ -48,14 +48,25 @@ function questionsUserPrompt({
   easyCount,
   mediumCount,
   hardCount,
+  sectionTitle = "Unknown Section",
+  sourceFileName = "Unknown File",
 }) {
-  return `Topic blueprint (contains all learning objectives, key concepts, high-yield points, and terms):
+  return `Source file: "${sourceFileName}"
+Section: "${sectionTitle}"
+
+Topic blueprint (contains all learning objectives, key concepts, high-yield points, and terms):
 ${JSON.stringify(blueprintJSON, null, 2)}
 
 Generate exactly ${count} SBA questions with this difficulty distribution:
 - ${easyCount} easy (difficulty 1-2)
 - ${mediumCount} medium (difficulty 3)
 - ${hardCount} hard (difficulty 4-5)
+
+Quality rules:
+- Every question must test a concrete concept from key_concepts, high_yield_points, or terms_to_define.
+- Do not write generic stems; each stem must be specific to this section.
+- Keep explanations concise and precise (1-2 sentences per field).
+- Do not combine unrelated topics from different parts of the blueprint into one vague question.
 
 Return this exact JSON schema:
 {

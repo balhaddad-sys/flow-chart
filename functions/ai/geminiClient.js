@@ -95,7 +95,7 @@ async function callGemini(systemPrompt, userPrompt, opts = {}) {
   const { maxTokens = MAX_TOKENS.summary, retries = 2, jsonMode = false } = opts;
   const generationConfig = {
     maxOutputTokens: maxTokens,
-    temperature: 0.3,
+    temperature: 0.2,
   };
   // Enforce structured JSON output when jsonMode is enabled
   if (jsonMode) {
@@ -264,7 +264,7 @@ async function generateBlueprint(systemPrompt, userPrompt) {
  */
 async function generateQuestions(systemPrompt, userPrompt) {
   return callGemini(systemPrompt, userPrompt, {
-    maxTokens: 3000,
+    maxTokens: 4500,
     jsonMode: true,
   });
 }

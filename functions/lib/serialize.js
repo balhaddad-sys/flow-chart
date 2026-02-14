@@ -40,6 +40,7 @@ function normaliseBlueprint(raw) {
  * @param {object} raw      - Single question object from Claude's response.
  * @param {object} defaults - Fallback values from the parent section.
  * @param {string} defaults.fileId
+ * @param {string} [defaults.fileName]
  * @param {string} defaults.sectionId
  * @param {string} defaults.sectionTitle
  * @param {string[]} defaults.topicTags
@@ -82,6 +83,7 @@ function normaliseQuestion(raw, defaults) {
     },
     sourceRef: {
       fileId:    defaults.fileId,
+      fileName:  truncate(sanitizeText(raw.source_ref?.fileName || defaults.fileName), 200),
       sectionId: defaults.sectionId,
       label:     truncate(sanitizeText(raw.source_ref?.sectionLabel || defaults.sectionTitle), 200),
     },
