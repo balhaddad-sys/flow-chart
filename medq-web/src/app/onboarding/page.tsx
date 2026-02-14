@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { ChevronLeft, ChevronRight, GraduationCap, CalendarDays, Clock, Upload } from "lucide-react";
 import * as fn from "@/lib/firebase/functions";
+import { toast } from "sonner";
 
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -161,7 +162,9 @@ export default function OnboardingPage() {
       reset();
       router.replace("/home");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create course");
+      const msg = err instanceof Error ? err.message : "Failed to create course";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setCreating(false);
     }

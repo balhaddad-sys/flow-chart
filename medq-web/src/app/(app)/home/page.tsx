@@ -19,12 +19,12 @@ export default function HomePage() {
   const activeCourseId = useCourseStore((s) => s.activeCourseId);
   const setActiveCourseId = useCourseStore((s) => s.setActiveCourseId);
 
-  // Redirect to onboarding if user has no courses
+  // Redirect to onboarding if user has no courses and none was just created
   useEffect(() => {
-    if (!coursesLoading && courses.length === 0) {
+    if (!coursesLoading && courses.length === 0 && !activeCourseId) {
       router.replace("/onboarding");
     }
-  }, [coursesLoading, courses.length, router]);
+  }, [coursesLoading, courses.length, activeCourseId, router]);
 
   // Auto-select first course if none selected
   const effectiveCourseId = activeCourseId ?? courses[0]?.id ?? null;

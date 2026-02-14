@@ -58,12 +58,31 @@ exports.createCourse = functions.https.onCall(async (data, context) => {
     }
 
     // Validate and sanitize availability
+    // Supports two formats:
+    //   1. Per-day: { monday: 120, tuesday: 90, ... } (from onboarding)
+    //   2. Legacy:  { defaultMinutesPerDay: 120, excludedDates: [] }
+    const WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
     let sanitizedAvailability = {
       defaultMinutesPerDay: 120,
+      perDay: {},
       excludedDates: [],
     };
     if (availability && typeof availability === "object") {
-      if (typeof availability.defaultMinutesPerDay === "number") {
+      // Check for per-day format (keys are weekday names)
+      const hasPerDay = WEEKDAYS.some((d) => typeof availability[d] === "number");
+      if (hasPerDay) {
+        let total = 0;
+        let count = 0;
+        for (const day of WEEKDAYS) {
+          if (typeof availability[day] === "number") {
+            const mins = Math.max(0, Math.min(480, Math.floor(availability[day])));
+            sanitizedAvailability.perDay[day] = mins;
+            total += mins;
+            count++;
+          }
+        }
+        sanitizedAvailability.defaultMinutesPerDay = count > 0 ? Math.round(total / count) : 120;
+      } else if (typeof availability.defaultMinutesPerDay === "number") {
         sanitizedAvailability.defaultMinutesPerDay = Math.max(
           15,
           Math.min(480, Math.floor(availability.defaultMinutesPerDay))
