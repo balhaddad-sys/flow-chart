@@ -1,4 +1,4 @@
-import { ref, uploadBytesResumable, getDownloadURL, getBytes, type UploadTask } from "firebase/storage";
+import { ref, uploadBytesResumable, getDownloadURL, type UploadTask } from "firebase/storage";
 import { doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
 import { storage, db } from "./client";
 
@@ -97,8 +97,9 @@ export async function getFileDownloadUrl(storagePath: string): Promise<string> {
   return getDownloadURL(ref(storage, storagePath));
 }
 
-/** Read a text file from Cloud Storage using the Firebase SDK (bypasses CORS). */
+/** Read a text file from Cloud Storage via its download URL (avoids CORS issues with getBytes). */
 export async function getTextBlob(storagePath: string): Promise<string> {
-  const bytes = await getBytes(ref(storage, storagePath));
-  return new TextDecoder().decode(bytes);
+  const url = await getDownloadURL(ref(storage, storagePath));
+  const res = await fetch(url);
+  return res.text();
 }
