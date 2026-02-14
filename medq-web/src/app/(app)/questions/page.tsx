@@ -8,6 +8,8 @@ import {
   Loader2,
   RefreshCw,
   Sparkles,
+  Shuffle,
+  Zap,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useCourseStore } from "@/lib/stores/course-store";
@@ -187,6 +189,24 @@ export default function QuestionsPage() {
           {activeCourse ? `Quiz yourself on ${activeCourse.title}` : "Select sections and start quizzing"}
         </p>
       </div>
+
+      {/* Quick-start quiz modes — visible when sections have questions */}
+      {!loading && categorized.ready.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          <Link href="/quiz?mode=mixed">
+            <Button variant="outline" size="sm">
+              <Zap className="mr-2 h-4 w-4 text-amber-500" />
+              Smart Mix
+            </Button>
+          </Link>
+          <Link href="/quiz?mode=random">
+            <Button variant="outline" size="sm">
+              <Shuffle className="mr-2 h-4 w-4 text-blue-500" />
+              Random Quiz
+            </Button>
+          </Link>
+        </div>
+      )}
 
       {loading ? (
         <div className="space-y-3">

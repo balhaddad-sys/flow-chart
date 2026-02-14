@@ -11,6 +11,7 @@ const admin = require("firebase-admin");
 const { db } = require("../lib/firestore");
 const { callClaude } = require("../ai/aiClient");
 const { defineSecret } = require("firebase-functions/params");
+const { checkRateLimit, RATE_LIMITS } = require("../middleware/rateLimit");
 
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 
@@ -71,6 +72,9 @@ exports.sendChatMessage = functions
     }
 
     const uid = context.auth.uid;
+
+    await checkRateLimit(uid, "sendChatMessage", RATE_LIMITS.sendChatMessage);
+
     const { threadId, message, courseId } = data;
 
     if (!threadId || !message || !courseId) {

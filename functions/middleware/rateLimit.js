@@ -103,6 +103,7 @@ const RATE_LIMITS = {
   submitAttempt:       { maxCalls: 60, windowMs:    60_000 },
   getQuiz:             { maxCalls: 30, windowMs:    60_000 },
   getTutorHelp:        { maxCalls: 20, windowMs:    60_000 },
+  sendChatMessage:     { maxCalls: 15, windowMs:    60_000 },
   runFixPlan:          { maxCalls:  3, windowMs:    60_000 },
   generateSectionSummary: { maxCalls: 10, windowMs: 60_000 },
   catchUp:             { maxCalls:  5, windowMs:    60_000 },

@@ -65,7 +65,7 @@ export default function DashboardPage() {
         <div className="rounded-lg bg-muted p-3 text-sm">{fixPlanResult}</div>
       )}
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
         <div>
           <p className="text-xl font-bold tabular-nums sm:text-2xl">
             {stats ? `${Math.round(stats.overallAccuracy * 100)}%` : "--"}
@@ -75,11 +75,11 @@ export default function DashboardPage() {
           </p>
           <Progress value={stats ? stats.overallAccuracy * 100 : 0} className="mt-2 h-1.5" />
         </div>
-        <div className="border-l pl-6 border-border">
+        <div className="border-t pt-4 sm:border-t-0 sm:pt-0 sm:border-l sm:pl-6 border-border">
           <p className="text-xl font-bold tabular-nums sm:text-2xl">{stats?.totalQuestionsAnswered ?? 0}</p>
           <p className="text-xs text-muted-foreground">Questions Answered</p>
         </div>
-        <div className="border-l pl-6 border-border">
+        <div className="border-t pt-4 sm:border-t-0 sm:pt-0 sm:border-l sm:pl-6 border-border">
           <p className="text-xl font-bold tabular-nums sm:text-2xl">
             {stats ? `${Math.round(stats.completionPercent * 100)}%` : "0%"}
           </p>

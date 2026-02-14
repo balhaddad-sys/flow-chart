@@ -110,7 +110,7 @@ export default function AnalyticsPage() {
         </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
         {/* Study minutes by day */}
         <Card>
           <CardHeader>
@@ -119,11 +119,11 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             {weeklyMinutes.some((d) => d.minutes > 0) ? (
-              <ResponsiveContainer width="100%" height={250}>
+              <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={weeklyMinutes}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="name" className="text-xs" />
-                  <YAxis className="text-xs" />
+                  <YAxis className="text-xs" width={30} />
                   <Tooltip
                     contentStyle={{ fontSize: "12px" }}
                     formatter={(value) => [`${value}m`, "Minutes"]}
@@ -147,15 +147,15 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             {statusData.length > 0 ? (
-              <div className="flex items-center gap-4">
-                <ResponsiveContainer width="50%" height={200}>
+              <div className="flex flex-col items-center gap-4 sm:flex-row">
+                <ResponsiveContainer width="100%" height={180} className="sm:max-w-[50%]">
                   <PieChart>
                     <Pie
                       data={statusData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={40}
-                      outerRadius={80}
+                      innerRadius={35}
+                      outerRadius={70}
                       dataKey="value"
                     >
                       {statusData.map((_, i) => (
@@ -165,11 +165,11 @@ export default function AnalyticsPage() {
                     <Tooltip contentStyle={{ fontSize: "12px" }} />
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="space-y-2">
+                <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 sm:flex-col sm:space-y-2 sm:gap-0">
                   {statusData.map((item, i) => (
                     <div key={item.name} className="flex items-center gap-2 text-sm">
                       <div
-                        className="h-3 w-3 rounded-full"
+                        className="h-3 w-3 shrink-0 rounded-full"
                         style={{ backgroundColor: COLORS[i % COLORS.length] }}
                       />
                       <span>{item.name}</span>
@@ -196,7 +196,7 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             {radarData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={250}>
+              <ResponsiveContainer width="100%" height={220}>
                 <RadarChart data={radarData}>
                   <PolarGrid className="stroke-muted" />
                   <PolarAngleAxis dataKey="subject" className="text-xs" />
@@ -227,11 +227,11 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent>
             {taskBreakdown.length > 0 ? (
-              <ResponsiveContainer width="100%" height={250}>
+              <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={taskBreakdown} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis type="number" className="text-xs" />
-                  <YAxis type="category" dataKey="name" className="text-xs" width={80} />
+                  <YAxis type="category" dataKey="name" className="text-xs" width={70} />
                   <Tooltip contentStyle={{ fontSize: "12px" }} />
                   <Bar dataKey="value" fill="#10b981" radius={[0, 4, 4, 0]} />
                 </BarChart>

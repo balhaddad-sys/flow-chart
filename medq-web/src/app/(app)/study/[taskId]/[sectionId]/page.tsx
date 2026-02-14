@@ -71,7 +71,7 @@ export default function StudySessionPage({
 }) {
   const { taskId, sectionId } = use(params);
   const router = useRouter();
-  const { uid } = useAuth();
+  const { user, uid } = useAuth();
   const { seconds, isRunning, start, pause, reset, getFormatted } = useTimerStore();
   const [section, setSection] = useState<SectionModel | null>(null);
   const [sectionText, setSectionText] = useState<string | null>(null);
@@ -136,9 +136,13 @@ export default function StudySessionPage({
         }
       } catch { /* fall through */ }
 
+      const idToken = await user?.getIdToken();
       const res = await fetch("/api/summary", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
         body: JSON.stringify(input),
       });
       const json = await res.json();
@@ -153,7 +157,7 @@ export default function StudySessionPage({
     } finally {
       setSummaryLoading(false);
     }
-  }, [sectionText, section?.title, summaryLoading]);
+  }, [sectionText, section?.title, summaryLoading, user]);
 
   async function handleComplete() {
     if (!uid) return;

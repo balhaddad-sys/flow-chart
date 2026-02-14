@@ -9,21 +9,36 @@ import { QuestionCard } from "@/components/quiz/question-card";
 import { QuizResults } from "@/components/quiz/quiz-results";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { Loader2, CircleHelp } from "lucide-react";
 import * as fn from "@/lib/firebase/functions";
+import type { QuizMode } from "@/lib/firebase/functions";
 import type { QuestionModel } from "@/lib/types/question";
+
+const MODE_LABELS: Record<QuizMode, string> = {
+  section: "Section Quiz",
+  topic: "Topic Quiz",
+  mixed: "Smart Mix",
+  random: "Random",
+};
 
 export default function QuizPage() {
   const searchParams = useSearchParams();
   const sectionId = searchParams.get("section");
+  const mode = (searchParams.get("mode") as QuizMode) || "section";
+  const topicTag = searchParams.get("topic");
   const courseId = useCourseStore((s) => s.activeCourseId);
 
   const { questions, currentIndex, isFinished, startQuiz, reset } = useQuizStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // For mixed/random modes, sectionId is not required
+  const needsSection = mode === "section";
+  const canLoad = courseId && (needsSection ? sectionId : true);
+
   useEffect(() => {
-    if (!courseId || !sectionId || questions.length > 0) return;
+    if (!canLoad || questions.length > 0) return;
 
     async function loadQuiz() {
       setLoading(true);
@@ -31,13 +46,14 @@ export default function QuizPage() {
       try {
         const result = await fn.getQuiz({
           courseId: courseId!,
-          sectionId: sectionId!,
-          mode: "section",
+          sectionId: sectionId || undefined,
+          topicTag: topicTag || undefined,
+          mode,
           count: 10,
         });
         const quizQuestions = (result as unknown as { questions?: QuestionModel[] }).questions ?? [];
         if (quizQuestions.length === 0) {
-          setError("No questions available for this section yet.");
+          setError("No questions available yet. Generate questions from the Practice page first.");
         } else {
           startQuiz(quizQuestions);
         }
@@ -49,7 +65,7 @@ export default function QuizPage() {
     }
 
     loadQuiz();
-  }, [courseId, sectionId, questions.length, startQuiz]);
+  }, [canLoad, courseId, sectionId, topicTag, mode, questions.length, startQuiz]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -76,7 +92,7 @@ export default function QuizPage() {
     );
   }
 
-  if (!courseId || !sectionId) {
+  if (!courseId || (needsSection && !sectionId)) {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center justify-center py-24 text-center">
         <CircleHelp className="mb-3 h-10 w-10 text-muted-foreground/40" />
@@ -112,6 +128,9 @@ export default function QuizPage() {
         <Link href="/questions" className="hover:text-foreground">Practice</Link>
         <span>/</span>
         <span className="text-foreground">Quiz</span>
+        {mode !== "section" && (
+          <Badge variant="secondary" className="ml-1 text-xs">{MODE_LABELS[mode]}</Badge>
+        )}
       </div>
       <Progress value={progressPercent} className="h-2" />
       <QuestionCard
