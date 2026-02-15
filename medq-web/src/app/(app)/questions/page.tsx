@@ -166,10 +166,14 @@ export default function QuestionsPage() {
         const generatedNow = result.generatedNow ?? result.questionCount ?? 0;
         const durationSec =
           result.durationMs != null ? Math.max(1, Math.round(result.durationMs / 1000)) : null;
+        const savingsLabel =
+          result.estimatedSavingsPercent && result.estimatedSavingsPercent > 0
+            ? ` (${result.estimatedSavingsPercent}% cost cut)`
+            : "";
         toast.success(
           durationSec
-            ? `Generated ${generatedNow} new questions in ${durationSec}s.`
-            : `Generated ${generatedNow} new questions.`
+            ? `Generated ${generatedNow} new questions in ${durationSec}s${savingsLabel}.`
+            : `Generated ${generatedNow} new questions${savingsLabel}.`
         );
       }
     } catch (error) {

@@ -246,6 +246,9 @@ export function generateQuestions(params: {
     inProgress?: boolean;
     durationMs?: number;
     message?: string;
+    aiRequestCount?: number;
+    predictedYield?: number;
+    estimatedSavingsPercent?: number;
   }>(
     "generateQuestions",
     params

@@ -22,6 +22,7 @@ const log = require("../lib/logger");
 const { DIFFICULTY_DISTRIBUTION } = require("../lib/constants");
 const { normaliseQuestion } = require("../lib/serialize");
 const { generateQuestions: aiGenerateQuestions } = require("../ai/geminiClient");
+const { buildQuestionGenPlan, updateQuestionGenStats } = require("../ai/selfTuningCostEngine");
 const { QUESTIONS_SYSTEM, questionsUserPrompt } = require("../ai/prompts");
 
 // Define the secret so the function can access it
@@ -99,7 +100,14 @@ exports.generateQuestions = functions
         });
       }
 
-      const neededCount = Math.max(1, count - existingCount);
+      const plan = buildQuestionGenPlan({
+        requestedCount: count,
+        existingCount,
+        sectionStats: section.questionGenStats || {},
+      });
+      const neededCount = plan.missingCount;
+      const aiRequestCount = plan.aiRequestCount;
+
       const fileDoc = section.fileId ? await db.doc(`users/${uid}/files/${section.fileId}`).get() : null;
       const sourceFileName = fileDoc?.exists ? fileDoc.data()?.originalName || "Unknown" : "Unknown";
 
@@ -110,16 +118,16 @@ exports.generateQuestions = functions
       });
 
       // ── Difficulty distribution ─────────────────────────────────────────
-      const easyCount = Math.round(neededCount * DIFFICULTY_DISTRIBUTION.easy);
-      const hardCount = Math.round(neededCount * DIFFICULTY_DISTRIBUTION.hard);
-      const mediumCount = neededCount - easyCount - hardCount;
+      const easyCount = Math.round(aiRequestCount * DIFFICULTY_DISTRIBUTION.easy);
+      const hardCount = Math.round(aiRequestCount * DIFFICULTY_DISTRIBUTION.hard);
+      const mediumCount = aiRequestCount - easyCount - hardCount;
 
       // ── AI generation (using blueprint only, no section text needed) ────
       const result = await aiGenerateQuestions(
         QUESTIONS_SYSTEM,
         questionsUserPrompt({
           blueprintJSON: section.blueprint,
-          count: neededCount,
+          count: aiRequestCount,
           easyCount,
           mediumCount,
           hardCount,
@@ -127,10 +135,10 @@ exports.generateQuestions = functions
           sourceFileName,
         }),
         {
-          maxTokens: Math.min(3600, Math.max(1400, neededCount * 260)),
-          retries: 1,
-          rateLimitMaxRetries: 1,
-          rateLimitRetryDelayMs: 8000,
+          maxTokens: plan.tokenBudget,
+          retries: plan.retries,
+          rateLimitMaxRetries: plan.rateLimitMaxRetries,
+          rateLimitRetryDelayMs: plan.rateLimitRetryDelayMs,
         }
       );
 
@@ -183,12 +191,20 @@ exports.generateQuestions = functions
       await batchSet(validItems);
 
       const finalCount = existingCount + validItems.length;
+      const questionGenStats = updateQuestionGenStats(section.questionGenStats, {
+        aiRequestCount,
+        validProduced: validItems.length,
+        duplicateSkipped: duplicateStemSkipped,
+        latencyMs: Date.now() - t0,
+        tokenBudget: plan.tokenBudget,
+      });
 
       // Mark question generation as complete
       await sectionRef.update({
         questionsStatus: "COMPLETED",
         questionsCount: finalCount,
         lastQuestionsDurationMs: Date.now() - t0,
+        questionGenStats,
         questionsErrorMessage: admin.firestore.FieldValue.delete(),
       });
 
@@ -199,6 +215,8 @@ exports.generateQuestions = functions
         requested: count,
         existingCount,
         neededCount,
+        aiRequestCount,
+        predictedYield: plan.predictedYield,
         generated: validItems.length,
         finalCount,
         duplicateStemSkipped,
@@ -210,6 +228,9 @@ exports.generateQuestions = functions
         questionCount: finalCount,
         generatedNow: validItems.length,
         skippedCount: result.data.questions.length - validItems.length,
+        aiRequestCount,
+        predictedYield: plan.predictedYield,
+        estimatedSavingsPercent: plan.estimatedSavingsPercent,
         durationMs: Date.now() - t0,
       });
     } catch (error) {
