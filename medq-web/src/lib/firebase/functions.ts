@@ -238,7 +238,15 @@ export function generateQuestions(params: {
   sectionId: string;
   count?: number;
 }) {
-  return callFunction<{ questionCount: number; skippedCount: number }>(
+  return callFunction<{
+    questionCount: number;
+    skippedCount: number;
+    generatedNow?: number;
+    fromCache?: boolean;
+    inProgress?: boolean;
+    durationMs?: number;
+    message?: string;
+  }>(
     "generateQuestions",
     params
   );

@@ -34,6 +34,7 @@ exports.generateQuestions = functions
     secrets: [geminiApiKey], // Grant access to the secret
   })
   .https.onCall(async (data, context) => {
+    const t0 = Date.now();
     const uid = requireAuth(context);
     requireStrings(data, [
       { field: "courseId", maxLen: 128 },
@@ -54,6 +55,51 @@ exports.generateQuestions = functions
       const section = sectionDoc.data();
       if (section.courseId !== courseId) return fail(Errors.INVALID_ARGUMENT, "Section does not belong to this course.");
       if (!section.blueprint) return fail(Errors.NOT_ANALYZED);
+
+      // Fast-path: if generation is already running, avoid duplicate expensive calls.
+      if (section.questionsStatus === "GENERATING") {
+        return ok({
+          questionCount: section.questionsCount || 0,
+          skippedCount: 0,
+          inProgress: true,
+          message: "Question generation is already in progress for this section.",
+        });
+      }
+
+      // Count existing questions first. If we already have enough, return instantly.
+      const existingSnap = await db
+        .collection(`users/${uid}/questions`)
+        .where("courseId", "==", courseId)
+        .where("sectionId", "==", sectionId)
+        .limit(40)
+        .get();
+
+      const existingCount = existingSnap.size;
+      const existingStems = new Set(
+        existingSnap.docs
+          .map((doc) => String(doc.data().stem || "").trim().toLowerCase())
+          .filter(Boolean)
+      );
+      if (existingCount >= count) {
+        // Keep section metadata in sync for UI responsiveness.
+        await sectionRef.set(
+          {
+            questionsStatus: "COMPLETED",
+            questionsCount: existingCount,
+            questionsErrorMessage: admin.firestore.FieldValue.delete(),
+          },
+          { merge: true }
+        );
+        return ok({
+          questionCount: existingCount,
+          skippedCount: 0,
+          fromCache: true,
+          durationMs: Date.now() - t0,
+          message: "Existing questions reused.",
+        });
+      }
+
+      const neededCount = Math.max(1, count - existingCount);
       const fileDoc = section.fileId ? await db.doc(`users/${uid}/files/${section.fileId}`).get() : null;
       const sourceFileName = fileDoc?.exists ? fileDoc.data()?.originalName || "Unknown" : "Unknown";
 
@@ -64,22 +110,28 @@ exports.generateQuestions = functions
       });
 
       // ── Difficulty distribution ─────────────────────────────────────────
-      const easyCount = Math.round(count * DIFFICULTY_DISTRIBUTION.easy);
-      const hardCount = Math.round(count * DIFFICULTY_DISTRIBUTION.hard);
-      const mediumCount = count - easyCount - hardCount;
+      const easyCount = Math.round(neededCount * DIFFICULTY_DISTRIBUTION.easy);
+      const hardCount = Math.round(neededCount * DIFFICULTY_DISTRIBUTION.hard);
+      const mediumCount = neededCount - easyCount - hardCount;
 
       // ── AI generation (using blueprint only, no section text needed) ────
       const result = await aiGenerateQuestions(
         QUESTIONS_SYSTEM,
         questionsUserPrompt({
           blueprintJSON: section.blueprint,
-          count,
+          count: neededCount,
           easyCount,
           mediumCount,
           hardCount,
           sectionTitle: section.title || "Section",
           sourceFileName,
-        })
+        }),
+        {
+          maxTokens: Math.min(3600, Math.max(1400, neededCount * 260)),
+          retries: 1,
+          rateLimitMaxRetries: 1,
+          rateLimitRetryDelayMs: 8000,
+        }
       );
 
       if (!result.success || !result.data.questions) {
@@ -101,6 +153,7 @@ exports.generateQuestions = functions
         topicTags: section.topicTags,
       };
       const validItems = [];
+      let duplicateStemSkipped = 0;
 
       for (const raw of result.data.questions) {
         const normalised = normaliseQuestion(raw, defaults);
@@ -108,6 +161,13 @@ exports.generateQuestions = functions
           log.warn("Skipping invalid AI question", { sectionId, stem: raw.stem?.slice(0, 80) });
           continue;
         }
+
+        const stemKey = String(normalised.stem || "").trim().toLowerCase();
+        if (stemKey && existingStems.has(stemKey)) {
+          duplicateStemSkipped++;
+          continue;
+        }
+        if (stemKey) existingStems.add(stemKey);
 
         validItems.push({
           ref: db.collection(`users/${uid}/questions`).doc(),
@@ -122,16 +182,36 @@ exports.generateQuestions = functions
 
       await batchSet(validItems);
 
+      const finalCount = existingCount + validItems.length;
+
       // Mark question generation as complete
       await sectionRef.update({
         questionsStatus: "COMPLETED",
-        questionsCount: validItems.length,
+        questionsCount: finalCount,
+        lastQuestionsDurationMs: Date.now() - t0,
         questionsErrorMessage: admin.firestore.FieldValue.delete(),
       });
 
-      log.info("Questions generated", { uid, courseId, sectionId, generated: validItems.length, skipped: result.data.questions.length - validItems.length });
+      log.info("Questions generated", {
+        uid,
+        courseId,
+        sectionId,
+        requested: count,
+        existingCount,
+        neededCount,
+        generated: validItems.length,
+        finalCount,
+        duplicateStemSkipped,
+        skipped: result.data.questions.length - validItems.length,
+        durationMs: Date.now() - t0,
+      });
 
-      return ok({ questionCount: validItems.length, skippedCount: result.data.questions.length - validItems.length });
+      return ok({
+        questionCount: finalCount,
+        generatedNow: validItems.length,
+        skippedCount: result.data.questions.length - validItems.length,
+        durationMs: Date.now() - t0,
+      });
     } catch (error) {
       // CRITICAL: Roll back questionsStatus to prevent stuck GENERATING state
       try {
@@ -139,6 +219,7 @@ exports.generateQuestions = functions
           questionsStatus: "FAILED",
           questionsErrorMessage: error.message || "Unexpected error during question generation",
           lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
+          lastQuestionsDurationMs: Date.now() - t0,
         });
       } catch (updateError) {
         log.error("Failed to update section status after error", { uid, sectionId, updateError: updateError.message });

@@ -153,10 +153,17 @@ function extractJson(text) {
  * @returns {object} { success, data|text, model }
  */
 async function callGemini(systemPrompt, userPrompt, opts = {}) {
-  const { maxTokens = MAX_TOKENS.summary, retries = 2, jsonMode = false } = opts;
+  const {
+    maxTokens = MAX_TOKENS.summary,
+    retries = 2,
+    jsonMode = false,
+    temperature = 0.2,
+    rateLimitMaxRetries = RATE_LIMIT_MAX_RETRIES,
+    rateLimitRetryDelayMs = RATE_LIMIT_RETRY_DELAY,
+  } = opts;
   const generationConfig = {
     maxOutputTokens: maxTokens,
-    temperature: 0.2,
+    temperature,
   };
   // Enforce structured JSON output when jsonMode is enabled
   if (jsonMode) {
@@ -188,10 +195,12 @@ async function callGemini(systemPrompt, userPrompt, opts = {}) {
     } catch (error) {
       const isRateLimit = error.status === 429 || error.message?.includes("429") || error.message?.includes("RESOURCE_EXHAUSTED");
 
-      if (isRateLimit && rateLimitRetries < RATE_LIMIT_MAX_RETRIES) {
+      if (isRateLimit && rateLimitRetries < rateLimitMaxRetries) {
         rateLimitRetries++;
-        console.warn(`Gemini rate limited, waiting 60s before retry ${rateLimitRetries}/${RATE_LIMIT_MAX_RETRIES}`);
-        await new Promise((r) => setTimeout(r, RATE_LIMIT_RETRY_DELAY));
+        console.warn(
+          `Gemini rate limited, waiting ${Math.round(rateLimitRetryDelayMs / 1000)}s before retry ${rateLimitRetries}/${rateLimitMaxRetries}`
+        );
+        await new Promise((r) => setTimeout(r, rateLimitRetryDelayMs));
         continue;
       }
 
@@ -345,9 +354,13 @@ async function generateBlueprint(systemPrompt, userPrompt) {
  * Generate questions from a blueprint using Gemini Flash.
  * Drop-in replacement for aiClient.generateQuestions.
  */
-async function generateQuestions(systemPrompt, userPrompt) {
+async function generateQuestions(systemPrompt, userPrompt, opts = {}) {
   return callGemini(systemPrompt, userPrompt, {
-    maxTokens: 4500,
+    maxTokens: opts.maxTokens ?? 3200,
+    retries: opts.retries ?? 1,
+    rateLimitMaxRetries: opts.rateLimitMaxRetries ?? 1,
+    rateLimitRetryDelayMs: opts.rateLimitRetryDelayMs ?? 8000,
+    temperature: opts.temperature ?? 0.2,
     jsonMode: true,
   });
 }

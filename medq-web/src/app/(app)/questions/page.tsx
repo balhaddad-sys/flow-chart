@@ -155,7 +155,23 @@ export default function QuestionsPage() {
     setGeneratingIds((prev) => ({ ...prev, [sectionId]: true }));
     try {
       const result = await fn.generateQuestions({ courseId, sectionId, count: 10 });
-      toast.success(`Generated ${result.questionCount ?? 0} questions.`);
+      if (result.inProgress) {
+        toast.info(result.message ?? "Question generation already in progress.");
+      } else if (result.fromCache) {
+        toast.success(
+          result.message ??
+            `${result.questionCount ?? 0} questions already available.`
+        );
+      } else {
+        const generatedNow = result.generatedNow ?? result.questionCount ?? 0;
+        const durationSec =
+          result.durationMs != null ? Math.max(1, Math.round(result.durationMs / 1000)) : null;
+        toast.success(
+          durationSec
+            ? `Generated ${generatedNow} new questions in ${durationSec}s.`
+            : `Generated ${generatedNow} new questions.`
+        );
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to generate questions.";
       toast.error(message);

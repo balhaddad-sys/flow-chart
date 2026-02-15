@@ -55,7 +55,7 @@ function questionsUserPrompt({
 Section: "${sectionTitle}"
 
 Topic blueprint (contains all learning objectives, key concepts, high-yield points, and terms):
-${JSON.stringify(blueprintJSON, null, 2)}
+${JSON.stringify(blueprintJSON)}
 
 Generate exactly ${count} SBA questions with this difficulty distribution:
 - ${easyCount} easy (difficulty 1-2)
