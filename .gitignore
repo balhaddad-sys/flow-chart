@@ -54,3 +54,5 @@ medq-web/node_modules/
 # Legacy / temp
 temp-users.json
 lib/firebase_options.dart
+.vercel
+.env*.local
