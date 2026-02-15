@@ -78,9 +78,18 @@ export default function PlannerPage() {
         setError(
           `Not enough study days. You need ${result.deficit ?? 0} more minutes.`
         );
-        toast.warning("Schedule generated but not all topics fit.");
+        toast.error("Not enough available study time to generate the full plan.");
       } else {
-        toast.success(`Study plan generated! ${result.taskCount ?? 0} tasks created.`);
+        if (result.extendedWindow) {
+          const spillDays = result.spillDays ?? 0;
+          toast.warning(
+            spillDays > 0
+              ? `Plan generated with ${result.taskCount ?? 0} tasks. Extended by ${spillDays} day${spillDays === 1 ? "" : "s"} beyond your target date.`
+              : `Plan generated with ${result.taskCount ?? 0} tasks using an extended study window.`
+          );
+        } else {
+          toast.success(`Study plan generated! ${result.taskCount ?? 0} tasks created.`);
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate schedule");
@@ -132,7 +141,7 @@ export default function PlannerPage() {
 
         {tasks.length > 0 && (
           <div className="mt-5 rounded-2xl border border-border/70 bg-background/70 p-4 sm:p-5">
-            <div className="flex items-end justify-between">
+            <div className="flex flex-wrap items-end justify-between gap-2">
               <div>
                 <p className="text-2xl font-semibold">{pct}%</p>
                 <p className="text-xs text-muted-foreground">{doneCount} of {tasks.length} tasks done</p>
@@ -142,7 +151,7 @@ export default function PlannerPage() {
               </p>
             </div>
             <Progress value={pct} className="mt-3 h-2" />
-            <div className="mt-3 flex gap-4 text-xs text-muted-foreground">
+            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
               <span className="flex items-center gap-1">
                 <BookOpen className="h-3 w-3 text-blue-500" /> {studyCount} study
               </span>
@@ -158,7 +167,7 @@ export default function PlannerPage() {
       </div>
 
       {(error || taskError) && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+        <div className="break-words rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
           {error || taskError}
         </div>
       )}

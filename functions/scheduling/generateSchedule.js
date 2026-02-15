@@ -19,10 +19,11 @@ const { checkRateLimit, RATE_LIMITS } = require("../middleware/rateLimit");
 const { db, batchSet, batchDelete } = require("../lib/firestore");
 const { Errors, fail, ok, safeError } = require("../lib/errors");
 const log = require("../lib/logger");
+const { MS_PER_DAY, MAX_SCHEDULE_DAYS } = require("../lib/constants");
 const { buildWorkUnits, computeTotalLoad, buildDayCapacities, checkFeasibility, placeTasks } = require("./scheduler");
 
 exports.generateSchedule = functions
-  .runWith({ timeoutSeconds: 60 })
+  .runWith({ timeoutSeconds: 120, memory: "512MB" })
   .https.onCall(async (data, context) => {
     const uid = requireAuth(context);
     requireStrings(data, [{ field: "courseId", maxLen: 128 }]);
@@ -57,25 +58,49 @@ exports.generateSchedule = functions
         });
 
       // ── Pure algorithm ────────────────────────────────────────────────
+      const startDate = new Date();
       const tasks = buildWorkUnits(sections, courseId, revisionPolicy);
       const totalMinutes = computeTotalLoad(tasks);
-      const days = buildDayCapacities(new Date(), examDate, availability);
-      const { feasible, deficit } = checkFeasibility(totalMinutes, days);
+      const requestedDays = buildDayCapacities(startDate, examDate, availability);
+      let days = requestedDays;
+      const requestedWindow = checkFeasibility(totalMinutes, requestedDays);
+      let feasible = requestedWindow.feasible;
+      let extendedWindow = false;
 
       if (!feasible) {
-        return ok({
-          feasible: false,
-          deficit,
-          taskCount: tasks.length,
-          suggestions: [
-            "Increase daily study time",
-            "Reduce revision intensity",
-            "Extend your study period",
-          ],
-        });
+        // Relax strict date-window fitting: if the selected study period is too
+        // short, retry against the maximum supported horizon.
+        const maxEndDate = new Date(startDate.getTime() + (MAX_SCHEDULE_DAYS - 1) * MS_PER_DAY);
+        const extendedDays = buildDayCapacities(startDate, maxEndDate, availability);
+        const extendedWindowCheck = checkFeasibility(totalMinutes, extendedDays);
+
+        if (!extendedWindowCheck.feasible) {
+          return ok({
+            feasible: false,
+            deficit: extendedWindowCheck.deficit,
+            taskCount: tasks.length,
+            suggestions: [
+              "Increase daily study time",
+              "Reduce revision intensity",
+              "Reduce excluded study dates",
+            ],
+          });
+        }
+
+        days = extendedDays;
+        feasible = true;
+        extendedWindow = true;
       }
 
       const placed = placeTasks(tasks, days);
+      let spillDays = 0;
+      if (extendedWindow && examDate && placed.length > 0) {
+        const latestDueDate = placed.reduce(
+          (latest, task) => (task.dueDate.getTime() > latest.getTime() ? task.dueDate : latest),
+          placed[0].dueDate
+        );
+        spillDays = Math.max(0, Math.ceil((latestDueDate.getTime() - examDate.getTime()) / MS_PER_DAY));
+      }
 
       // ── IDEMPOTENCY: Clear non-DONE tasks before writing ──────────────
       // Prevents duplicate tasks on repeated calls without using regenSchedule
@@ -103,9 +128,27 @@ exports.generateSchedule = functions
         }))
       );
 
-      log.info("Schedule generated", { uid, courseId, taskCount: placed.length, totalDays: days.length });
+      log.info("Schedule generated", {
+        uid,
+        courseId,
+        taskCount: placed.length,
+        totalDays: days.length,
+        extendedWindow,
+        spillDays,
+      });
 
-      return ok({ feasible: true, taskCount: placed.length, totalDays: days.length });
+      return ok({
+        feasible: true,
+        taskCount: placed.length,
+        totalDays: days.length,
+        ...(extendedWindow
+          ? {
+              extendedWindow: true,
+              spillDays,
+              originalDeficit: requestedWindow.deficit,
+            }
+          : {}),
+      });
     } catch (error) {
       return safeError(error, "schedule generation");
     }

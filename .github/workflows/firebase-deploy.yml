@@ -38,12 +38,13 @@ jobs:
       - name: Build Next.js
         run: cd medq-web && npx next build
         env:
-          NEXT_PUBLIC_FIREBASE_API_KEY: AIzaSyDqmS_2wfbgoON5Rbp4hcXgs3ZuGl7Yq8s
-          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: medq-a6cc6.firebaseapp.com
-          NEXT_PUBLIC_FIREBASE_PROJECT_ID: medq-a6cc6
-          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: medq-a6cc6.firebasestorage.app
-          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '1061864749573'
-          NEXT_PUBLIC_FIREBASE_APP_ID: '1:1061864749573:web:2374190d0f988cad34ba6c'
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+          NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID }}
 
       # ── Cloud Functions ──────────────────────────────
       - name: Install Cloud Functions dependencies

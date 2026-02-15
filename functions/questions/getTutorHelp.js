@@ -25,8 +25,9 @@ const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
 
 exports.getTutorHelp = functions
   .runWith({
-    timeoutSeconds: 60,
-    secrets: [anthropicApiKey], // Grant access to the secret
+    timeoutSeconds: 120,
+    memory: "512MB",
+    secrets: [anthropicApiKey],
   })
   .https.onCall(async (data, context) => {
     const uid = requireAuth(context);

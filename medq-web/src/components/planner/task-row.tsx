@@ -64,10 +64,10 @@ export function TaskRow({ task }: TaskRowProps) {
       </div>
 
       <div className="flex-1 min-w-0">
-        <p className={`text-sm font-medium leading-tight ${isDone || isSkipped ? "line-through text-muted-foreground" : ""}`}>
+        <p className={`break-words text-sm font-medium leading-tight ${isDone || isSkipped ? "line-through text-muted-foreground" : ""}`}>
           {task.title}
         </p>
-        <div className="mt-1 flex items-center gap-2">
+        <div className="mt-1 flex flex-wrap items-center gap-2">
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
             <Clock className="h-3 w-3" />
             {task.estMinutes}m

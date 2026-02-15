@@ -17,15 +17,20 @@ ui-debug.log
 # Cloud Functions
 functions/node_modules/
 
-# Environment
+# Environment & Secrets
 .env
 .env.local
+.env.*.local
 *.key
 *.pem
+*.secret
+credentials.json
+service-account*.json
 
 # OS
 .DS_Store
 Thumbs.db
+nul
 
 # Generated files
 *.g.dart
@@ -34,16 +39,18 @@ Thumbs.db
 # Coverage
 coverage/
 
-# Secrets
-*.secret
-credentials.json
-service-account*.json
-
 # Logs
 *.log
 storage-debug.log
-pubspec.lock
 
 # Build artifacts
 .flutter-plugins
 .flutter-plugins-dependencies
+pubspec.lock
+
+# Node
+medq-web/node_modules/
+
+# Legacy / temp
+temp-users.json
+lib/firebase_options.dart
