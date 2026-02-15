@@ -10,7 +10,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Sun, Moon, Monitor, LogOut, Trash2, Loader2, GraduationCap } from "lucide-react";
+import {
+  Sun,
+  Moon,
+  Monitor,
+  LogOut,
+  Trash2,
+  Loader2,
+  GraduationCap,
+  ShieldCheck,
+  FileText,
+} from "lucide-react";
 import * as fn from "@/lib/firebase/functions";
 import { toast } from "sonner";
 
@@ -112,6 +122,35 @@ export default function SettingsPage() {
               Manage Courses
             </Button>
           </Link>
+        </CardContent>
+      </Card>
+
+      {/* Legal */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Legal & Safety</CardTitle>
+          <CardDescription>
+            Review policy documents and educational-use limits.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <p className="text-sm text-muted-foreground">
+            MedQ is an educational study platform and is not a clinical decision tool.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/terms">
+              <Button variant="outline" size="sm">
+                <FileText className="mr-2 h-4 w-4" />
+                Terms
+              </Button>
+            </Link>
+            <Link href="/privacy">
+              <Button variant="outline" size="sm">
+                <ShieldCheck className="mr-2 h-4 w-4" />
+                Privacy
+              </Button>
+            </Link>
+          </div>
         </CardContent>
       </Card>
 

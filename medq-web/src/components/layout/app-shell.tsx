@@ -3,6 +3,7 @@
 import { Sidebar } from "./sidebar";
 import { MobileNav } from "./mobile-nav";
 import { CourseSwitcherBar } from "./course-switcher-bar";
+import { MedicalDisclaimer } from "./medical-disclaimer";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
@@ -14,6 +15,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           className="pointer-events-none absolute inset-x-0 top-0 h-52 bg-gradient-to-b from-primary/14 via-primary/5 to-transparent"
         />
         <CourseSwitcherBar />
+        <MedicalDisclaimer />
         <div className="relative">{children}</div>
       </main>
       <MobileNav />

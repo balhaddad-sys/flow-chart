@@ -25,28 +25,43 @@ const SKIP_PREFIXES = [
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const response = NextResponse.next();
 
   // Skip static assets and API routes
   if (SKIP_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
-    return NextResponse.next();
+    return withSecurityHeaders(response);
   }
 
   // Allow public pages
   if (PUBLIC_PATHS.has(pathname)) {
-    return NextResponse.next();
+    return withSecurityHeaders(response);
   }
 
-  // Check for Firebase auth session cookie
-  // Firebase Auth stores the session in __session or uses ID tokens
-  // We check for the presence of auth-related cookies as a lightweight gate
-  const hasSession =
-    request.cookies.has("__session") ||
-    request.cookies.has("firebase-auth-token");
-
-  // If no session indicator, let the client-side AuthGuard handle the redirect
+  // Auth checks are enforced by client-side AuthGuard and backend Firestore rules.
   // This middleware adds security headers and handles basic routing
-  // The actual auth verification happens client-side via Firebase SDK
-  return NextResponse.next();
+  // without introducing cookie-based false negatives.
+  return withSecurityHeaders(response);
+}
+
+function withSecurityHeaders(response: NextResponse) {
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+  );
+  response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+  response.headers.set("Cross-Origin-Resource-Policy", "same-origin");
+  response.headers.set(
+    "Content-Security-Policy",
+    "frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+  );
+  response.headers.set(
+    "Strict-Transport-Security",
+    "max-age=31536000; includeSubDomains; preload"
+  );
+  return response;
 }
 
 export const config = {

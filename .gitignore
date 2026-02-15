@@ -26,6 +26,9 @@ functions/node_modules/
 *.secret
 credentials.json
 service-account*.json
+*firebase-adminsdk*.json
+*-firebase-adminsdk-*.json
+google-service-account*.json
 
 # OS
 .DS_Store
