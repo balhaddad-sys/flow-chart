@@ -34,6 +34,10 @@ const { generateQuestions } = require("./questions/generateQuestions");
 const { getQuiz } = require("./questions/getQuiz");
 const { getTutorHelp } = require("./questions/getTutorHelp");
 const { generateSectionSummary } = require("./study/generateSectionSummary");
+const { getAssessmentCatalog } = require("./assessment/getAssessmentCatalog");
+const { startAssessmentSession } = require("./assessment/startAssessmentSession");
+const { submitAssessmentAnswer } = require("./assessment/submitAssessmentAnswer");
+const { finishAssessmentSession } = require("./assessment/finishAssessmentSession");
 
 // ── Analytics ────────────────────────────────────────────────────────────────
 const { submitAttempt } = require("./analytics/submitAttempt");
@@ -58,6 +62,10 @@ exports.generateQuestions = generateQuestions;
 exports.getQuiz = getQuiz;
 exports.getTutorHelp = getTutorHelp;
 exports.generateSectionSummary = generateSectionSummary;
+exports.getAssessmentCatalog = getAssessmentCatalog;
+exports.startAssessmentSession = startAssessmentSession;
+exports.submitAssessmentAnswer = submitAssessmentAnswer;
+exports.finishAssessmentSession = finishAssessmentSession;
 exports.submitAttempt = submitAttempt;
 exports.computeWeakness = computeWeakness;
 exports.runFixPlan = runFixPlan;

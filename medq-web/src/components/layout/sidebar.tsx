@@ -13,6 +13,7 @@ import {
   ChevronsUpDown,
   GraduationCap,
   PlusCircle,
+  BrainCircuit,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCourses } from "@/lib/hooks/useCourses";
@@ -30,6 +31,7 @@ const navItems = [
   { href: "/library", label: "Library", icon: Library },
   { href: "/planner", label: "Plan", icon: Calendar },
   { href: "/questions", label: "Practice", icon: CircleHelp },
+  { href: "/assessment", label: "Assessment", icon: BrainCircuit },
   { href: "/chat", label: "AI Chat", icon: MessageSquare },
 ];
 

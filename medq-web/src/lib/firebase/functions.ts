@@ -118,6 +118,81 @@ export interface SectionSummaryResponse {
   mnemonics: string[];
 }
 
+export interface AssessmentLevel {
+  id: string;
+  label: string;
+  description: string;
+  targetDifficulty: { min: number; max: number };
+  recommendedDailyMinutes: number;
+}
+
+export interface AssessmentTopic {
+  id: string;
+  label: string;
+  description: string;
+  availableQuestions: number;
+}
+
+export interface AssessmentQuestion {
+  id: string;
+  stem: string;
+  options: string[];
+  difficulty: number;
+  topicTags: string[];
+}
+
+export interface AssessmentAnswerResult {
+  correct: boolean;
+  correctIndex: number;
+  explanation?: {
+    correctWhy?: string;
+    whyOthersWrong?: string[];
+    keyTakeaway?: string;
+  } | null;
+  answeredCount: number;
+  totalQuestions: number;
+  isComplete: boolean;
+}
+
+export interface AssessmentReportTopic {
+  tag: string;
+  attempts: number;
+  accuracy: number;
+  avgTimeSec: number;
+  avgConfidence: number | null;
+  weaknessScore: number;
+  severity: "CRITICAL" | "REINFORCE" | "STRONG";
+}
+
+export interface AssessmentRecommendationAction {
+  title: string;
+  focusTag: string;
+  rationale: string;
+  recommendedMinutes: number;
+  drills: string[];
+}
+
+export interface AssessmentReport {
+  sessionId: string;
+  courseId: string;
+  topicTag: string;
+  level: string;
+  answeredCount: number;
+  totalQuestions: number;
+  overallAccuracy: number;
+  readinessScore: number;
+  avgTimeSec: number;
+  targetTimeSec: number;
+  weaknessProfile: AssessmentReportTopic[];
+  recommendations: {
+    summary: string;
+    priorityTopics: string[];
+    actions: AssessmentRecommendationAction[];
+    examTips: string[];
+  };
+  completedAtISO: string;
+}
+
 // --- Course ---
 export function createCourse(params: {
   title: string;
@@ -213,6 +288,48 @@ export function generateSectionSummary(params: {
     "generateSectionSummary",
     params
   );
+}
+
+// --- Adaptive Assessment ---
+export function getAssessmentCatalog(params: { courseId: string }) {
+  return callFunction<{
+    levels: AssessmentLevel[];
+    topics: AssessmentTopic[];
+    defaultLevel: string;
+  }>("getAssessmentCatalog", params);
+}
+
+export function startAssessmentSession(params: {
+  courseId: string;
+  topicTag: string;
+  level: string;
+  questionCount?: number;
+}) {
+  return callFunction<{
+    sessionId: string;
+    topicTag: string;
+    level: string;
+    levelLabel: string;
+    targetTimeSec: number;
+    questions: AssessmentQuestion[];
+  }>("startAssessmentSession", params);
+}
+
+export function submitAssessmentAnswer(params: {
+  sessionId: string;
+  questionId: string;
+  answerIndex: number;
+  timeSpentSec: number;
+  confidence?: number;
+}) {
+  return callFunction<AssessmentAnswerResult>(
+    "submitAssessmentAnswer",
+    params
+  );
+}
+
+export function finishAssessmentSession(params: { sessionId: string }) {
+  return callFunction<AssessmentReport>("finishAssessmentSession", params);
 }
 
 // --- Fix Plan ---

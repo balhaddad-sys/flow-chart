@@ -10,6 +10,7 @@ import {
   Sparkles,
   Shuffle,
   Zap,
+  BrainCircuit,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useCourseStore } from "@/lib/stores/course-store";
@@ -202,6 +203,12 @@ export default function QuestionsPage() {
             <Button variant="outline" size="sm">
               <Shuffle className="mr-2 h-4 w-4 text-blue-500" />
               Random Quiz
+            </Button>
+          </Link>
+          <Link href="/assessment">
+            <Button variant="outline" size="sm">
+              <BrainCircuit className="mr-2 h-4 w-4 text-emerald-500" />
+              Adaptive Assessment
             </Button>
           </Link>
         </div>
