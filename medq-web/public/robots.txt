@@ -4,4 +4,4 @@ Allow: /
 Disallow: /api/
 Disallow: /onboarding/
 
-Sitemap: https://medq.app/sitemap.xml
+Sitemap: https://medqs.vercel.app/sitemap.xml

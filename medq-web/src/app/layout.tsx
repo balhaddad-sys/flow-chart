@@ -17,7 +17,7 @@ const spaceGrotesk = Space_Grotesk({
   display: "swap",
 });
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://medq.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://medqs.vercel.app";
 
 export const metadata: Metadata = {
   title: "MedQ - AI-Powered Medical Study Platform",
