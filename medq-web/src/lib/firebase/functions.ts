@@ -332,6 +332,38 @@ export function finishAssessmentSession(params: { sessionId: string }) {
   return callFunction<AssessmentReport>("finishAssessmentSession", params);
 }
 
+// --- Explore ---
+export interface ExploreQuestion {
+  id: string;
+  stem: string;
+  options: string[];
+  correctIndex: number;
+  difficulty: number;
+  topicTags: string[];
+  type: string;
+  explanation: {
+    correctWhy: string;
+    whyOthersWrong: string[];
+    keyTakeaway: string;
+  };
+}
+
+export interface ExploreQuizResult {
+  questions: ExploreQuestion[];
+  topic: string;
+  level: string;
+  levelLabel: string;
+  modelUsed: string;
+}
+
+export function exploreQuiz(params: {
+  topic: string;
+  level: string;
+  count?: number;
+}) {
+  return callFunction<ExploreQuizResult>("exploreQuiz", params);
+}
+
 // --- Fix Plan ---
 export function runFixPlan(params: { courseId: string }) {
   return callFunction("runFixPlan", params);

@@ -39,6 +39,9 @@ const { startAssessmentSession } = require("./assessment/startAssessmentSession"
 const { submitAssessmentAnswer } = require("./assessment/submitAssessmentAnswer");
 const { finishAssessmentSession } = require("./assessment/finishAssessmentSession");
 
+// ── Explore ─────────────────────────────────────────────────────────────────
+const { exploreQuiz } = require("./explore/exploreQuiz");
+
 // ── Analytics ────────────────────────────────────────────────────────────────
 const { submitAttempt } = require("./analytics/submitAttempt");
 const { computeWeakness } = require("./analytics/computeWeakness");
@@ -66,6 +69,7 @@ exports.getAssessmentCatalog = getAssessmentCatalog;
 exports.startAssessmentSession = startAssessmentSession;
 exports.submitAssessmentAnswer = submitAssessmentAnswer;
 exports.finishAssessmentSession = finishAssessmentSession;
+exports.exploreQuiz = exploreQuiz;
 exports.submitAttempt = submitAttempt;
 exports.computeWeakness = computeWeakness;
 exports.runFixPlan = runFixPlan;

@@ -13,6 +13,7 @@ import {
   Users,
   Settings,
   BrainCircuit,
+  Compass,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -32,6 +33,7 @@ const mainItems = [
 
 const moreItems = [
   { href: "/assessment", label: "Assessment", icon: BrainCircuit },
+  { href: "/explore", label: "Explore", icon: Compass },
   { href: "/chat", label: "AI Chat", icon: MessageSquare },
   { href: "/groups", label: "Groups", icon: Users },
   { href: "/settings", label: "Settings", icon: Settings },

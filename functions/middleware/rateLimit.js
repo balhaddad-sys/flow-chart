@@ -107,6 +107,7 @@ const RATE_LIMITS = {
   startAssessmentSession:{ maxCalls: 10, windowMs:  60_000 },
   submitAssessmentAnswer:{ maxCalls: 90, windowMs:  60_000 },
   finishAssessmentSession:{ maxCalls: 20, windowMs: 60_000 },
+  exploreQuiz:           { maxCalls: 10, windowMs:    60_000 },
   sendChatMessage:     { maxCalls: 15, windowMs:    60_000 },
   runFixPlan:          { maxCalls:  3, windowMs:    60_000 },
   generateSectionSummary: { maxCalls: 10, windowMs: 60_000 },

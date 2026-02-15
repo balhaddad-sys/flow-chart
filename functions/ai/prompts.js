@@ -181,6 +181,52 @@ function documentExtractUserPrompt({ pageIndex }) {
   return `Extract data from this page. Return JSON matching the schema. Set "page" = ${pageIndex}.`;
 }
 
+const EXPLORE_QUESTIONS_SYSTEM = `You are MedQ Question Writer. Generate exam-style single-best-answer (SBA)
+questions for medical students on the requested topic.
+Questions must be clinically relevant, unambiguous, and have exactly one
+correct answer. Draw from established medical knowledge.
+Output STRICT JSON only. No markdown, no commentary, no code fences.`;
+
+function exploreQuestionsUserPrompt({ topic, count, levelLabel, levelDescription, minDifficulty, maxDifficulty }) {
+  return `Topic: "${topic}"
+Target audience: ${levelLabel} — ${levelDescription}
+Difficulty range: ${minDifficulty} to ${maxDifficulty} (scale 1-5)
+
+Generate exactly ${count} SBA questions on this topic.
+
+Quality rules:
+- All questions must be directly relevant to "${topic}".
+- Questions should match the ${levelLabel} level: ${levelDescription}
+- Difficulty values must be between ${minDifficulty} and ${maxDifficulty}.
+- Each stem must be a specific clinical vignette or focused question, not generic.
+- Include exactly 5 options per question.
+- Keep explanations concise and precise (1-2 sentences per field).
+
+Return this exact JSON schema:
+{
+  "questions": [
+    {
+      "stem": "string — clinical vignette or direct question",
+      "options": ["string", "string", "string", "string", "string"],
+      "correct_index": "integer 0-4",
+      "difficulty": "integer ${minDifficulty}-${maxDifficulty}",
+      "tags": ["string — topic tags"],
+      "explanation": {
+        "correct_why": "string — why the correct answer is right",
+        "why_others_wrong": [
+          "string — why option A is wrong (or correct)",
+          "string — why option B is wrong (or correct)",
+          "string — why option C is wrong (or correct)",
+          "string — why option D is wrong (or correct)",
+          "string — why option E is wrong (or correct)"
+        ],
+        "key_takeaway": "string — the one thing to remember"
+      }
+    }
+  ]
+}`;
+}
+
 module.exports = {
   BLUEPRINT_SYSTEM,
   blueprintUserPrompt,
@@ -192,4 +238,6 @@ module.exports = {
   fixPlanUserPrompt,
   DOCUMENT_EXTRACT_SYSTEM,
   documentExtractUserPrompt,
+  EXPLORE_QUESTIONS_SYSTEM,
+  exploreQuestionsUserPrompt,
 };

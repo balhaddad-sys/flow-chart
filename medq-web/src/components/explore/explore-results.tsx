@@ -1,0 +1,120 @@
+"use client";
+
+import { useState } from "react";
+import {
+  CheckCircle2,
+  ChevronDown,
+  RotateCcw,
+  XCircle,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { useExploreStore } from "@/lib/stores/explore-store";
+
+export function ExploreResults() {
+  const { questions, answers, results, topic, levelLabel, reset } =
+    useExploreStore();
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const total = questions.length;
+  const correct = Array.from(results.values()).filter(Boolean).length;
+  const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+
+  return (
+    <div className="space-y-5">
+      <Card>
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl">Explore Complete</CardTitle>
+          <div className="flex justify-center gap-2 pt-2">
+            <Badge variant="secondary">{topic}</Badge>
+            <Badge variant="outline">{levelLabel}</Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="text-center">
+            <p className="text-5xl font-semibold">{accuracy}%</p>
+            <p className="mt-1 text-muted-foreground">
+              {correct} out of {total} correct
+            </p>
+          </div>
+          <Progress value={accuracy} className="h-3" />
+
+          <div className="space-y-2">
+            {questions.map((q, i) => {
+              const isCorrect = results.get(q.id);
+              const isExpanded = expandedId === q.id;
+              const selectedIdx = answers.get(q.id);
+
+              return (
+                <div
+                  key={q.id}
+                  className="rounded-xl border border-border/70 bg-background/65"
+                >
+                  <button
+                    onClick={() => setExpandedId(isExpanded ? null : q.id)}
+                    className="flex w-full items-start gap-3 p-3 text-left text-sm"
+                  >
+                    {isCorrect ? (
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-500" />
+                    ) : (
+                      <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+                    )}
+                    <span className="text-muted-foreground">Q{i + 1}:</span>
+                    <span className="flex-1 line-clamp-1">{q.stem}</span>
+                    <ChevronDown
+                      className={`h-4 w-4 shrink-0 transition-transform ${
+                        isExpanded ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+                  {isExpanded && (
+                    <div className="space-y-2 border-t border-border/70 p-3 text-sm">
+                      <p>
+                        <span className="font-medium">Your answer:</span>{" "}
+                        {selectedIdx != null
+                          ? `${String.fromCharCode(65 + selectedIdx)}. ${q.options[selectedIdx]}`
+                          : "—"}
+                      </p>
+                      <p>
+                        <span className="font-medium">Correct:</span>{" "}
+                        {String.fromCharCode(65 + q.correctIndex)}.{" "}
+                        {q.options[q.correctIndex]}
+                      </p>
+                      {q.explanation?.keyTakeaway && (
+                        <div className="rounded-lg border border-border/60 bg-muted/30 p-2">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                            Key takeaway
+                          </p>
+                          <p className="mt-1 text-muted-foreground">
+                            {q.explanation.keyTakeaway}
+                          </p>
+                        </div>
+                      )}
+                      {q.explanation?.correctWhy && (
+                        <p className="text-muted-foreground">
+                          {q.explanation.correctWhy}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <Button className="w-full" onClick={reset}>
+            <RotateCcw className="mr-2 h-4 w-4" />
+            New Topic
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
