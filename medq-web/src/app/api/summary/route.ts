@@ -49,7 +49,7 @@ function pemToSpki(pem: string): ArrayBuffer {
   const der = atob(b64);
   const bytes = new Uint8Array(der.length);
   for (let i = 0; i < der.length; i++) bytes[i] = der.charCodeAt(i);
-  return bytes.buffer;
+  return bytes.buffer.slice(0) as ArrayBuffer;
 }
 
 /* ── Token verification ──────────────────────────────────────────────── */
@@ -104,10 +104,11 @@ async function verifyFirebaseToken(
       ["verify"]
     );
 
+    const sigBytes = base64urlDecode(rawSig);
     const valid = await crypto.subtle.verify(
       "RSASSA-PKCS1-v1_5",
       key,
-      base64urlDecode(rawSig),
+      sigBytes.buffer.slice(sigBytes.byteOffset, sigBytes.byteOffset + sigBytes.byteLength) as ArrayBuffer,
       new TextEncoder().encode(`${rawHeader}.${rawPayload}`)
     );
 
