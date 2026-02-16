@@ -339,11 +339,17 @@ export default function StudySessionPage({
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to generate summary.";
       setSummaryError(message);
-      toast.error(message);
     } finally {
       setSummaryLoading(false);
     }
   }, [sectionText, section?.title, summaryLoading, user]);
+
+  // Auto-generate notes when section text loads
+  useEffect(() => {
+    if (sectionText && section?.title && !summary && !summaryLoading && !summaryError) {
+      generateSummary();
+    }
+  }, [sectionText, section?.title]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleComplete() {
     if (!uid) return;
@@ -368,6 +374,7 @@ export default function StudySessionPage({
     fallbackGuide.highYield.length > 0;
   const hasGuide = hasBlueprintGuide || hasFallbackGuide;
   const defaultTab = hasGuide ? "guide" : "notes";
+  const hasNotes = !!summary || summaryLoading;
 
   return (
     <div className="flex flex-col">
@@ -440,12 +447,12 @@ export default function StudySessionPage({
               Guide
             </TabsTrigger>
             <TabsTrigger value="notes" className="rounded-lg gap-1.5 text-xs sm:text-sm data-[state=active]:shadow-sm">
-              <FileText className="h-3.5 w-3.5" />
+              <Lightbulb className="h-3.5 w-3.5" />
               Notes
             </TabsTrigger>
-            <TabsTrigger value="summary" className="rounded-lg gap-1.5 text-xs sm:text-sm data-[state=active]:shadow-sm">
-              <Lightbulb className="h-3.5 w-3.5" />
-              AI Summary
+            <TabsTrigger value="source" className="rounded-lg gap-1.5 text-xs sm:text-sm data-[state=active]:shadow-sm">
+              <FileText className="h-3.5 w-3.5" />
+              Source
             </TabsTrigger>
           </TabsList>
 
@@ -620,8 +627,109 @@ export default function StudySessionPage({
             )}
           </TabsContent>
 
-          {/* ─── Notes Tab ─── */}
-          <TabsContent value="notes" className="mt-0">
+          {/* ─── Notes Tab (AI-generated study notes) ─── */}
+          <TabsContent value="notes" className="space-y-4 mt-0">
+            {summaryLoading ? (
+              <div className="space-y-4 py-2">
+                <div className="rounded-2xl border bg-card p-4 sm:p-5 space-y-3">
+                  <div className="flex items-center gap-2.5">
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    <p className="text-sm font-medium">Generating study notes...</p>
+                  </div>
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-[92%]" />
+                  <Skeleton className="h-4 w-[85%]" />
+                </div>
+                <div className="rounded-2xl border bg-card p-4 sm:p-5 space-y-3">
+                  <Skeleton className="h-5 w-1/3" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-[90%]" />
+                  <Skeleton className="h-4 w-full" />
+                </div>
+              </div>
+            ) : summary ? (
+              <>
+                <div className="rounded-2xl border bg-card p-4 sm:p-5">
+                  <div className="flex items-center gap-2.5 mb-3">
+                    <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-primary/10">
+                      <Lightbulb className="h-4 w-4 text-primary" />
+                    </div>
+                    <h3 className="text-sm font-semibold">Overview</h3>
+                  </div>
+                  <p className="text-[13px] sm:text-sm leading-relaxed text-foreground/80">
+                    {summary.summary}
+                  </p>
+                </div>
+
+                {summary.keyPoints?.length > 0 && (
+                  <div className="rounded-2xl border bg-card p-4 sm:p-5">
+                    <div className="flex items-center gap-2.5 mb-3">
+                      <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-blue-100 dark:bg-blue-950/60">
+                        <Target className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <h3 className="text-sm font-semibold">Key Points</h3>
+                    </div>
+                    <ul className="space-y-3">
+                      {summary.keyPoints.map((point, i) => (
+                        <li key={i} className="flex gap-3 text-[13px] sm:text-sm leading-relaxed">
+                          <span className="mt-1.5 shrink-0 h-2 w-2 rounded-full bg-blue-500/60" />
+                          <span className="text-foreground/80">{point}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {summary.mnemonics?.length > 0 && (
+                  <div className="rounded-2xl border border-violet-200/80 bg-violet-50/50 p-4 sm:p-5 dark:border-violet-900/50 dark:bg-violet-950/20">
+                    <div className="flex items-center gap-2.5 mb-3">
+                      <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-violet-100 dark:bg-violet-900/40">
+                        <BrainCircuit className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                      </div>
+                      <h3 className="text-sm font-semibold">Memory Aids</h3>
+                    </div>
+                    <ul className="space-y-2">
+                      {summary.mnemonics.map((m, i) => (
+                        <li key={i} className="text-[13px] sm:text-sm leading-relaxed text-violet-700 dark:text-violet-300">
+                          {m}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="flex items-center justify-center h-14 w-14 rounded-2xl bg-muted mb-4">
+                  <Lightbulb className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <p className="text-sm font-medium">AI Study Notes</p>
+                <p className="mt-1.5 mb-5 text-xs text-muted-foreground max-w-[260px] leading-relaxed">
+                  Concise notes with key points and memory aids generated from your material.
+                </p>
+                {summaryError && (
+                  <p className="mb-3 max-w-xs text-xs text-destructive">{summaryError}</p>
+                )}
+                <Button
+                  onClick={generateSummary}
+                  disabled={summaryLoading || !sectionText}
+                  className="rounded-full px-5"
+                  size="sm"
+                >
+                  <Lightbulb className="mr-1.5 h-3.5 w-3.5" />
+                  Generate Notes
+                </Button>
+                {!sectionText && !textLoading && (
+                  <p className="mt-3 text-[11px] text-muted-foreground">
+                    Section text must be loaded first.
+                  </p>
+                )}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* ─── Source Tab (original extracted text) ─── */}
+          <TabsContent value="source" className="mt-0">
             {textLoading ? (
               <div className="space-y-5 py-2">
                 <Skeleton className="h-7 w-3/4" />
@@ -635,6 +743,12 @@ export default function StudySessionPage({
               </div>
             ) : sectionText ? (
               <div className="space-y-4 py-1">
+                <div className="rounded-xl border border-border/60 bg-muted/30 px-4 py-2.5">
+                  <p className="text-xs text-muted-foreground">
+                    Original text extracted from your uploaded material. Use the Notes tab for AI-generated study notes.
+                  </p>
+                </div>
+
                 {noteSections.length > 1 && (
                   <div className="rounded-2xl border bg-card p-4 sm:p-5">
                     <div className="mb-3 flex items-center gap-2">
@@ -642,7 +756,7 @@ export default function StudySessionPage({
                         <FileText className="h-3.5 w-3.5 text-primary" />
                       </div>
                       <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                        Notes Navigator
+                        Sections
                       </p>
                     </div>
                     <div className="flex gap-2 overflow-x-auto pb-1">
@@ -662,8 +776,8 @@ export default function StudySessionPage({
                 {noteSections.map((sec) => (
                   <section key={sec.id} id={sec.id} className="rounded-2xl border bg-card p-4 sm:p-6">
                     <div className="mb-4 flex items-center gap-2">
-                      <span className="inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
-                        Section
+                      <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                        Source
                       </span>
                       <h3 className="text-base font-semibold tracking-tight sm:text-lg">{sec.title}</h3>
                     </div>
@@ -682,92 +796,10 @@ export default function StudySessionPage({
                 <div className="flex items-center justify-center h-14 w-14 rounded-2xl bg-muted mb-4">
                   <FileText className="h-6 w-6 text-muted-foreground" />
                 </div>
-                <p className="text-sm font-medium">No text content available</p>
+                <p className="text-sm font-medium">No source text available</p>
                 <p className="mt-1.5 text-xs text-muted-foreground max-w-[260px] leading-relaxed">
                   {textError ?? "The extracted text for this section could not be loaded."}
                 </p>
-              </div>
-            )}
-          </TabsContent>
-
-          {/* ─── Summary Tab ─── */}
-          <TabsContent value="summary" className="space-y-4 mt-0">
-            {summary ? (
-              <>
-                <div className="rounded-2xl border bg-card p-4 sm:p-5">
-                  <h3 className="text-sm font-semibold mb-2">Overview</h3>
-                  <p className="text-[13px] sm:text-sm leading-relaxed text-foreground/80">
-                    {summary.summary}
-                  </p>
-                </div>
-
-                {summary.keyPoints?.length > 0 && (
-                  <div className="rounded-2xl border bg-card p-4 sm:p-5">
-                    <h3 className="text-sm font-semibold mb-3">Key Points</h3>
-                    <ul className="space-y-3">
-                      {summary.keyPoints.map((point, i) => (
-                        <li key={i} className="flex gap-3 text-[13px] sm:text-sm leading-relaxed">
-                          <span className="mt-1.5 shrink-0 h-2 w-2 rounded-full bg-primary/60" />
-                          <span className="text-foreground/80">{point}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {summary.mnemonics?.length > 0 && (
-                  <div className="rounded-2xl border border-violet-200/80 bg-violet-50/50 p-4 sm:p-5 dark:border-violet-900/50 dark:bg-violet-950/20">
-                    <div className="flex items-center gap-2.5 mb-3">
-                      <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-violet-100 dark:bg-violet-900/40">
-                        <Lightbulb className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-                      </div>
-                      <h3 className="text-sm font-semibold">Memory Aids</h3>
-                    </div>
-                    <ul className="space-y-2">
-                      {summary.mnemonics.map((m, i) => (
-                        <li key={i} className="text-[13px] sm:text-sm leading-relaxed text-violet-700 dark:text-violet-300">
-                          {m}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <div className="flex items-center justify-center h-14 w-14 rounded-2xl bg-muted mb-4">
-                  <Lightbulb className="h-6 w-6 text-muted-foreground" />
-                </div>
-                <p className="text-sm font-medium">AI-Powered Summary</p>
-                <p className="mt-1.5 mb-5 text-xs text-muted-foreground max-w-[260px] leading-relaxed">
-                  Get a concise summary with key takeaways and memory aids.
-                </p>
-                {summaryError && (
-                  <p className="mb-3 max-w-xs text-xs text-destructive">{summaryError}</p>
-                )}
-                <Button
-                  onClick={generateSummary}
-                  disabled={summaryLoading || !sectionText}
-                  className="rounded-full px-5"
-                  size="sm"
-                >
-                  {summaryLoading ? (
-                    <>
-                      <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Lightbulb className="mr-1.5 h-3.5 w-3.5" />
-                      Generate Summary
-                    </>
-                  )}
-                </Button>
-                {!sectionText && !textLoading && (
-                  <p className="mt-3 text-[11px] text-muted-foreground">
-                    Section text must be loaded first.
-                  </p>
-                )}
               </div>
             )}
           </TabsContent>
