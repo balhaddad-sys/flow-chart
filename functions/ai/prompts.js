@@ -221,7 +221,16 @@ function exploreQuestionsUserPrompt({
   expertFloorCount = 0,
   complexityGuidance = "",
   strictMode = false,
+  conciseMode = false,
+  excludeStems = [],
 }) {
+  const stemHints = Array.isArray(excludeStems)
+    ? excludeStems
+      .map((stem) => String(stem || "").trim())
+      .filter(Boolean)
+      .slice(0, 8)
+    : [];
+
   return `Topic: "${topic}"
 Target audience: ${levelLabel} — ${levelDescription}
 Difficulty range: ${minDifficulty} to ${maxDifficulty} (scale 1-5)
@@ -229,6 +238,8 @@ ${hardFloorCount > 0 ? `Hard-floor target: at least ${hardFloorCount} questions 
 ${expertFloorCount > 0 ? `Expert-floor target: at least ${expertFloorCount} questions must be difficulty 5` : ""}
 ${complexityGuidance ? `Complexity guidance: ${complexityGuidance}` : ""}
 ${strictMode ? "Strict mode: Reject simplistic recall-only questions. Prefer nuanced clinical reasoning and management trade-offs." : ""}
+${conciseMode ? "Concise mode: keep each explanation field short (prefer <= 18 words) while preserving clarity." : ""}
+${stemHints.length > 0 ? `Avoid repeating or closely paraphrasing these stems:\n${stemHints.map((stem, i) => `${i + 1}. ${stem}`).join("\n")}` : ""}
 
 Generate exactly ${count} SBA questions on this topic.
 
@@ -238,7 +249,8 @@ Quality rules:
 - Difficulty values must be between ${minDifficulty} and ${maxDifficulty}.
 - Each stem must be a specific clinical vignette or focused question, not generic.
 - Include exactly 5 options per question.
-- Keep explanations concise and precise (1-2 sentences per field).
+- Keep explanations concise and precise.
+- For why_others_wrong, keep each item compact and non-redundant.
 - Every question must include 2-3 citations from PubMed/UpToDate/Medscape only.
 - Citation URLs must be full HTTPS links to the specific publication/topic page.
 

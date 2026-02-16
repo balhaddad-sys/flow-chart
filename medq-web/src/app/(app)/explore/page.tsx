@@ -34,6 +34,7 @@ const EXPLORE_LEVELS = [
   { id: "RESIDENT", label: "Resident" },
   { id: "POSTGRADUATE", label: "Doctor Postgraduate" },
 ];
+const ADVANCED_LEVEL_IDS = new Set(["MD4", "MD5", "INTERN", "RESIDENT", "POSTGRADUATE"]);
 
 export default function ExplorePage() {
   const store = useExploreStore();
@@ -48,6 +49,7 @@ export default function ExplorePage() {
   const currentAnswer =
     currentQuestion != null ? answers.get(currentQuestion.id) : undefined;
   const isAnswered = currentAnswer !== undefined;
+  const isAdvancedLevel = ADVANCED_LEVEL_IDS.has(store.level || inputLevel);
   const answeredCount = answers.size;
   const progressPercent =
     questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
@@ -185,7 +187,9 @@ export default function ExplorePage() {
           Generating questions on &ldquo;{store.topic || inputTopic}&rdquo;...
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
-          This may take 10-20 seconds.
+          {isAdvancedLevel
+            ? "Advanced levels can take up to 45 seconds."
+            : "This usually takes around 10-20 seconds."}
         </p>
       </div>
     );

@@ -375,6 +375,8 @@ export interface ExploreQuizResult {
   level: string;
   levelLabel: string;
   modelUsed: string;
+  qualityGatePassed?: boolean;
+  qualityScore?: number;
 }
 
 export function exploreQuiz(params: {

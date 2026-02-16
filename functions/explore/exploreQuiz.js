@@ -1,11 +1,11 @@
 /**
  * @module explore/exploreQuiz
  * @description Callable function that generates ephemeral MCQ questions
- * on any free-text medical topic using AI model routing by level.
+ * on any free-text medical topic using level-aware staged model routing.
  *
- * - MD1/MD2/MD3 → Gemini 2.0 Flash (fast, cheap)
- * - MD4+        → Claude Haiku 4.5 (better reasoning)
- * - Fallback: if Gemini yields < 50% valid questions, retry with Claude.
+ * Strategy:
+ * - MD1/MD2/MD3: Gemini primary, Claude fallback only on failure.
+ * - MD4+: Gemini primary + optional Gemini supplement, then targeted Claude rescue only if needed.
  *
  * Questions are NOT persisted to Firestore.
  */
@@ -26,11 +26,16 @@ const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
 
 const ADVANCED_LEVELS = new Set(["MD4", "MD5", "INTERN", "RESIDENT", "POSTGRADUATE"]);
 const EXPERT_LEVELS = new Set(["RESIDENT", "POSTGRADUATE"]);
+const MAX_PRIMARY_REQUEST_COUNT_ADVANCED = 12;
+const MAX_SUPPLEMENT_REQUEST_COUNT = 10;
+const GEMINI_CALL_TIMEOUT_MS = 45_000;
+const CLAUDE_RESCUE_TIMEOUT_MS = 45_000;
 
 function buildExploreTargets(levelProfile, requestedCount) {
   const safeCount = Math.max(3, requestedCount);
   const targets = {
     requestCount: Math.min(20, safeCount + 1),
+    primaryRequestCount: Math.min(20, safeCount + 1),
     inBandRatio: 0.75,
     hardFloorCount: 0,
     expertFloorCount: 0,
@@ -44,6 +49,7 @@ function buildExploreTargets(levelProfile, requestedCount) {
 
   if (ADVANCED_LEVELS.has(levelProfile.id)) {
     targets.requestCount = Math.min(20, safeCount + 2);
+    targets.primaryRequestCount = Math.min(MAX_PRIMARY_REQUEST_COUNT_ADVANCED, safeCount + 1);
     targets.inBandRatio = 0.8;
     targets.hardFloorCount = Math.max(1, Math.ceil(safeCount * 0.45));
   }
@@ -55,6 +61,51 @@ function buildExploreTargets(levelProfile, requestedCount) {
   }
 
   return targets;
+}
+
+function buildTokenBudget(requestCount, { advanced = false, rescue = false } = {}) {
+  const safeCount = Math.max(3, Math.min(20, Number(requestCount) || 10));
+  const base = advanced ? 900 : 700;
+  const perQuestion = advanced ? 240 : 210;
+  const hardCap = rescue ? 4200 : advanced ? 4600 : 3800;
+  return Math.min(hardCap, base + safeCount * perQuestion);
+}
+
+function withTimeout(taskPromise, timeoutMs, timeoutLabel) {
+  return Promise.race([
+    taskPromise,
+    new Promise((resolve) => {
+      setTimeout(
+        () => resolve({ success: false, error: `${timeoutLabel} timed out after ${timeoutMs}ms` }),
+        timeoutMs
+      );
+    }),
+  ]);
+}
+
+function extractStemHints(questions, limit = 8) {
+  if (!Array.isArray(questions)) return [];
+  return questions
+    .map((q) => String(q?.stem || "").replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .slice(0, limit);
+}
+
+function mergeQuestionSets(questionSets, levelProfile, requestedCount) {
+  const merged = [];
+  for (const set of questionSets) {
+    if (Array.isArray(set) && set.length > 0) merged.push(...set);
+  }
+  return prioritiseQuestions(merged, levelProfile, requestedCount);
+}
+
+function computeRescueRequestCount({ requestedCount, currentCount, metrics, targets }) {
+  const missing = Math.max(0, requestedCount - currentCount);
+  const hardGap = Math.max(0, (targets.hardFloorCount || 0) - (metrics.hardCount || 0));
+  const expertGap = Math.max(0, (targets.expertFloorCount || 0) - (metrics.expertCount || 0));
+  const needed = missing + hardGap + expertGap;
+  if (needed <= 0) return 0;
+  return Math.min(MAX_PRIMARY_REQUEST_COUNT_ADVANCED, Math.max(3, needed));
 }
 
 function getComplexityGuidance(levelProfile) {
@@ -188,102 +239,243 @@ exports.exploreQuiz = functions
     const isAdvanced = ADVANCED_LEVELS.has(levelProfile.id);
 
     try {
-      const userPrompt = exploreQuestionsUserPrompt({
-        topic,
-        count: targets.requestCount,
-        levelLabel: levelProfile.label,
-        levelDescription: levelProfile.description || "",
-        minDifficulty: levelProfile.minDifficulty,
-        maxDifficulty: levelProfile.maxDifficulty,
-        hardFloorCount: targets.hardFloorCount,
-        expertFloorCount: targets.expertFloorCount,
-        complexityGuidance: getComplexityGuidance(levelProfile),
-        strictMode: isAdvanced,
-      });
+      const buildPrompt = ({ requestCount, excludeStems = [], strictMode = isAdvanced, conciseMode = isAdvanced }) =>
+        exploreQuestionsUserPrompt({
+          topic,
+          count: requestCount,
+          levelLabel: levelProfile.label,
+          levelDescription: levelProfile.description || "",
+          minDifficulty: levelProfile.minDifficulty,
+          maxDifficulty: levelProfile.maxDifficulty,
+          hardFloorCount: targets.hardFloorCount,
+          expertFloorCount: targets.expertFloorCount,
+          complexityGuidance: getComplexityGuidance(levelProfile),
+          strictMode,
+          conciseMode,
+          excludeStems,
+        });
 
-      // Scale token budget based on question count (~300 tokens per question)
-      const tokenBudget = Math.min(8192, 800 + targets.requestCount * 320);
-      const geminiOpts = {
-        maxTokens: tokenBudget,
+      const phaseDurationsMs = {};
+      const primaryRequestCount = isAdvanced ? targets.primaryRequestCount : targets.requestCount;
+      const primaryPrompt = buildPrompt({ requestCount: primaryRequestCount });
+      const geminiPrimaryOpts = {
+        maxTokens: buildTokenBudget(primaryRequestCount, { advanced: isAdvanced }),
         retries: 1,
-        temperature: 0.12,
+        temperature: isAdvanced ? 0.1 : 0.12,
         rateLimitMaxRetries: 1,
         rateLimitRetryDelayMs: 2500,
       };
-      const claudeOpts = { maxTokens: tokenBudget, retries: 1 };
 
-      let questions;
-      let metrics;
-      let modelUsed;
+      const geminiPrimaryT0 = Date.now();
+      const geminiPrimaryResult = await withTimeout(
+        geminiGenerate(EXPLORE_QUESTIONS_SYSTEM, primaryPrompt, geminiPrimaryOpts).catch((error) => ({
+          success: false,
+          error: error.message,
+        })),
+        GEMINI_CALL_TIMEOUT_MS,
+        "Gemini primary generation"
+      );
+      phaseDurationsMs.geminiPrimary = Date.now() - geminiPrimaryT0;
+
+      const geminiPrimaryQs =
+        geminiPrimaryResult.success && geminiPrimaryResult.data?.questions
+          ? normaliseExploreQuestions(geminiPrimaryResult.data.questions, topic, levelProfile, primaryRequestCount)
+          : [];
+
+      let questions = [];
+      let metrics = qualityMetrics([], levelProfile);
+      let modelUsed = "gemini";
 
       if (isAdvanced) {
-        // ── PARALLEL: Run Gemini + Claude simultaneously for advanced levels ──
-        // This cuts latency in half vs sequential fallback.
-        const [geminiResult, claudeResult] = await Promise.all([
-          geminiGenerate(EXPLORE_QUESTIONS_SYSTEM, userPrompt, geminiOpts).catch((e) => ({
-            success: false, error: e.message,
-          })),
-          claudeGenerate(EXPLORE_QUESTIONS_SYSTEM, userPrompt, claudeOpts).catch((e) => ({
-            success: false, error: e.message,
-          })),
-        ]);
+        let geminiAggregate = [...geminiPrimaryQs];
+        modelUsed = "gemini-primary";
 
-        const geminiQs = geminiResult.success && geminiResult.data?.questions
-          ? normaliseExploreQuestions(geminiResult.data.questions, topic, levelProfile, count)
-          : [];
-        const claudeQs = claudeResult.success && claudeResult.data?.questions
-          ? normaliseExploreQuestions(claudeResult.data.questions, topic, levelProfile, count)
-          : [];
+        if (geminiAggregate.length < count) {
+          const missing = Math.max(0, count - geminiAggregate.length);
+          const supplementRequestCount = Math.min(
+            MAX_SUPPLEMENT_REQUEST_COUNT,
+            Math.max(3, missing + 1)
+          );
 
-        if (geminiQs.length === 0 && claudeQs.length === 0) {
-          return fail(Errors.AI_FAILED, "Failed to generate questions. Please try again.");
-        }
+          if (supplementRequestCount >= 3) {
+            const supplementPrompt = buildPrompt({
+              requestCount: supplementRequestCount,
+              excludeStems: extractStemHints(geminiAggregate),
+            });
+            const geminiSupplementOpts = {
+              ...geminiPrimaryOpts,
+              maxTokens: buildTokenBudget(supplementRequestCount, { advanced: true }),
+              retries: 0,
+            };
 
-        // Pick the better result based on quality score + coverage
-        const geminiMetrics = qualityMetrics(geminiQs, levelProfile);
-        const claudeMetrics = qualityMetrics(claudeQs, levelProfile);
-        const geminiScore = geminiQs.length > 0 ? qualityScore(geminiMetrics, targets) : -1;
-        const claudeScore = claudeQs.length > 0 ? qualityScore(claudeMetrics, targets) : -1;
+            const geminiSupplementT0 = Date.now();
+            const geminiSupplementResult = await withTimeout(
+              geminiGenerate(EXPLORE_QUESTIONS_SYSTEM, supplementPrompt, geminiSupplementOpts).catch((error) => ({
+                success: false,
+                error: error.message,
+              })),
+              GEMINI_CALL_TIMEOUT_MS,
+              "Gemini supplement generation"
+            );
+            phaseDurationsMs.geminiSupplement = Date.now() - geminiSupplementT0;
 
-        if (claudeScore >= geminiScore || claudeQs.length > geminiQs.length) {
-          questions = claudeQs;
-          metrics = claudeMetrics;
-          modelUsed = "claude-parallel";
-        } else {
-          questions = geminiQs;
-          metrics = geminiMetrics;
-          modelUsed = "gemini-parallel";
-        }
-      } else {
-        // ── SIMPLE: MD1/MD2/MD3 — Gemini only (fast) ──
-        let result = await geminiGenerate(EXPLORE_QUESTIONS_SYSTEM, userPrompt, geminiOpts);
-        modelUsed = "gemini";
+            const geminiSupplementQs =
+              geminiSupplementResult.success && geminiSupplementResult.data?.questions
+                ? normaliseExploreQuestions(
+                  geminiSupplementResult.data.questions,
+                  topic,
+                  levelProfile,
+                  supplementRequestCount
+                )
+                : [];
 
-        if (!result.success || !result.data?.questions) {
-          log.warn("Gemini explore failed, falling back to Claude", {
-            uid, topic, level: levelProfile.id, error: result.error,
-          });
-          result = await claudeGenerate(EXPLORE_QUESTIONS_SYSTEM, userPrompt, claudeOpts);
-          modelUsed = "claude-fallback";
-          if (!result.success || !result.data?.questions) {
-            return fail(Errors.AI_FAILED, "Failed to generate questions. Please try again.");
+            if (geminiSupplementQs.length > 0) {
+              geminiAggregate = mergeQuestionSets(
+                [geminiAggregate, geminiSupplementQs],
+                levelProfile,
+                Math.max(count, primaryRequestCount)
+              );
+              modelUsed = "gemini-primary+supplement";
+            }
           }
         }
 
-        questions = normaliseExploreQuestions(result.data.questions, topic, levelProfile, count);
+        questions = prioritiseQuestions(geminiAggregate, levelProfile, count);
         metrics = qualityMetrics(questions, levelProfile);
+
+        if (shouldFallbackToClaude({
+          generatedCount: questions.length,
+          requestedCount: count,
+          levelProfile,
+          metrics,
+          targets,
+        })) {
+          const rescueRequestCount = computeRescueRequestCount({
+            requestedCount: count,
+            currentCount: questions.length,
+            metrics,
+            targets,
+          });
+
+          if (rescueRequestCount > 0) {
+            const rescuePrompt = buildPrompt({
+              requestCount: rescueRequestCount,
+              excludeStems: extractStemHints(questions),
+              strictMode: true,
+              conciseMode: true,
+            });
+            const claudeRescueOpts = {
+              maxTokens: buildTokenBudget(rescueRequestCount, { advanced: true, rescue: true }),
+              retries: 0,
+              usePrefill: false,
+            };
+
+            const claudeRescueT0 = Date.now();
+            const claudeRescueResult = await withTimeout(
+              claudeGenerate(EXPLORE_QUESTIONS_SYSTEM, rescuePrompt, claudeRescueOpts).catch((error) => ({
+                success: false,
+                error: error.message,
+              })),
+              CLAUDE_RESCUE_TIMEOUT_MS,
+              "Claude rescue generation"
+            );
+            phaseDurationsMs.claudeRescue = Date.now() - claudeRescueT0;
+
+            const claudeRescueQs =
+              claudeRescueResult.success && claudeRescueResult.data?.questions
+                ? normaliseExploreQuestions(
+                  claudeRescueResult.data.questions,
+                  topic,
+                  levelProfile,
+                  rescueRequestCount
+                )
+                : [];
+
+            if (claudeRescueQs.length > 0) {
+              questions = mergeQuestionSets([questions, claudeRescueQs], levelProfile, count);
+              metrics = qualityMetrics(questions, levelProfile);
+              modelUsed = `${modelUsed}+claude-rescue`;
+            }
+          }
+        }
+      } else {
+        questions = [...geminiPrimaryQs];
+        metrics = qualityMetrics(questions, levelProfile);
+        modelUsed = "gemini";
+
+        if (questions.length === 0) {
+          log.warn("Gemini explore failed, falling back to Claude", {
+            uid,
+            topic,
+            level: levelProfile.id,
+            error: geminiPrimaryResult.error || "Gemini returned no valid questions",
+          });
+          const claudeFallbackPrompt = buildPrompt({
+            requestCount: primaryRequestCount,
+            strictMode: false,
+            conciseMode: false,
+          });
+          const claudeFallbackOpts = {
+            maxTokens: buildTokenBudget(primaryRequestCount, { advanced: false }),
+            retries: 1,
+            usePrefill: false,
+          };
+
+          const claudeFallbackT0 = Date.now();
+          const claudeFallbackResult = await withTimeout(
+            claudeGenerate(EXPLORE_QUESTIONS_SYSTEM, claudeFallbackPrompt, claudeFallbackOpts).catch((error) => ({
+              success: false,
+              error: error.message,
+            })),
+            CLAUDE_RESCUE_TIMEOUT_MS,
+            "Claude fallback generation"
+          );
+          phaseDurationsMs.claudeFallback = Date.now() - claudeFallbackT0;
+
+          if (claudeFallbackResult.success && claudeFallbackResult.data?.questions) {
+            questions = normaliseExploreQuestions(
+              claudeFallbackResult.data.questions,
+              topic,
+              levelProfile,
+              count
+            );
+            metrics = qualityMetrics(questions, levelProfile);
+            modelUsed = "claude-fallback";
+          }
+        }
       }
 
       if (!questions || questions.length === 0) {
         return fail(Errors.AI_FAILED, "AI generated no valid questions. Try a different topic.");
       }
 
+      const qualityGatePassed = meetsQualityGate(metrics, targets);
+      const qualityScoreValue = Number(qualityScore(metrics, targets).toFixed(3));
+
       log.info("Explore quiz generated", {
-        uid, topic, level: levelProfile.id, requested: count,
-        generated: questions.length, modelUsed, metrics, targets, durationMs: Date.now() - t0,
+        uid,
+        topic,
+        level: levelProfile.id,
+        requested: count,
+        generated: questions.length,
+        modelUsed,
+        metrics,
+        targets,
+        qualityGatePassed,
+        qualityScore: qualityScoreValue,
+        phaseDurationsMs,
+        durationMs: Date.now() - t0,
       });
 
-      return ok({ questions, topic, level: levelProfile.id, levelLabel: levelProfile.label, modelUsed });
+      return ok({
+        questions,
+        topic,
+        level: levelProfile.id,
+        levelLabel: levelProfile.label,
+        modelUsed,
+        qualityGatePassed,
+        qualityScore: qualityScoreValue,
+      });
     } catch (error) {
       return safeError(error, "explore quiz generation");
     }
