@@ -244,6 +244,11 @@ export function generateQuestions(params: {
     generatedNow?: number;
     fromCache?: boolean;
     inProgress?: boolean;
+    backgroundQueued?: boolean;
+    remainingCount?: number;
+    targetCount?: number;
+    readyNow?: number;
+    jobId?: string | null;
     durationMs?: number;
     message?: string;
     aiRequestCount?: number;

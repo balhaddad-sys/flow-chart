@@ -40,10 +40,11 @@ class SectionList extends ConsumerWidget {
 
         return Column(
           children: sections.map((section) {
-            final isReady = section.aiStatus == 'ANALYZED' &&
-                            section.questionsStatus == 'COMPLETED';
+            final hasQuestions = section.questionsCount > 0;
+            final isReady = section.aiStatus == 'ANALYZED' && hasQuestions;
             final questionsFailedRetryable = section.aiStatus == 'ANALYZED' &&
-                                               section.questionsStatus == 'FAILED';
+                                               section.questionsStatus == 'FAILED' &&
+                                               !hasQuestions;
 
             return ListTile(
               dense: true,
@@ -110,6 +111,11 @@ class SectionList extends ConsumerWidget {
   Widget _statusIcon(SectionModel section) {
     // Show questions status if section is analyzed
     if (section.aiStatus == 'ANALYZED') {
+      if (section.questionsCount > 0 && section.questionsStatus == 'GENERATING') {
+        return const Icon(Icons.autorenew_rounded,
+            color: AppColors.secondary, size: 18);
+      }
+
       switch (section.questionsStatus) {
         case 'COMPLETED':
           return Container(

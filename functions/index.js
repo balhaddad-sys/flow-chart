@@ -31,6 +31,7 @@ const { catchUp } = require("./scheduling/catchUp");
 
 // ── Questions ────────────────────────────────────────────────────────────────
 const { generateQuestions } = require("./questions/generateQuestions");
+const { processQuestionBackfillJob } = require("./questions/processQuestionBackfillJob");
 const { getQuiz } = require("./questions/getQuiz");
 const { getTutorHelp } = require("./questions/getTutorHelp");
 const { generateSectionSummary } = require("./study/generateSectionSummary");
@@ -62,6 +63,7 @@ exports.generateSchedule = generateSchedule;
 exports.regenSchedule = regenSchedule;
 exports.catchUp = catchUp;
 exports.generateQuestions = generateQuestions;
+exports.processQuestionBackfillJob = processQuestionBackfillJob;
 exports.getQuiz = getQuiz;
 exports.getTutorHelp = getTutorHelp;
 exports.generateSectionSummary = generateSectionSummary;

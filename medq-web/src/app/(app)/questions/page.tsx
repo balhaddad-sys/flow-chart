@@ -28,7 +28,7 @@ import { toast } from "sonner";
 type QuestionBucket = "ready" | "needs" | "processing";
 
 function getQuestionBucket(section: SectionModel): QuestionBucket {
-  if (section.questionsStatus === "COMPLETED" && section.questionsCount > 0) return "ready";
+  if (section.questionsCount > 0) return "ready";
   if (section.aiStatus === "PENDING" || section.aiStatus === "PROCESSING" || section.questionsStatus === "GENERATING") {
     return "processing";
   }
@@ -39,16 +39,17 @@ function statusBadge(section: SectionModel) {
   if (section.aiStatus !== "ANALYZED") {
     return <Badge variant="outline">Analyzing</Badge>;
   }
-  if (section.questionsStatus === "COMPLETED" && section.questionsCount > 0) {
-    return <Badge className="bg-green-600 text-white hover:bg-green-600">Ready</Badge>;
-  }
   if (section.questionsStatus === "GENERATING") {
+    const label = section.questionsCount > 0 ? "Ready + Generating" : "Generating";
     return (
       <Badge variant="secondary" className="gap-1">
         <Loader2 className="h-3 w-3 animate-spin" />
-        Generating
+        {label}
       </Badge>
     );
+  }
+  if (section.questionsCount > 0) {
+    return <Badge className="bg-green-600 text-white hover:bg-green-600">Ready</Badge>;
   }
   if (section.questionsStatus === "FAILED") {
     return <Badge variant="destructive">Failed</Badge>;
@@ -65,7 +66,7 @@ function SectionQuestionCard({
   generating: boolean;
   onGenerate: (sectionId: string) => Promise<void>;
 }) {
-  const canStartQuiz = section.questionsStatus === "COMPLETED" && section.questionsCount > 0;
+  const canStartQuiz = section.questionsCount > 0;
   const canGenerate =
     section.aiStatus === "ANALYZED" &&
     (section.questionsStatus === "FAILED" ||
@@ -89,6 +90,11 @@ function SectionQuestionCard({
           {section.questionsCount > 0 && (
             <p className="mt-2 text-xs text-muted-foreground">
               {section.questionsCount} questions available
+            </p>
+          )}
+          {section.questionsStatus === "GENERATING" && section.questionsCount > 0 && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              More questions are being generated in the background.
             </p>
           )}
         </div>
@@ -161,6 +167,13 @@ export default function QuestionsPage() {
         toast.success(
           result.message ??
             `${result.questionCount ?? 0} questions already available.`
+        );
+      } else if (result.backgroundQueued) {
+        const readyNow = result.readyNow ?? result.questionCount ?? result.generatedNow ?? 0;
+        const remaining = result.remainingCount ?? 0;
+        toast.success(
+          result.message ??
+            `Ready now: ${readyNow}. Generating ${remaining} more in the background.`
         );
       } else {
         const generatedNow = result.generatedNow ?? result.questionCount ?? 0;

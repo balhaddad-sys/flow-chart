@@ -16,14 +16,18 @@ const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { requireAuth, requireStrings, requireInt } = require("../middleware/validate");
 const { checkRateLimit, RATE_LIMITS } = require("../middleware/rateLimit");
-const { db, batchSet } = require("../lib/firestore");
+const { db } = require("../lib/firestore");
 const { Errors, fail, ok, safeError } = require("../lib/errors");
 const log = require("../lib/logger");
-const { computeSectionQuestionDifficultyCounts } = require("../lib/difficulty");
-const { normaliseQuestion } = require("../lib/serialize");
-const { generateQuestions: aiGenerateQuestions } = require("../ai/geminiClient");
-const { buildQuestionGenPlan, updateQuestionGenStats } = require("../ai/selfTuningCostEngine");
-const { QUESTIONS_SYSTEM, questionsUserPrompt } = require("../ai/prompts");
+const { updateQuestionGenStats } = require("../ai/selfTuningCostEngine");
+const {
+  computeFastStartCounts,
+  computeMaxBackfillAttempts,
+  fetchExistingQuestionState,
+  resolveSourceFileName,
+  queueQuestionBackfillJob,
+  generateAndPersistBatch,
+} = require("./generationPipeline");
 
 // Define the secret so the function can access it
 const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
@@ -63,25 +67,21 @@ exports.generateQuestions = functions
           questionCount: section.questionsCount || 0,
           skippedCount: 0,
           inProgress: true,
+          backgroundQueued: true,
           message: "Question generation is already in progress for this section.",
         });
       }
 
       // Count existing questions first. If we already have enough, return instantly.
-      const existingSnap = await db
-        .collection(`users/${uid}/questions`)
-        .where("courseId", "==", courseId)
-        .where("sectionId", "==", sectionId)
-        .limit(40)
-        .get();
+      const existingState = await fetchExistingQuestionState({ uid, courseId, sectionId });
+      const {
+        targetCount,
+        existingCount,
+        missingCount,
+        immediateCount,
+      } = computeFastStartCounts(count, existingState.count);
 
-      const existingCount = existingSnap.size;
-      const existingStems = new Set(
-        existingSnap.docs
-          .map((doc) => String(doc.data().stem || "").trim().toLowerCase())
-          .filter(Boolean)
-      );
-      if (existingCount >= count) {
+      if (existingCount >= targetCount) {
         // Keep section metadata in sync for UI responsiveness.
         await sectionRef.set(
           {
@@ -95,21 +95,13 @@ exports.generateQuestions = functions
           questionCount: existingCount,
           skippedCount: 0,
           fromCache: true,
+          backgroundQueued: false,
+          remainingCount: 0,
+          targetCount,
           durationMs: Date.now() - t0,
           message: "Existing questions reused.",
         });
       }
-
-      const plan = buildQuestionGenPlan({
-        requestedCount: count,
-        existingCount,
-        sectionStats: section.questionGenStats || {},
-      });
-      const neededCount = plan.missingCount;
-      const aiRequestCount = plan.aiRequestCount;
-
-      const fileDoc = section.fileId ? await db.doc(`users/${uid}/files/${section.fileId}`).get() : null;
-      const sourceFileName = fileDoc?.exists ? fileDoc.data()?.originalName || "Unknown" : "Unknown";
 
       // Mark question generation as in progress (for retry scenario)
       await sectionRef.update({
@@ -117,132 +109,131 @@ exports.generateQuestions = functions
         questionsErrorMessage: admin.firestore.FieldValue.delete(),
       });
 
-      // ── Difficulty distribution ─────────────────────────────────────────
-      const { easyCount, mediumCount, hardCount } = computeSectionQuestionDifficultyCounts(
-        aiRequestCount,
-        section.difficulty || 3
-      );
-
-      // ── AI generation (using blueprint only, no section text needed) ────
-      const result = await aiGenerateQuestions(
-        QUESTIONS_SYSTEM,
-        questionsUserPrompt({
-          blueprintJSON: section.blueprint,
-          count: aiRequestCount,
-          easyCount,
-          mediumCount,
-          hardCount,
-          sectionTitle: section.title || "Section",
-          sourceFileName,
-        }),
-        {
-          maxTokens: plan.tokenBudget,
-          retries: plan.retries,
-          rateLimitMaxRetries: plan.rateLimitMaxRetries,
-          rateLimitRetryDelayMs: plan.rateLimitRetryDelayMs,
-        }
-      );
-
-      if (!result.success || !result.data.questions) {
-        // Mark question generation as failed
-        await sectionRef.update({
-          questionsStatus: "FAILED",
-          questionsErrorMessage: result.error || "Question generation failed",
-          lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        return fail(Errors.AI_FAILED);
-      }
-
-      // ── Normalise & persist via serialize module ────────────────────────
-      const defaults = {
-        fileId: section.fileId,
-        fileName: sourceFileName,
-        sectionId,
-        sectionTitle: section.title,
-        topicTags: section.topicTags,
-      };
-      const validItems = [];
-      let duplicateStemSkipped = 0;
-
-      for (const raw of result.data.questions) {
-        const normalised = normaliseQuestion(raw, defaults);
-        if (!normalised) {
-          log.warn("Skipping invalid AI question", { sectionId, stem: raw.stem?.slice(0, 80) });
-          continue;
-        }
-
-        const stemKey = String(normalised.stem || "").trim().toLowerCase();
-        if (stemKey && existingStems.has(stemKey)) {
-          duplicateStemSkipped++;
-          continue;
-        }
-        if (stemKey) existingStems.add(stemKey);
-
-        validItems.push({
-          ref: db.collection(`users/${uid}/questions`).doc(),
-          data: {
-            courseId,
-            sectionId,
-            ...normalised,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          },
-        });
-      }
-
-      await batchSet(validItems);
-
-      const finalCount = existingCount + validItems.length;
-      const questionGenStats = updateQuestionGenStats(section.questionGenStats, {
-        aiRequestCount,
-        validProduced: validItems.length,
-        duplicateSkipped: duplicateStemSkipped,
-        latencyMs: Date.now() - t0,
-        tokenBudget: plan.tokenBudget,
-      });
-
-      // Mark question generation as complete
-      await sectionRef.update({
-        questionsStatus: "COMPLETED",
-        questionsCount: finalCount,
-        lastQuestionsDurationMs: Date.now() - t0,
-        questionGenStats,
-        questionsErrorMessage: admin.firestore.FieldValue.delete(),
-      });
-
-      log.info("Questions generated", {
+      const sourceFileName = await resolveSourceFileName(uid, section.fileId);
+      const immediateTargetCount = existingCount + immediateCount;
+      const immediateBatch = await generateAndPersistBatch({
         uid,
         courseId,
         sectionId,
-        requested: count,
+        section,
+        sourceFileName,
         existingCount,
-        neededCount,
-        aiRequestCount,
-        predictedYield: plan.predictedYield,
-        generated: validItems.length,
-        finalCount,
-        duplicateStemSkipped,
-        skipped: result.data.questions.length - validItems.length,
+        existingStems: existingState.stems,
+        targetCount: immediateTargetCount,
+      });
+
+      if (!immediateBatch.success) {
+        const hasExisting = existingCount > 0;
+        await sectionRef.update({
+          questionsStatus: hasExisting ? "COMPLETED" : "FAILED",
+          questionsCount: existingCount,
+          questionsErrorMessage: hasExisting ?
+            "Some questions are available, but generating more failed. Try again shortly." :
+            immediateBatch.error || "Question generation failed",
+          lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
+          activeQuestionJobId: admin.firestore.FieldValue.delete(),
+        });
+        if (!hasExisting) return fail(Errors.AI_FAILED);
+        return ok({
+          questionCount: existingCount,
+          generatedNow: 0,
+          skippedCount: 0,
+          backgroundQueued: false,
+          remainingCount: Math.max(0, targetCount - existingCount),
+          targetCount,
+          durationMs: Date.now() - t0,
+          message: "Using existing questions. Failed to generate additional questions right now.",
+        });
+      }
+
+      const readyCount = existingCount + immediateBatch.generatedNow;
+      const questionGenStats = updateQuestionGenStats(section.questionGenStats, {
+        aiRequestCount: immediateBatch.aiRequestCount,
+        validProduced: immediateBatch.generatedNow,
+        duplicateSkipped: immediateBatch.duplicateStemSkipped,
+        latencyMs: immediateBatch.durationMs,
+        tokenBudget: immediateBatch.tokenBudget,
+      });
+
+      const remainingCount = Math.max(0, targetCount - readyCount);
+      const backgroundQueued = remainingCount > 0;
+      const sectionUpdate = {
+        questionsStatus: backgroundQueued ? "GENERATING" : "COMPLETED",
+        questionsCount: readyCount,
+        lastQuestionsDurationMs: Date.now() - t0,
+        questionGenStats,
+        questionsErrorMessage: admin.firestore.FieldValue.delete(),
+      };
+      let backfillJobId = null;
+      if (backgroundQueued) {
+        backfillJobId = await queueQuestionBackfillJob({
+          uid,
+          courseId,
+          sectionId,
+          targetCount,
+          attempt: 1,
+          maxAttempts: computeMaxBackfillAttempts(targetCount),
+        });
+        sectionUpdate.activeQuestionJobId = backfillJobId;
+      } else {
+        sectionUpdate.activeQuestionJobId = admin.firestore.FieldValue.delete();
+      }
+      await sectionRef.update(sectionUpdate);
+
+      log.info("Questions generated (fast start)", {
+        uid,
+        courseId,
+        sectionId,
+        requested: targetCount,
+        existingCount,
+        missingCount,
+        immediateCount,
+        generatedNow: immediateBatch.generatedNow,
+        readyCount,
+        remainingCount,
+        backgroundQueued,
+        aiRequestCount: immediateBatch.aiRequestCount,
+        predictedYield: immediateBatch.predictedYield,
+        duplicateStemSkipped: immediateBatch.duplicateStemSkipped,
+        skipped: immediateBatch.skippedCount,
         durationMs: Date.now() - t0,
       });
 
       return ok({
-        questionCount: finalCount,
-        generatedNow: validItems.length,
-        skippedCount: result.data.questions.length - validItems.length,
-        aiRequestCount,
-        predictedYield: plan.predictedYield,
-        distribution: { easy: easyCount, medium: mediumCount, hard: hardCount },
-        estimatedSavingsPercent: plan.estimatedSavingsPercent,
+        questionCount: readyCount,
+        generatedNow: immediateBatch.generatedNow,
+        skippedCount: immediateBatch.skippedCount,
+        aiRequestCount: immediateBatch.aiRequestCount,
+        predictedYield: immediateBatch.predictedYield,
+        distribution: immediateBatch.distribution,
+        estimatedSavingsPercent: immediateBatch.estimatedSavingsPercent,
         durationMs: Date.now() - t0,
+        backgroundQueued,
+        remainingCount,
+        targetCount,
+        readyNow: readyCount,
+        jobId: backfillJobId,
+        message: backgroundQueued
+          ? `Generated ${readyCount} questions now. Continuing ${remainingCount} in the background.`
+          : "Question generation complete.",
       });
     } catch (error) {
-      // CRITICAL: Roll back questionsStatus to prevent stuck GENERATING state
+      // CRITICAL: Roll back questionsStatus to avoid a stuck GENERATING state.
       try {
+        let existingCount = 0;
+        try {
+          const existingState = await fetchExistingQuestionState({ uid, courseId, sectionId, limit: 40 });
+          existingCount = existingState.count;
+        } catch {
+          // Ignore lookup failures and fall back to FAILED.
+        }
         await sectionRef.update({
-          questionsStatus: "FAILED",
+          questionsStatus: existingCount > 0 ? "COMPLETED" : "FAILED",
+          questionsCount: existingCount,
           questionsErrorMessage: error.message || "Unexpected error during question generation",
           lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
           lastQuestionsDurationMs: Date.now() - t0,
+          activeQuestionJobId: admin.firestore.FieldValue.delete(),
         });
       } catch (updateError) {
         log.error("Failed to update section status after error", { uid, sectionId, updateError: updateError.message });
