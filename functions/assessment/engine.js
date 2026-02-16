@@ -299,27 +299,45 @@ function buildRecommendationPlan(profile) {
     const recommendedMinutes = Math.round(
       Math.max(25, (profile.recommendedDailyMinutes * 0.4 + topic.weaknessScore * 30) * severityMultiplier)
     );
+
+    // Build drills tailored to the topic's specific weakness pattern
+    const drills = [];
+    if (topic.accuracy < 40) {
+      drills.push(`Your ${topic.tag} accuracy is ${topic.accuracy}% — revisit the core concepts before quizzing. Focus on understanding mechanisms, not memorizing answers.`);
+    } else if (topic.accuracy < 60) {
+      drills.push(`At ${topic.accuracy}% accuracy in ${topic.tag}, you're close. Do a focused 15-question quiz on this topic and review each wrong answer in detail.`);
+    } else {
+      drills.push(`${topic.tag} is at ${topic.accuracy}% — strengthen it with a timed quiz (${profile.targetTimeSec}s per question) focusing on the subtopics you missed.`);
+    }
+
+    if (topic.avgTimeSec > profile.targetTimeSec * 1.5) {
+      drills.push(`You're averaging ${topic.avgTimeSec}s per question vs the ${profile.targetTimeSec}s target. Practice under timed conditions to build speed.`);
+    }
+
+    if (topic.severity === "CRITICAL") {
+      drills.push(`This is a critical gap. Dedicate ${recommendedMinutes} minutes daily to ${topic.tag} until accuracy exceeds 70%. Retest after 48 hours.`);
+    } else {
+      drills.push(`Schedule a ${topic.tag} review session, then retest in 2-3 days to confirm retention.`);
+    }
+
     return {
-      title: `Remediate ${topic.tag}`,
+      title: topic.severity === "CRITICAL" ? `Fix: ${topic.tag}` : `Strengthen: ${topic.tag}`,
       focusTag: topic.tag,
-      rationale: `Accuracy ${topic.accuracy}% with weakness score ${topic.weaknessScore}.`,
+      rationale: `${topic.accuracy}% accuracy across ${topic.attempts} question${topic.attempts === 1 ? "" : "s"}${topic.avgTimeSec > profile.targetTimeSec ? `, avg ${topic.avgTimeSec}s (target: ${profile.targetTimeSec}s)` : ""}.`,
       recommendedMinutes,
-      drills: [
-        "Do a focused quiz on this tag with 12-20 questions.",
-        "Review every incorrect option and summarize why it is wrong.",
-        "Repeat a short retest after 48 hours to lock retention.",
-      ],
+      drills,
     };
   });
 
+  const topTag = weakTopics[0]?.tag || "your weakest topic";
   return {
-    summary: `Detected ${weakTopics.length} priority weakness area${weakTopics.length === 1 ? "" : "s"} requiring targeted remediation.`,
+    summary: `${weakTopics.length} weak area${weakTopics.length === 1 ? "" : "s"} found. Focus on ${topTag} first — it has the biggest impact on your readiness score.`,
     priorityTopics: weakTopics.map((topic) => topic.tag),
     actions,
     examTips: [
-      "Start sessions with your highest-weakness tag while cognitive energy is fresh.",
-      "Track confidence on each answer; low-confidence correct answers still need review.",
-      "Target pace near your level benchmark while preserving accuracy.",
+      `Start each study session with ${topTag} while your focus is sharpest.`,
+      "For questions you got wrong, write one sentence explaining why the correct answer is right.",
+      `Aim for ${profile.targetTimeSec}s per question — being too slow costs marks in real exams.`,
     ],
   };
 }

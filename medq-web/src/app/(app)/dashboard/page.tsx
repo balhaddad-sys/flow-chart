@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertTriangle, TrendingDown, Wrench, Loader2 } from "lucide-react";
+import { AlertTriangle, TrendingDown, Wrench, Loader2, Play } from "lucide-react";
 import * as fn from "@/lib/firebase/functions";
 import { toast } from "sonner";
 
@@ -108,12 +108,20 @@ export default function DashboardPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium truncate">{topic.tag}</span>
-                      <Badge
-                        variant={topic.accuracy < 0.5 ? "destructive" : "secondary"}
-                        className="text-xs ml-2"
-                      >
-                        {Math.round(topic.accuracy * 100)}%
-                      </Badge>
+                      <div className="flex items-center gap-2 ml-2">
+                        <Badge
+                          variant={topic.accuracy < 0.5 ? "destructive" : "secondary"}
+                          className="text-xs"
+                        >
+                          {Math.round(topic.accuracy * 100)}%
+                        </Badge>
+                        <Link href={`/quiz?mode=topic&topic=${encodeURIComponent(topic.tag)}`}>
+                          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs">
+                            <Play className="mr-1 h-3 w-3" />
+                            Quiz
+                          </Button>
+                        </Link>
+                      </div>
                     </div>
                     <Progress value={topic.accuracy * 100} className="mt-1 h-1.5" />
                   </div>

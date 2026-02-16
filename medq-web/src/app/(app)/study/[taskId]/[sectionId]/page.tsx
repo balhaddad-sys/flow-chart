@@ -360,7 +360,11 @@ export default function StudySessionPage({
 
   async function handleAskAI() {
     const question = chatInput.trim();
-    if (!question || !uid || !section?.courseId || chatLoading) return;
+    if (!question || chatLoading) return;
+    if (!uid || !section?.courseId) {
+      toast.error("Unable to send — course data not loaded yet.");
+      return;
+    }
 
     setChatInput("");
     setChatMessages((prev) => [...prev, { role: "user", content: question }]);
@@ -370,15 +374,20 @@ export default function StudySessionPage({
       // Create thread on first message
       let threadId = chatThreadId;
       if (!threadId) {
-        const ref = await addDoc(collection(db, "users", uid, "chatThreads"), {
-          courseId: section.courseId,
-          title: `Study: ${section.title || "Section"}`,
-          messageCount: 0,
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-        threadId = ref.id;
-        setChatThreadId(threadId);
+        try {
+          const ref = await addDoc(collection(db, "users", uid, "chatThreads"), {
+            courseId: section.courseId,
+            title: `Study: ${section.title || "Section"}`,
+            messageCount: 0,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+          threadId = ref.id;
+          setChatThreadId(threadId);
+        } catch (threadErr) {
+          console.error("Failed to create chat thread:", threadErr);
+          throw new Error("Could not start a conversation. Please try again.");
+        }
       }
 
       const result = await fn.sendChatMessage({
@@ -389,6 +398,7 @@ export default function StudySessionPage({
 
       setChatMessages((prev) => [...prev, { role: "assistant", content: result.response }]);
     } catch (error) {
+      console.error("Ask AI error:", error);
       const message = error instanceof Error ? error.message : "Failed to get response.";
       setChatMessages((prev) => [...prev, { role: "assistant", content: `Error: ${message}` }]);
     } finally {
