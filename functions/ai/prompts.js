@@ -81,7 +81,7 @@ Quality rules:
 - Keep explanations concise and precise (1-2 sentences per field).
 - Do not combine unrelated topics from different parts of the blueprint into one vague question.
 - Each question must include 2-3 citations from trusted sources only: PubMed, UpToDate, Medscape.
-- Citation URLs must be full HTTPS links to the publication/topic page (not homepage).
+- For each citation, provide the source name and a specific topic/article title (do NOT generate URLs).
 
 Return this exact JSON schema:
 {
@@ -110,8 +110,7 @@ Return this exact JSON schema:
       "citations": [
         {
           "source": "PUBMED | UPTODATE | MEDSCAPE",
-          "title": "string — publication/topic title",
-          "url": "string — full https URL"
+          "title": "string — specific topic or article title for searching"
         }
       ]
     }
@@ -252,7 +251,7 @@ Quality rules:
 - Keep explanations concise and precise.
 - For why_others_wrong, keep each item compact and non-redundant.
 - Every question must include 2-3 citations from PubMed/UpToDate/Medscape only.
-- Citation URLs must be full HTTPS links to the specific publication/topic page.
+- For each citation, provide the source name and a specific topic/article title (do NOT generate URLs).
 
 Return this exact JSON schema:
 {
@@ -277,8 +276,7 @@ Return this exact JSON schema:
       "citations": [
         {
           "source": "PUBMED | UPTODATE | MEDSCAPE",
-          "title": "string — publication/topic title",
-          "url": "string — full https URL"
+          "title": "string — specific topic or article title for searching"
         }
       ]
     }

@@ -13,34 +13,29 @@
 const { sanitizeText, sanitizeArray } = require("./sanitize");
 const { truncate } = require("./utils");
 
-const TRUSTED_CITATION_DOMAINS = Object.freeze([
-  "pubmed.ncbi.nlm.nih.gov",
-  "ncbi.nlm.nih.gov",
-  "uptodate.com",
-  "medscape.com",
-]);
-
-function isTrustedCitationHost(hostname) {
-  const host = String(hostname || "").toLowerCase();
-  return TRUSTED_CITATION_DOMAINS.some(
-    (domain) => host === domain || host.endsWith(`.${domain}`)
-  );
-}
-
-function sourceFromHost(hostname) {
-  const host = String(hostname || "").toLowerCase();
-  if (host === "pubmed.ncbi.nlm.nih.gov" || host.endsWith(".ncbi.nlm.nih.gov")) return "PubMed";
-  if (host === "uptodate.com" || host.endsWith(".uptodate.com")) return "UpToDate";
-  if (host === "medscape.com" || host.endsWith(".medscape.com")) return "Medscape";
-  return null;
-}
-
-function normaliseCitationSource(rawSource, hostname) {
+function normaliseCitationSource(rawSource) {
   const source = String(rawSource || "").toLowerCase().trim();
   if (source.includes("pubmed")) return "PubMed";
   if (source.includes("uptodate") || source.includes("up to date")) return "UpToDate";
   if (source.includes("medscape")) return "Medscape";
-  return sourceFromHost(hostname) || "PubMed";
+  return "PubMed";
+}
+
+/**
+ * Build a working search URL for a given source and topic.
+ * Always uses search endpoints so links are guaranteed to work.
+ */
+function buildSearchUrl(source, topic) {
+  const query = encodeURIComponent(String(topic || "medical topic").slice(0, 120));
+  switch (source) {
+    case "UpToDate":
+      return `https://www.uptodate.com/contents/search?search=${query}`;
+    case "Medscape":
+      return `https://www.medscape.com/search?queryText=${query}`;
+    case "PubMed":
+    default:
+      return `https://pubmed.ncbi.nlm.nih.gov/?term=${query}`;
+  }
 }
 
 function buildCitationFallbacks(stem, topicTags) {
@@ -48,59 +43,34 @@ function buildCitationFallbacks(stem, topicTags) {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 90);
-  const query = encodeURIComponent(topic || "medical topic");
   return [
-    {
-      source: "PubMed",
-      title: `PubMed: ${topic}`,
-      url: `https://pubmed.ncbi.nlm.nih.gov/?term=${query}`,
-    },
-    {
-      source: "UpToDate",
-      title: `UpToDate: ${topic}`,
-      url: `https://www.uptodate.com/contents/search?search=${query}`,
-    },
-    {
-      source: "Medscape",
-      title: `Medscape: ${topic}`,
-      url: `https://www.medscape.com/search?queryText=${query}`,
-    },
+    { source: "PubMed", title: `PubMed: ${topic}`, url: buildSearchUrl("PubMed", topic) },
+    { source: "UpToDate", title: `UpToDate: ${topic}`, url: buildSearchUrl("UpToDate", topic) },
+    { source: "Medscape", title: `Medscape: ${topic}`, url: buildSearchUrl("Medscape", topic) },
   ];
 }
 
 function normaliseCitations(rawCitations, { stem, topicTags }) {
   const citations = [];
-  const seenUrls = new Set();
+  const seenTitles = new Set();
   const input = Array.isArray(rawCitations) ? rawCitations.slice(0, 8) : [];
 
   for (const item of input) {
-    const urlValue = sanitizeText(item?.url || item?.link || "");
-    if (!urlValue) continue;
+    if (!item) continue;
+    const rawTitle = sanitizeText(item.title || item.label || "");
+    if (!rawTitle) continue;
 
-    let parsedUrl;
-    try {
-      parsedUrl = new URL(urlValue);
-    } catch {
-      continue;
-    }
+    const source = normaliseCitationSource(item.source, "");
+    const title = truncate(rawTitle, 250);
 
-    if (parsedUrl.protocol !== "https:") continue;
-    if (!isTrustedCitationHost(parsedUrl.hostname)) continue;
-
-    const canonicalUrl = `${parsedUrl.origin}${parsedUrl.pathname}${parsedUrl.search}`;
-    if (seenUrls.has(canonicalUrl)) continue;
-    seenUrls.add(canonicalUrl);
-
-    const source = normaliseCitationSource(item?.source, parsedUrl.hostname);
-    const title = truncate(
-      sanitizeText(item?.title || item?.label || `${source} reference`) || `${source} reference`,
-      250
-    );
+    const key = `${source}:${title.toLowerCase()}`;
+    if (seenTitles.has(key)) continue;
+    seenTitles.add(key);
 
     citations.push({
       source,
       title,
-      url: truncate(canonicalUrl, 500),
+      url: buildSearchUrl(source, rawTitle),
     });
 
     if (citations.length >= 3) break;
