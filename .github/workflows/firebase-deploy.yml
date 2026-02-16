@@ -81,4 +81,19 @@ jobs:
           credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
 
       - name: Deploy Cloud Functions, Firestore rules/indexes, and Storage rules
-        run: firebase deploy --only functions,firestore,storage --project ${{ env.FIREBASE_PROJECT_ID }} --force
+        shell: bash
+        run: |
+          set -euo pipefail
+          max_attempts=3
+          attempt=1
+
+          until firebase deploy --only functions,firestore,storage --project "${FIREBASE_PROJECT_ID}" --force; do
+            if [ "${attempt}" -ge "${max_attempts}" ]; then
+              echo "Firebase deploy failed after ${max_attempts} attempts."
+              exit 1
+            fi
+            attempt=$((attempt + 1))
+            wait_seconds=$((attempt * 20))
+            echo "Retrying deploy in ${wait_seconds}s (attempt ${attempt}/${max_attempts})..."
+            sleep "${wait_seconds}"
+          done
