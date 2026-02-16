@@ -35,7 +35,7 @@ export class CloudFunctionError extends Error {
 
 const MAX_RETRIES = 2;
 const BASE_DELAY_MS = 1_000;
-const CLIENT_TIMEOUT_MS = 120_000;
+const CLIENT_TIMEOUT_MS = 180_000;
 
 function isTransientError(err: unknown): boolean {
   if (err instanceof CloudFunctionError) return err.isTransient;

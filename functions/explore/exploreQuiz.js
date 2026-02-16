@@ -167,7 +167,7 @@ function normaliseExploreQuestions(rawQuestions, topic, levelProfile, requestedC
 
 exports.exploreQuiz = functions
   .runWith({
-    timeoutSeconds: 120,
+    timeoutSeconds: 180,
     memory: "512MB",
     secrets: [geminiApiKey, anthropicApiKey],
   })
@@ -185,6 +185,7 @@ exports.exploreQuiz = functions
     const { topic, level } = data;
     const levelProfile = getAssessmentLevel(level);
     const targets = buildExploreTargets(levelProfile, count);
+    const isAdvanced = ADVANCED_LEVELS.has(levelProfile.id);
 
     try {
       const userPrompt = exploreQuestionsUserPrompt({
@@ -197,86 +198,84 @@ exports.exploreQuiz = functions
         hardFloorCount: targets.hardFloorCount,
         expertFloorCount: targets.expertFloorCount,
         complexityGuidance: getComplexityGuidance(levelProfile),
+        strictMode: isAdvanced,
       });
 
+      // Scale token budget based on question count (~300 tokens per question)
+      const tokenBudget = Math.min(8192, 800 + targets.requestCount * 320);
       const geminiOpts = {
-        maxTokens: 2800,
+        maxTokens: tokenBudget,
         retries: 1,
         temperature: 0.12,
         rateLimitMaxRetries: 1,
         rateLimitRetryDelayMs: 2500,
       };
-      const claudeOpts = { maxTokens: 3200, retries: 1 };
+      const claudeOpts = { maxTokens: tokenBudget, retries: 1 };
 
-      let result = await geminiGenerate(EXPLORE_QUESTIONS_SYSTEM, userPrompt, geminiOpts);
-      let modelUsed = "gemini";
+      let questions;
+      let metrics;
+      let modelUsed;
 
-      if (!result.success || !result.data?.questions) {
-        log.warn("Gemini explore failed, falling back to Claude", {
-          uid, topic, level: levelProfile.id, error: result.error,
-        });
-        result = await claudeGenerate(EXPLORE_QUESTIONS_SYSTEM, userPrompt, claudeOpts);
-        modelUsed = "claude-fallback";
-        if (!result.success || !result.data?.questions) {
+      if (isAdvanced) {
+        // ── PARALLEL: Run Gemini + Claude simultaneously for advanced levels ──
+        // This cuts latency in half vs sequential fallback.
+        const [geminiResult, claudeResult] = await Promise.all([
+          geminiGenerate(EXPLORE_QUESTIONS_SYSTEM, userPrompt, geminiOpts).catch((e) => ({
+            success: false, error: e.message,
+          })),
+          claudeGenerate(EXPLORE_QUESTIONS_SYSTEM, userPrompt, claudeOpts).catch((e) => ({
+            success: false, error: e.message,
+          })),
+        ]);
+
+        const geminiQs = geminiResult.success && geminiResult.data?.questions
+          ? normaliseExploreQuestions(geminiResult.data.questions, topic, levelProfile, count)
+          : [];
+        const claudeQs = claudeResult.success && claudeResult.data?.questions
+          ? normaliseExploreQuestions(claudeResult.data.questions, topic, levelProfile, count)
+          : [];
+
+        if (geminiQs.length === 0 && claudeQs.length === 0) {
           return fail(Errors.AI_FAILED, "Failed to generate questions. Please try again.");
         }
-      }
 
-      let questions = normaliseExploreQuestions(result.data.questions, topic, levelProfile, count);
-      if (questions.length === 0) {
-        return fail(Errors.AI_FAILED, "AI generated no valid questions. Try a different topic.");
-      }
+        // Pick the better result based on quality score + coverage
+        const geminiMetrics = qualityMetrics(geminiQs, levelProfile);
+        const claudeMetrics = qualityMetrics(claudeQs, levelProfile);
+        const geminiScore = geminiQs.length > 0 ? qualityScore(geminiMetrics, targets) : -1;
+        const claudeScore = claudeQs.length > 0 ? qualityScore(claudeMetrics, targets) : -1;
 
-      let metrics = qualityMetrics(questions, levelProfile);
-      const firstPassScore = qualityScore(metrics, targets);
+        if (claudeScore >= geminiScore || claudeQs.length > geminiQs.length) {
+          questions = claudeQs;
+          metrics = claudeMetrics;
+          modelUsed = "claude-parallel";
+        } else {
+          questions = geminiQs;
+          metrics = geminiMetrics;
+          modelUsed = "gemini-parallel";
+        }
+      } else {
+        // ── SIMPLE: MD1/MD2/MD3 — Gemini only (fast) ──
+        let result = await geminiGenerate(EXPLORE_QUESTIONS_SYSTEM, userPrompt, geminiOpts);
+        modelUsed = "gemini";
 
-      if (shouldFallbackToClaude({
-        generatedCount: questions.length,
-        requestedCount: count,
-        levelProfile,
-        metrics,
-        targets,
-      })) {
-        log.info("Explore first pass below target, running single Claude fallback", {
-          uid,
-          topic,
-          level: levelProfile.id,
-          modelUsed,
-          metrics,
-          targets,
-        });
-
-        const fallbackPrompt = exploreQuestionsUserPrompt({
-          topic,
-          count: targets.requestCount,
-          levelLabel: levelProfile.label,
-          levelDescription: levelProfile.description || "",
-          minDifficulty: levelProfile.minDifficulty,
-          maxDifficulty: levelProfile.maxDifficulty,
-          hardFloorCount: targets.hardFloorCount,
-          expertFloorCount: targets.expertFloorCount,
-          complexityGuidance: getComplexityGuidance(levelProfile),
-          strictMode: ADVANCED_LEVELS.has(levelProfile.id),
-        });
-        const fallbackResult = await claudeGenerate(EXPLORE_QUESTIONS_SYSTEM, fallbackPrompt, claudeOpts);
-        if (fallbackResult.success && fallbackResult.data?.questions) {
-          const fallbackQuestions = normaliseExploreQuestions(
-            fallbackResult.data.questions,
-            topic,
-            levelProfile,
-            count
-          );
-          if (fallbackQuestions.length > 0) {
-            const fallbackMetrics = qualityMetrics(fallbackQuestions, levelProfile);
-            const fallbackScore = qualityScore(fallbackMetrics, targets);
-            const betterCoverage = fallbackQuestions.length >= questions.length;
-            if (fallbackScore >= firstPassScore || betterCoverage) {
-              questions = fallbackQuestions;
-              metrics = fallbackMetrics;
-              modelUsed = `${modelUsed}->claude-fallback`;
-            }
+        if (!result.success || !result.data?.questions) {
+          log.warn("Gemini explore failed, falling back to Claude", {
+            uid, topic, level: levelProfile.id, error: result.error,
+          });
+          result = await claudeGenerate(EXPLORE_QUESTIONS_SYSTEM, userPrompt, claudeOpts);
+          modelUsed = "claude-fallback";
+          if (!result.success || !result.data?.questions) {
+            return fail(Errors.AI_FAILED, "Failed to generate questions. Please try again.");
           }
         }
+
+        questions = normaliseExploreQuestions(result.data.questions, topic, levelProfile, count);
+        metrics = qualityMetrics(questions, levelProfile);
+      }
+
+      if (!questions || questions.length === 0) {
+        return fail(Errors.AI_FAILED, "AI generated no valid questions. Try a different topic.");
       }
 
       log.info("Explore quiz generated", {

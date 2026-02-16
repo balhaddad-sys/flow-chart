@@ -22,7 +22,7 @@ const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
 
 exports.processQuestionBackfillJob = functions
   .runWith({
-    timeoutSeconds: 120,
+    timeoutSeconds: 300,
     memory: "512MB",
     secrets: [geminiApiKey],
   })

@@ -356,7 +356,7 @@ async function generateBlueprint(systemPrompt, userPrompt) {
  */
 async function generateQuestions(systemPrompt, userPrompt, opts = {}) {
   return callGemini(systemPrompt, userPrompt, {
-    maxTokens: opts.maxTokens ?? 3200,
+    maxTokens: opts.maxTokens ?? 8192,
     retries: opts.retries ?? 1,
     rateLimitMaxRetries: opts.rateLimitMaxRetries ?? 1,
     rateLimitRetryDelayMs: opts.rateLimitRetryDelayMs ?? 8000,

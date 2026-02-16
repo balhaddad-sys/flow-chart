@@ -63,7 +63,7 @@ function buildQuestionGenPlan({
     Math.max(missingCount + 12, safeRequested * 2)
   );
 
-  const tokenBudget = clampInt(800 + aiRequestCount * 180, 1000, 3200);
+  const tokenBudget = clampInt(800 + aiRequestCount * 250, 1200, 8192);
   const retries = latencyMs > 25_000 ? 0 : 1;
   const rateLimitMaxRetries = latencyMs > 25_000 ? 0 : 1;
   const rateLimitRetryDelayMs = latencyMs > 25_000 ? 5000 : 8000;

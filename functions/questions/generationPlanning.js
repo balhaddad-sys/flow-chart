@@ -6,7 +6,7 @@
 const { clampInt } = require("../lib/utils");
 
 const FAST_READY_COUNT = 3;
-const BACKFILL_STEP_COUNT = 5;
+const BACKFILL_STEP_COUNT = 30;
 const MAX_NO_PROGRESS_STREAK = 4;
 
 function computeFastStartCounts(requestedCount, existingCount) {
