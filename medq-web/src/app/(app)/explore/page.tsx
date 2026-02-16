@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   CheckCircle2,
@@ -22,6 +22,9 @@ import { Progress } from "@/components/ui/progress";
 import { useExploreStore } from "@/lib/stores/explore-store";
 import { ExploreResults } from "@/components/explore/explore-results";
 import * as fn from "@/lib/firebase/functions";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { db } from "@/lib/firebase/client";
+import { doc, onSnapshot } from "firebase/firestore";
 import { toast } from "sonner";
 
 const EXPLORE_LEVELS = [
@@ -37,9 +40,28 @@ const EXPLORE_LEVELS = [
 const ADVANCED_LEVEL_IDS = new Set(["MD4", "MD5", "INTERN", "RESIDENT", "POSTGRADUATE"]);
 
 export default function ExplorePage() {
+  const { uid } = useAuth();
   const store = useExploreStore();
-  const { phase, questions, currentIndex, answers, results, error, topic, levelLabel } =
-    store;
+  const {
+    phase,
+    questions,
+    currentIndex,
+    answers,
+    results,
+    error,
+    topic,
+    levelLabel,
+    targetCount,
+    backgroundJobId,
+    backfillStatus,
+    backfillError,
+    qualityGatePassed,
+    qualityScore,
+  } = store;
+  const syncBackgroundQuestions = store.syncBackgroundQuestions;
+  const setBackfillStatus = store.setBackfillStatus;
+  const syncedCountRef = useRef(0);
+  const terminalStatusRef = useRef<string | null>(null);
 
   const [inputTopic, setInputTopic] = useState("");
   const [inputLevel, setInputLevel] = useState("MD3");
@@ -53,6 +75,89 @@ export default function ExplorePage() {
   const answeredCount = answers.size;
   const progressPercent =
     questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
+  const isLastLoadedQuestion = currentIndex >= questions.length - 1;
+  const waitingForMoreQuestions =
+    backfillStatus === "running" && questions.length < targetCount;
+
+  useEffect(() => {
+    syncedCountRef.current = questions.length;
+  }, [questions.length]);
+
+  useEffect(() => {
+    terminalStatusRef.current = null;
+  }, [backgroundJobId]);
+
+  useEffect(() => {
+    if (!uid || !backgroundJobId || backfillStatus !== "running") return;
+
+    const jobRef = doc(db, "users", uid, "jobs", backgroundJobId);
+    const unsubscribe = onSnapshot(
+      jobRef,
+      (snap) => {
+        if (!snap.exists()) return;
+        const data = snap.data() as Record<string, unknown>;
+        const status = String(data.status || "");
+        const target = Number(data.targetCount || targetCount || 0);
+        const jobQuestions = Array.isArray(data.questions)
+          ? (data.questions as fn.ExploreQuestion[])
+          : [];
+
+        syncBackgroundQuestions(jobQuestions, {
+          targetCount: target,
+          modelUsed: String(data.modelUsed || ""),
+          qualityGatePassed:
+            typeof data.qualityGatePassed === "boolean"
+              ? data.qualityGatePassed
+              : undefined,
+          qualityScore:
+            typeof data.qualityScore === "number" ? data.qualityScore : undefined,
+        });
+
+        if (jobQuestions.length > syncedCountRef.current) {
+          const added = jobQuestions.length - syncedCountRef.current;
+          syncedCountRef.current = jobQuestions.length;
+          toast.success(
+            `${added} new question${added === 1 ? "" : "s"} added in background.`
+          );
+        }
+
+        if (status === "COMPLETED" && terminalStatusRef.current !== "COMPLETED") {
+          terminalStatusRef.current = "COMPLETED";
+          setBackfillStatus("completed", null);
+          const remaining = Number(data.remainingCount || 0);
+          if (remaining > 0) {
+            toast.message(
+              `Background generation finished with ${jobQuestions.length}/${target} questions.`
+            );
+          } else {
+            toast.success("All requested Explore questions are ready.");
+          }
+        } else if (status === "FAILED" && terminalStatusRef.current !== "FAILED") {
+          terminalStatusRef.current = "FAILED";
+          const message = String(
+            data.error || "Background generation failed. You can still continue with ready questions."
+          );
+          setBackfillStatus("failed", message);
+          toast.error(message);
+        }
+      },
+      (snapshotError) => {
+        if (terminalStatusRef.current === "FAILED") return;
+        terminalStatusRef.current = "FAILED";
+        setBackfillStatus("failed", snapshotError.message);
+        toast.error("Lost connection to background generation updates.");
+      }
+    );
+
+    return unsubscribe;
+  }, [
+    uid,
+    backgroundJobId,
+    backfillStatus,
+    setBackfillStatus,
+    syncBackgroundQuestions,
+    targetCount,
+  ]);
 
   async function handleGenerate() {
     const trimmed = inputTopic.trim();
@@ -71,8 +176,21 @@ export default function ExplorePage() {
         result.questions,
         result.topic,
         result.level,
-        result.levelLabel
+        result.levelLabel,
+        {
+          targetCount: result.targetCount ?? result.questions.length,
+          backgroundJobId: result.backgroundJobId ?? null,
+          backfillStatus: result.backgroundQueued ? "running" : "completed",
+          modelUsed: result.modelUsed,
+          qualityGatePassed: result.qualityGatePassed,
+          qualityScore: result.qualityScore,
+        }
       );
+      if (result.backgroundQueued && (result.remainingCount ?? 0) > 0) {
+        toast.message(
+          `${result.questions.length} question${result.questions.length === 1 ? "" : "s"} ready now. Generating ${result.remainingCount} more in background.`
+        );
+      }
     } catch (err) {
       store.setError(
         err instanceof Error ? err.message : "Failed to generate questions."
@@ -86,7 +204,7 @@ export default function ExplorePage() {
   }
 
   function handleNext() {
-    if (currentIndex >= questions.length - 1) {
+    if (isLastLoadedQuestion) {
       store.finishQuiz();
     } else {
       store.nextQuestion();
@@ -184,12 +302,13 @@ export default function ExplorePage() {
       <div className="page-wrap flex flex-col items-center justify-center py-24">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
         <p className="mt-4 text-sm text-muted-foreground">
-          Generating questions on &ldquo;{store.topic || inputTopic}&rdquo;...
+          Preparing your first questions on &ldquo;{store.topic || inputTopic}
+          &rdquo;...
         </p>
         <p className="mt-1 text-xs text-muted-foreground">
           {isAdvancedLevel
-            ? "Advanced levels can take up to 45 seconds."
-            : "This usually takes around 10-20 seconds."}
+            ? "Advanced levels start in seconds; remaining questions continue in background."
+            : "Initial questions usually load in under 20 seconds."}
         </p>
       </div>
     );
@@ -217,8 +336,27 @@ export default function ExplorePage() {
             <Badge variant="outline">
               {currentIndex + 1}/{questions.length}
             </Badge>
+            <Badge variant="outline">
+              Answered {answeredCount}/{questions.length}
+            </Badge>
+            {targetCount > questions.length && (
+              <Badge variant="outline">
+                Target {questions.length}/{targetCount}
+              </Badge>
+            )}
+            {backfillStatus === "running" && (
+              <Badge variant="outline">Generating more...</Badge>
+            )}
+            {typeof qualityScore === "number" && (
+              <Badge variant={qualityGatePassed ? "secondary" : "outline"}>
+                Quality {Math.round(qualityScore * 100)}%
+              </Badge>
+            )}
           </div>
           <Progress value={progressPercent} className="h-2.5" />
+          {backfillError && (
+            <p className="text-xs text-destructive">{backfillError}</p>
+          )}
         </CardContent>
       </Card>
 
@@ -323,12 +461,14 @@ export default function ExplorePage() {
 
               <div className="flex flex-wrap gap-2">
                 <Button onClick={handleNext}>
-                  {currentIndex >= questions.length - 1
-                    ? "See Results"
+                  {isLastLoadedQuestion
+                    ? waitingForMoreQuestions
+                      ? "Finish For Now"
+                      : "See Results"
                     : "Next Question"}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
-                {currentIndex < questions.length - 1 && (
+                {!isLastLoadedQuestion && (
                   <Button
                     variant="outline"
                     onClick={() => store.finishQuiz()}
@@ -337,6 +477,12 @@ export default function ExplorePage() {
                   </Button>
                 )}
               </div>
+              {waitingForMoreQuestions && (
+                <p className="text-xs text-muted-foreground">
+                  Generating {targetCount - questions.length} more questions in the
+                  background. You can finish now or wait for more.
+                </p>
+              )}
             </div>
           )}
         </CardContent>

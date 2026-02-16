@@ -20,13 +20,26 @@ import { Progress } from "@/components/ui/progress";
 import { useExploreStore } from "@/lib/stores/explore-store";
 
 export function ExploreResults() {
-  const { questions, answers, results, topic, levelLabel, reset } =
+  const {
+    questions,
+    answers,
+    results,
+    topic,
+    levelLabel,
+    targetCount,
+    backfillStatus,
+    resumeQuiz,
+    reset,
+  } =
     useExploreStore();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const total = questions.length;
+  const target = Math.max(total, targetCount || 0);
+  const answered = answers.size;
+  const unanswered = Math.max(0, total - answered);
   const correct = Array.from(results.values()).filter(Boolean).length;
-  const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+  const accuracy = answered > 0 ? Math.round((correct / answered) * 100) : 0;
 
   return (
     <div className="space-y-5">
@@ -42,8 +55,23 @@ export function ExploreResults() {
           <div className="text-center">
             <p className="text-5xl font-semibold">{accuracy}%</p>
             <p className="mt-1 text-muted-foreground">
-              {correct} out of {total} correct
+              {correct} out of {answered} answered correctly
             </p>
+            {target > total && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {total}/{target} questions ready so far
+              </p>
+            )}
+            {backfillStatus === "running" && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                More questions are still being generated in background.
+              </p>
+            )}
+            {unanswered > 0 && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {unanswered} question{unanswered === 1 ? "" : "s"} unanswered.
+              </p>
+            )}
           </div>
           <Progress value={accuracy} className="h-3" />
 
@@ -130,7 +158,13 @@ export function ExploreResults() {
             })}
           </div>
 
-          <Button className="w-full" onClick={reset}>
+          {unanswered > 0 && (
+            <Button className="w-full" onClick={resumeQuiz}>
+              Continue Quiz
+            </Button>
+          )}
+
+          <Button className="w-full" variant="outline" onClick={reset}>
             <RotateCcw className="mr-2 h-4 w-4" />
             New Topic
           </Button>

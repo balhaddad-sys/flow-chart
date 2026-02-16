@@ -42,6 +42,7 @@ const { finishAssessmentSession } = require("./assessment/finishAssessmentSessio
 
 // ── Explore ─────────────────────────────────────────────────────────────────
 const { exploreQuiz } = require("./explore/exploreQuiz");
+const { processExploreBackfillJob } = require("./explore/processExploreBackfillJob");
 
 // ── Analytics ────────────────────────────────────────────────────────────────
 const { submitAttempt } = require("./analytics/submitAttempt");
@@ -72,6 +73,7 @@ exports.startAssessmentSession = startAssessmentSession;
 exports.submitAssessmentAnswer = submitAssessmentAnswer;
 exports.finishAssessmentSession = finishAssessmentSession;
 exports.exploreQuiz = exploreQuiz;
+exports.processExploreBackfillJob = processExploreBackfillJob;
 exports.submitAttempt = submitAttempt;
 exports.computeWeakness = computeWeakness;
 exports.runFixPlan = runFixPlan;

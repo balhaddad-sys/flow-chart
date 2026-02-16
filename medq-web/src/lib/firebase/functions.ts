@@ -377,6 +377,11 @@ export interface ExploreQuizResult {
   modelUsed: string;
   qualityGatePassed?: boolean;
   qualityScore?: number;
+  targetCount?: number;
+  readyNow?: number;
+  remainingCount?: number;
+  backgroundQueued?: boolean;
+  backgroundJobId?: string;
 }
 
 export function exploreQuiz(params: {
