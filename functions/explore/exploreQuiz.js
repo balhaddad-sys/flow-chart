@@ -24,37 +24,34 @@ const { EXPLORE_QUESTIONS_SYSTEM, exploreQuestionsUserPrompt } = require("../ai/
 const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
 const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
 
-const GEMINI_LEVELS = new Set(["MD1", "MD2", "MD3"]);
 const ADVANCED_LEVELS = new Set(["MD4", "MD5", "INTERN", "RESIDENT", "POSTGRADUATE"]);
+const EXPERT_LEVELS = new Set(["RESIDENT", "POSTGRADUATE"]);
 
 function buildExploreTargets(levelProfile, requestedCount) {
   const safeCount = Math.max(3, requestedCount);
   const targets = {
-    requestCount: safeCount,
-    inBandRatio: 0.8,
+    requestCount: Math.min(20, safeCount + 1),
+    inBandRatio: 0.75,
     hardFloorCount: 0,
     expertFloorCount: 0,
   };
 
   if (levelProfile.id === "MD3") {
-    targets.requestCount = Math.min(20, safeCount + Math.ceil(safeCount * 0.2));
-    targets.inBandRatio = 0.85;
-    targets.hardFloorCount = Math.max(1, Math.ceil(safeCount * 0.3));
+    targets.inBandRatio = 0.78;
+    targets.hardFloorCount = Math.max(1, Math.ceil(safeCount * 0.2));
     return targets;
   }
 
   if (ADVANCED_LEVELS.has(levelProfile.id)) {
-    targets.requestCount = Math.min(20, safeCount + Math.ceil(safeCount * 0.35));
-    targets.inBandRatio = 0.9;
-    targets.hardFloorCount = Math.max(1, Math.ceil(safeCount * 0.65));
-    targets.expertFloorCount = Math.max(1, Math.ceil(safeCount * 0.15));
+    targets.requestCount = Math.min(20, safeCount + 2);
+    targets.inBandRatio = 0.8;
+    targets.hardFloorCount = Math.max(1, Math.ceil(safeCount * 0.45));
   }
 
-  if (levelProfile.id === "RESIDENT" || levelProfile.id === "POSTGRADUATE") {
-    targets.requestCount = Math.min(20, safeCount + Math.ceil(safeCount * 0.5));
-    targets.inBandRatio = 0.95;
-    targets.hardFloorCount = safeCount;
-    targets.expertFloorCount = Math.max(1, Math.ceil(safeCount * 0.35));
+  if (EXPERT_LEVELS.has(levelProfile.id)) {
+    targets.inBandRatio = 0.85;
+    targets.hardFloorCount = Math.max(1, Math.ceil(safeCount * 0.6));
+    targets.expertFloorCount = Math.max(1, Math.ceil(safeCount * 0.15));
   }
 
   return targets;
@@ -107,6 +104,12 @@ function meetsQualityGate(metrics, targets) {
   if (targets.hardFloorCount > 0 && metrics.hardCount < targets.hardFloorCount) return false;
   if (targets.expertFloorCount > 0 && metrics.expertCount < targets.expertFloorCount) return false;
   return true;
+}
+
+function shouldFallbackToClaude({ generatedCount, requestedCount, levelProfile, metrics, targets }) {
+  if (generatedCount < requestedCount) return true;
+  if (ADVANCED_LEVELS.has(levelProfile.id) && !meetsQualityGate(metrics, targets)) return true;
+  return false;
 }
 
 function prioritiseQuestions(questions, levelProfile, requestedCount) {
@@ -169,6 +172,7 @@ exports.exploreQuiz = functions
     secrets: [geminiApiKey, anthropicApiKey],
   })
   .https.onCall(async (data, context) => {
+    const t0 = Date.now();
     const uid = requireAuth(context);
     requireStrings(data, [
       { field: "topic", maxLen: 200 },
@@ -195,41 +199,27 @@ exports.exploreQuiz = functions
         complexityGuidance: getComplexityGuidance(levelProfile),
       });
 
-      const useGemini = GEMINI_LEVELS.has(levelProfile.id);
-      let result;
-      let modelUsed;
-      const aiOpts = { maxTokens: 3800, retries: 2 };
+      const geminiOpts = {
+        maxTokens: 2800,
+        retries: 1,
+        temperature: 0.12,
+        rateLimitMaxRetries: 1,
+        rateLimitRetryDelayMs: 2500,
+      };
+      const claudeOpts = { maxTokens: 3200, retries: 1 };
 
-      if (useGemini) {
-        result = await geminiGenerate(EXPLORE_QUESTIONS_SYSTEM, userPrompt, {
-          ...aiOpts,
-          temperature: 0.15,
-        });
-        modelUsed = "gemini";
-
-        if (result.success && result.data?.questions) {
-          const validated = normaliseExploreQuestions(result.data.questions, topic, levelProfile, count);
-          if (validated.length < Math.ceil(count * 0.5)) {
-            log.warn("Gemini explore below threshold, falling back to Claude", {
-              uid, topic, level: levelProfile.id, geminiValid: validated.length, requested: count,
-            });
-            result = await claudeGenerate(EXPLORE_QUESTIONS_SYSTEM, userPrompt, aiOpts);
-            modelUsed = "claude-fallback";
-          }
-        } else if (!result.success) {
-          log.warn("Gemini explore failed, falling back to Claude", {
-            uid, topic, level: levelProfile.id, error: result.error,
-          });
-          result = await claudeGenerate(EXPLORE_QUESTIONS_SYSTEM, userPrompt, aiOpts);
-          modelUsed = "claude-fallback";
-        }
-      } else {
-        result = await claudeGenerate(EXPLORE_QUESTIONS_SYSTEM, userPrompt, aiOpts);
-        modelUsed = "claude";
-      }
+      let result = await geminiGenerate(EXPLORE_QUESTIONS_SYSTEM, userPrompt, geminiOpts);
+      let modelUsed = "gemini";
 
       if (!result.success || !result.data?.questions) {
-        return fail(Errors.AI_FAILED, "Failed to generate questions. Please try again.");
+        log.warn("Gemini explore failed, falling back to Claude", {
+          uid, topic, level: levelProfile.id, error: result.error,
+        });
+        result = await claudeGenerate(EXPLORE_QUESTIONS_SYSTEM, userPrompt, claudeOpts);
+        modelUsed = "claude-fallback";
+        if (!result.success || !result.data?.questions) {
+          return fail(Errors.AI_FAILED, "Failed to generate questions. Please try again.");
+        }
       }
 
       let questions = normaliseExploreQuestions(result.data.questions, topic, levelProfile, count);
@@ -238,10 +228,16 @@ exports.exploreQuiz = functions
       }
 
       let metrics = qualityMetrics(questions, levelProfile);
-      const qualityBefore = qualityScore(metrics, targets);
+      const firstPassScore = qualityScore(metrics, targets);
 
-      if (!meetsQualityGate(metrics, targets)) {
-        log.warn("Explore quality below target, retrying in strict mode", {
+      if (shouldFallbackToClaude({
+        generatedCount: questions.length,
+        requestedCount: count,
+        levelProfile,
+        metrics,
+        targets,
+      })) {
+        log.info("Explore first pass below target, running single Claude fallback", {
           uid,
           topic,
           level: levelProfile.id,
@@ -250,7 +246,7 @@ exports.exploreQuiz = functions
           targets,
         });
 
-        const strictPrompt = exploreQuestionsUserPrompt({
+        const fallbackPrompt = exploreQuestionsUserPrompt({
           topic,
           count: targets.requestCount,
           levelLabel: levelProfile.label,
@@ -260,23 +256,24 @@ exports.exploreQuiz = functions
           hardFloorCount: targets.hardFloorCount,
           expertFloorCount: targets.expertFloorCount,
           complexityGuidance: getComplexityGuidance(levelProfile),
-          strictMode: true,
+          strictMode: ADVANCED_LEVELS.has(levelProfile.id),
         });
-        const strictResult = await claudeGenerate(EXPLORE_QUESTIONS_SYSTEM, strictPrompt, aiOpts);
-        if (strictResult.success && strictResult.data?.questions) {
-          const strictQuestions = normaliseExploreQuestions(
-            strictResult.data.questions,
+        const fallbackResult = await claudeGenerate(EXPLORE_QUESTIONS_SYSTEM, fallbackPrompt, claudeOpts);
+        if (fallbackResult.success && fallbackResult.data?.questions) {
+          const fallbackQuestions = normaliseExploreQuestions(
+            fallbackResult.data.questions,
             topic,
             levelProfile,
             count
           );
-          if (strictQuestions.length > 0) {
-            const strictMetrics = qualityMetrics(strictQuestions, levelProfile);
-            const strictScore = qualityScore(strictMetrics, targets);
-            if (strictScore >= qualityBefore || meetsQualityGate(strictMetrics, targets)) {
-              questions = strictQuestions;
-              metrics = strictMetrics;
-              modelUsed = `${modelUsed}->claude-strict`;
+          if (fallbackQuestions.length > 0) {
+            const fallbackMetrics = qualityMetrics(fallbackQuestions, levelProfile);
+            const fallbackScore = qualityScore(fallbackMetrics, targets);
+            const betterCoverage = fallbackQuestions.length >= questions.length;
+            if (fallbackScore >= firstPassScore || betterCoverage) {
+              questions = fallbackQuestions;
+              metrics = fallbackMetrics;
+              modelUsed = `${modelUsed}->claude-fallback`;
             }
           }
         }
@@ -284,7 +281,7 @@ exports.exploreQuiz = functions
 
       log.info("Explore quiz generated", {
         uid, topic, level: levelProfile.id, requested: count,
-        generated: questions.length, modelUsed, metrics, targets,
+        generated: questions.length, modelUsed, metrics, targets, durationMs: Date.now() - t0,
       });
 
       return ok({ questions, topic, level: levelProfile.id, levelLabel: levelProfile.label, modelUsed });
