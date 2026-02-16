@@ -1,0 +1,129 @@
+name: Android Release Bundle
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_name:
+        description: "Version name (e.g. 1.0.0)"
+        required: true
+        default: "1.0.0"
+      build_number:
+        description: "Version code (integer)"
+        required: true
+        default: "1"
+  push:
+    tags:
+      - "android-v*"
+
+jobs:
+  build-aab:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_ANDROID_API_KEY: ${{ secrets.FIREBASE_ANDROID_API_KEY }}
+      FIREBASE_ANDROID_APP_ID: ${{ secrets.FIREBASE_ANDROID_APP_ID }}
+      FIREBASE_ANDROID_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_ANDROID_MESSAGING_SENDER_ID }}
+      FIREBASE_ANDROID_PROJECT_ID: ${{ secrets.FIREBASE_ANDROID_PROJECT_ID }}
+      FIREBASE_ANDROID_STORAGE_BUCKET: ${{ secrets.FIREBASE_ANDROID_STORAGE_BUCKET }}
+      MEDQ_PRIVACY_URL: ${{ secrets.MEDQ_PRIVACY_URL }}
+      MEDQ_TERMS_URL: ${{ secrets.MEDQ_TERMS_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Validate required secrets
+        run: |
+          required=(
+            FIREBASE_ANDROID_API_KEY
+            FIREBASE_ANDROID_APP_ID
+            FIREBASE_ANDROID_MESSAGING_SENDER_ID
+            MEDQ_PRIVACY_URL
+            MEDQ_TERMS_URL
+            ANDROID_UPLOAD_KEYSTORE_BASE64
+            ANDROID_KEYSTORE_PASSWORD
+            ANDROID_KEY_PASSWORD
+            ANDROID_KEY_ALIAS
+          )
+          for key in "${required[@]}"; do
+            value="${!key}"
+            if [ -z "$value" ]; then
+              echo "Missing required secret/env: $key"
+              exit 1
+            fi
+          done
+        env:
+          ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+
+      - name: Ensure Android platform exists
+        run: |
+          if [ ! -d "android" ]; then
+            flutter create --platforms=android --org com.medq --project-name medq .
+          fi
+
+      - name: Create signing files
+        env:
+          ANDROID_UPLOAD_KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          mkdir -p android/app
+          echo "$ANDROID_UPLOAD_KEYSTORE_BASE64" | base64 --decode > android/app/upload-keystore.jks
+          cat > android/key.properties <<EOF
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyPassword=$ANDROID_KEY_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          storeFile=app/upload-keystore.jks
+          EOF
+
+      - name: Resolve Flutter dependencies
+        run: flutter pub get
+
+      - name: Determine build metadata
+        id: meta
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "build_name=${{ github.event.inputs.build_name }}" >> "$GITHUB_OUTPUT"
+            echo "build_number=${{ github.event.inputs.build_number }}" >> "$GITHUB_OUTPUT"
+          else
+            TAG="${GITHUB_REF_NAME#android-v}"
+            echo "build_name=$TAG" >> "$GITHUB_OUTPUT"
+            echo "build_number=${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build release AAB
+        run: |
+          flutter build appbundle --release \
+            --build-name="${{ steps.meta.outputs.build_name }}" \
+            --build-number="${{ steps.meta.outputs.build_number }}" \
+            --dart-define=FIREBASE_ANDROID_API_KEY="$FIREBASE_ANDROID_API_KEY" \
+            --dart-define=FIREBASE_ANDROID_APP_ID="$FIREBASE_ANDROID_APP_ID" \
+            --dart-define=FIREBASE_ANDROID_MESSAGING_SENDER_ID="$FIREBASE_ANDROID_MESSAGING_SENDER_ID" \
+            --dart-define=FIREBASE_ANDROID_PROJECT_ID="$FIREBASE_ANDROID_PROJECT_ID" \
+            --dart-define=FIREBASE_ANDROID_STORAGE_BUCKET="$FIREBASE_ANDROID_STORAGE_BUCKET" \
+            --dart-define=MEDQ_PRIVACY_URL="$MEDQ_PRIVACY_URL" \
+            --dart-define=MEDQ_TERMS_URL="$MEDQ_TERMS_URL"
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: medq-android-aab-${{ steps.meta.outputs.build_name }}-${{ steps.meta.outputs.build_number }}
+          path: build/app/outputs/bundle/release/app-release.aab

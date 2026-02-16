@@ -12,7 +12,9 @@ void main() async {
 
   // Use path-based URLs instead of hash-based (removes # from URLs)
   // This fixes service worker navigation issues with Firebase Hosting
-  usePathUrlStrategy();
+  if (kIsWeb) {
+    usePathUrlStrategy();
+  }
 
   // Global error handling
   FlutterError.onError = (details) {

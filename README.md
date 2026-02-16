@@ -134,6 +134,20 @@ firebase deploy --only functions,firestore,storage
 # Web app deploys automatically via Vercel on git push
 ```
 
+### 6. Android / Play Store Release
+
+This repo is set up for web-first delivery and supports Android release builds for Google Play.
+
+```powershell
+# Bootstrap android/ if missing
+.\scripts\playstore-bootstrap.ps1
+
+# Build signed AAB (requires keystore + Firebase Android defines)
+.\scripts\build-android-aab.ps1 -BuildName 1.0.0 -BuildNumber 10
+```
+
+Detailed guide: `docs/PLAY_STORE_READINESS.md`
+
 ## Project Structure
 
 ```

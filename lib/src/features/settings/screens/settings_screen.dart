@@ -7,9 +7,11 @@ import 'package:intl/intl.dart';
 
 import '../../../app.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/app_links.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
+import '../../../core/utils/external_link.dart';
 import '../../../core/widgets/course_selector_sheet.dart';
 import '../../../models/course_model.dart';
 import '../../home/providers/home_provider.dart';
@@ -481,7 +483,11 @@ class SettingsScreen extends ConsumerWidget {
                             ? AppColors.darkTextTertiary
                             : AppColors.textTertiary,
                         size: 20),
-                    onTap: () {},
+                    onTap: () => openExternalLink(
+                      context,
+                      AppLinks.privacyPolicyUrl,
+                      label: 'Privacy Policy',
+                    ),
                   ),
                   _divider(isDark),
                   ListTile(
@@ -496,7 +502,11 @@ class SettingsScreen extends ConsumerWidget {
                             ? AppColors.darkTextTertiary
                             : AppColors.textTertiary,
                         size: 20),
-                    onTap: () {},
+                    onTap: () => openExternalLink(
+                      context,
+                      AppLinks.termsOfServiceUrl,
+                      label: 'Terms of Service',
+                    ),
                   ),
                 ],
               ),
