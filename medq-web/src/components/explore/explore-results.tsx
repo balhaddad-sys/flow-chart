@@ -6,6 +6,7 @@ import {
   ChevronDown,
   RotateCcw,
   XCircle,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -101,6 +102,26 @@ export function ExploreResults() {
                         <p className="text-muted-foreground">
                           {q.explanation.correctWhy}
                         </p>
+                      )}
+                      {(q.citations?.length ?? 0) > 0 && (
+                        <div className="space-y-1.5 pt-1">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            Verified sources
+                          </p>
+                          {q.citations?.slice(0, 3).map((citation, idx) => (
+                            <a
+                              key={`${citation.url}_${idx}`}
+                              href={citation.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="group flex items-start gap-2 rounded-lg border border-border/60 bg-background/70 px-2.5 py-2 text-sm transition-colors hover:bg-accent/40"
+                            >
+                              <span className="font-medium text-primary">{citation.source}</span>
+                              <span className="flex-1 text-muted-foreground">{citation.title}</span>
+                              <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-foreground" />
+                            </a>
+                          ))}
+                        </div>
                       )}
                     </div>
                   )}

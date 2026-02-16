@@ -40,7 +40,9 @@ Return this exact JSON schema:
 const QUESTIONS_SYSTEM = `You are MedQ Question Writer. Generate exam-style single-best-answer (SBA)
 questions for medical students based on the provided topic blueprint.
 Questions must be clinically relevant, unambiguous, and have exactly one
-correct answer. Output STRICT JSON only.`;
+correct answer.
+Every explanation must cite trusted medical sources (PubMed, UpToDate, Medscape).
+Output STRICT JSON only.`;
 
 function questionsUserPrompt({
   blueprintJSON,
@@ -67,6 +69,8 @@ Quality rules:
 - Do not write generic stems; each stem must be specific to this section.
 - Keep explanations concise and precise (1-2 sentences per field).
 - Do not combine unrelated topics from different parts of the blueprint into one vague question.
+- Each question must include 2-3 citations from trusted sources only: PubMed, UpToDate, Medscape.
+- Citation URLs must be full HTTPS links to the publication/topic page (not homepage).
 
 Return this exact JSON schema:
 {
@@ -91,7 +95,14 @@ Return this exact JSON schema:
       "source_ref": {
         "fileName": "string",
         "sectionLabel": "string — e.g., 'Slide 14' or 'Page 23'"
-      }
+      },
+      "citations": [
+        {
+          "source": "PUBMED | UPTODATE | MEDSCAPE",
+          "title": "string — publication/topic title",
+          "url": "string — full https URL"
+        }
+      ]
     }
   ]
 }`;
@@ -185,12 +196,28 @@ const EXPLORE_QUESTIONS_SYSTEM = `You are MedQ Question Writer. Generate exam-st
 questions for medical students on the requested topic.
 Questions must be clinically relevant, unambiguous, and have exactly one
 correct answer. Draw from established medical knowledge.
+Use trusted references only (PubMed, UpToDate, Medscape) and cite them.
 Output STRICT JSON only. No markdown, no commentary, no code fences.`;
 
-function exploreQuestionsUserPrompt({ topic, count, levelLabel, levelDescription, minDifficulty, maxDifficulty }) {
+function exploreQuestionsUserPrompt({
+  topic,
+  count,
+  levelLabel,
+  levelDescription,
+  minDifficulty,
+  maxDifficulty,
+  hardFloorCount = 0,
+  expertFloorCount = 0,
+  complexityGuidance = "",
+  strictMode = false,
+}) {
   return `Topic: "${topic}"
 Target audience: ${levelLabel} — ${levelDescription}
 Difficulty range: ${minDifficulty} to ${maxDifficulty} (scale 1-5)
+${hardFloorCount > 0 ? `Hard-floor target: at least ${hardFloorCount} questions must be difficulty 4 or 5` : ""}
+${expertFloorCount > 0 ? `Expert-floor target: at least ${expertFloorCount} questions must be difficulty 5` : ""}
+${complexityGuidance ? `Complexity guidance: ${complexityGuidance}` : ""}
+${strictMode ? "Strict mode: Reject simplistic recall-only questions. Prefer nuanced clinical reasoning and management trade-offs." : ""}
 
 Generate exactly ${count} SBA questions on this topic.
 
@@ -201,6 +228,8 @@ Quality rules:
 - Each stem must be a specific clinical vignette or focused question, not generic.
 - Include exactly 5 options per question.
 - Keep explanations concise and precise (1-2 sentences per field).
+- Every question must include 2-3 citations from PubMed/UpToDate/Medscape only.
+- Citation URLs must be full HTTPS links to the specific publication/topic page.
 
 Return this exact JSON schema:
 {
@@ -221,7 +250,14 @@ Return this exact JSON schema:
           "string — why option E is wrong (or correct)"
         ],
         "key_takeaway": "string — the one thing to remember"
-      }
+      },
+      "citations": [
+        {
+          "source": "PUBMED | UPTODATE | MEDSCAPE",
+          "title": "string — publication/topic title",
+          "url": "string — full https URL"
+        }
+      ]
     }
   ]
 }`;

@@ -24,6 +24,7 @@ const log = require("../lib/logger");
 const { extractPdfSections } = require("./extractors/pdfExtractor");
 const { extractPptxSections } = require("./extractors/pptxExtractor");
 const { extractDocxSections } = require("./extractors/docxExtractor");
+const { filterAnalyzableSections } = require("./filters/sectionFilter");
 
 exports.processUploadedFile = functions
   .runWith({
@@ -110,9 +111,19 @@ exports.processUploadedFile = functions
         rawSections = await extractDocxSections(tempFilePath);
       }
 
+      const { keptSections, droppedSections } = filterAnalyzableSections(rawSections);
+      if (droppedSections.length > 0) {
+        log.info("Filtered non-instructional sections", {
+          uid,
+          fileId,
+          droppedCount: droppedSections.length,
+          dropped: droppedSections.slice(0, 8),
+        });
+      }
+
       // Upload all text blobs in parallel & build metadata entries
       const sections = await Promise.all(
-        rawSections.map(async (raw, idx) => {
+        keptSections.map(async (raw, idx) => {
           const sectionSlug = `${fileId}_s${idx}`;
           const textBlobPath = `users/${uid}/derived/sections/${sectionSlug}.txt`;
           await bucket.file(textBlobPath).save(raw.text, {
@@ -140,13 +151,15 @@ exports.processUploadedFile = functions
 
       if (sections.length === 0) {
         log.warn("No readable text extracted from file", { uid, fileId, contentType });
+        const allDroppedAsNonInstructional = droppedSections.length > 0 && keptSections.length === 0;
         await fileRef.set(
           {
             status: "FAILED",
             processingPhase: admin.firestore.FieldValue.delete(),
             sectionCount: 0,
-            errorMessage:
-              "No readable text was found in this document. If this is a scanned file, run OCR first and upload again.",
+            errorMessage: allDroppedAsNonInstructional
+              ? "Only editorial or non-instructional pages were detected. Upload core medical content pages."
+              : "No readable text was found in this document. If this is a scanned file, run OCR first and upload again.",
             lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
           },
           { merge: true }

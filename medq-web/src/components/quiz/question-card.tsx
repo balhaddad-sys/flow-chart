@@ -15,6 +15,7 @@ import {
   Sparkles,
   MessageCircleQuestion,
   Loader2,
+  ExternalLink,
 } from "lucide-react";
 import { useQuizStore } from "@/lib/stores/quiz-store";
 import * as fn from "@/lib/firebase/functions";
@@ -246,6 +247,29 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
                     </p>
                   </div>
                 </div>
+
+                {(question.citations?.length ?? 0) > 0 && (
+                  <div className="space-y-2 rounded-md border border-border/70 bg-muted/25 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Verified Sources
+                    </p>
+                    <div className="space-y-1.5">
+                      {question.citations?.slice(0, 3).map((citation, i) => (
+                        <a
+                          key={`${citation.url}_${i}`}
+                          href={citation.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="group flex items-start gap-2 rounded-md border border-border/60 bg-background/80 px-2.5 py-2 text-sm transition-colors hover:bg-accent/40"
+                        >
+                          <span className="font-medium text-primary">{citation.source}</span>
+                          <span className="flex-1 text-foreground/85">{citation.title}</span>
+                          <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-foreground" />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

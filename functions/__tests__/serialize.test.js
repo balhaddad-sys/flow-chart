@@ -76,6 +76,18 @@ describe("lib/serialize", () => {
         key_takeaway: "LV = systemic pump.",
       },
       source_ref: { sectionLabel: "Heart Chambers" },
+      citations: [
+        {
+          source: "PUBMED",
+          title: "Left ventricular physiology review",
+          url: "https://pubmed.ncbi.nlm.nih.gov/12345678/",
+        },
+        {
+          source: "medscape",
+          title: "Left ventricle overview",
+          url: "https://emedicine.medscape.com/article/1949420-overview",
+        },
+      ],
     };
 
     it("transforms a valid AI question to Firestore schema", () => {
@@ -99,6 +111,9 @@ describe("lib/serialize", () => {
       expect(result.sourceRef.fileId).toBe("f1");
       expect(result.sourceRef.sectionId).toBe("s1");
       expect(result.sourceRef.label).toBe("Heart Chambers");
+      expect(result.citations).toHaveLength(2);
+      expect(result.citations[0].source).toBe("PubMed");
+      expect(result.citations[1].source).toBe("Medscape");
       expect(result.stats).toEqual({ timesAnswered: 0, timesCorrect: 0, avgTimeSec: 0 });
     });
 
@@ -153,6 +168,25 @@ describe("lib/serialize", () => {
       const raw = { ...validRaw, source_ref: {} };
       const result = normaliseQuestion(raw, defaults);
       expect(result.sourceRef.label).toBe("Cardiac Anatomy");
+    });
+
+    it("falls back to trusted search citations when AI provides none", () => {
+      const raw = { ...validRaw, citations: undefined };
+      const result = normaliseQuestion(raw, defaults);
+      expect(result.citations.length).toBeGreaterThanOrEqual(2);
+      expect(result.citations[0].url).toMatch(/^https:\/\/pubmed\.ncbi\.nlm\.nih\.gov\//);
+    });
+
+    it("filters untrusted citation domains and falls back safely", () => {
+      const raw = {
+        ...validRaw,
+        citations: [
+          { source: "Random", title: "Blog", url: "https://example.com/post" },
+        ],
+      };
+      const result = normaliseQuestion(raw, defaults);
+      expect(result.citations.some((c) => c.url.includes("example.com"))).toBe(false);
+      expect(result.citations[0].source).toBe("PubMed");
     });
   });
 

@@ -12,10 +12,10 @@ const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { db, batchSet } = require("../lib/firestore");
 const log = require("../lib/logger");
+const { computeSectionQuestionDifficultyCounts } = require("../lib/difficulty");
 const { normaliseBlueprint, normaliseQuestion } = require("../lib/serialize");
 const { generateBlueprint, generateQuestions: aiGenerateQuestions } = require("../ai/geminiClient");
 const { BLUEPRINT_SYSTEM, blueprintUserPrompt, QUESTIONS_SYSTEM, questionsUserPrompt } = require("../ai/prompts");
-const { DIFFICULTY_DISTRIBUTION } = require("../lib/constants");
 
 const DEFAULT_QUESTION_COUNT = 8;
 
@@ -153,9 +153,10 @@ exports.processSection = functions
       // ── Auto-generate questions from the analyzed section ───────────────
       const courseId = sectionData.courseId;
       const count = DEFAULT_QUESTION_COUNT;
-      const easyCount = Math.round(count * DIFFICULTY_DISTRIBUTION.easy);
-      const hardCount = Math.round(count * DIFFICULTY_DISTRIBUTION.hard);
-      const mediumCount = count - easyCount - hardCount;
+      const { easyCount, mediumCount, hardCount } = computeSectionQuestionDifficultyCounts(
+        count,
+        normalised.difficulty || sectionData.difficulty || 3
+      );
 
       log.info("Starting question generation", {
         uid,

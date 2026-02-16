@@ -11,6 +11,104 @@
  */
 
 const { sanitizeText, sanitizeArray } = require("./sanitize");
+const { truncate } = require("./utils");
+
+const TRUSTED_CITATION_DOMAINS = Object.freeze([
+  "pubmed.ncbi.nlm.nih.gov",
+  "ncbi.nlm.nih.gov",
+  "uptodate.com",
+  "medscape.com",
+]);
+
+function isTrustedCitationHost(hostname) {
+  const host = String(hostname || "").toLowerCase();
+  return TRUSTED_CITATION_DOMAINS.some(
+    (domain) => host === domain || host.endsWith(`.${domain}`)
+  );
+}
+
+function sourceFromHost(hostname) {
+  const host = String(hostname || "").toLowerCase();
+  if (host === "pubmed.ncbi.nlm.nih.gov" || host.endsWith(".ncbi.nlm.nih.gov")) return "PubMed";
+  if (host === "uptodate.com" || host.endsWith(".uptodate.com")) return "UpToDate";
+  if (host === "medscape.com" || host.endsWith(".medscape.com")) return "Medscape";
+  return null;
+}
+
+function normaliseCitationSource(rawSource, hostname) {
+  const source = String(rawSource || "").toLowerCase().trim();
+  if (source.includes("pubmed")) return "PubMed";
+  if (source.includes("uptodate") || source.includes("up to date")) return "UpToDate";
+  if (source.includes("medscape")) return "Medscape";
+  return sourceFromHost(hostname) || "PubMed";
+}
+
+function buildCitationFallbacks(stem, topicTags) {
+  const topic = String(topicTags?.[0] || stem || "medical topic")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 90);
+  const query = encodeURIComponent(topic || "medical topic");
+  return [
+    {
+      source: "PubMed",
+      title: `PubMed: ${topic}`,
+      url: `https://pubmed.ncbi.nlm.nih.gov/?term=${query}`,
+    },
+    {
+      source: "UpToDate",
+      title: `UpToDate: ${topic}`,
+      url: `https://www.uptodate.com/contents/search?search=${query}`,
+    },
+    {
+      source: "Medscape",
+      title: `Medscape: ${topic}`,
+      url: `https://www.medscape.com/search?queryText=${query}`,
+    },
+  ];
+}
+
+function normaliseCitations(rawCitations, { stem, topicTags }) {
+  const citations = [];
+  const seenUrls = new Set();
+  const input = Array.isArray(rawCitations) ? rawCitations.slice(0, 8) : [];
+
+  for (const item of input) {
+    const urlValue = sanitizeText(item?.url || item?.link || "");
+    if (!urlValue) continue;
+
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(urlValue);
+    } catch {
+      continue;
+    }
+
+    if (parsedUrl.protocol !== "https:") continue;
+    if (!isTrustedCitationHost(parsedUrl.hostname)) continue;
+
+    const canonicalUrl = `${parsedUrl.origin}${parsedUrl.pathname}${parsedUrl.search}`;
+    if (seenUrls.has(canonicalUrl)) continue;
+    seenUrls.add(canonicalUrl);
+
+    const source = normaliseCitationSource(item?.source, parsedUrl.hostname);
+    const title = truncate(
+      sanitizeText(item?.title || item?.label || `${source} reference`) || `${source} reference`,
+      250
+    );
+
+    citations.push({
+      source,
+      title,
+      url: truncate(canonicalUrl, 500),
+    });
+
+    if (citations.length >= 3) break;
+  }
+
+  if (citations.length > 0) return citations;
+  return buildCitationFallbacks(stem, topicTags);
+}
 
 /**
  * Transform a raw AI blueprint response into the Firestore schema.
@@ -54,8 +152,6 @@ function normaliseQuestion(raw, defaults) {
     return null;
   }
 
-  const { truncate } = require("./utils");
-
   // Sanitize first, then truncate (safer - removes malicious content before length limiting)
   const options = raw.options.slice(0, 8).map((o) => truncate(sanitizeText(o), 500));
   const optionCount = options.length;
@@ -76,8 +172,16 @@ function normaliseQuestion(raw, defaults) {
     whyOthersWrong.push("This option is incorrect.");
   }
 
+  const topicTags = sanitizeArray(
+    Array.isArray(raw.tags || raw.topicTags) ? (raw.tags || raw.topicTags).slice(0, 10) : (defaults.topicTags || [])
+  );
+  const citations = normaliseCitations(raw.citations || expl.citations || raw.references, {
+    stem: raw.stem,
+    topicTags,
+  });
+
   return {
-    topicTags:    sanitizeArray(Array.isArray(raw.tags || raw.topicTags) ? (raw.tags || raw.topicTags).slice(0, 10) : (defaults.topicTags || [])),
+    topicTags,
     difficulty:   Math.min(5, Math.max(1, raw.difficulty || 3)),
     type:         "SBA",
     stem:         truncate(sanitizeText(raw.stem), 2000),
@@ -94,6 +198,7 @@ function normaliseQuestion(raw, defaults) {
       sectionId: defaults.sectionId,
       label:     truncate(sanitizeText(raw.source_ref?.sectionLabel || raw.sourceRef?.sectionLabel || defaults.sectionTitle), 200),
     },
+    citations,
     stats: { timesAnswered: 0, timesCorrect: 0, avgTimeSec: 0 },
   };
 }

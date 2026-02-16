@@ -33,7 +33,7 @@ const MODELS = {
 // Max tokens per prompt type — tuned for speed vs completeness
 const MAX_TOKENS = {
   blueprint: 2500, // Increased from 2048 to prevent truncation on content-rich sections
-  questions: 3000,
+  questions: 3800,
   tutoring: 1024,
   fixPlan: 2048,
   documentExtract: 1200,
@@ -321,8 +321,15 @@ async function generateBlueprint(systemPrompt, userPrompt) {
   return callClaude(systemPrompt, userPrompt, "LIGHT", MAX_TOKENS.blueprint);
 }
 
-async function generateQuestions(systemPrompt, userPrompt) {
-  return callClaude(systemPrompt, userPrompt, "LIGHT", MAX_TOKENS.questions);
+async function generateQuestions(systemPrompt, userPrompt, opts = {}) {
+  return callClaude(
+    systemPrompt,
+    userPrompt,
+    "LIGHT",
+    opts.maxTokens || MAX_TOKENS.questions,
+    opts.retries == null ? 2 : opts.retries,
+    opts.usePrefill == null ? true : opts.usePrefill
+  );
 }
 
 async function getTutorResponse(systemPrompt, userPrompt) {

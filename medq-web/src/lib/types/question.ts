@@ -6,6 +6,12 @@ export interface QuestionExplanation {
   keyTakeaway: string;
 }
 
+export interface QuestionCitation {
+  source: string;
+  title: string;
+  url: string;
+}
+
 export interface QuestionSourceRef {
   fileId: string;
   fileName?: string;
@@ -31,6 +37,7 @@ export interface QuestionModel {
   correctIndex: number;
   explanation: QuestionExplanation;
   sourceRef: QuestionSourceRef;
+  citations?: QuestionCitation[];
   stats: QuestionStats;
   createdAt?: Timestamp;
 }

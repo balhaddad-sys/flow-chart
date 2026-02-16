@@ -86,7 +86,7 @@ const CATCH_UP_SPAN_DAYS = 5;
 // ── Questions ────────────────────────────────────────────────────────────────
 
 /** Difficulty distribution for AI-generated question sets. */
-const DIFFICULTY_DISTRIBUTION = { easy: 0.4, medium: null, hard: 0.2 };
+const DIFFICULTY_DISTRIBUTION = { easy: 0.35, medium: null, hard: 0.3 };
 // medium is derived: 1 - easy - hard
 
 /** Valid quiz modes. */

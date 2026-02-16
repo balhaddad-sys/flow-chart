@@ -357,6 +357,11 @@ export interface ExploreQuestion {
     whyOthersWrong: string[];
     keyTakeaway: string;
   };
+  citations?: Array<{
+    source: string;
+    title: string;
+    url: string;
+  }>;
 }
 
 export interface ExploreQuizResult {

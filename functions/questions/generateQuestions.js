@@ -19,7 +19,7 @@ const { checkRateLimit, RATE_LIMITS } = require("../middleware/rateLimit");
 const { db, batchSet } = require("../lib/firestore");
 const { Errors, fail, ok, safeError } = require("../lib/errors");
 const log = require("../lib/logger");
-const { DIFFICULTY_DISTRIBUTION } = require("../lib/constants");
+const { computeSectionQuestionDifficultyCounts } = require("../lib/difficulty");
 const { normaliseQuestion } = require("../lib/serialize");
 const { generateQuestions: aiGenerateQuestions } = require("../ai/geminiClient");
 const { buildQuestionGenPlan, updateQuestionGenStats } = require("../ai/selfTuningCostEngine");
@@ -118,9 +118,10 @@ exports.generateQuestions = functions
       });
 
       // ── Difficulty distribution ─────────────────────────────────────────
-      const easyCount = Math.round(aiRequestCount * DIFFICULTY_DISTRIBUTION.easy);
-      const hardCount = Math.round(aiRequestCount * DIFFICULTY_DISTRIBUTION.hard);
-      const mediumCount = aiRequestCount - easyCount - hardCount;
+      const { easyCount, mediumCount, hardCount } = computeSectionQuestionDifficultyCounts(
+        aiRequestCount,
+        section.difficulty || 3
+      );
 
       // ── AI generation (using blueprint only, no section text needed) ────
       const result = await aiGenerateQuestions(
@@ -230,6 +231,7 @@ exports.generateQuestions = functions
         skippedCount: result.data.questions.length - validItems.length,
         aiRequestCount,
         predictedYield: plan.predictedYield,
+        distribution: { easy: easyCount, medium: mediumCount, hard: hardCount },
         estimatedSavingsPercent: plan.estimatedSavingsPercent,
         durationMs: Date.now() - t0,
       });

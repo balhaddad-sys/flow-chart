@@ -12,10 +12,10 @@ const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { db, batchSet } = require("../lib/firestore");
 const log = require("../lib/logger");
+const { computeSectionQuestionDifficultyCounts } = require("../lib/difficulty");
 const { normaliseQuestion } = require("../lib/serialize");
 const { generateQuestions: aiGenerateQuestions } = require("../ai/geminiClient");
 const { QUESTIONS_SYSTEM, questionsUserPrompt } = require("../ai/prompts");
-const { DIFFICULTY_DISTRIBUTION } = require("../lib/constants");
 
 // Define the secret so the function can access it
 const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
@@ -87,9 +87,10 @@ exports.retryFailedSections = functions
 
           // Generate questions directly from existing blueprint
           const count = 8;
-          const easyCount = Math.round(count * DIFFICULTY_DISTRIBUTION.easy);
-          const hardCount = Math.round(count * DIFFICULTY_DISTRIBUTION.hard);
-          const mediumCount = count - easyCount - hardCount;
+          const { easyCount, mediumCount, hardCount } = computeSectionQuestionDifficultyCounts(
+            count,
+            sectionData.difficulty || 3
+          );
 
           const fileDoc = await db.doc(`users/${uid}/files/${sectionData.fileId}`).get();
           const fileName = fileDoc.exists ? fileDoc.data().originalName : "Unknown";
