@@ -23,6 +23,13 @@ const METADATA_MARKERS = [
   /\bpermissions?\b/i,
   /\bsubscription\b/i,
   /\bissn\b/i,
+  /\bisbn\b/i,
+  /\bdoi\b/i,
+  /\blibrary of congress\b/i,
+  /\bcataloging[- ]in[- ]publication\b/i,
+  /\bprinted in\b/i,
+  /\baddress inquiries\b/i,
+  /\breproduced in whole or in part\b/i,
 ];
 
 const MEDICAL_HINTS = [
@@ -67,7 +74,11 @@ function evaluateSectionForAnalysis(section) {
   if (openingHits >= 2) {
     return { include: false, score, reason: "Editorial/front-matter markers detected" };
   }
-  if (score >= 4) {
+  // Heavy metadata with little medical content → title/copyright page
+  if (metadataHits >= 3 && medicalHits <= 1) {
+    return { include: false, score, reason: "Copyright/title page detected" };
+  }
+  if (score >= 3) {
     return { include: false, score, reason: "Low instructional signal" };
   }
   return { include: true, score, reason: "Instructional section" };

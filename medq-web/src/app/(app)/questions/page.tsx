@@ -69,6 +69,7 @@ function SectionQuestionCard({
   const canStartQuiz = section.questionsCount > 0;
   const canGenerate =
     section.aiStatus === "ANALYZED" &&
+    section.questionsStatus !== "GENERATING" &&
     (section.questionsStatus === "FAILED" ||
       section.questionsStatus === "PENDING" ||
       section.questionsCount === 0);
@@ -87,14 +88,17 @@ function SectionQuestionCard({
           {section.questionsErrorMessage && section.questionsStatus === "FAILED" && (
             <p className="mt-2 text-xs text-destructive">{section.questionsErrorMessage}</p>
           )}
-          {section.questionsCount > 0 && (
+          {section.questionsCount > 0 && section.questionsStatus !== "GENERATING" && (
             <p className="mt-2 text-xs text-muted-foreground">
               {section.questionsCount} questions available
             </p>
           )}
-          {section.questionsStatus === "GENERATING" && section.questionsCount > 0 && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              More questions are being generated in the background.
+          {section.questionsStatus === "GENERATING" && (
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              {section.questionsCount > 0
+                ? `${section.questionsCount} ready — generating more…`
+                : "Generating questions…"}
             </p>
           )}
         </div>
@@ -162,32 +166,11 @@ export default function QuestionsPage() {
     try {
       const result = await fn.generateQuestions({ courseId, sectionId, count: 10 });
       if (result.inProgress) {
-        toast.info(result.message ?? "Question generation already in progress.");
+        toast.info("Question generation already in progress.");
       } else if (result.fromCache) {
-        toast.success(
-          result.message ??
-            `${result.questionCount ?? 0} questions already available.`
-        );
-      } else if (result.backgroundQueued) {
-        const readyNow = result.readyNow ?? result.questionCount ?? result.generatedNow ?? 0;
-        const remaining = result.remainingCount ?? 0;
-        toast.success(
-          result.message ??
-            `Ready now: ${readyNow}. Generating ${remaining} more in the background.`
-        );
+        toast.success(`${result.questionCount ?? 0} questions already available.`);
       } else {
-        const generatedNow = result.generatedNow ?? result.questionCount ?? 0;
-        const durationSec =
-          result.durationMs != null ? Math.max(1, Math.round(result.durationMs / 1000)) : null;
-        const savingsLabel =
-          result.estimatedSavingsPercent && result.estimatedSavingsPercent > 0
-            ? ` (${result.estimatedSavingsPercent}% cost cut)`
-            : "";
-        toast.success(
-          durationSec
-            ? `Generated ${generatedNow} new questions in ${durationSec}s${savingsLabel}.`
-            : `Generated ${generatedNow} new questions${savingsLabel}.`
-        );
+        toast.success("Generating questions — they'll appear as they're ready.");
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to generate questions.";

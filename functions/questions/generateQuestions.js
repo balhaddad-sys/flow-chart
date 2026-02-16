@@ -19,14 +19,11 @@ const { checkRateLimit, RATE_LIMITS } = require("../middleware/rateLimit");
 const { db } = require("../lib/firestore");
 const { Errors, fail, ok, safeError } = require("../lib/errors");
 const log = require("../lib/logger");
-const { updateQuestionGenStats } = require("../ai/selfTuningCostEngine");
 const {
   computeFastStartCounts,
   computeMaxBackfillAttempts,
   fetchExistingQuestionState,
-  resolveSourceFileName,
   queueQuestionBackfillJob,
-  generateAndPersistBatch,
 } = require("./generationPipeline");
 
 // Define the secret so the function can access it
@@ -68,21 +65,15 @@ exports.generateQuestions = functions
           skippedCount: 0,
           inProgress: true,
           backgroundQueued: true,
-          message: "Question generation is already in progress for this section.",
+          message: "Question generation is already in progress.",
         });
       }
 
       // Count existing questions first. If we already have enough, return instantly.
       const existingState = await fetchExistingQuestionState({ uid, courseId, sectionId });
-      const {
-        targetCount,
-        existingCount,
-        missingCount,
-        immediateCount,
-      } = computeFastStartCounts(count, existingState.count);
+      const { targetCount, existingCount, missingCount } = computeFastStartCounts(count, existingState.count);
 
       if (existingCount >= targetCount) {
-        // Keep section metadata in sync for UI responsiveness.
         await sectionRef.set(
           {
             questionsStatus: "COMPLETED",
@@ -103,119 +94,45 @@ exports.generateQuestions = functions
         });
       }
 
-      // Mark question generation as in progress (for retry scenario)
+      // ── Fully async: queue background job, return instantly ────────────
       await sectionRef.update({
         questionsStatus: "GENERATING",
         questionsErrorMessage: admin.firestore.FieldValue.delete(),
       });
 
-      const sourceFileName = await resolveSourceFileName(uid, section.fileId);
-      const immediateTargetCount = existingCount + immediateCount;
-      const immediateBatch = await generateAndPersistBatch({
+      const backfillJobId = await queueQuestionBackfillJob({
         uid,
         courseId,
         sectionId,
-        section,
-        sourceFileName,
-        existingCount,
-        existingStems: existingState.stems,
-        targetCount: immediateTargetCount,
+        targetCount,
+        attempt: 1,
+        maxAttempts: computeMaxBackfillAttempts(targetCount),
       });
 
-      if (!immediateBatch.success) {
-        const hasExisting = existingCount > 0;
-        await sectionRef.update({
-          questionsStatus: hasExisting ? "COMPLETED" : "FAILED",
-          questionsCount: existingCount,
-          questionsErrorMessage: hasExisting ?
-            "Some questions are available, but generating more failed. Try again shortly." :
-            immediateBatch.error || "Question generation failed",
-          lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
-          activeQuestionJobId: admin.firestore.FieldValue.delete(),
-        });
-        if (!hasExisting) return fail(Errors.AI_FAILED);
-        return ok({
-          questionCount: existingCount,
-          generatedNow: 0,
-          skippedCount: 0,
-          backgroundQueued: false,
-          remainingCount: Math.max(0, targetCount - existingCount),
-          targetCount,
-          durationMs: Date.now() - t0,
-          message: "Using existing questions. Failed to generate additional questions right now.",
-        });
-      }
+      await sectionRef.update({ activeQuestionJobId: backfillJobId });
 
-      const readyCount = existingCount + immediateBatch.generatedNow;
-      const questionGenStats = updateQuestionGenStats(section.questionGenStats, {
-        aiRequestCount: immediateBatch.aiRequestCount,
-        validProduced: immediateBatch.generatedNow,
-        duplicateSkipped: immediateBatch.duplicateStemSkipped,
-        latencyMs: immediateBatch.durationMs,
-        tokenBudget: immediateBatch.tokenBudget,
-      });
-
-      const remainingCount = Math.max(0, targetCount - readyCount);
-      const backgroundQueued = remainingCount > 0;
-      const sectionUpdate = {
-        questionsStatus: backgroundQueued ? "GENERATING" : "COMPLETED",
-        questionsCount: readyCount,
-        lastQuestionsDurationMs: Date.now() - t0,
-        questionGenStats,
-        questionsErrorMessage: admin.firestore.FieldValue.delete(),
-      };
-      let backfillJobId = null;
-      if (backgroundQueued) {
-        backfillJobId = await queueQuestionBackfillJob({
-          uid,
-          courseId,
-          sectionId,
-          targetCount,
-          attempt: 1,
-          maxAttempts: computeMaxBackfillAttempts(targetCount),
-        });
-        sectionUpdate.activeQuestionJobId = backfillJobId;
-      } else {
-        sectionUpdate.activeQuestionJobId = admin.firestore.FieldValue.delete();
-      }
-      await sectionRef.update(sectionUpdate);
-
-      log.info("Questions generated (fast start)", {
+      log.info("Questions queued (async)", {
         uid,
         courseId,
         sectionId,
         requested: targetCount,
         existingCount,
         missingCount,
-        immediateCount,
-        generatedNow: immediateBatch.generatedNow,
-        readyCount,
-        remainingCount,
-        backgroundQueued,
-        aiRequestCount: immediateBatch.aiRequestCount,
-        predictedYield: immediateBatch.predictedYield,
-        duplicateStemSkipped: immediateBatch.duplicateStemSkipped,
-        skipped: immediateBatch.skippedCount,
+        jobId: backfillJobId,
         durationMs: Date.now() - t0,
       });
 
       return ok({
-        questionCount: readyCount,
-        generatedNow: immediateBatch.generatedNow,
-        skippedCount: immediateBatch.skippedCount,
-        aiRequestCount: immediateBatch.aiRequestCount,
-        predictedYield: immediateBatch.predictedYield,
-        distribution: immediateBatch.distribution,
-        estimatedSavingsPercent: immediateBatch.estimatedSavingsPercent,
-        durationMs: Date.now() - t0,
-        backgroundQueued,
-        remainingCount,
+        questionCount: existingCount,
+        generatedNow: 0,
+        skippedCount: 0,
+        backgroundQueued: true,
+        remainingCount: missingCount,
         targetCount,
-        readyNow: readyCount,
+        readyNow: existingCount,
         jobId: backfillJobId,
-        message: backgroundQueued
-          ? `Generated ${readyCount} questions now. Continuing ${remainingCount} in the background.`
-          : "Question generation complete.",
+        durationMs: Date.now() - t0,
+        message: `Generating ${missingCount} questions in the background.`,
       });
     } catch (error) {
       // CRITICAL: Roll back questionsStatus to avoid a stuck GENERATING state.

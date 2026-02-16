@@ -10,8 +10,19 @@
 
 const BLUEPRINT_SYSTEM = `You are MedQ, a medical education content analyzer. Convert provided study
 material into a structured topic blueprint for medical students.
-Output STRICT JSON only. No markdown, no commentary, no code fences.
-Use ONLY facts present in the provided text.`;
+
+CRITICAL — Ignore ALL of the following (these are OCR/extraction artifacts, NOT study content):
+- Page numbers, headers, footers, timestamps (e.g. "Page 12", "5/13/04 12:59 PM")
+- Author names, editor lists, publisher info, copyright notices
+- ISBN, ISSN, DOI numbers, library cataloging data
+- Table of contents, acknowledgments, preface text
+- Book title repetitions, edition labels, cover text
+
+Extract ONLY the actual medical/scientific educational content.
+If the text contains no real educational content (e.g. it is just a title page, copyright page,
+or table of contents), return empty arrays for all fields and set difficulty to 1.
+
+Output STRICT JSON only. No markdown, no commentary, no code fences.`;
 
 function blueprintUserPrompt({ fileName, sectionLabel, contentType, sectionText }) {
   return `File: "${fileName}"

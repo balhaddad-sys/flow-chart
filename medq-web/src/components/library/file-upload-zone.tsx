@@ -22,7 +22,7 @@ export function FileUploadZone() {
       if (!uid || !courseId) return;
 
       const fileArray = Array.from(files);
-      for (const file of fileArray) {
+      const uploadSingleFile = async (file: File) => {
         const error = validateFile(file);
         if (error) {
           toast.error(`${file.name}: ${error}`);
@@ -31,7 +31,7 @@ export function FileUploadZone() {
             next.set(file.name, { name: file.name, progress: null, error });
             return next;
           });
-          continue;
+          return;
         }
 
         setUploads((prev) => {
@@ -63,7 +63,7 @@ export function FileUploadZone() {
             return next;
           });
 
-          toast.success(`${file.name} uploaded successfully.`);
+          toast.success(`${file.name} uploaded. Processing continues in the background.`);
           // Remove completed upload after 3 seconds
           setTimeout(() => {
             setUploads((prev) => {
@@ -80,7 +80,9 @@ export function FileUploadZone() {
             return next;
           });
         }
-      }
+      };
+
+      await Promise.all(fileArray.map((file) => uploadSingleFile(file)));
     },
     [uid, courseId]
   );
@@ -117,6 +119,9 @@ export function FileUploadZone() {
         <Upload className="mb-3 h-9 w-9 text-primary" />
         <p className="text-base font-semibold">Drag and drop files here</p>
         <p className="mt-1 text-xs text-muted-foreground">PDF, PPTX, or DOCX (max 100MB)</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Upload starts now, processing runs in the background, and you can continue using the app.
+        </p>
         <label className="mt-4">
           <Button variant="outline" size="sm" asChild>
             <span>Browse Files</span>

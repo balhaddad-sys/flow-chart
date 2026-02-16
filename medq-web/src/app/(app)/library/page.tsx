@@ -14,13 +14,16 @@ export default function LibraryPage() {
   const { tasks } = useTasks(courseId);
   const hasFiles = files.length > 0;
   const hasPlan = tasks.length > 0;
+  const backgroundProcessingCount = files.filter(
+    (file) => file.status === "UPLOADED" || file.status === "PROCESSING"
+  ).length;
 
   return (
     <div className="page-wrap page-stack">
       <div className="glass-card p-5 sm:p-6">
         <h1 className="page-title">Library</h1>
         <p className="page-subtitle">
-          Upload and manage your study materials.
+          Upload once and keep studying while processing runs in the background.
         </p>
       </div>
 
@@ -37,6 +40,13 @@ export default function LibraryPage() {
           </div>
         ) : (
           <>
+            {backgroundProcessingCount > 0 && (
+              <div className="glass-card flex items-center justify-between gap-3 px-4 py-3 text-sm">
+                <span className="text-muted-foreground">
+                  {backgroundProcessingCount} file{backgroundProcessingCount === 1 ? "" : "s"} processing in background. You can keep using the app.
+                </span>
+              </div>
+            )}
             {hasFiles && !hasPlan && (
               <div className="glass-card flex items-center justify-between gap-3 px-4 py-3 text-sm">
                 <span className="text-muted-foreground">Files uploaded. Head to Plan to generate your schedule.</span>

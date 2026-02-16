@@ -8,8 +8,8 @@
 
 const { clampInt } = require("../lib/utils");
 
-const DEFAULT_VALID_RATE = 0.62;
-const DEFAULT_DUP_RATE = 0.08;
+const DEFAULT_VALID_RATE = 0.82;
+const DEFAULT_DUP_RATE = 0.05;
 const MIN_PREDICTED_YIELD = 0.25;
 const MAX_PREDICTED_YIELD = 0.95;
 const EMA_ALPHA = 0.35;
@@ -55,7 +55,7 @@ function buildQuestionGenPlan({
   );
 
   // Early runs are uncertain, so use slightly larger safety margin.
-  const uncertaintyBuffer = runs < 3 ? 0.2 : runs < 8 ? 0.12 : 0.08;
+  const uncertaintyBuffer = runs < 3 ? 0.10 : runs < 8 ? 0.06 : 0.04;
   const expectedNeed = Math.ceil(missingCount / predictedYield);
   const aiRequestCount = clampInt(
     Math.ceil(expectedNeed * (1 + uncertaintyBuffer)),
@@ -63,7 +63,7 @@ function buildQuestionGenPlan({
     Math.max(missingCount + 12, safeRequested * 2)
   );
 
-  const tokenBudget = clampInt(900 + aiRequestCount * 220, 1200, 3600);
+  const tokenBudget = clampInt(800 + aiRequestCount * 180, 1000, 3200);
   const retries = latencyMs > 25_000 ? 0 : 1;
   const rateLimitMaxRetries = latencyMs > 25_000 ? 0 : 1;
   const rateLimitRetryDelayMs = latencyMs > 25_000 ? 5000 : 8000;

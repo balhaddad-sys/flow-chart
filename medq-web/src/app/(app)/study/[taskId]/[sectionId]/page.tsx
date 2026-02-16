@@ -52,9 +52,24 @@ interface FallbackGuide {
   recallPrompts: string[];
 }
 
+const OCR_NOISE_RE =
+  /copyright|all rights reserved|isbn|issn|printed in|library of congress|cataloging|publisher|page\s+[ivxlcdm\d]+|^\d{1,4}$/i;
+const METADATA_LINE_RE =
+  /^\d{1,2}\/\d{1,2}\/\d{2,4}|\.pdf\b|\.docx?\b|\.pptx?\b|sinauer|elsevier|mcgraw|springer|wiley|lippincott|saunders/i;
+
+function isOCRNoise(line: string): boolean {
+  const t = line.trim();
+  if (!t) return true;
+  if (OCR_NOISE_RE.test(t)) return true;
+  if (METADATA_LINE_RE.test(t)) return true;
+  if (/^[\d\s.•\-–—]+$/.test(t)) return true;
+  return false;
+}
+
 function isHeadingLine(line: string): boolean {
   const t = line.trim();
   if (!t || t.length > 120) return false;
+  if (isOCRNoise(t)) return false;
   if (t.length >= 3 && t === t.toUpperCase() && /[A-Z]/.test(t)) return true;
   if (t.length < 80 && !/[.!?:,;]$/.test(t) && /^[A-Z]/.test(t) && !t.includes("□")) return true;
   return false;
@@ -66,6 +81,8 @@ function parseTextBlocks(text: string) {
   for (const chunk of raw) {
     const trimmed = chunk.trim();
     if (!trimmed) continue;
+    // Skip OCR noise paragraphs entirely
+    if (isOCRNoise(trimmed)) continue;
     if (isHeadingLine(trimmed) && !trimmed.includes("\n")) {
       blocks.push({ type: "heading", content: trimmed });
       continue;
@@ -73,10 +90,17 @@ function parseTextBlocks(text: string) {
     const lines = trimmed.split("\n");
     if (lines.length >= 2 && isHeadingLine(lines[0]) && lines[0].length < 100) {
       blocks.push({ type: "heading", content: lines[0].trim() });
-      blocks.push({ type: "paragraph", content: lines.slice(1).join(" ").trim() });
+      const bodyLines = lines.slice(1).filter((l) => !isOCRNoise(l));
+      if (bodyLines.length > 0) {
+        blocks.push({ type: "paragraph", content: bodyLines.join(" ").trim() });
+      }
       continue;
     }
-    blocks.push({ type: "paragraph", content: trimmed.replace(/\n/g, " ") });
+    // Filter noise lines within paragraphs
+    const cleanedLines = lines.filter((l) => !isOCRNoise(l));
+    if (cleanedLines.length > 0) {
+      blocks.push({ type: "paragraph", content: cleanedLines.join(" ").replace(/\n/g, " ") });
+    }
   }
   return blocks;
 }
@@ -152,6 +176,16 @@ function splitSentences(text: string): string[] {
     .filter((s) => s.length >= 40 && s.length <= 220 && !s.includes("http"));
 }
 
+function isUsefulTopic(topic: string): boolean {
+  const t = topic.trim();
+  if (!t || t.length < 4 || t.length > 100) return false;
+  if (isOCRNoise(t)) return false;
+  // Filter out book titles, author names, edition labels
+  if (/^(chapter|edited|edition|third|fourth|fifth|sixth)\b/i.test(t)) return false;
+  if (/^[A-Z]+$/.test(t) && t.length < 15) return false; // Single uppercase word like "NEUROSCIENCE"
+  return true;
+}
+
 function deriveFallbackGuide(
   sectionTitle: string | undefined,
   noteSections: NoteSection[],
@@ -160,11 +194,11 @@ function deriveFallbackGuide(
   const roadmap = dedupe(
     noteSections
       .map((s) => s.title)
-      .filter((t) => t && t.toLowerCase() !== "core notes")
+      .filter((t) => t && t.toLowerCase() !== "core notes" && isUsefulTopic(t))
   );
 
   const paragraphText = blocks
-    .filter((b) => b.type === "paragraph")
+    .filter((b) => b.type === "paragraph" && !isOCRNoise(b.content))
     .map((b) => b.content)
     .join(" ");
 
@@ -173,9 +207,11 @@ function deriveFallbackGuide(
   const objectives = dedupe(
     [
       ...roadmap.map((topic) => `Explain ${topic} clearly and clinically.`),
-      sectionTitle ? `Summarize the full section: ${sectionTitle}.` : "",
+      sectionTitle && isUsefulTopic(sectionTitle)
+        ? `Summarize the full section: ${sectionTitle}.`
+        : "",
       "Identify the highest-yield exam points and common pitfalls.",
-    ],
+    ].filter(Boolean),
     5
   );
 

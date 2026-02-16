@@ -14,6 +14,7 @@ const { db, batchSet } = require("../lib/firestore");
 const log = require("../lib/logger");
 const { computeSectionQuestionDifficultyCounts } = require("../lib/difficulty");
 const { normaliseBlueprint, normaliseQuestion } = require("../lib/serialize");
+const { stripOCRNoise } = require("../lib/sanitize");
 const { generateBlueprint, generateQuestions: aiGenerateQuestions } = require("../ai/geminiClient");
 const { BLUEPRINT_SYSTEM, blueprintUserPrompt, QUESTIONS_SYSTEM, questionsUserPrompt } = require("../ai/prompts");
 
@@ -81,18 +82,18 @@ exports.processSection = functions
         bucket.file(sectionData.textBlobPath).download(),
         db.doc(`users/${uid}/files/${sectionData.fileId}`).get(),
       ]);
-      const sectionText = textResult[0].toString("utf-8");
+      const rawText = textResult[0].toString("utf-8");
+      const sectionText = stripOCRNoise(rawText);
       const fileData = fileDoc.exists ? fileDoc.data() : {};
 
       log.info("Text fetched, starting blueprint generation", {
         uid,
         sectionId,
-        textLength: sectionText.length,
+        rawLength: rawText.length,
+        cleanedLength: sectionText.length,
         phase: "GENERATING_BLUEPRINT",
       });
 
-      // Generate blueprint via AI (Haiku 4.5 - FAST)
-      log.info("Starting blueprint generation", { uid, sectionId, textLength: sectionText.length });
       const t0 = Date.now();
 
       const result = await generateBlueprint(
