@@ -1,8 +1,9 @@
 import { create } from "zustand";
-import type { ExploreQuestion } from "../firebase/functions";
+import type { ExploreQuestion, ExploreTopicInsightResult } from "../firebase/functions";
 
-type Phase = "setup" | "loading" | "quiz" | "results";
+type Phase = "setup" | "loading" | "teaching" | "quiz" | "results";
 type BackfillStatus = "idle" | "running" | "completed" | "failed";
+type UserPath = "learn" | "quiz" | null;
 
 interface ExploreMeta {
   targetCount?: number;
@@ -15,6 +16,7 @@ interface ExploreMeta {
 
 interface ExploreStore {
   phase: Phase;
+  userPath: UserPath;
   topic: string;
   level: string;
   levelLabel: string;
@@ -32,7 +34,18 @@ interface ExploreStore {
   backfillError: string | null;
   error: string | null;
 
+  topicInsight: ExploreTopicInsightResult | null;
+  insightLoading: boolean;
+  insightError: string | null;
+
+  setUserPath: (path: UserPath) => void;
   startLoading: (topic: string, level: string) => void;
+  startTeaching: (insight: ExploreTopicInsightResult) => void;
+  setTopicInsight: (insight: ExploreTopicInsightResult | null) => void;
+  setInsightLoading: (loading: boolean) => void;
+  setInsightError: (error: string | null) => void;
+  goToQuizFromTeaching: () => void;
+  goToTeachingFromQuiz: () => void;
   startQuiz: (
     questions: ExploreQuestion[],
     topic: string,
@@ -57,6 +70,7 @@ function stemKey(stem: string) {
 
 export const useExploreStore = create<ExploreStore>((set, get) => ({
   phase: "setup",
+  userPath: null,
   topic: "",
   level: "MD3",
   levelLabel: "",
@@ -74,6 +88,12 @@ export const useExploreStore = create<ExploreStore>((set, get) => ({
   backfillError: null,
   error: null,
 
+  topicInsight: null,
+  insightLoading: false,
+  insightError: null,
+
+  setUserPath: (path) => set({ userPath: path }),
+
   startLoading: (topic, level) =>
     set({
       phase: "loading",
@@ -82,6 +102,35 @@ export const useExploreStore = create<ExploreStore>((set, get) => ({
       error: null,
       backfillError: null,
     }),
+
+  startTeaching: (insight) =>
+    set({
+      phase: "teaching",
+      topicInsight: insight,
+      insightLoading: false,
+      insightError: null,
+      error: null,
+    }),
+
+  setTopicInsight: (insight) => set({ topicInsight: insight }),
+  setInsightLoading: (loading) => set({ insightLoading: loading }),
+  setInsightError: (error) => set({ insightError: error }),
+
+  goToQuizFromTeaching: () => {
+    const { questions } = get();
+    if (questions.length > 0) {
+      set({ phase: "quiz" });
+    } else {
+      set({ phase: "loading" });
+    }
+  },
+
+  goToTeachingFromQuiz: () => {
+    const { topicInsight } = get();
+    if (topicInsight) {
+      set({ phase: "teaching" });
+    }
+  },
 
   startQuiz: (questions, topic, level, levelLabel, meta) =>
     set({
@@ -205,6 +254,7 @@ export const useExploreStore = create<ExploreStore>((set, get) => ({
   reset: () =>
     set({
       phase: "setup",
+      userPath: null,
       topic: "",
       level: "MD3",
       levelLabel: "",
@@ -221,5 +271,8 @@ export const useExploreStore = create<ExploreStore>((set, get) => ({
       backfillStatus: "idle",
       backfillError: null,
       error: null,
+      topicInsight: null,
+      insightLoading: false,
+      insightError: null,
     }),
 }));

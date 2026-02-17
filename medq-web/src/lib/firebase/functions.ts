@@ -391,12 +391,81 @@ export interface ExploreQuizResult {
   backgroundJobId?: string;
 }
 
+export interface TeachingSection {
+  id: string;
+  title: string;
+  content: string;
+  keyPoints: string[];
+}
+
+export interface ChartDataPoint {
+  label: string;
+  value: number;
+  unit?: string;
+}
+
+export interface ChartSeries {
+  name: string;
+  values: number[];
+}
+
+export interface EpidemiologyChart {
+  title: string;
+  type: "bar" | "horizontal_bar";
+  xLabel: string;
+  yLabel: string;
+  dataPoints: ChartDataPoint[];
+  sourceCitation: string;
+  sourceUrl: string;
+}
+
+export interface TreatmentComparisonChart {
+  title: string;
+  type: "bar" | "grouped_bar";
+  categories: string[];
+  series: ChartSeries[];
+  unit: string;
+  sourceCitation: string;
+  sourceUrl: string;
+}
+
+export interface DiagnosticAlgorithmStep {
+  id: string;
+  label: string;
+  type: "decision" | "action" | "endpoint";
+  yesNext: string | null;
+  noNext: string | null;
+  next: string | null;
+}
+
+export interface DiagnosticAlgorithmChart {
+  title: string;
+  steps: DiagnosticAlgorithmStep[];
+  sourceCitation: string;
+}
+
+export interface PrognosticChart {
+  title: string;
+  type: "bar";
+  dataPoints: ChartDataPoint[];
+  sourceCitation: string;
+  sourceUrl: string;
+}
+
+export interface TopicChartData {
+  epidemiology?: EpidemiologyChart;
+  treatmentComparison?: TreatmentComparisonChart;
+  diagnosticAlgorithm?: DiagnosticAlgorithmChart;
+  prognosticData?: PrognosticChart;
+}
+
 export interface ExploreTopicInsightResult {
   topic: string;
   level: string;
   levelLabel: string;
   modelUsed: string;
   summary: string;
+  teachingSections: TeachingSection[];
   corePoints: string[];
   clinicalFramework: {
     pathophysiology: string;
@@ -404,6 +473,7 @@ export interface ExploreTopicInsightResult {
     managementApproach: string[];
     escalationTriggers: string[];
   };
+  chartData: TopicChartData;
   clinicalPitfalls: string[];
   redFlags: string[];
   studyApproach: string[];

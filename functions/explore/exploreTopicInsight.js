@@ -22,12 +22,17 @@ const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
 const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
 
 const MAX_TOPIC_LEN = 200;
-const MAX_SUMMARY_LEN = 2_400;
-const MAX_LIST_ITEMS = 8;
-const MAX_FRAMEWORK_TEXT_LEN = 1_000;
-const MAX_GUIDELINE_UPDATES = 6;
-const GEMINI_TIMEOUT_MS = 35_000;
-const CLAUDE_TIMEOUT_MS = 45_000;
+const MAX_SUMMARY_LEN = 6_000;
+const MAX_LIST_ITEMS = 12;
+const MAX_FRAMEWORK_TEXT_LEN = 3_000;
+const MAX_GUIDELINE_UPDATES = 10;
+const MAX_TEACHING_SECTIONS = 8;
+const MAX_SECTION_CONTENT_LEN = 3_000;
+const MAX_SECTION_KEY_POINTS = 5;
+const MAX_CHART_DATA_POINTS = 12;
+const MAX_ALGORITHM_STEPS = 15;
+const GEMINI_TIMEOUT_MS = 55_000;
+const CLAUDE_TIMEOUT_MS = 65_000;
 
 function withTimeout(taskPromise, timeoutMs, timeoutLabel) {
   return Promise.race([
@@ -205,7 +210,7 @@ function normaliseCitations(rawCitations, topic) {
       title,
       url: buildSearchUrl(source, title),
     });
-    if (citations.length >= 4) break;
+    if (citations.length >= 8) break;
   }
 
   if (citations.length > 0) return citations;
@@ -230,6 +235,147 @@ function normaliseCitations(rawCitations, topic) {
   ];
 }
 
+function normaliseTeachingSections(rawSections) {
+  if (!Array.isArray(rawSections)) return [];
+  const sections = [];
+  const seenIds = new Set();
+
+  for (const item of rawSections.slice(0, MAX_TEACHING_SECTIONS)) {
+    if (!item || typeof item !== "object") continue;
+    const id = sanitizeText(item.id || `section-${sections.length}`).slice(0, 50);
+    const title = truncate(sanitizeText(item.title || ""), 200);
+    if (!title) continue;
+    if (seenIds.has(id)) continue;
+    seenIds.add(id);
+
+    const content = truncate(sanitizeText(item.content || ""), MAX_SECTION_CONTENT_LEN);
+    const keyPoints = normaliseStringList(item.key_points || item.keyPoints, {
+      maxItems: MAX_SECTION_KEY_POINTS,
+      maxLen: 320,
+    });
+
+    if (!content && keyPoints.length === 0) continue;
+    sections.push({ id, title, content, keyPoints });
+  }
+  return sections;
+}
+
+function normaliseChartDataPoints(rawPoints) {
+  if (!Array.isArray(rawPoints)) return [];
+  return rawPoints
+    .slice(0, MAX_CHART_DATA_POINTS)
+    .map((p) => {
+      if (!p || typeof p !== "object") return null;
+      const label = truncate(sanitizeText(p.label || ""), 100);
+      const value = Number(p.value);
+      if (!label || !Number.isFinite(value)) return null;
+      const unit = truncate(sanitizeText(p.unit || ""), 30);
+      return { label, value, unit };
+    })
+    .filter(Boolean);
+}
+
+function normaliseAlgorithmSteps(rawSteps) {
+  if (!Array.isArray(rawSteps)) return [];
+  const validTypes = new Set(["decision", "action", "endpoint"]);
+  return rawSteps
+    .slice(0, MAX_ALGORITHM_STEPS)
+    .map((s) => {
+      if (!s || typeof s !== "object") return null;
+      const id = sanitizeText(s.id || "").slice(0, 50);
+      const label = truncate(sanitizeText(s.label || ""), 200);
+      if (!id || !label) return null;
+      const type = validTypes.has(s.type) ? s.type : "action";
+      return {
+        id,
+        label,
+        type,
+        yesNext: s.yes_next || s.yesNext || null,
+        noNext: s.no_next || s.noNext || null,
+        next: s.next || null,
+      };
+    })
+    .filter(Boolean);
+}
+
+function normaliseChartData(rawChartData, topic) {
+  if (!rawChartData || typeof rawChartData !== "object") return {};
+  const result = {};
+
+  const epi = rawChartData.epidemiology;
+  if (epi && typeof epi === "object") {
+    const dataPoints = normaliseChartDataPoints(epi.data_points || epi.dataPoints);
+    if (dataPoints.length > 0) {
+      result.epidemiology = {
+        title: truncate(sanitizeText(epi.title || "Epidemiology"), 200),
+        type: epi.type === "horizontal_bar" ? "horizontal_bar" : "bar",
+        xLabel: truncate(sanitizeText(epi.x_label || epi.xLabel || ""), 80),
+        yLabel: truncate(sanitizeText(epi.y_label || epi.yLabel || ""), 80),
+        dataPoints,
+        sourceCitation: truncate(sanitizeText(epi.source_citation || epi.sourceCitation || ""), 300),
+        sourceUrl: buildSearchUrl("PubMed", epi.source_url_hint || epi.sourceUrlHint || topic),
+      };
+    }
+  }
+
+  const tx = rawChartData.treatment_comparison || rawChartData.treatmentComparison;
+  if (tx && typeof tx === "object") {
+    const categories = normaliseStringList(tx.categories, { maxItems: 8, maxLen: 100 });
+    const rawSeries = Array.isArray(tx.series) ? tx.series.slice(0, 4) : [];
+    const series = rawSeries
+      .map((s) => {
+        if (!s || typeof s !== "object") return null;
+        const name = truncate(sanitizeText(s.name || ""), 100);
+        const values = (Array.isArray(s.values) ? s.values : [])
+          .slice(0, categories.length)
+          .map((v) => (Number.isFinite(Number(v)) ? Number(v) : 0));
+        if (!name || values.length === 0) return null;
+        return { name, values };
+      })
+      .filter(Boolean);
+
+    if (categories.length > 0 && series.length > 0) {
+      result.treatmentComparison = {
+        title: truncate(sanitizeText(tx.title || "Treatment Comparison"), 200),
+        type: tx.type === "grouped_bar" ? "grouped_bar" : "bar",
+        categories,
+        series,
+        unit: truncate(sanitizeText(tx.unit || "%"), 30),
+        sourceCitation: truncate(sanitizeText(tx.source_citation || tx.sourceCitation || ""), 300),
+        sourceUrl: buildSearchUrl("PubMed", tx.source_url_hint || tx.sourceUrlHint || topic),
+      };
+    }
+  }
+
+  const algo = rawChartData.diagnostic_algorithm || rawChartData.diagnosticAlgorithm;
+  if (algo && typeof algo === "object") {
+    const steps = normaliseAlgorithmSteps(algo.steps);
+    if (steps.length > 0) {
+      result.diagnosticAlgorithm = {
+        title: truncate(sanitizeText(algo.title || "Diagnostic Algorithm"), 200),
+        steps,
+        sourceCitation: truncate(sanitizeText(algo.source_citation || algo.sourceCitation || ""), 300),
+      };
+    }
+  }
+
+  const prog = rawChartData.prognostic_data || rawChartData.prognosticData;
+  if (prog && typeof prog === "object") {
+    const dataPoints = normaliseChartDataPoints(prog.data_points || prog.dataPoints);
+    if (dataPoints.length > 0) {
+      result.prognosticData = {
+        title: truncate(sanitizeText(prog.title || "Prognostic Data"), 200),
+        type: "bar",
+        dataPoints,
+        sourceCitation: truncate(sanitizeText(prog.source_citation || prog.sourceCitation || ""), 300),
+        sourceUrl: buildSearchUrl("PubMed", prog.source_url_hint || prog.sourceUrlHint || topic),
+      };
+    }
+  }
+
+  return result;
+}
+
 function normaliseInsightPayload(raw, topic) {
   const summary = truncate(
     sanitizeText(raw?.summary || raw?.overview || ""),
@@ -238,8 +384,15 @@ function normaliseInsightPayload(raw, topic) {
   const clinicalFramework = normaliseClinicalFramework(
     raw?.clinical_framework || raw?.clinicalFramework || {}
   );
+  const teachingSections = normaliseTeachingSections(
+    raw?.teaching_sections || raw?.teachingSections || []
+  );
+  const chartData = normaliseChartData(
+    raw?.chart_data || raw?.chartData || {},
+    topic
+  );
   const corePoints = normaliseStringList(raw?.core_points || raw?.corePoints || raw?.key_points || raw?.keyPoints, {
-    maxItems: 8,
+    maxItems: 12,
     maxLen: 320,
   });
   const clinicalPitfalls = normaliseStringList(raw?.clinical_pitfalls || raw?.pitfalls, {
@@ -263,12 +416,14 @@ function normaliseInsightPayload(raw, topic) {
     !!clinicalFramework.pathophysiology ||
     clinicalFramework.diagnosticApproach.length > 0 ||
     clinicalFramework.managementApproach.length > 0;
-  if (!summary && corePoints.length === 0 && !hasFrameworkContent) return null;
+  if (!summary && corePoints.length === 0 && !hasFrameworkContent && teachingSections.length === 0) return null;
 
   return {
     summary,
+    teachingSections,
     corePoints,
     clinicalFramework,
+    chartData,
     clinicalPitfalls,
     redFlags,
     studyApproach,
@@ -279,7 +434,7 @@ function normaliseInsightPayload(raw, topic) {
 
 exports.exploreTopicInsight = functions
   .runWith({
-    timeoutSeconds: 90,
+    timeoutSeconds: 120,
     memory: "512MB",
     secrets: [geminiApiKey, anthropicApiKey],
   })
@@ -304,7 +459,7 @@ exports.exploreTopicInsight = functions
       const geminiT0 = Date.now();
       const geminiResult = await withTimeout(
         geminiGenerate(EXPLORE_TOPIC_INSIGHT_SYSTEM, prompt, {
-          maxTokens: 2_400,
+          maxTokens: 6_000,
           retries: 1,
           temperature: 0.15,
           rateLimitMaxRetries: 1,
@@ -324,7 +479,7 @@ exports.exploreTopicInsight = functions
         const claudeT0 = Date.now();
         const claudeResult = await withTimeout(
           claudeGenerate(EXPLORE_TOPIC_INSIGHT_SYSTEM, prompt, {
-            maxTokens: 2_600,
+            maxTokens: 7_000,
             retries: 1,
             usePrefill: false,
           }).catch((error) => ({ success: false, error: error.message })),
@@ -379,4 +534,8 @@ module.exports.__private = {
   normaliseCitations,
   normaliseGuidelineUpdates,
   normaliseInsightPayload,
+  normaliseTeachingSections,
+  normaliseChartData,
+  normaliseAlgorithmSteps,
+  normaliseChartDataPoints,
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useCallback, useEffect, useMemo, useState } from "react";
+import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -50,6 +50,7 @@ interface FallbackGuide {
   roadmap: string[];
   objectives: string[];
   highYield: string[];
+  examAngles: string[];
   recallPrompts: string[];
 }
 
@@ -177,6 +178,113 @@ function splitSentences(text: string): string[] {
     .filter((s) => s.length >= 40 && s.length <= 220 && !s.includes("http"));
 }
 
+function deriveSourceSnippets(sectionText: string | null, max = 4): string[] {
+  if (!sectionText) return [];
+
+  const chunks = sectionText
+    .replace(/\r/g, "")
+    .split(/\n{2,}/)
+    .map((c) => c.trim())
+    .filter(Boolean);
+
+  const snippets: string[] = [];
+  const seen = new Set<string>();
+
+  for (const chunk of chunks) {
+    if (isOCRNoise(chunk)) continue;
+
+    const sentences = chunk
+      .split(/(?<=[.!?])\s+/)
+      .map((s) => s.trim())
+      .filter(
+        (s) =>
+          s.length >= 80 &&
+          s.length <= 260 &&
+          !isOCRNoise(s) &&
+          !METADATA_LINE_RE.test(s)
+      );
+
+    for (const sentence of sentences) {
+      const key = sentence.toLowerCase().replace(/\s+/g, " ");
+      if (seen.has(key)) continue;
+      seen.add(key);
+      snippets.push(sentence);
+      if (snippets.length >= max) return snippets;
+    }
+  }
+
+  for (const chunk of chunks) {
+    if (snippets.length >= max) break;
+    if (isOCRNoise(chunk)) continue;
+    const fallback = chunk.slice(0, 220).trim();
+    if (fallback.length < 80) continue;
+    const key = fallback.toLowerCase().replace(/\s+/g, " ");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    snippets.push(fallback);
+  }
+
+  return snippets;
+}
+
+function deriveSourceParagraphs(noteSections: NoteSection[], max = 12): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+
+  for (const section of noteSections) {
+    for (const paragraph of section.paragraphs) {
+      const value = paragraph
+        .replace(/\s+/g, " ")
+        .trim();
+      if (value.length < 80 || isOCRNoise(value)) continue;
+
+      const key = value.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(value);
+      if (out.length >= max) return out;
+    }
+  }
+
+  return out;
+}
+
+function findBestParagraphIndex(snippet: string, paragraphs: string[]): number {
+  if (!snippet || paragraphs.length === 0) return -1;
+
+  const normSnippet = snippet.toLowerCase().replace(/\s+/g, " ").trim();
+  const snippetHead = normSnippet.slice(0, 80);
+
+  for (let i = 0; i < paragraphs.length; i++) {
+    const p = paragraphs[i].toLowerCase().replace(/\s+/g, " ").trim();
+    if (p.includes(normSnippet) || p.includes(snippetHead)) return i;
+  }
+
+  const snippetTokens = new Set(normSnippet.split(/\s+/).filter((t) => t.length > 3));
+  let bestIdx = -1;
+  let bestScore = 0;
+
+  for (let i = 0; i < paragraphs.length; i++) {
+    const tokens = new Set(
+      paragraphs[i]
+        .toLowerCase()
+        .replace(/[^\w\s]/g, " ")
+        .split(/\s+/)
+        .filter((t) => t.length > 3)
+    );
+    let overlap = 0;
+    for (const token of snippetTokens) {
+      if (tokens.has(token)) overlap++;
+    }
+    if (overlap > bestScore) {
+      bestScore = overlap;
+      bestIdx = i;
+    }
+  }
+
+  return bestScore >= 3 ? bestIdx : -1;
+}
+
 function isUsefulTopic(topic: string): boolean {
   const t = topic.trim();
   if (!t || t.length < 4 || t.length > 100) return false;
@@ -204,27 +312,53 @@ function deriveFallbackGuide(
     .join(" ");
 
   const keySentences = dedupe(splitSentences(paragraphText), 5);
-
-  // Build objectives from actual content — not AI-style instructions
-  const objectives = dedupe(
+  const focusTopics = dedupe(
     [
-      sectionTitle && isUsefulTopic(sectionTitle)
-        ? `Core concepts of ${sectionTitle}`
-        : "",
-      ...roadmap.map((topic) => `${topic} — key points and clinical relevance`),
-      keySentences.length > 0
-        ? "High-yield facts and common exam topics"
-        : "",
-    ].filter(Boolean),
+      ...(sectionTitle && isUsefulTopic(sectionTitle) ? [sectionTitle] : []),
+      ...roadmap,
+    ],
     5
   );
 
-  // Build review questions from actual topics in the material
+  // Build objectives from actual content and focus on exam decision-making.
+  const objectives = dedupe(
+    [
+      ...focusTopics.slice(0, 3).map(
+        (topic) => `Understand the mechanism and clinical relevance of ${topic}.`
+      ),
+      ...focusTopics.slice(0, 2).map(
+        (topic) => `Differentiate ${topic} from closely related diagnoses in vignettes.`
+      ),
+      keySentences.length > 0
+        ? "Link hallmark findings to the next-best diagnostic or management step."
+        : "",
+    ].filter(Boolean),
+    6
+  );
+
+  const examAngles = dedupe(
+    [
+      ...focusTopics.slice(0, 3).map(
+        (topic) => `Most testable angle: ${topic} — identify the single decisive clue.`
+      ),
+      ...focusTopics.slice(0, 2).map(
+        (topic) => `Pitfall check: avoid misclassifying ${topic} when look-alike options appear.`
+      ),
+      keySentences[0] ? `Anchor fact: ${keySentences[0]}` : "",
+    ].filter(Boolean),
+    6
+  );
+
+  // Build reasoning prompts from actual topics in the material.
   const recallPrompts = dedupe(
     [
-      ...roadmap.slice(0, 3).map((topic) => `What are the main points about ${topic}?`),
-      ...roadmap.slice(3, 5).map((topic) => `How does ${topic} relate to clinical practice?`),
-      "What are the most testable facts from this section?",
+      ...focusTopics
+        .slice(0, 2)
+        .map((topic) => `Explain ${topic} from mechanism to first-line management in 60 seconds.`),
+      ...focusTopics
+        .slice(0, 2)
+        .map((topic) => `What finding would make you choose or reject ${topic} in a clinical stem?`),
+      "Which red flag in this section should trigger urgent escalation?",
     ],
     6
   );
@@ -233,6 +367,7 @@ function deriveFallbackGuide(
     roadmap: roadmap.length > 0 ? roadmap : dedupe([sectionTitle ?? "Section overview"], 3),
     objectives,
     highYield: keySentences,
+    examAngles,
     recallPrompts,
   };
 }
@@ -253,6 +388,8 @@ export default function StudySessionPage({
   const [summary, setSummary] = useState<AISummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [activeSourceParagraphIndex, setActiveSourceParagraphIndex] = useState<number | null>(null);
+  const sourceParagraphRefs = useRef<Record<number, HTMLLIElement | null>>({});
 
   // Ask AI state
   const [chatMessages, setChatMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
@@ -318,6 +455,31 @@ export default function StudySessionPage({
     () => deriveFallbackGuide(section?.title, noteSections, textBlocks),
     [section?.title, noteSections, textBlocks]
   );
+  const sourceSnippets = useMemo(
+    () => deriveSourceSnippets(sectionText),
+    [sectionText]
+  );
+  const sourceParagraphs = useMemo(
+    () => deriveSourceParagraphs(noteSections),
+    [noteSections]
+  );
+  const snippetTargets = useMemo(
+    () =>
+      sourceSnippets.map((snippet) => ({
+        snippet,
+        paragraphIndex: findBestParagraphIndex(snippet, sourceParagraphs),
+      })),
+    [sourceSnippets, sourceParagraphs]
+  );
+
+  const handleSnippetJump = useCallback((paragraphIndex: number) => {
+    if (paragraphIndex < 0) return;
+    setActiveSourceParagraphIndex(paragraphIndex);
+    requestAnimationFrame(() => {
+      const el = sourceParagraphRefs.current[paragraphIndex];
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, []);
 
   const generateSummary = useCallback(async () => {
     if (!sectionText || !section?.title || summaryLoading) return;
@@ -430,7 +592,9 @@ export default function StudySessionPage({
   const hasFallbackGuide =
     fallbackGuide.roadmap.length > 0 ||
     fallbackGuide.objectives.length > 0 ||
-    fallbackGuide.highYield.length > 0;
+    fallbackGuide.highYield.length > 0 ||
+    fallbackGuide.examAngles.length > 0 ||
+    fallbackGuide.recallPrompts.length > 0;
   const hasGuide = hasBlueprintGuide || hasFallbackGuide;
   const defaultTab = hasGuide ? "guide" : "notes";
 
@@ -600,6 +764,41 @@ export default function StudySessionPage({
                     </div>
                   </div>
                 )}
+
+                {summary?.summary && (
+                  <div className="rounded-2xl border border-blue-200/80 bg-blue-50/45 p-4 sm:p-5 dark:border-blue-900/50 dark:bg-blue-950/20">
+                    <div className="mb-3 flex items-center gap-2.5">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/50">
+                        <BrainCircuit className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <h3 className="text-sm font-semibold">Clinical Synthesis</h3>
+                    </div>
+                    <p className="text-[13px] sm:text-sm leading-relaxed text-foreground/85">{summary.summary}</p>
+                  </div>
+                )}
+
+                {(fallbackGuide.examAngles.length > 0 || fallbackGuide.recallPrompts.length > 0) && (
+                  <div className="rounded-2xl border border-violet-200/80 bg-violet-50/45 p-4 sm:p-5 dark:border-violet-900/50 dark:bg-violet-950/20">
+                    <div className="mb-3 flex items-center gap-2.5">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/50">
+                        <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                      </div>
+                      <h3 className="text-sm font-semibold">Reasoning Drills</h3>
+                    </div>
+                    <ul className="space-y-2.5">
+                      {fallbackGuide.examAngles.slice(0, 3).map((item, i) => (
+                        <li key={`angle_${i}`} className="rounded-xl border border-violet-200/60 bg-violet-50/40 px-3 py-2 text-[13px] sm:text-sm text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/20 dark:text-violet-300">
+                          {item}
+                        </li>
+                      ))}
+                      {fallbackGuide.recallPrompts.slice(0, 3).map((prompt, i) => (
+                        <li key={`prompt_${i}`} className="rounded-xl border border-violet-200/60 bg-violet-50/40 px-3 py-2 text-[13px] sm:text-sm text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/20 dark:text-violet-300">
+                          {prompt}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </>
             ) : hasFallbackGuide ? (
               <div className="space-y-4">
@@ -649,6 +848,25 @@ export default function StudySessionPage({
                       {fallbackGuide.highYield.map((item, i) => (
                         <li key={i} className="flex gap-2.5 text-[13px] sm:text-sm leading-relaxed">
                           <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-green-500/60" />
+                          <span className="text-foreground/85">{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {fallbackGuide.examAngles.length > 0 && (
+                  <div className="rounded-2xl border border-indigo-200/80 bg-indigo-50/45 p-4 sm:p-5 dark:border-indigo-900/50 dark:bg-indigo-950/20">
+                    <div className="mb-3 flex items-center gap-2.5">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900/50">
+                        <BrainCircuit className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                      </div>
+                      <h3 className="text-sm font-semibold">Exam Angles</h3>
+                    </div>
+                    <ul className="space-y-2.5">
+                      {fallbackGuide.examAngles.map((item, i) => (
+                        <li key={i} className="flex gap-2.5 text-[13px] sm:text-sm leading-relaxed">
+                          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-indigo-500/60" />
                           <span className="text-foreground/85">{item}</span>
                         </li>
                       ))}
@@ -755,6 +973,57 @@ export default function StudySessionPage({
                     </ul>
                   </div>
                 )}
+
+                {sourceSnippets.length > 0 && (
+                  <div className="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4 sm:p-5 dark:border-slate-800 dark:bg-slate-900/40">
+                    <div className="flex items-center gap-2.5 mb-3">
+                      <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-slate-200/70 dark:bg-slate-800">
+                        <BookOpen className="h-4 w-4 text-slate-700 dark:text-slate-300" />
+                      </div>
+                      <h3 className="text-sm font-semibold">Direct Snippets From Your File</h3>
+                    </div>
+                    <ul className="space-y-3">
+                      {snippetTargets.map(({ snippet, paragraphIndex }, i) => (
+                        <li
+                          key={i}
+                          className="rounded-xl border border-slate-200/80 bg-white/75 dark:border-slate-800 dark:bg-slate-950/40"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleSnippetJump(paragraphIndex)}
+                            className="w-full px-3 py-2.5 text-left text-[13px] italic leading-relaxed text-slate-700 transition hover:bg-slate-100/70 disabled:cursor-default disabled:hover:bg-transparent dark:text-slate-300 dark:hover:bg-slate-900/60"
+                            disabled={paragraphIndex < 0}
+                            title={paragraphIndex >= 0 ? "Jump to matching source paragraph" : "No exact paragraph match found"}
+                          >
+                            &ldquo;{snippet}&rdquo;
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                    {sourceParagraphs.length > 0 && (
+                      <div className="mt-4 border-t border-slate-200/80 pt-4 dark:border-slate-800">
+                        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                          Source Text
+                        </p>
+                        <ul className="space-y-2.5">
+                          {sourceParagraphs.map((paragraph, i) => (
+                            <li
+                              key={`src_paragraph_${i}`}
+                              ref={(el) => { sourceParagraphRefs.current[i] = el; }}
+                              className={`rounded-xl border px-3 py-2.5 text-[13px] leading-relaxed transition ${
+                                activeSourceParagraphIndex === i
+                                  ? "border-primary/60 bg-primary/10 text-foreground"
+                                  : "border-slate-200/80 bg-white/70 text-slate-700 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-300"
+                              }`}
+                            >
+                              {paragraph}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             ) : (
               <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -767,6 +1036,9 @@ export default function StudySessionPage({
                 </p>
                 {summaryError && (
                   <p className="mb-3 max-w-xs text-xs text-destructive">{summaryError}</p>
+                )}
+                {textError && (
+                  <p className="mb-3 max-w-xs text-xs text-destructive">{textError}</p>
                 )}
                 <Button
                   onClick={generateSummary}

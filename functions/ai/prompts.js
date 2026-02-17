@@ -36,7 +36,7 @@ ${sectionText}
 
 Return this exact JSON schema:
 {
-  "title": "string — a descriptive topic-based title derived from the actual content (e.g. 'Neuronal Migration & Axon Guidance', 'Cardiac Electrophysiology'), NEVER use page numbers or file names",
+  "title": "string — a descriptive topic-based title derived from the actual content (e.g. 'Neuronal Migration & Axon Guidance', 'Cardiac Electrophysiology'), NEVER use page numbers or file names; include specific medical terms so neighboring sections have distinct titles",
   "learning_objectives": ["string — 3-6 objectives"],
   "key_concepts": ["string — the core concepts covered"],
   "high_yield_points": ["string — most exam-relevant facts"],
@@ -286,10 +286,11 @@ Return this exact JSON schema:
 }`;
 }
 
-const EXPLORE_TOPIC_INSIGHT_SYSTEM = `You are MedQ Topic Tutor.
-Create a high-yield, exam-focused topic briefing for a medical learner.
-The content must be accurate, practical, and level-appropriate.
-Use trusted references only (PubMed, UpToDate, Medscape) and cite them.
+const EXPLORE_TOPIC_INSIGHT_SYSTEM = `You are MedQ Topic Teacher.
+Create a comprehensive, well-structured teaching module for a medical learner.
+The content must be thorough enough to serve as a standalone learning resource.
+Include structured numerical data suitable for rendering charts and visual summaries.
+All statistics and data points must cite a real source (PubMed, UpToDate, Medscape).
 Output STRICT JSON only. No markdown, no commentary, no code fences.`;
 
 function exploreTopicInsightUserPrompt({
@@ -300,31 +301,84 @@ function exploreTopicInsightUserPrompt({
   return `Topic: "${topic}"
 Target audience: ${levelLabel} — ${levelDescription}
 
-Write a concise but thoughtful topic briefing.
+Write a comprehensive teaching module — NOT a brief summary.
 
-Quality rules:
-- Keep language clear and practical for ${levelLabel}.
-- Prioritize mechanism-level understanding and clinical decision relevance.
-- Include a compact clinical framework: pathophysiology, diagnosis, management, escalation.
-- Include common pitfalls and red flags.
-- Include a short study approach the learner can act on immediately.
-- Include 3-6 recent guideline/review updates with year when available (prefer the most recent 5 years).
-- Provide 3-6 citations from PubMed/UpToDate/Medscape only.
-- For each citation, provide source + specific topic/article title (do NOT generate URLs).
+Content rules:
+- Write detailed, multi-paragraph teaching sections covering the topic thoroughly.
+- Each teaching section should explain concepts with clinical reasoning, not just list facts.
+- Language should be appropriate for ${levelLabel}.
+- Prioritize mechanism-level understanding and clinical decision-making.
+- Include structured chart data with real statistics from published studies.
+- Every chart data point must cite a specific source.
+- Include 5-10 recent guideline/review updates (prefer last 5 years).
+- Provide 5-10 citations from PubMed/UpToDate/Medscape only.
+- For each citation, provide source + specific article title (do NOT generate URLs).
 
 Return this exact JSON schema:
 {
-  "summary": "string — 4-7 sentence high-yield overview",
-  "core_points": ["string — 5-8 key bullet points"],
+  "summary": "string — 8-12 sentence comprehensive overview of the topic",
+  "teaching_sections": [
+    {
+      "id": "string — unique id e.g. overview, epidemiology, pathophysiology, diagnosis, management, prognosis",
+      "title": "string — section heading",
+      "content": "string — 3-6 paragraphs of detailed teaching narrative with clinical reasoning",
+      "key_points": ["string — 3-5 high-yield takeaways for this section"]
+    }
+  ],
+  "core_points": ["string — 8-12 key bullet points across the entire topic"],
   "clinical_framework": {
-    "pathophysiology": "string — concise mechanism-focused explanation",
-    "diagnostic_approach": ["string — practical diagnostic steps"],
-    "management_approach": ["string — treatment priorities and sequencing"],
+    "pathophysiology": "string — detailed mechanism explanation (2-4 paragraphs)",
+    "diagnostic_approach": ["string — practical diagnostic steps with reasoning"],
+    "management_approach": ["string — treatment priorities with evidence context"],
     "escalation_triggers": ["string — signs that require urgent escalation"]
   },
-  "clinical_pitfalls": ["string — 3-5 common mistakes or traps"],
-  "red_flags": ["string — 2-5 urgent warning signs or escalation cues"],
-  "study_approach": ["string — 3-5 concrete next study steps"],
+  "chart_data": {
+    "epidemiology": {
+      "title": "string — chart title e.g. Prevalence by Age Group",
+      "type": "bar",
+      "x_label": "string — x-axis label",
+      "y_label": "string — y-axis label",
+      "data_points": [
+        { "label": "string", "value": "number", "unit": "string e.g. % or per 100k" }
+      ],
+      "source_citation": "string — specific source for this data"
+    },
+    "treatment_comparison": {
+      "title": "string — e.g. First-line Treatment Efficacy",
+      "type": "grouped_bar",
+      "categories": ["string — treatment names"],
+      "series": [
+        { "name": "string — metric name e.g. Response Rate", "values": ["number — one per category"] }
+      ],
+      "unit": "string — e.g. % response rate",
+      "source_citation": "string"
+    },
+    "diagnostic_algorithm": {
+      "title": "string — e.g. Diagnostic Workup Algorithm",
+      "steps": [
+        {
+          "id": "string — unique step id",
+          "label": "string — step description",
+          "type": "decision | action | endpoint",
+          "yes_next": "string|null — id of next step if yes (for decision type)",
+          "no_next": "string|null — id of next step if no (for decision type)",
+          "next": "string|null — id of next step (for action type)"
+        }
+      ],
+      "source_citation": "string"
+    },
+    "prognostic_data": {
+      "title": "string — e.g. 5-Year Survival by Stage",
+      "type": "bar",
+      "data_points": [
+        { "label": "string", "value": "number", "unit": "string" }
+      ],
+      "source_citation": "string"
+    }
+  },
+  "clinical_pitfalls": ["string — 4-6 common mistakes or traps"],
+  "red_flags": ["string — 3-5 urgent warning signs or escalation cues"],
+  "study_approach": ["string — 4-6 concrete next study steps"],
   "guideline_updates": [
     {
       "year": "integer|null — publication/update year when known",
@@ -341,7 +395,13 @@ Return this exact JSON schema:
       "title": "string — specific topic or article title for searching"
     }
   ]
-}`;
+}
+
+Important:
+- teaching_sections should cover at minimum: Overview, Epidemiology, Pathophysiology, Diagnosis, Management. Add Prognosis or Complications if relevant.
+- chart_data fields are all optional — populate whichever are relevant to the topic. Skip any that do not apply.
+- All chart data_points must contain real published statistics, not fabricated numbers.
+- diagnostic_algorithm steps should form a valid flowchart (each step's next/yes_next/no_next must reference another step id or null for terminal).`;
 }
 
 module.exports = {

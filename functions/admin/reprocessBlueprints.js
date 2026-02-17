@@ -15,8 +15,9 @@ const { BLUEPRINT_SYSTEM, blueprintUserPrompt } = require("../ai/prompts");
 
 const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
 
-// Matches generic titles like "Pages 1-10", "Slides 5–8", "Section 2 (words 100-500)"
-const GENERIC_TITLE_RE = /\bPages?\s+\d|Slides?\s+\d|Section\s+\d+\s*\(words/i;
+// Matches generic titles like "Pages 1-10", "Slides 5-8", "Section 2", "Untitled".
+const GENERIC_TITLE_RE =
+  /\b(?:Pages?|Slides?|Section|Chapter|Part)\s*\d+(?:\s*(?:-|–|—|to)\s*\d+)?\b|(?:^|\b)(?:Untitled|Unknown\s+Section)(?:\b|$)/i;
 
 exports.reprocessBlueprints = functions
   .runWith({

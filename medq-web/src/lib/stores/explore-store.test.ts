@@ -343,6 +343,85 @@ describe("Explore Store", () => {
     });
   });
 
+  describe("USER FLOW: Teaching phase transitions", () => {
+    const mockInsight = {
+      topic: "Heart Failure",
+      level: "MD3",
+      levelLabel: "MD3",
+      modelUsed: "gemini",
+      summary: "Heart failure overview.",
+      teachingSections: [{ id: "overview", title: "Overview", content: "Detailed content.", keyPoints: ["Point 1"] }],
+      corePoints: ["Core 1"],
+      clinicalFramework: { pathophysiology: "Mechanism.", diagnosticApproach: ["Step 1"], managementApproach: ["Treat 1"], escalationTriggers: ["Flag 1"] },
+      chartData: {},
+      clinicalPitfalls: ["Pitfall 1"],
+      redFlags: ["Red flag 1"],
+      studyApproach: ["Study step 1"],
+      guidelineUpdates: [],
+      citations: [],
+    };
+
+    it("transitions from loading to teaching with startTeaching", () => {
+      useExploreStore.getState().startLoading("Heart Failure", "MD3");
+      useExploreStore.getState().startTeaching(mockInsight);
+
+      const state = useExploreStore.getState();
+      expect(state.phase).toBe("teaching");
+      expect(state.topicInsight).toBe(mockInsight);
+      expect(state.insightLoading).toBe(false);
+      expect(state.insightError).toBeNull();
+    });
+
+    it("goToQuizFromTeaching sets loading when no questions loaded", () => {
+      useExploreStore.getState().startTeaching(mockInsight);
+      useExploreStore.getState().goToQuizFromTeaching();
+
+      expect(useExploreStore.getState().phase).toBe("loading");
+    });
+
+    it("goToQuizFromTeaching sets quiz when questions already loaded", () => {
+      useExploreStore.getState().startQuiz(
+        [mockExploreQuestion({ id: "eq1" })], "HF", "MD3", "MD3", {}
+      );
+      useExploreStore.getState().startTeaching(mockInsight);
+      useExploreStore.getState().goToQuizFromTeaching();
+
+      expect(useExploreStore.getState().phase).toBe("quiz");
+    });
+
+    it("goToTeachingFromQuiz preserves quiz state", () => {
+      useExploreStore.getState().setTopicInsight(mockInsight);
+      const qs = [mockExploreQuestion({ id: "eq1" }), mockExploreQuestion({ id: "eq2" })];
+      useExploreStore.getState().startQuiz(qs, "HF", "MD3", "MD3", {});
+      useExploreStore.getState().answerQuestion("eq1", 0);
+      useExploreStore.getState().nextQuestion();
+
+      useExploreStore.getState().goToTeachingFromQuiz();
+
+      const state = useExploreStore.getState();
+      expect(state.phase).toBe("teaching");
+      expect(state.answers.size).toBe(1);
+      expect(state.currentIndex).toBe(1);
+    });
+
+    it("goToTeachingFromQuiz does nothing without insight", () => {
+      useExploreStore.getState().startQuiz(
+        [mockExploreQuestion({ id: "eq1" })], "HF", "MD3", "MD3", {}
+      );
+      useExploreStore.getState().goToTeachingFromQuiz();
+
+      expect(useExploreStore.getState().phase).toBe("quiz");
+    });
+
+    it("tracks userPath", () => {
+      useExploreStore.getState().setUserPath("learn");
+      expect(useExploreStore.getState().userPath).toBe("learn");
+
+      useExploreStore.getState().setUserPath("quiz");
+      expect(useExploreStore.getState().userPath).toBe("quiz");
+    });
+  });
+
   describe("Reset", () => {
     it("clears everything back to setup defaults", () => {
       useExploreStore.getState().startQuiz(
@@ -363,6 +442,10 @@ describe("Explore Store", () => {
       expect(state.backgroundJobId).toBeNull();
       expect(state.backfillStatus).toBe("idle");
       expect(state.modelUsed).toBe("");
+      expect(state.userPath).toBeNull();
+      expect(state.topicInsight).toBeNull();
+      expect(state.insightLoading).toBe(false);
+      expect(state.insightError).toBeNull();
     });
   });
 });

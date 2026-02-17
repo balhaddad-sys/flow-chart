@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import {
+  BookOpen,
   CheckCircle2,
   ChevronDown,
   RotateCcw,
@@ -29,7 +30,9 @@ export function ExploreResults() {
     levelLabel,
     targetCount,
     backfillStatus,
+    topicInsight,
     resumeQuiz,
+    goToTeachingFromQuiz,
     reset,
   } =
     useExploreStore();
@@ -242,6 +245,13 @@ export function ExploreResults() {
           {unanswered > 0 && (
             <Button className="w-full" onClick={resumeQuiz}>
               Continue Quiz
+            </Button>
+          )}
+
+          {topicInsight && (
+            <Button className="w-full" variant="outline" onClick={goToTeachingFromQuiz}>
+              <BookOpen className="mr-2 h-4 w-4" />
+              Review Teaching
             </Button>
           )}
 

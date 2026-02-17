@@ -13,6 +13,66 @@
 const { sanitizeText, sanitizeArray } = require("./sanitize");
 const { truncate } = require("./utils");
 
+const GENERIC_BLUEPRINT_TITLE_RE =
+  /\b(?:pages?|slides?|section|chapter|part)\s*\d+(?:\s*(?:-|–|—|to)\s*\d+)?\b|\b(?:untitled|unknown\s+section)\b/i;
+const LEADING_OBJECTIVE_VERB_RE =
+  /^(?:understand|describe|explain|identify|recogni[sz]e|differentiate|evaluate|apply|outline|review|summari[sz]e|know)\s+/i;
+
+function cleanTitleCandidate(value, maxLen = 160) {
+  return truncate(sanitizeText(value), maxLen)
+    .replace(/\s+/g, " ")
+    .replace(/^[\-:;,.()\s]+|[\-:;,.()\s]+$/g, "")
+    .trim();
+}
+
+function isGenericBlueprintTitle(value) {
+  const title = cleanTitleCandidate(value, 220);
+  if (!title) return true;
+  if (GENERIC_BLUEPRINT_TITLE_RE.test(title)) return true;
+  if (/^(?:section|topic|part)\s*[a-z0-9]+$/i.test(title)) return true;
+  return false;
+}
+
+function objectiveToTopic(value) {
+  return cleanTitleCandidate(value, 160)
+    .replace(LEADING_OBJECTIVE_VERB_RE, "")
+    .replace(/^the\s+/i, "")
+    .replace(/[.?!].*$/, "")
+    .trim();
+}
+
+function pushUniqueTitleCandidate(out, seen, value) {
+  const candidate = objectiveToTopic(value);
+  if (!candidate || isGenericBlueprintTitle(candidate)) return;
+
+  const key = candidate.toLowerCase();
+  if (seen.has(key)) return;
+  seen.add(key);
+  out.push(candidate);
+}
+
+function deriveBlueprintTitle(rawTitle, topicTags, blueprint) {
+  const title = cleanTitleCandidate(rawTitle, 200);
+  if (title && !isGenericBlueprintTitle(title)) return title;
+
+  const candidates = [];
+  const seen = new Set();
+
+  for (const tag of topicTags.slice(0, 5)) pushUniqueTitleCandidate(candidates, seen, tag);
+  for (const concept of blueprint.keyConcepts.slice(0, 4)) pushUniqueTitleCandidate(candidates, seen, concept);
+  for (const term of blueprint.termsToDefine.slice(0, 4)) pushUniqueTitleCandidate(candidates, seen, term);
+  for (const objective of blueprint.learningObjectives.slice(0, 3)) pushUniqueTitleCandidate(candidates, seen, objective);
+  for (const point of blueprint.highYieldPoints.slice(0, 2)) pushUniqueTitleCandidate(candidates, seen, point);
+
+  if (candidates.length > 0) {
+    const primary = candidates[0];
+    const secondary = candidates.find((value) => value.toLowerCase() !== primary.toLowerCase());
+    return truncate(secondary ? `${primary} - ${secondary}` : primary, 200);
+  }
+
+  return title || "";
+}
+
 function normaliseCitationSource(rawSource) {
   const source = String(rawSource || "").toLowerCase().trim();
   if (source.includes("pubmed")) return "PubMed";
@@ -113,19 +173,22 @@ function normaliseCitations(rawCitations, { stem, topicTags }) {
  * @returns {{ title: string, difficulty: number, estMinutes: number, topicTags: string[], blueprint: object }}
  */
 function normaliseBlueprint(raw) {
+  const topicTags = sanitizeArray(raw.topic_tags || raw.topicTags || []);
+  const blueprint = {
+    learningObjectives: sanitizeArray(raw.learning_objectives || raw.learningObjectives || []),
+    keyConcepts:        sanitizeArray(raw.key_concepts || raw.keyConcepts || []),
+    highYieldPoints:    sanitizeArray(raw.high_yield_points || raw.highYieldPoints || []),
+    commonTraps:        sanitizeArray(raw.common_traps || raw.commonTraps || []),
+    termsToDefine:      sanitizeArray(raw.terms_to_define || raw.termsToDefine || []),
+  };
+
   // Handle both snake_case (prompt schema) and camelCase (Gemini sometimes returns)
   return {
-    title: sanitizeText(raw.title) || "",
+    title: deriveBlueprintTitle(raw.title, topicTags, blueprint),
     difficulty: raw.difficulty || 3,
     estMinutes: raw.estimated_minutes || raw.estimatedMinutes || 15,
-    topicTags: sanitizeArray(raw.topic_tags || raw.topicTags || []),
-    blueprint: {
-      learningObjectives: sanitizeArray(raw.learning_objectives || raw.learningObjectives || []),
-      keyConcepts:        sanitizeArray(raw.key_concepts || raw.keyConcepts || []),
-      highYieldPoints:    sanitizeArray(raw.high_yield_points || raw.highYieldPoints || []),
-      commonTraps:        sanitizeArray(raw.common_traps || raw.commonTraps || []),
-      termsToDefine:      sanitizeArray(raw.terms_to_define || raw.termsToDefine || []),
-    },
+    topicTags,
+    blueprint,
   };
 }
 

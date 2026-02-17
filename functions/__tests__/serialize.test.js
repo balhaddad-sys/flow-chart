@@ -47,6 +47,20 @@ describe("lib/serialize", () => {
       expect(result.blueprint.commonTraps).toEqual([]);
       expect(result.blueprint.termsToDefine).toEqual([]);
     });
+
+    it("replaces generic source labels with topic-derived titles", () => {
+      const raw = {
+        title: "Pages 11-20",
+        topic_tags: ["Cardiac Ischemia"],
+        key_concepts: ["Stable angina", "Acute coronary syndrome"],
+        learning_objectives: ["Differentiate stable angina from ACS"],
+      };
+
+      const result = normaliseBlueprint(raw);
+
+      expect(result.title).toContain("Cardiac Ischemia");
+      expect(result.title).not.toContain("Pages 11-20");
+    });
   });
 
   // ── normaliseQuestion ───────────────────────────────────────────────────────

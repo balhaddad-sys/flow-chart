@@ -96,6 +96,29 @@ describe("scheduling/scheduler", () => {
       expect(study.difficulty).toBe(3);
       expect(study.topicTags).toEqual([]);
     });
+
+    it("derives a meaningful task title when section title is generic", () => {
+      const generic = [
+        {
+          id: "s1",
+          title: "Pages 1-10",
+          topicTags: ["Acute Coronary Syndrome"],
+          blueprint: {
+            keyConcepts: ["ST-elevation myocardial infarction"],
+            learningObjectives: ["Differentiate STEMI from NSTEMI"],
+            highYieldPoints: [],
+            termsToDefine: ["Troponin"],
+          },
+          questionsStatus: "COMPLETED",
+        },
+      ];
+
+      const tasks = buildWorkUnits(generic, "c1", "off");
+      const study = tasks.find((t) => t.type === "STUDY");
+      expect(study.title).toMatch(/^Study:\s+/);
+      expect(study.title).toContain("Acute Coronary Syndrome");
+      expect(study.title).not.toContain("Pages 1-10");
+    });
   });
 
   // ── computeTotalLoad ────────────────────────────────────────────────────────

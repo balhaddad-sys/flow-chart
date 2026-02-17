@@ -316,7 +316,8 @@ async function callGeminiVision({
  * @returns {object} { success, data: { summary, keyPoints } }
  */
 async function generateSummary(sectionText, title) {
-  const systemPrompt = `You are MedQ Summarizer. Create concise, exam-focused summaries of medical study material.
+  const systemPrompt = `You are MedQ Summarizer. Create thoughtful, exam-focused medical study notes.
+Prioritize mechanism-level understanding, clinical interpretation, and decision points.
 Output STRICT JSON only. No markdown, no commentary.`;
 
   const userPrompt = `Section: "${title}"
@@ -326,11 +327,15 @@ Text:
 ${sectionText}
 """
 
+Quality rules:
+- Avoid generic statements; every line should connect to a clinical or exam-useful implication.
+- Prefer mechanism -> diagnosis clues -> management reasoning when relevant.
+
 Return this exact JSON schema:
 {
-  "summary": "string — 2-3 sentence overview",
-  "keyPoints": ["string — 4-6 bullet points of the most important facts"],
-  "mnemonics": ["string — 0-2 memory aids if applicable"]
+  "summary": "string — 4-6 sentence synthesis linking mechanism, diagnostic clues, and management priorities",
+  "keyPoints": ["string — 6-8 high-yield points with decisive clinical details"],
+  "mnemonics": ["string — 0-3 concise memory aids if applicable"]
 }`;
 
   return callGemini(systemPrompt, userPrompt, {

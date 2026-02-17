@@ -25,6 +25,75 @@ const {
 } = require("../lib/constants");
 const { clampInt, truncate, toISODate, weekdayName } = require("../lib/utils");
 
+const GENERIC_SECTION_TITLE_RE =
+  /\b(?:pages?|slides?|section|chapter|part)\s*\d+(?:\s*(?:-|–|—|to)\s*\d+)?\b|\b(?:untitled|unknown\s+section)\b/i;
+const LEADING_OBJECTIVE_VERB_RE =
+  /^(?:understand|describe|explain|identify|recogni[sz]e|differentiate|evaluate|apply|outline|review|summari[sz]e|know)\s+/i;
+
+function cleanTitleCandidate(value, maxLen = 140) {
+  return truncate(value, maxLen)
+    .replace(/\s+/g, " ")
+    .replace(/^[\-:;,.()\s]+|[\-:;,.()\s]+$/g, "")
+    .trim();
+}
+
+function isGenericSectionTitle(value) {
+  const title = cleanTitleCandidate(value, 220);
+  if (!title) return true;
+  if (GENERIC_SECTION_TITLE_RE.test(title)) return true;
+  if (/^(?:section|topic|part)\s*[a-z0-9]+$/i.test(title)) return true;
+  return false;
+}
+
+function objectiveToTopic(value) {
+  return cleanTitleCandidate(value, 140)
+    .replace(LEADING_OBJECTIVE_VERB_RE, "")
+    .replace(/^the\s+/i, "")
+    .replace(/[.?!].*$/, "")
+    .trim();
+}
+
+function pushCandidate(candidates, seen, value) {
+  const candidate = objectiveToTopic(value);
+  if (!candidate || isGenericSectionTitle(candidate)) return;
+
+  const key = candidate.toLowerCase();
+  if (seen.has(key)) return;
+  seen.add(key);
+  candidates.push(candidate);
+}
+
+function deriveSectionTaskTitle(section, sourceOrder = 0) {
+  const rawTitle = cleanTitleCandidate(section.title, 200);
+  if (rawTitle && !isGenericSectionTitle(rawTitle)) {
+    return rawTitle;
+  }
+
+  const candidates = [];
+  const seen = new Set();
+  const topicTags = Array.isArray(section.topicTags) ? section.topicTags : [];
+  const blueprint = section.blueprint || {};
+  const keyConcepts = Array.isArray(blueprint.keyConcepts) ? blueprint.keyConcepts : [];
+  const learningObjectives = Array.isArray(blueprint.learningObjectives) ? blueprint.learningObjectives : [];
+  const highYieldPoints = Array.isArray(blueprint.highYieldPoints) ? blueprint.highYieldPoints : [];
+  const termsToDefine = Array.isArray(blueprint.termsToDefine) ? blueprint.termsToDefine : [];
+
+  for (const tag of topicTags.slice(0, 5)) pushCandidate(candidates, seen, tag);
+  for (const concept of keyConcepts.slice(0, 4)) pushCandidate(candidates, seen, concept);
+  for (const term of termsToDefine.slice(0, 4)) pushCandidate(candidates, seen, term);
+  for (const objective of learningObjectives.slice(0, 3)) pushCandidate(candidates, seen, objective);
+  for (const point of highYieldPoints.slice(0, 2)) pushCandidate(candidates, seen, point);
+
+  if (candidates.length > 0) {
+    const primary = candidates[0];
+    const secondary = candidates.find((value) => value.toLowerCase() !== primary.toLowerCase());
+    return truncate(secondary ? `${primary} - ${secondary}` : primary, 200);
+  }
+
+  if (rawTitle) return rawTitle;
+  return `Section ${sourceOrder + 1}`;
+}
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 /**
@@ -91,7 +160,7 @@ function buildWorkUnits(sections, courseId, revisionPolicy = "standard") {
   for (const [sourceOrder, section] of sections.entries()) {
     const estMinutes = clampInt(section.estMinutes || 15, 5, 240);
     const difficulty = clampInt(section.difficulty || 3, 1, 5);
-    const title = truncate(section.title, 200);
+    const title = deriveSectionTaskTitle(section, sourceOrder);
     const topicTags = (section.topicTags || []).slice(0, 10);
     const base = {
       courseId,
