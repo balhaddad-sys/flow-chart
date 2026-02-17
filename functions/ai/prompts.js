@@ -237,7 +237,7 @@ ${hardFloorCount > 0 ? `Hard-floor target: at least ${hardFloorCount} questions 
 ${expertFloorCount > 0 ? `Expert-floor target: at least ${expertFloorCount} questions must be difficulty 5` : ""}
 ${complexityGuidance ? `Complexity guidance: ${complexityGuidance}` : ""}
 ${strictMode ? "Strict mode: Reject simplistic recall-only questions. Prefer nuanced clinical reasoning and management trade-offs." : ""}
-${conciseMode ? "Concise mode: keep each explanation field short (prefer <= 18 words) while preserving clarity." : ""}
+${conciseMode ? "Concise mode: keep each explanation field compact (prefer <= 35 words) while still giving mechanism + clinical reasoning." : ""}
 ${stemHints.length > 0 ? `Avoid repeating or closely paraphrasing these stems:\n${stemHints.map((stem, i) => `${i + 1}. ${stem}`).join("\n")}` : ""}
 
 Generate exactly ${count} SBA questions on this topic.
@@ -248,8 +248,10 @@ Quality rules:
 - Difficulty values must be between ${minDifficulty} and ${maxDifficulty}.
 - Each stem must be a specific clinical vignette or focused question, not generic.
 - Include exactly 5 options per question.
-- Keep explanations concise and precise.
-- For why_others_wrong, keep each item compact and non-redundant.
+- Explanations must be thoughtful and clinically useful, not generic.
+- For correct_why, include the decisive clinical clue + core mechanism + next-best interpretation.
+- For why_others_wrong, explain why each option is incorrect in this vignette and why it could be tempting.
+- Keep each explanation focused and non-redundant.
 - Every question must include 2-3 citations from PubMed/UpToDate/Medscape only.
 - For each citation, provide the source name and a specific topic/article title (do NOT generate URLs).
 
@@ -284,6 +286,46 @@ Return this exact JSON schema:
 }`;
 }
 
+const EXPLORE_TOPIC_INSIGHT_SYSTEM = `You are MedQ Topic Tutor.
+Create a high-yield, exam-focused topic briefing for a medical learner.
+The content must be accurate, practical, and level-appropriate.
+Use trusted references only (PubMed, UpToDate, Medscape) and cite them.
+Output STRICT JSON only. No markdown, no commentary, no code fences.`;
+
+function exploreTopicInsightUserPrompt({
+  topic,
+  levelLabel,
+  levelDescription,
+}) {
+  return `Topic: "${topic}"
+Target audience: ${levelLabel} — ${levelDescription}
+
+Write a concise but thoughtful topic briefing.
+
+Quality rules:
+- Keep language clear and practical for ${levelLabel}.
+- Prioritize mechanism-level understanding and clinical decision relevance.
+- Include common pitfalls and red flags.
+- Include a short study approach the learner can act on immediately.
+- Provide 2-4 citations from PubMed/UpToDate/Medscape only.
+- For each citation, provide source + specific topic/article title (do NOT generate URLs).
+
+Return this exact JSON schema:
+{
+  "summary": "string — 4-7 sentence high-yield overview",
+  "core_points": ["string — 5-8 key bullet points"],
+  "clinical_pitfalls": ["string — 3-5 common mistakes or traps"],
+  "red_flags": ["string — 2-5 urgent warning signs or escalation cues"],
+  "study_approach": ["string — 3-5 concrete next study steps"],
+  "citations": [
+    {
+      "source": "PUBMED | UPTODATE | MEDSCAPE",
+      "title": "string — specific topic or article title for searching"
+    }
+  ]
+}`;
+}
+
 module.exports = {
   BLUEPRINT_SYSTEM,
   blueprintUserPrompt,
@@ -297,4 +339,6 @@ module.exports = {
   documentExtractUserPrompt,
   EXPLORE_QUESTIONS_SYSTEM,
   exploreQuestionsUserPrompt,
+  EXPLORE_TOPIC_INSIGHT_SYSTEM,
+  exploreTopicInsightUserPrompt,
 };

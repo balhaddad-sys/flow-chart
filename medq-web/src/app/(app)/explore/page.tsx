@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
+  BookText,
   CheckCircle2,
   Compass,
   Loader2,
+  Sparkles,
   XCircle,
   ExternalLink,
 } from "lucide-react";
@@ -66,6 +68,15 @@ export default function ExplorePage() {
   const [inputTopic, setInputTopic] = useState("");
   const [inputLevel, setInputLevel] = useState("MD3");
   const [inputCount, setInputCount] = useState(10);
+  const [topicInsight, setTopicInsight] = useState<fn.ExploreTopicInsightResult | null>(null);
+  const [insightLoading, setInsightLoading] = useState(false);
+  const [insightError, setInsightError] = useState<string | null>(null);
+  const [insightKey, setInsightKey] = useState("");
+
+  const setupInsightKey = `${inputTopic.trim().toLowerCase()}::${inputLevel}`;
+  const quizInsightKey = `${topic.trim().toLowerCase()}::${store.level}`;
+  const setupInsight = topicInsight && insightKey === setupInsightKey ? topicInsight : null;
+  const quizInsight = topicInsight && insightKey === quizInsightKey ? topicInsight : null;
 
   const currentQuestion = questions[currentIndex] ?? null;
   const currentAnswer =
@@ -78,6 +89,47 @@ export default function ExplorePage() {
   const isLastLoadedQuestion = currentIndex >= questions.length - 1;
   const waitingForMoreQuestions =
     backfillStatus === "running" && questions.length < targetCount;
+  const optionReasoning = currentQuestion?.explanation?.whyOthersWrong ?? [];
+  const selectedOptionReason =
+    isAnswered && currentAnswer != null
+      ? optionReasoning[currentAnswer] || ""
+      : "";
+
+  async function loadTopicInsight(
+    topicValue: string,
+    levelValue: string,
+    opts: { force?: boolean; notifyError?: boolean } = {}
+  ) {
+    const { force = false, notifyError = false } = opts;
+    const trimmed = topicValue.trim();
+    if (!trimmed) return;
+
+    const key = `${trimmed.toLowerCase()}::${levelValue}`;
+    if (!force && insightLoading) return;
+    if (!force && topicInsight && insightKey === key) return;
+
+    setInsightLoading(true);
+    setInsightError(null);
+    try {
+      const insight = await fn.exploreTopicInsight({
+        topic: trimmed,
+        level: levelValue,
+      });
+      setTopicInsight(insight);
+      setInsightKey(key);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Could not generate topic briefing.";
+      setInsightError(message);
+      if (notifyError) {
+        toast.error(message);
+      }
+    } finally {
+      setInsightLoading(false);
+    }
+  }
 
   useEffect(() => {
     syncedCountRef.current = questions.length;
@@ -165,6 +217,10 @@ export default function ExplorePage() {
       toast.error("Please enter a medical topic.");
       return;
     }
+    void loadTopicInsight(trimmed, inputLevel, {
+      force: false,
+      notifyError: false,
+    });
     store.startLoading(trimmed, inputLevel);
     try {
       const result = await fn.exploreQuiz({
@@ -196,6 +252,18 @@ export default function ExplorePage() {
         err instanceof Error ? err.message : "Failed to generate questions."
       );
     }
+  }
+
+  async function handleGenerateInsight() {
+    const trimmed = inputTopic.trim();
+    if (!trimmed) {
+      toast.error("Please enter a medical topic.");
+      return;
+    }
+    await loadTopicInsight(trimmed, inputLevel, {
+      force: true,
+      notifyError: true,
+    });
   }
 
   function handleSelectAnswer(optionIndex: number) {
@@ -286,10 +354,50 @@ export default function ExplorePage() {
               </label>
             </div>
 
-            <Button onClick={handleGenerate} disabled={!inputTopic.trim()}>
-              Generate Quiz
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={handleGenerate} disabled={!inputTopic.trim()}>
+                Generate Quiz
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleGenerateInsight}
+                disabled={!inputTopic.trim() || insightLoading}
+              >
+                {insightLoading ? "Generating..." : "Topic Brief"}
+                {!insightLoading && <BookText className="ml-2 h-4 w-4" />}
+              </Button>
+            </div>
+
+            {insightError && (
+              <p className="text-xs text-destructive">{insightError}</p>
+            )}
+
+            {setupInsight && (
+              <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                    Topic briefing
+                  </p>
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {setupInsight.summary}
+                </p>
+                {setupInsight.corePoints.length > 0 && (
+                  <div className="mt-2 space-y-1.5">
+                    {setupInsight.corePoints.slice(0, 4).map((point, i) => (
+                      <p
+                        key={`${point}_${i}`}
+                        className="text-xs text-muted-foreground"
+                      >
+                        {i + 1}. {point}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -359,6 +467,142 @@ export default function ExplorePage() {
           )}
         </CardContent>
       </Card>
+
+      {(quizInsight || insightLoading || insightError) && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Topic Brief</CardTitle>
+            <CardDescription>
+              High-yield context for {topic || "this topic"}.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {!quizInsight && insightLoading && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Generating topic brief...
+              </div>
+            )}
+            {quizInsight && (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  {quizInsight.summary}
+                </p>
+
+                {quizInsight.corePoints.length > 0 && (
+                  <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                      Core points
+                    </p>
+                    <div className="mt-2 space-y-1.5">
+                      {quizInsight.corePoints.slice(0, 6).map((point, i) => (
+                        <p
+                          key={`${point}_${i}`}
+                          className="text-sm text-muted-foreground"
+                        >
+                          {i + 1}. {point}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {quizInsight.clinicalPitfalls.length > 0 && (
+                  <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                      Clinical pitfalls
+                    </p>
+                    <div className="mt-2 space-y-1.5">
+                      {quizInsight.clinicalPitfalls.map((item, i) => (
+                        <p
+                          key={`${item}_${i}`}
+                          className="text-sm text-muted-foreground"
+                        >
+                          {i + 1}. {item}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {quizInsight.redFlags.length > 0 && (
+                  <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">
+                      Red flags
+                    </p>
+                    <div className="mt-2 space-y-1.5">
+                      {quizInsight.redFlags.map((item, i) => (
+                        <p
+                          key={`${item}_${i}`}
+                          className="text-sm text-muted-foreground"
+                        >
+                          {i + 1}. {item}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {quizInsight.studyApproach.length > 0 && (
+                  <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-green-600 dark:text-green-400">
+                      Study approach
+                    </p>
+                    <div className="mt-2 space-y-1.5">
+                      {quizInsight.studyApproach.map((item, i) => (
+                        <p
+                          key={`${item}_${i}`}
+                          className="text-sm text-muted-foreground"
+                        >
+                          {i + 1}. {item}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {(quizInsight.citations?.length ?? 0) > 0 && (
+                  <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Topic sources
+                    </p>
+                    <div className="mt-2 space-y-1.5">
+                      {quizInsight.citations?.slice(0, 4).map((citation, idx) => (
+                        <a
+                          key={`${citation.url}_${idx}`}
+                          href={citation.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="group flex items-start gap-2 rounded-lg border border-border/60 bg-background/70 px-2.5 py-2 text-sm transition-colors hover:bg-accent/40"
+                        >
+                          <span className="font-medium text-primary">{citation.source}</span>
+                          <span className="flex-1 text-muted-foreground">{citation.title}</span>
+                          <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-foreground" />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+            {insightError && (
+              <p className="text-xs text-destructive">{insightError}</p>
+            )}
+            <Button
+              variant="outline"
+              onClick={() =>
+                loadTopicInsight(topic || inputTopic, store.level || inputLevel, {
+                  force: true,
+                  notifyError: true,
+                })
+              }
+              disabled={insightLoading}
+            >
+              Refresh Brief
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -433,6 +677,39 @@ export default function ExplorePage() {
                   <p className="mt-1 text-sm text-muted-foreground">
                     {currentQuestion.explanation.correctWhy}
                   </p>
+                </div>
+              )}
+
+              {selectedOptionReason && (
+                <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                    Reasoning for your selected option
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {selectedOptionReason}
+                  </p>
+                </div>
+              )}
+
+              {optionReasoning.length > 0 && (
+                <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Option-by-option reasoning
+                  </p>
+                  <div className="mt-2 space-y-1.5">
+                    {currentQuestion.options.map((option, optionIndex) => {
+                      const reasoning = optionReasoning[optionIndex];
+                      if (!reasoning) return null;
+                      return (
+                        <p
+                          key={`${option}_${optionIndex}`}
+                          className="text-sm text-muted-foreground"
+                        >
+                          {String.fromCharCode(65 + optionIndex)}. {reasoning}
+                        </p>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
 

@@ -131,6 +131,36 @@ export function ExploreResults() {
                           {q.explanation.correctWhy}
                         </p>
                       )}
+                      {selectedIdx != null &&
+                        q.explanation?.whyOthersWrong?.[selectedIdx] && (
+                          <div className="rounded-lg border border-border/60 bg-muted/30 p-2">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                              Your option reasoning
+                            </p>
+                            <p className="mt-1 text-muted-foreground">
+                              {q.explanation.whyOthersWrong[selectedIdx]}
+                            </p>
+                          </div>
+                        )}
+                      {(q.explanation?.whyOthersWrong?.length ?? 0) > 0 && (
+                        <div className="rounded-lg border border-border/60 bg-muted/30 p-2">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            Option-by-option reasoning
+                          </p>
+                          <div className="mt-2 space-y-1">
+                            {q.explanation.whyOthersWrong
+                              .slice(0, q.options.length)
+                              .map((reason, optionIndex) => (
+                                <p
+                                  key={`${q.id}_${optionIndex}`}
+                                  className="text-muted-foreground"
+                                >
+                                  {String.fromCharCode(65 + optionIndex)}. {reason}
+                                </p>
+                              ))}
+                          </div>
+                        </div>
+                      )}
                       {(q.citations?.length ?? 0) > 0 && (
                         <div className="space-y-1.5 pt-1">
                           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
