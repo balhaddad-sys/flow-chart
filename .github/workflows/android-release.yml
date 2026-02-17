@@ -99,6 +99,9 @@ jobs:
       - name: Resolve Flutter dependencies
         run: flutter pub get
 
+      - name: Generate Freezed / JSON serialization code
+        run: dart run build_runner build --delete-conflicting-outputs
+
       - name: Validate legal URLs are reachable
         run: |
           for url in "$MEDQ_PRIVACY_URL" "$MEDQ_TERMS_URL"; do
