@@ -113,7 +113,7 @@ exports.sendChatMessage = functions
         .reverse()
         .filter((m) => m.content !== message); // exclude the message we just saved
 
-      // Get section context from the course (use blueprint data, not raw text)
+      // Get ALL analyzed section context from the course
       let sectionContext = [];
       try {
         const sectionsSnap = await db
@@ -122,7 +122,6 @@ exports.sendChatMessage = functions
           .collection("sections")
           .where("courseId", "==", courseId)
           .where("aiStatus", "==", "ANALYZED")
-          .limit(5)
           .get();
 
         sectionContext = sectionsSnap.docs.map((d) => {
@@ -132,10 +131,19 @@ exports.sendChatMessage = functions
           if (bp.learningObjectives) parts.push("Objectives: " + bp.learningObjectives.join("; "));
           if (bp.keyConcepts) parts.push("Key concepts: " + bp.keyConcepts.join("; "));
           if (bp.highYieldPoints) parts.push("High-yield: " + bp.highYieldPoints.join("; "));
+          if (bp.commonTraps) parts.push("Common traps: " + bp.commonTraps.join("; "));
+          if (bp.termsToDefine) parts.push("Key terms: " + bp.termsToDefine.join("; "));
           return {
             title: bp.title || secData.title || "Untitled",
-            text: parts.join("\n").slice(0, 2000),
+            text: parts.join("\n").slice(0, 800),
           };
+        });
+
+        // Cap total context to ~6000 chars to stay within token limits
+        let totalChars = 0;
+        sectionContext = sectionContext.filter((s) => {
+          totalChars += s.title.length + s.text.length;
+          return totalChars < 6000;
         });
       } catch (err) {
         console.warn("Could not fetch section context:", err.message);

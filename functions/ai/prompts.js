@@ -26,7 +26,7 @@ Output STRICT JSON only. No markdown, no commentary, no code fences.`;
 
 function blueprintUserPrompt({ fileName, sectionLabel, contentType, sectionText }) {
   return `File: "${fileName}"
-Section: "${sectionLabel}"
+Source label: "${sectionLabel}" (this is just a page/slide range — do NOT use it as the title)
 Content type: "${contentType}"
 
 Extracted text:
@@ -36,7 +36,7 @@ ${sectionText}
 
 Return this exact JSON schema:
 {
-  "title": "string — concise descriptive title for this section",
+  "title": "string — a descriptive topic-based title derived from the actual content (e.g. 'Neuronal Migration & Axon Guidance', 'Cardiac Electrophysiology'), NEVER use page numbers or file names",
   "learning_objectives": ["string — 3-6 objectives"],
   "key_concepts": ["string — the core concepts covered"],
   "high_yield_points": ["string — most exam-relevant facts"],
