@@ -36,7 +36,6 @@ export default function AnalyticsPage() {
 
   const loading = statsLoading || tasksLoading;
 
-  // Task breakdown by type
   const taskBreakdown = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const t of tasks) {
@@ -45,7 +44,6 @@ export default function AnalyticsPage() {
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [tasks]);
 
-  // Task completion by status
   const statusData = useMemo(() => {
     const counts = { DONE: 0, TODO: 0, IN_PROGRESS: 0, SKIPPED: 0 };
     for (const t of tasks) {
@@ -60,7 +58,6 @@ export default function AnalyticsPage() {
     ].filter((d) => d.value > 0);
   }, [tasks]);
 
-  // Study minutes by day of week
   const weeklyMinutes = useMemo(() => {
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const totals = new Array(7).fill(0);
@@ -73,7 +70,6 @@ export default function AnalyticsPage() {
     return days.map((name, i) => ({ name, minutes: totals[i] }));
   }, [tasks]);
 
-  // Topic radar from weak topics
   const radarData = useMemo(() => {
     if (!stats?.weakestTopics) return [];
     return stats.weakestTopics.slice(0, 6).map((topic) => ({
@@ -97,11 +93,12 @@ export default function AnalyticsPage() {
 
   return (
     <div className="page-wrap page-stack max-w-6xl">
-      <div className="flex items-center gap-3">
-        <Link href="/dashboard" className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1">
-          <ArrowLeft className="h-4 w-4" /> Progress
-        </Link>
-      </div>
+      <Link
+        href="/today"
+        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" /> Back to Today
+      </Link>
 
       <div className="glass-card p-5 sm:p-6">
         <h1 className="page-title">Detailed Analytics</h1>
@@ -111,11 +108,12 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
-        {/* Study minutes by day */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Study Time by Day</CardTitle>
-            <p className="text-xs text-muted-foreground">Minutes spent studying each day of the week.</p>
+            <p className="text-xs text-muted-foreground">
+              Minutes spent studying each day of the week.
+            </p>
           </CardHeader>
           <CardContent>
             {weeklyMinutes.some((d) => d.minutes > 0) ? (
@@ -139,11 +137,12 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        {/* Task completion breakdown */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Task Status</CardTitle>
-            <p className="text-xs text-muted-foreground">Breakdown of your task completion status.</p>
+            <p className="text-xs text-muted-foreground">
+              Breakdown of your task completion status.
+            </p>
           </CardHeader>
           <CardContent>
             {statusData.length > 0 ? (
@@ -188,11 +187,12 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        {/* Topic radar */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Topic Accuracy Radar</CardTitle>
-            <p className="text-xs text-muted-foreground">Performance across your weakest topics.</p>
+            <p className="text-xs text-muted-foreground">
+              Performance across your weakest topics.
+            </p>
           </CardHeader>
           <CardContent>
             {radarData.length > 0 ? (
@@ -219,11 +219,12 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        {/* Task type breakdown */}
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Task Types</CardTitle>
-            <p className="text-xs text-muted-foreground">Distribution of task types in your plan.</p>
+            <p className="text-xs text-muted-foreground">
+              Distribution of task types in your plan.
+            </p>
           </CardHeader>
           <CardContent>
             {taskBreakdown.length > 0 ? (

@@ -15,9 +15,9 @@ interface PipelineProgressProps {
 const steps = [
   { label: "Upload", icon: Upload, href: "/library" },
   { label: "Process", icon: Cpu, href: "/library" },
-  { label: "Plan", icon: Calendar, href: "/planner" },
-  { label: "Study", icon: BookOpen, href: "/planner" },
-  { label: "Quiz", icon: CircleHelp, href: "/questions" },
+  { label: "Plan", icon: Calendar, href: "/today/plan" },
+  { label: "Study", icon: BookOpen, href: "/today/plan" },
+  { label: "Quiz", icon: CircleHelp, href: "/practice" },
 ];
 
 function getActiveStep(props: PipelineProgressProps): number {

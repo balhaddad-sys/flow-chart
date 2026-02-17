@@ -50,7 +50,7 @@ export default function LibraryPage() {
             {hasFiles && !hasPlan && (
               <div className="glass-card flex items-center justify-between gap-3 px-4 py-3 text-sm">
                 <span className="text-muted-foreground">Files uploaded. Head to Plan to generate your schedule.</span>
-                <Link href="/planner" className="font-medium text-primary hover:underline">
+                <Link href="/today/plan" className="font-medium text-primary hover:underline">
                   Go to Plan
                 </Link>
               </div>

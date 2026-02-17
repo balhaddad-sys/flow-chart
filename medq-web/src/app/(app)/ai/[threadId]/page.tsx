@@ -24,7 +24,6 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   const courseId = useCourseStore((s) => s.activeCourseId);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Subscribe to messages
   useEffect(() => {
     if (!uid) return;
     const q = query(
@@ -41,7 +40,6 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     return unsub;
   }, [uid, threadId]);
 
-  // Auto-scroll on new messages
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
@@ -61,15 +59,13 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
 
   return (
     <div className="page-wrap flex h-full max-w-5xl flex-col gap-4">
-      {/* Header */}
       <div className="glass-card flex items-center gap-3 px-4 py-3">
-        <Button variant="ghost" size="icon" onClick={() => router.push("/chat")}>
+        <Button variant="ghost" size="icon" onClick={() => router.push("/ai")}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-lg font-semibold">AI Chat</h1>
       </div>
 
-      {/* Messages */}
       <div className="glass-card flex-1 overflow-y-auto p-4 space-y-4">
         {loading ? (
           <div className="flex items-center justify-center py-12">
@@ -87,7 +83,6 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         <div ref={scrollRef} />
       </div>
 
-      {/* Input */}
       <ChatInput onSend={handleSend} disabled={sending} />
     </div>
   );

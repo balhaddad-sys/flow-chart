@@ -104,7 +104,7 @@ function SectionQuestionCard({
         </div>
         <div className="flex shrink-0 flex-col gap-2">
           {canStartQuiz ? (
-            <Link href={`/quiz?section=${section.id}`}>
+            <Link href={`/practice/quiz?section=${section.id}`}>
               <Button size="sm">
                 <CircleHelp className="mr-2 h-4 w-4" />
                 Start Quiz
@@ -137,7 +137,7 @@ function SectionQuestionCard({
   );
 }
 
-export default function QuestionsPage() {
+export default function PracticePage() {
   const courseId = useCourseStore((s) => s.activeCourseId);
   const { courses } = useCourses();
   const { sections, loading } = useSections(courseId);
@@ -209,19 +209,19 @@ export default function QuestionsPage() {
 
       {!loading && categorized.ready.length > 0 && (
         <div className="glass-card flex flex-wrap gap-2 p-4">
-          <Link href="/quiz?mode=mixed">
+          <Link href="/practice/quiz?mode=mixed">
             <Button variant="outline" size="sm">
               <Zap className="mr-2 h-4 w-4 text-amber-500" />
               Smart Mix
             </Button>
           </Link>
-          <Link href="/quiz?mode=random">
+          <Link href="/practice/quiz?mode=random">
             <Button variant="outline" size="sm">
               <Shuffle className="mr-2 h-4 w-4 text-blue-500" />
               Random Quiz
             </Button>
           </Link>
-          <Link href="/assessment">
+          <Link href="/practice/assessment">
             <Button variant="outline" size="sm">
               <BrainCircuit className="mr-2 h-4 w-4 text-emerald-500" />
               Adaptive Assessment

@@ -13,10 +13,8 @@ import {
   Lightbulb,
   Loader2,
   Clock,
-  ListChecks,
   BrainCircuit,
   Sparkles,
-  ChevronsRight,
   MessageCircle,
   Send,
 } from "lucide-react";
@@ -600,7 +598,7 @@ export default function StudySessionPage({
     await updateTask(uid, taskId, { status: "DONE", actualMinutes: minutes });
     reset();
     toast.success("Session complete!");
-    router.push("/planner");
+    router.push("/today/plan");
   }
 
   const formatted = getFormatted();
@@ -823,39 +821,24 @@ export default function StudySessionPage({
               </>
             ) : hasFallbackGuide ? (
               <div className="space-y-4">
-                <div className="rounded-2xl border bg-card p-4 sm:p-5">
-                  <div className="mb-3 flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10">
-                      <ListChecks className="h-4 w-4 text-primary" />
-                    </div>
-                    <h3 className="text-sm font-semibold">Study Roadmap</h3>
-                  </div>
-                  <div className="space-y-2">
-                    {fallbackGuide.roadmap.map((item, i) => (
-                      <div key={i} className="flex items-start gap-2.5 rounded-xl border border-border/70 bg-background/65 p-3">
-                        <ChevronsRight className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                        <p className="text-[13px] sm:text-sm leading-relaxed text-foreground/85">{item}</p>
+                {fallbackGuide.objectives.length > 0 && (
+                  <div className="rounded-2xl border border-blue-200/80 bg-blue-50/45 p-4 sm:p-5 dark:border-blue-900/50 dark:bg-blue-950/20">
+                    <div className="mb-3 flex items-center gap-2.5">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/50">
+                        <Target className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                       </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-blue-200/80 bg-blue-50/45 p-4 sm:p-5 dark:border-blue-900/50 dark:bg-blue-950/20">
-                  <div className="mb-3 flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/50">
-                      <Target className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      <h3 className="text-sm font-semibold">What to Master</h3>
                     </div>
-                    <h3 className="text-sm font-semibold">What to Master</h3>
+                    <ul className="space-y-2.5">
+                      {fallbackGuide.objectives.map((item, i) => (
+                        <li key={i} className="flex gap-2.5 text-[13px] sm:text-sm leading-relaxed">
+                          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-blue-500/60" />
+                          <span className="text-foreground/85">{item}</span>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  <ul className="space-y-2.5">
-                    {fallbackGuide.objectives.map((item, i) => (
-                      <li key={i} className="flex gap-2.5 text-[13px] sm:text-sm leading-relaxed">
-                        <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-blue-500/60" />
-                        <span className="text-foreground/85">{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                )}
 
                 {fallbackGuide.highYield.length > 0 && (
                   <div className="rounded-2xl border border-green-200/80 bg-green-50/45 p-4 sm:p-5 dark:border-green-900/50 dark:bg-green-950/20">
@@ -877,39 +860,23 @@ export default function StudySessionPage({
                 )}
 
                 {fallbackGuide.examAngles.length > 0 && (
-                  <div className="rounded-2xl border border-indigo-200/80 bg-indigo-50/45 p-4 sm:p-5 dark:border-indigo-900/50 dark:bg-indigo-950/20">
+                  <div className="rounded-2xl border border-violet-200/80 bg-violet-50/45 p-4 sm:p-5 dark:border-violet-900/50 dark:bg-violet-950/20">
                     <div className="mb-3 flex items-center gap-2.5">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-100 dark:bg-indigo-900/50">
-                        <BrainCircuit className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/50">
+                        <BrainCircuit className="h-4 w-4 text-violet-600 dark:text-violet-400" />
                       </div>
                       <h3 className="text-sm font-semibold">Exam Angles</h3>
                     </div>
                     <ul className="space-y-2.5">
                       {fallbackGuide.examAngles.map((item, i) => (
                         <li key={i} className="flex gap-2.5 text-[13px] sm:text-sm leading-relaxed">
-                          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-indigo-500/60" />
+                          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-violet-500/60" />
                           <span className="text-foreground/85">{item}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
-
-                <div className="rounded-2xl border border-violet-200/80 bg-violet-50/45 p-4 sm:p-5 dark:border-violet-900/50 dark:bg-violet-950/20">
-                  <div className="mb-3 flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/50">
-                      <BrainCircuit className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-                    </div>
-                    <h3 className="text-sm font-semibold">Active Recall Prompts</h3>
-                  </div>
-                  <ul className="space-y-2.5">
-                    {fallbackGuide.recallPrompts.map((prompt, i) => (
-                      <li key={i} className="rounded-xl border border-violet-200/60 bg-violet-50/40 px-3 py-2 text-[13px] sm:text-sm text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/20 dark:text-violet-300">
-                        {prompt}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-20 text-center">

@@ -21,6 +21,8 @@ import {
   ShieldCheck,
   FileText,
   RefreshCw,
+  Users,
+  ChevronRight,
 } from "lucide-react";
 import * as fn from "@/lib/firebase/functions";
 import { toast } from "sonner";
@@ -31,7 +33,7 @@ const themeOptions = [
   { value: "system" as const, label: "System", icon: Monitor },
 ];
 
-export default function SettingsPage() {
+export default function ProfilePage() {
   const router = useRouter();
   const { user } = useAuth();
   const { mode, setMode } = useThemeStore();
@@ -75,9 +77,8 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 p-4 sm:space-y-6 sm:p-6">
-      <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
+      <h1 className="text-xl font-semibold tracking-tight">Profile</h1>
 
-      {/* Account */}
       <Card>
         <CardHeader>
           <CardTitle>Account</CardTitle>
@@ -100,7 +101,6 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Theme */}
       <Card>
         <CardHeader>
           <CardTitle>Appearance</CardTitle>
@@ -123,7 +123,6 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Courses */}
       <Card>
         <CardHeader>
           <CardTitle>Courses</CardTitle>
@@ -152,7 +151,21 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Legal */}
+      <Link href="/profile/groups">
+        <Card className="cursor-pointer transition-colors hover:bg-accent/50">
+          <CardContent className="flex items-center gap-3 p-4">
+            <Users className="h-5 w-5 text-muted-foreground" />
+            <div className="flex-1">
+              <p className="text-sm font-medium">Study Groups</p>
+              <p className="text-xs text-muted-foreground">
+                Collaborate with classmates
+              </p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </CardContent>
+        </Card>
+      </Link>
+
       <Card>
         <CardHeader>
           <CardTitle>Legal & Safety</CardTitle>
@@ -181,7 +194,6 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Danger zone */}
       <Card className="border-destructive/50">
         <CardHeader>
           <CardTitle className="text-destructive">Danger Zone</CardTitle>

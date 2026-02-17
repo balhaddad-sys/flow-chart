@@ -11,11 +11,19 @@ import { TaskRow } from "@/components/planner/task-row";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { RefreshCw, Plus, CalendarDays, BookOpen, HelpCircle, RotateCcw } from "lucide-react";
+import {
+  RefreshCw,
+  Plus,
+  CalendarDays,
+  BookOpen,
+  HelpCircle,
+  RotateCcw,
+  ArrowLeft,
+} from "lucide-react";
 import * as fn from "@/lib/firebase/functions";
 import { toast } from "sonner";
 
-export default function PlannerPage() {
+export default function PlanPage() {
   const courseId = useCourseStore((s) => s.activeCourseId);
   const { courses } = useCourses();
   const activeCourse = courses.find((c) => c.id === courseId);
@@ -25,11 +33,11 @@ export default function PlannerPage() {
   const [error, setError] = useState<string | null>(null);
   const autoGenTriggered = useRef(false);
 
-  // Auto-generate plan when ALL sections are done processing and no tasks exist
   const analyzedCount = sections.filter((s) => s.aiStatus === "ANALYZED").length;
   const pendingOrProcessing = sections.filter(
     (s) => s.aiStatus === "PENDING" || s.aiStatus === "PROCESSING"
   ).length;
+
   useEffect(() => {
     if (
       !loading &&
@@ -45,7 +53,7 @@ export default function PlannerPage() {
       autoGenTriggered.current = true;
       handleGenerate();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, sectionsLoading, tasks.length, analyzedCount, pendingOrProcessing, courseId]);
 
   const groups = groupTasksByDay(tasks);
@@ -114,16 +122,22 @@ export default function PlannerPage() {
     }
   }
 
-  // Today group gets special treatment
   const todayGroup = groups.find((g) => g.label === "Today");
   const upcomingGroups = groups.filter((g) => g.label !== "Today");
 
   return (
     <div className="page-wrap page-stack">
+      <Link
+        href="/today"
+        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" /> Back to Today
+      </Link>
+
       <div className="glass-card p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="page-title">Plan</h1>
+            <h1 className="page-title">Study Plan</h1>
             <p className="page-subtitle">Generate and track a daily study roadmap.</p>
           </div>
           {tasks.length === 0 ? (
@@ -144,7 +158,9 @@ export default function PlannerPage() {
             <div className="flex flex-wrap items-end justify-between gap-2">
               <div>
                 <p className="text-2xl font-semibold">{pct}%</p>
-                <p className="text-xs text-muted-foreground">{doneCount} of {tasks.length} tasks done</p>
+                <p className="text-xs text-muted-foreground">
+                  {doneCount} of {tasks.length} tasks done
+                </p>
               </div>
               <p className="text-xs text-muted-foreground">
                 ~{Math.round(totalMinutes / 60)}h total
@@ -190,7 +206,9 @@ export default function PlannerPage() {
             Upload materials first, then your plan generates automatically.
           </p>
           <Link href="/library">
-            <Button variant="outline" size="sm" className="mt-4">Go to Library</Button>
+            <Button variant="outline" size="sm" className="mt-4">
+              Go to Library
+            </Button>
           </Link>
         </div>
       ) : (
@@ -214,9 +232,7 @@ export default function PlannerPage() {
           {upcomingGroups.map((group) => (
             <div key={group.label} className="glass-card p-4 sm:p-5">
               <div className="mb-2 flex items-center gap-2">
-                <h2 className="text-base font-semibold">
-                  {group.label}
-                </h2>
+                <h2 className="text-base font-semibold">{group.label}</h2>
                 <span className="text-xs text-muted-foreground">
                   {group.tasks.length}
                 </span>

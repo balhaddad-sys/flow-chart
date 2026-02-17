@@ -21,7 +21,7 @@ export function WeakTopicsBanner({ topics }: WeakTopicsBannerProps) {
         <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
           Areas to improve
         </h3>
-        <Link href="/dashboard" className="text-xs text-muted-foreground hover:text-foreground">
+        <Link href="/today/analytics" className="text-xs text-muted-foreground hover:text-foreground">
           View all
         </Link>
       </div>
@@ -31,7 +31,7 @@ export function WeakTopicsBanner({ topics }: WeakTopicsBannerProps) {
             <Badge variant="outline" className="rounded-full border-amber-400/40 bg-amber-500/10 px-3 py-1 text-xs text-amber-700 dark:text-amber-300">
               {topic.tag} — {Math.round(topic.accuracy * 100)}%
             </Badge>
-            <Link href={`/quiz?mode=topic&topic=${encodeURIComponent(topic.tag)}`}>
+            <Link href={`/practice/quiz?mode=topic&topic=${encodeURIComponent(topic.tag)}`}>
               <Button variant="ghost" size="sm" className="h-7 gap-1 px-2.5 text-xs">
                 <Play className="h-3 w-3" />
                 Quiz

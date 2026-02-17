@@ -356,7 +356,7 @@ export default function AssessmentPage() {
                   </>
                 )}
               </Button>
-              <Link href="/questions">
+              <Link href="/practice">
                 <Button variant="outline">Back to Practice</Button>
               </Link>
             </div>
@@ -595,14 +595,14 @@ export default function AssessmentPage() {
 
               <div className="flex flex-wrap gap-2">
                 {topWeakTopic && (
-                  <Link href={`/quiz?mode=topic&topic=${encodeURIComponent(topWeakTopic)}`}>
+                  <Link href={`/practice/quiz?mode=topic&topic=${encodeURIComponent(topWeakTopic)}`}>
                     <Button variant="outline">
                       <Target className="mr-2 h-4 w-4" />
                       Quiz Weakest Topic
                     </Button>
                   </Link>
                 )}
-                <Link href="/planner">
+                <Link href="/today/plan">
                   <Button variant="outline">
                     <Gauge className="mr-2 h-4 w-4" />
                     Open Planner
@@ -623,7 +623,7 @@ export default function AssessmentPage() {
           icon={AlertCircle}
           title="No topics available"
           description="Generate quiz questions from Practice first, then run adaptive assessments."
-          action={{ label: "Go to Practice", href: "/questions" }}
+          action={{ label: "Go to Practice", href: "/practice" }}
         />
       )}
     </div>

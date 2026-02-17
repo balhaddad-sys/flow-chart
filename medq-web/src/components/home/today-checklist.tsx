@@ -49,7 +49,7 @@ export function TodayChecklist({ tasks, loading }: TodayChecklistProps) {
 
   function handleNavigate(task: TaskModel) {
     if (task.type === "QUESTIONS" && task.sectionIds[0]) {
-      router.push(`/quiz?section=${task.sectionIds[0]}`);
+      router.push(`/practice/quiz?section=${task.sectionIds[0]}`);
     } else if (task.sectionIds[0]) {
       router.push(`/study/${task.id}/${task.sectionIds[0]}`);
     }

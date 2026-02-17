@@ -33,7 +33,6 @@ export default function QuizPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // For mixed/random modes, sectionId is not required
   const needsSection = mode === "section";
   const canLoad = courseId && (needsSection ? sectionId : true);
 
@@ -67,7 +66,6 @@ export default function QuizPage() {
     loadQuiz();
   }, [canLoad, courseId, sectionId, topicTag, mode, questions.length, startQuiz]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => reset();
   }, [reset]);
@@ -100,7 +98,7 @@ export default function QuizPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           Pick a section from the Practice page to start quizzing.
         </p>
-        <Link href="/questions">
+        <Link href="/practice">
           <Button variant="outline" size="sm" className="mt-4">
             Go to Practice
           </Button>
@@ -126,7 +124,7 @@ export default function QuizPage() {
     <div className="page-wrap page-stack">
       <div className="glass-card space-y-3 p-4 sm:p-5">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Link href="/questions" className="hover:text-foreground">Practice</Link>
+          <Link href="/practice" className="hover:text-foreground">Practice</Link>
           <span>/</span>
           <span className="text-foreground">Quiz</span>
           {mode !== "section" && (

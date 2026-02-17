@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -13,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Users, Plus, LogIn, Loader2 } from "lucide-react";
+import { Users, Plus, LogIn, Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import type { StudyGroup } from "@/lib/types/group";
 
@@ -23,19 +24,16 @@ export default function GroupsPage() {
   const [groups, setGroups] = useState<StudyGroup[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Create group state
   const [createName, setCreateName] = useState("");
   const [createDesc, setCreateDesc] = useState("");
   const [creating, setCreating] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
 
-  // Join group state
   const [joinCode, setJoinCode] = useState("");
   const [joining, setJoining] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
 
-  // Listen to groups where user is a member
   useEffect(() => {
     if (!uid) {
       setGroups([]);
@@ -72,7 +70,7 @@ export default function GroupsPage() {
       setCreateDesc("");
       setCreateOpen(false);
       toast.success("Study group created!");
-      router.push(`/groups/${ref.id}`);
+      router.push(`/profile/groups/${ref.id}`);
     } catch {
       toast.error("Failed to create group.");
     } finally {
@@ -97,10 +95,9 @@ export default function GroupsPage() {
       const groupDoc = snap.docs[0];
       const groupData = groupDoc.data() as StudyGroup;
       if (groupData.members.includes(uid)) {
-        router.push(`/groups/${groupDoc.id}`);
+        router.push(`/profile/groups/${groupDoc.id}`);
         return;
       }
-      // Use Cloud Function for atomic join (or direct update for now)
       const { updateDoc, arrayUnion, increment } = await import("firebase/firestore");
       await updateDoc(groupDoc.ref, {
         members: arrayUnion(uid),
@@ -110,7 +107,7 @@ export default function GroupsPage() {
       setJoinCode("");
       setJoinOpen(false);
       toast.success("Joined group!");
-      router.push(`/groups/${groupDoc.id}`);
+      router.push(`/profile/groups/${groupDoc.id}`);
     } catch {
       setJoinError("Failed to join group.");
       toast.error("Failed to join group.");
@@ -121,6 +118,13 @@ export default function GroupsPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-4 sm:space-y-6 sm:p-6">
+      <Link
+        href="/profile"
+        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" /> Back to Profile
+      </Link>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Groups</h1>
@@ -219,7 +223,7 @@ export default function GroupsPage() {
             <Card
               key={group.id}
               className="cursor-pointer transition-colors hover:bg-accent/50"
-              onClick={() => router.push(`/groups/${group.id}`)}
+              onClick={() => router.push(`/profile/groups/${group.id}`)}
             >
               <CardContent className="flex items-center gap-4 p-4">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
