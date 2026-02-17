@@ -10,7 +10,7 @@ import { QuizResults } from "@/components/quiz/quiz-results";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CircleHelp } from "lucide-react";
+import { CircleHelp, GraduationCap } from "lucide-react";
 import * as fn from "@/lib/firebase/functions";
 import type { QuizMode } from "@/lib/firebase/functions";
 import type { QuestionModel } from "@/lib/types/question";
@@ -73,8 +73,13 @@ export default function QuizPage() {
   if (loading) {
     return (
       <div className="page-wrap flex flex-col items-center justify-center py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="mt-4 text-sm text-muted-foreground">Loading questions...</p>
+        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 animate-glow-pulse">
+          <GraduationCap className="h-8 w-8 text-primary" />
+        </div>
+        <div className="mt-4 h-1 w-32 overflow-hidden rounded-full bg-muted">
+          <div className="h-full w-full animate-shimmer bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
+        </div>
+        <p className="mt-3 text-sm text-muted-foreground">Loading questions...</p>
       </div>
     );
   }
@@ -82,10 +87,12 @@ export default function QuizPage() {
   if (error) {
     return (
       <div className="page-wrap mx-auto max-w-md py-24 text-center">
-        <p className="text-sm text-destructive">{error}</p>
-        <Button variant="outline" className="mt-4" onClick={() => window.history.back()}>
-          Go Back
-        </Button>
+        <div className="glass-card rounded-2xl p-8">
+          <p className="text-sm text-destructive">{error}</p>
+          <Button variant="outline" className="mt-4 rounded-xl" onClick={() => window.history.back()}>
+            Go Back
+          </Button>
+        </div>
       </div>
     );
   }
@@ -99,7 +106,7 @@ export default function QuizPage() {
           Pick a section from the Practice page to start quizzing.
         </p>
         <Link href="/practice">
-          <Button variant="outline" size="sm" className="mt-4">
+          <Button variant="outline" size="sm" className="mt-4 rounded-xl">
             Go to Practice
           </Button>
         </Link>
@@ -124,22 +131,24 @@ export default function QuizPage() {
     <div className="page-wrap page-stack">
       <div className="glass-card space-y-3 p-4 sm:p-5">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Link href="/practice" className="hover:text-foreground">Practice</Link>
-          <span>/</span>
-          <span className="text-foreground">Quiz</span>
+          <Link href="/practice" className="hover:text-foreground transition-colors">Practice</Link>
+          <span className="text-border">/</span>
+          <span className="text-foreground font-medium">Quiz</span>
           {mode !== "section" && (
-            <Badge variant="secondary" className="ml-1 text-xs">{MODE_LABELS[mode]}</Badge>
+            <Badge variant="secondary" className="ml-1 text-[10px]">{MODE_LABELS[mode]}</Badge>
           )}
         </div>
         <Progress value={progressPercent} className="h-2.5" />
       </div>
 
       <div className="divider-fade" />
-      <QuestionCard
-        question={currentQuestion}
-        index={currentIndex}
-        total={questions.length}
-      />
+      <div key={currentQuestion.id} className="animate-in-right">
+        <QuestionCard
+          question={currentQuestion}
+          index={currentIndex}
+          total={questions.length}
+        />
+      </div>
     </div>
   );
 }

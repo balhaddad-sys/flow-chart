@@ -7,8 +7,8 @@ import {
   Compass,
   Target,
   ArrowRight,
-  CheckCircle2,
   GraduationCap,
+  Sparkles,
 } from "lucide-react";
 
 const features = [
@@ -60,7 +60,7 @@ export default function LandingPage() {
   return (
     <div className="flex min-h-[100dvh] flex-col">
       {/* ── NAV ──────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-border/40 bg-background/70 backdrop-blur-2xl">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
           <Link href="/" className="flex items-center gap-2.5">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15">
@@ -77,7 +77,7 @@ export default function LandingPage() {
             </Link>
             <Link
               href="/signup"
-              className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
+              className="rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow-md active:scale-[0.98]"
             >
               Get Started
             </Link>
@@ -86,42 +86,46 @@ export default function LandingPage() {
       </header>
 
       {/* ── HERO ─────────────────────────────────────────────────── */}
-      <section className="mx-auto flex max-w-6xl flex-col items-center px-4 pb-16 pt-20 text-center sm:px-6 sm:pt-28 md:pt-36">
-        <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/8 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
-          <CheckCircle2 className="h-3.5 w-3.5" />
+      <section className="relative mx-auto flex max-w-6xl flex-col items-center px-4 pb-16 pt-20 text-center sm:px-6 sm:pt-28 md:pt-36">
+        {/* Ambient hero glow */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute left-1/2 top-0 -translate-x-1/2 h-96 w-[600px] rounded-full bg-primary/8 blur-[100px]"
+        />
+
+        <div className="relative animate-in-up stagger-1 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/8 px-4 py-1.5 text-xs font-semibold uppercase tracking-widest text-primary">
+          <Sparkles className="h-3.5 w-3.5" />
           AI-Powered Medical Learning
         </div>
 
-        <h1 className="mt-6 max-w-3xl text-4xl font-semibold leading-[1.15] tracking-tight sm:text-5xl md:text-6xl">
+        <h1 className="relative animate-in-up stagger-2 mt-6 max-w-3xl text-4xl font-semibold leading-[1.1] tracking-tight text-balance sm:text-5xl md:text-6xl">
           Study smarter.{" "}
-          <span className="bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent">
-            Score higher.
-          </span>
+          <span className="text-gradient">Score higher.</span>
         </h1>
 
-        <p className="mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+        <p className="relative animate-in-up stagger-3 mt-5 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
           Upload your medical materials, get AI-generated study plans and quizzes,
           and track your progress from MD1 through postgraduate — all in one place.
         </p>
 
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+        <div className="relative animate-in-up stagger-4 mt-8 flex flex-col gap-3 sm:flex-row">
           <Link
             href="/signup"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-md transition-all hover:bg-primary/90 hover:shadow-lg"
+            className="group inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-md transition-all hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20 active:scale-[0.98]"
           >
             Start Free
-            <ArrowRight className="h-4 w-4" />
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </Link>
           <Link
             href="/login"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 bg-card/80 px-6 py-3 text-sm font-medium transition-colors hover:bg-accent"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 bg-card/80 px-6 py-3 text-sm font-medium transition-all hover:bg-accent hover:border-primary/20 active:scale-[0.98]"
           >
             I have an account
           </Link>
         </div>
 
         {/* Stats row */}
-        <div className="mt-14 flex flex-wrap justify-center gap-8 sm:gap-14">
+        <div className="relative animate-in-up stagger-5 mt-14 flex flex-wrap justify-center gap-8 sm:gap-14">
           {stats.map((stat) => (
             <div key={stat.label} className="text-center">
               <p className="text-2xl font-semibold sm:text-3xl">{stat.value}</p>
@@ -146,12 +150,13 @@ export default function LandingPage() {
         </div>
 
         <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {features.map((feature) => (
+          {features.map((feature, i) => (
             <div
               key={feature.title}
-              className="group rounded-2xl border border-border/70 bg-card/85 p-6 shadow-sm backdrop-blur-sm transition-all hover:border-primary/30 hover:shadow-md"
+              className="surface-interactive group rounded-2xl border border-border/70 bg-card/85 p-6 backdrop-blur-sm"
+              style={{ animationDelay: `${i * 80}ms` }}
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/12">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/12 transition-colors group-hover:bg-primary/18">
                 <feature.icon className="h-5 w-5 text-primary" />
               </div>
               <h3 className="mt-4 text-base font-semibold">{feature.title}</h3>
@@ -165,7 +170,7 @@ export default function LandingPage() {
 
       {/* ── CTA ──────────────────────────────────────────────────── */}
       <section className="mx-auto w-full max-w-6xl px-4 pb-20 sm:px-6">
-        <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-8 text-center sm:p-12">
+        <div className="surface-hero rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-8 text-center sm:p-12">
           <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
             Ready to transform your study routine?
           </h2>
@@ -174,16 +179,16 @@ export default function LandingPage() {
           </p>
           <Link
             href="/signup"
-            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-md transition-all hover:bg-primary/90 hover:shadow-lg"
+            className="group mt-6 inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow-md transition-all hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/20 active:scale-[0.98]"
           >
             Create Free Account
-            <ArrowRight className="h-4 w-4" />
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
           </Link>
         </div>
       </section>
 
       {/* ── FOOTER ───────────────────────────────────────────────── */}
-      <footer className="mt-auto border-t border-border/50 bg-card/50 backdrop-blur-sm">
+      <footer className="mt-auto border-t border-border/40 bg-card/40 backdrop-blur-sm">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 py-6 sm:flex-row sm:px-6">
           <div className="flex items-center gap-2">
             <GraduationCap className="h-4 w-4 text-primary" />

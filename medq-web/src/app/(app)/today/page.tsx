@@ -111,30 +111,33 @@ export default function TodayPage() {
       <section className="glass-card overflow-hidden p-5 sm:p-7">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            <p className="animate-in-up stagger-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
               Study Command Center
             </p>
-            <h1 className="page-title break-words">
-              {greeting()}, {user?.displayName || "Student"}
+            <h1 className="animate-in-up stagger-2 page-title break-words">
+              {greeting()},{" "}
+              <span className="text-gradient">{user?.displayName || "Student"}</span>
             </h1>
             {activeCourse && (
-              <p className="page-subtitle break-words">{activeCourse.title}</p>
+              <p className="animate-in-up stagger-3 page-subtitle break-words">{activeCourse.title}</p>
             )}
           </div>
-          <ExamCountdown
-            examDate={activeCourse?.examDate}
-            courseTitle={activeCourse?.title}
-          />
+          <div className="animate-in-up stagger-2">
+            <ExamCountdown
+              examDate={activeCourse?.examDate}
+              courseTitle={activeCourse?.title}
+            />
+          </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="mt-5 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+        <div className="mt-5 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap animate-in-up stagger-4">
           {quickActions.slice(0, 4).map((action) => (
             <Link key={action.href} href={action.href} className="w-full sm:w-auto">
               <Button
                 variant={action.href === "/ai" ? "default" : "outline"}
                 size="sm"
-                className="w-full justify-start sm:w-auto sm:justify-center"
+                className="w-full justify-start sm:w-auto sm:justify-center rounded-xl transition-all active:scale-[0.97]"
               >
                 <action.icon className="mr-2 h-4 w-4" />
                 {action.label}
@@ -165,7 +168,7 @@ export default function TodayPage() {
           {weakTopics.length > 0 && (
             <Button
               variant="outline"
-              className="w-full"
+              className="w-full rounded-xl"
               onClick={handleFixPlan}
               disabled={fixPlanLoading || !effectiveCourseId}
             >
@@ -183,13 +186,13 @@ export default function TodayPage() {
       {/* Sub-page links */}
       <div className="flex flex-wrap gap-3">
         <Link href="/today/plan">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" className="rounded-xl">
             <Calendar className="mr-2 h-4 w-4" />
             View Full Plan
           </Button>
         </Link>
         <Link href="/today/analytics">
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" className="rounded-xl">
             <BarChart3 className="mr-2 h-4 w-4" />
             View Analytics
           </Button>

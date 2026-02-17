@@ -9,8 +9,9 @@ import { useCourses } from "@/lib/hooks/useCourses";
 import { groupTasksByDay } from "@/lib/utils/date";
 import { TaskRow } from "@/components/planner/task-row";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ProgressRing } from "@/components/ui/progress-ring";
+import { NumberTicker } from "@/components/ui/animate-in";
 import {
   RefreshCw,
   Plus,
@@ -129,7 +130,7 @@ export default function PlanPage() {
     <div className="page-wrap page-stack">
       <Link
         href="/today"
-        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft className="h-4 w-4" /> Back to Today
       </Link>
@@ -137,16 +138,16 @@ export default function PlanPage() {
       <div className="glass-card p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="page-title">Study Plan</h1>
-            <p className="page-subtitle">Generate and track a daily study roadmap.</p>
+            <h1 className="page-title animate-in-up stagger-1">Study Plan</h1>
+            <p className="page-subtitle animate-in-up stagger-2">Generate and track a daily study roadmap.</p>
           </div>
           {tasks.length === 0 ? (
-            <Button onClick={handleGenerate} disabled={generating || !courseId} size="sm">
+            <Button onClick={handleGenerate} disabled={generating || !courseId} size="sm" className="rounded-xl">
               <Plus className="mr-1.5 h-4 w-4" />
               {generating ? "Generating..." : "Generate Plan"}
             </Button>
           ) : (
-            <Button variant="outline" size="sm" onClick={handleRegen} disabled={generating}>
+            <Button variant="outline" size="sm" className="rounded-xl" onClick={handleRegen} disabled={generating}>
               <RefreshCw className={`mr-1.5 h-4 w-4 ${generating ? "animate-spin" : ""}`} />
               {generating ? "Regenerating..." : "Regenerate"}
             </Button>
@@ -154,36 +155,44 @@ export default function PlanPage() {
         </div>
 
         {tasks.length > 0 && (
-          <div className="mt-5 rounded-2xl border border-border/70 bg-background/70 p-4 sm:p-5">
-            <div className="flex flex-wrap items-end justify-between gap-2">
-              <div>
-                <p className="text-2xl font-semibold">{pct}%</p>
-                <p className="text-xs text-muted-foreground">
-                  {doneCount} of {tasks.length} tasks done
-                </p>
+          <div className="mt-5 rounded-2xl border border-border/70 bg-background/70 p-4 sm:p-5 animate-in-up stagger-3">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <ProgressRing
+                  value={pct}
+                  size={56}
+                  strokeWidth={5}
+                  color="oklch(0.65 0.24 260)"
+                  label={`${pct}%`}
+                />
+                <div>
+                  <p className="text-sm font-medium">
+                    <NumberTicker value={doneCount} className="font-bold" /> of{" "}
+                    <span className="font-bold">{tasks.length}</span> tasks done
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    ~{Math.round(totalMinutes / 60)}h total study time
+                  </p>
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                ~{Math.round(totalMinutes / 60)}h total
-              </p>
-            </div>
-            <Progress value={pct} className="mt-3 h-2" />
-            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <BookOpen className="h-3 w-3 text-blue-500" /> {studyCount} study
-              </span>
-              <span className="flex items-center gap-1">
-                <HelpCircle className="h-3 w-3 text-violet-500" /> {quizCount} quiz
-              </span>
-              <span className="flex items-center gap-1">
-                <RotateCcw className="h-3 w-3 text-amber-500" /> {reviewCount} review
-              </span>
+              <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <BookOpen className="h-3.5 w-3.5 text-blue-500" /> {studyCount} study
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <HelpCircle className="h-3.5 w-3.5 text-violet-500" /> {quizCount} quiz
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <RotateCcw className="h-3.5 w-3.5 text-amber-500" /> {reviewCount} review
+                </span>
+              </div>
             </div>
           </div>
         )}
       </div>
 
       {(error || taskError) && (
-        <div className="break-words rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+        <div className="break-words rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive animate-in-up">
           {error || taskError}
         </div>
       )}
@@ -206,7 +215,7 @@ export default function PlanPage() {
             Upload materials first, then your plan generates automatically.
           </p>
           <Link href="/library">
-            <Button variant="outline" size="sm" className="mt-4">
+            <Button variant="outline" size="sm" className="mt-4 rounded-xl">
               Go to Library
             </Button>
           </Link>
@@ -214,10 +223,10 @@ export default function PlanPage() {
       ) : (
         <div className="space-y-6">
           {todayGroup && (
-            <div className="glass-card p-4 sm:p-5">
-              <div className="mb-2 flex items-center gap-2">
+            <div className="glass-card p-4 sm:p-5 border-primary/15 animate-in-up">
+              <div className="mb-3 flex items-center gap-2">
                 <h2 className="text-base font-semibold">Today</h2>
-                <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground">
+                <span className="rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-medium text-primary-foreground">
                   {todayGroup.tasks.length}
                 </span>
               </div>
@@ -229,11 +238,15 @@ export default function PlanPage() {
             </div>
           )}
 
-          {upcomingGroups.map((group) => (
-            <div key={group.label} className="glass-card p-4 sm:p-5">
-              <div className="mb-2 flex items-center gap-2">
+          {upcomingGroups.map((group, gi) => (
+            <div
+              key={group.label}
+              className="glass-card p-4 sm:p-5"
+              style={{ animationDelay: `${gi * 60}ms` }}
+            >
+              <div className="mb-3 flex items-center gap-2">
                 <h2 className="text-base font-semibold">{group.label}</h2>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground tabular-nums">
                   {group.tasks.length}
                 </span>
               </div>

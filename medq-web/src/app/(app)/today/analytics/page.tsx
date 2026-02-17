@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useStats } from "@/lib/hooks/useStats";
 import { useTasks } from "@/lib/hooks/useTasks";
 import { useCourseStore } from "@/lib/stores/course-store";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
@@ -27,7 +26,14 @@ import {
   Radar,
 } from "recharts";
 
-const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
+const COLORS = [
+  "oklch(0.65 0.20 260)",
+  "oklch(0.70 0.18 155)",
+  "oklch(0.75 0.16 85)",
+  "oklch(0.60 0.22 30)",
+  "oklch(0.65 0.20 300)",
+  "oklch(0.70 0.16 340)",
+];
 
 export default function AnalyticsPage() {
   const courseId = useCourseStore((s) => s.activeCourseId);
@@ -84,7 +90,7 @@ export default function AnalyticsPage() {
         <Skeleton className="h-8 w-48" />
         <div className="grid gap-4 md:grid-cols-2">
           {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-64" />
+            <Skeleton key={i} className="h-64 rounded-2xl" />
           ))}
         </div>
       </div>
@@ -95,38 +101,43 @@ export default function AnalyticsPage() {
     <div className="page-wrap page-stack max-w-6xl">
       <Link
         href="/today"
-        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft className="h-4 w-4" /> Back to Today
       </Link>
 
       <div className="glass-card p-5 sm:p-6">
-        <h1 className="page-title">Detailed Analytics</h1>
-        <p className="page-subtitle">
+        <h1 className="page-title animate-in-up stagger-1">Detailed Analytics</h1>
+        <p className="page-subtitle animate-in-up stagger-2">
           Visual breakdown of your study patterns and performance.
         </p>
       </div>
 
-      <div className="grid gap-4 sm:gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Study Time by Day</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Minutes spent studying each day of the week.
-            </p>
-          </CardHeader>
-          <CardContent>
+      <div className="grid gap-4 sm:gap-5 md:grid-cols-2">
+        {/* Study Time by Day */}
+        <div className="glass-card overflow-hidden rounded-2xl animate-in-up stagger-1">
+          <div className="border-b border-border/50 px-5 py-4">
+            <h3 className="text-sm font-semibold">Study Time by Day</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Minutes spent studying each day of the week.</p>
+          </div>
+          <div className="p-5">
             {weeklyMinutes.some((d) => d.minutes > 0) ? (
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={weeklyMinutes}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="name" className="text-xs" />
-                  <YAxis className="text-xs" width={30} />
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
+                  <XAxis dataKey="name" className="text-xs" tick={{ fontSize: 11 }} />
+                  <YAxis className="text-xs" width={30} tick={{ fontSize: 11 }} />
                   <Tooltip
-                    contentStyle={{ fontSize: "12px" }}
+                    contentStyle={{
+                      fontSize: "12px",
+                      borderRadius: "12px",
+                      border: "1px solid var(--border)",
+                      background: "var(--card)",
+                      boxShadow: "0 4px 12px -2px rgba(0,0,0,0.12)",
+                    }}
                     formatter={(value) => [`${value}m`, "Minutes"]}
                   />
-                  <Bar dataKey="minutes" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="minutes" fill="oklch(0.65 0.24 260)" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -134,17 +145,16 @@ export default function AnalyticsPage() {
                 Complete some tasks to see your study time breakdown.
               </p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Task Status</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Breakdown of your task completion status.
-            </p>
-          </CardHeader>
-          <CardContent>
+        {/* Task Status */}
+        <div className="glass-card overflow-hidden rounded-2xl animate-in-up stagger-2">
+          <div className="border-b border-border/50 px-5 py-4">
+            <h3 className="text-sm font-semibold">Task Status</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Breakdown of your task completion status.</p>
+          </div>
+          <div className="p-5">
             {statusData.length > 0 ? (
               <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:items-center">
                 <ResponsiveContainer width="100%" height={180}>
@@ -156,12 +166,21 @@ export default function AnalyticsPage() {
                       innerRadius={35}
                       outerRadius={70}
                       dataKey="value"
+                      strokeWidth={2}
+                      stroke="var(--card)"
                     >
                       {statusData.map((_, i) => (
                         <Cell key={i} fill={COLORS[i % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip contentStyle={{ fontSize: "12px" }} />
+                    <Tooltip
+                      contentStyle={{
+                        fontSize: "12px",
+                        borderRadius: "12px",
+                        border: "1px solid var(--border)",
+                        background: "var(--card)",
+                      }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 sm:flex-col sm:space-y-2 sm:gap-0">
@@ -172,7 +191,7 @@ export default function AnalyticsPage() {
                         style={{ backgroundColor: COLORS[i % COLORS.length] }}
                       />
                       <span>{item.name}</span>
-                      <Badge variant="secondary" className="text-xs">
+                      <Badge variant="secondary" className="text-xs tabular-nums">
                         {item.value}
                       </Badge>
                     </div>
@@ -180,35 +199,39 @@ export default function AnalyticsPage() {
                 </div>
               </div>
             ) : (
-              <p className="py-12 text-center text-sm text-muted-foreground">
-                No tasks yet.
-              </p>
+              <p className="py-12 text-center text-sm text-muted-foreground">No tasks yet.</p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Topic Accuracy Radar</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Performance across your weakest topics.
-            </p>
-          </CardHeader>
-          <CardContent>
+        {/* Topic Accuracy Radar */}
+        <div className="glass-card overflow-hidden rounded-2xl animate-in-up stagger-3">
+          <div className="border-b border-border/50 px-5 py-4">
+            <h3 className="text-sm font-semibold">Topic Accuracy Radar</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Performance across your weakest topics.</p>
+          </div>
+          <div className="p-5">
             {radarData.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}>
                 <RadarChart data={radarData}>
-                  <PolarGrid className="stroke-muted" />
-                  <PolarAngleAxis dataKey="subject" className="text-xs" />
-                  <PolarRadiusAxis domain={[0, 100]} className="text-xs" />
+                  <PolarGrid className="stroke-border/50" />
+                  <PolarAngleAxis dataKey="subject" className="text-xs" tick={{ fontSize: 10 }} />
+                  <PolarRadiusAxis domain={[0, 100]} className="text-xs" tick={{ fontSize: 10 }} />
                   <Radar
                     name="Accuracy"
                     dataKey="accuracy"
-                    stroke="#8b5cf6"
-                    fill="#8b5cf6"
-                    fillOpacity={0.3}
+                    stroke="oklch(0.65 0.20 300)"
+                    fill="oklch(0.65 0.20 300)"
+                    fillOpacity={0.2}
                   />
-                  <Tooltip contentStyle={{ fontSize: "12px" }} />
+                  <Tooltip
+                    contentStyle={{
+                      fontSize: "12px",
+                      borderRadius: "12px",
+                      border: "1px solid var(--border)",
+                      background: "var(--card)",
+                    }}
+                  />
                 </RadarChart>
               </ResponsiveContainer>
             ) : (
@@ -216,34 +239,38 @@ export default function AnalyticsPage() {
                 Complete quizzes to see your topic accuracy radar.
               </p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Task Types</CardTitle>
-            <p className="text-xs text-muted-foreground">
-              Distribution of task types in your plan.
-            </p>
-          </CardHeader>
-          <CardContent>
+        {/* Task Types */}
+        <div className="glass-card overflow-hidden rounded-2xl animate-in-up stagger-4">
+          <div className="border-b border-border/50 px-5 py-4">
+            <h3 className="text-sm font-semibold">Task Types</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">Distribution of task types in your plan.</p>
+          </div>
+          <div className="p-5">
             {taskBreakdown.length > 0 ? (
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={taskBreakdown} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis type="number" className="text-xs" />
-                  <YAxis type="category" dataKey="name" className="text-xs" width={70} />
-                  <Tooltip contentStyle={{ fontSize: "12px" }} />
-                  <Bar dataKey="value" fill="#10b981" radius={[0, 4, 4, 0]} />
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
+                  <XAxis type="number" className="text-xs" tick={{ fontSize: 11 }} />
+                  <YAxis type="category" dataKey="name" className="text-xs" width={70} tick={{ fontSize: 11 }} />
+                  <Tooltip
+                    contentStyle={{
+                      fontSize: "12px",
+                      borderRadius: "12px",
+                      border: "1px solid var(--border)",
+                      background: "var(--card)",
+                    }}
+                  />
+                  <Bar dataKey="value" fill="oklch(0.70 0.18 155)" radius={[0, 6, 6, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p className="py-12 text-center text-sm text-muted-foreground">
-                No tasks yet.
-              </p>
+              <p className="py-12 text-center text-sm text-muted-foreground">No tasks yet.</p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );

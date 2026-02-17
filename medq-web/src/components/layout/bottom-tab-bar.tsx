@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Library, CircleHelp, Sparkles, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useMemo } from "react";
 
 const tabs = [
   { href: "/today", label: "Today", icon: Home },
@@ -25,24 +26,49 @@ function isTabActive(pathname: string, href: string): boolean {
 export function BottomTabBar() {
   const pathname = usePathname();
 
+  const activeIndex = useMemo(
+    () => tabs.findIndex((tab) => isTabActive(pathname, tab.href)),
+    [pathname]
+  );
+
+  // Each tab is 20% wide, center the indicator
+  const indicatorOffset = activeIndex >= 0 ? `${activeIndex * 20 + 10}%` : "10%";
+
   return (
-    <nav className="fixed inset-x-3 bottom-3 z-50 flex rounded-2xl border border-border/70 bg-card/90 shadow-[0_20px_40px_-26px_rgba(15,23,42,0.9)] backdrop-blur-xl pb-[max(env(safe-area-inset-bottom),0.2rem)] md:hidden">
-      {tabs.map((tab) => {
-        const active = isTabActive(pathname, tab.href);
-        return (
-          <Link
-            key={tab.href}
-            href={tab.href}
-            className={cn(
-              "flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-2 text-[11px] transition-all",
-              active ? "bg-primary/12 text-primary" : "text-muted-foreground"
-            )}
-          >
-            <tab.icon className="h-5 w-5" />
-            <span className="truncate">{tab.label}</span>
-          </Link>
-        );
-      })}
+    <nav className="fixed inset-x-3 bottom-3 z-50 overflow-hidden rounded-2xl border border-border/50 bg-card/88 shadow-[0_-4px_24px_-8px_oklch(0.2_0.02_250/0.15)] backdrop-blur-2xl pb-[max(env(safe-area-inset-bottom),0.2rem)] md:hidden">
+      {/* Sliding indicator blob */}
+      {activeIndex >= 0 && (
+        <div
+          className="absolute top-1.5 h-[calc(100%-0.75rem-max(env(safe-area-inset-bottom),0.2rem))] w-[18%] rounded-xl bg-primary/10 border border-primary/15 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+          style={{ left: indicatorOffset, transform: "translateX(-50%)" }}
+        />
+      )}
+
+      <div className="relative flex">
+        {tabs.map((tab) => {
+          const active = isTabActive(pathname, tab.href);
+          return (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              className={cn(
+                "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-2.5 text-[10px] font-medium transition-all duration-200 active:scale-95",
+                active
+                  ? "text-primary"
+                  : "text-muted-foreground"
+              )}
+            >
+              <tab.icon
+                className={cn(
+                  "h-5 w-5 transition-transform duration-200",
+                  active && "scale-110"
+                )}
+              />
+              <span className="truncate">{tab.label}</span>
+            </Link>
+          );
+        })}
+      </div>
     </nav>
   );
 }

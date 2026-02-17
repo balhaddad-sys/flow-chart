@@ -41,6 +41,15 @@ const EXPLORE_LEVELS = [
   { id: "POSTGRADUATE", label: "Doctor Postgraduate" },
 ];
 const ADVANCED_LEVEL_IDS = new Set(["MD4", "MD5", "INTERN", "RESIDENT", "POSTGRADUATE"]);
+const EXPLORE_SETUP_KEY = "medq_explore_setup_v2";
+const TOPIC_SUGGESTIONS = [
+  "Acute Coronary Syndrome",
+  "DKA Management",
+  "COPD Exacerbation",
+  "Sepsis Protocol",
+  "Atrial Fibrillation",
+  "Nephrotic Syndrome",
+];
 
 function confidenceLabel(confidence: number | null | undefined) {
   const safe = Number(confidence || 0);
@@ -122,6 +131,53 @@ export default function ExplorePage() {
   const [inputLevel, setInputLevel] = useState("MD3");
   const [inputCount, setInputCount] = useState(10);
   const [inputIntent, setInputIntent] = useState<"quiz" | "learn">("quiz");
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(EXPLORE_SETUP_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as {
+        topic?: unknown;
+        level?: unknown;
+        count?: unknown;
+        intent?: unknown;
+      };
+
+      if (typeof parsed.topic === "string") {
+        setInputTopic(parsed.topic.slice(0, 200));
+      }
+      if (
+        typeof parsed.level === "string" &&
+        EXPLORE_LEVELS.some((lvl) => lvl.id === parsed.level)
+      ) {
+        setInputLevel(parsed.level);
+      }
+      if (typeof parsed.count === "number" && Number.isFinite(parsed.count)) {
+        setInputCount(Math.max(3, Math.min(20, Math.floor(parsed.count))));
+      }
+      if (parsed.intent === "learn" || parsed.intent === "quiz") {
+        setInputIntent(parsed.intent);
+      }
+    } catch {
+      // Ignore localStorage parse errors.
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        EXPLORE_SETUP_KEY,
+        JSON.stringify({
+          topic: inputTopic,
+          level: inputLevel,
+          count: inputCount,
+          intent: inputIntent,
+        })
+      );
+    } catch {
+      // Ignore localStorage write errors.
+    }
+  }, [inputTopic, inputLevel, inputCount, inputIntent]);
 
   const currentQuestion = questions[currentIndex] ?? null;
   const currentAnswer =
@@ -366,15 +422,37 @@ export default function ExplorePage() {
   if (phase === "setup") {
     return (
       <div className="page-wrap page-stack">
-        <div className="glass-card p-5 sm:p-6">
-          <div className="flex items-center gap-3">
-            <Compass className="h-6 w-6 text-primary" />
-            <div>
-              <h1 className="page-title">Explore</h1>
-              <p className="page-subtitle">
-                Quiz yourself on any medical topic. AI generates questions on
-                the fly.
+        <div className="glass-card overflow-hidden p-5 sm:p-6">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_13rem] lg:items-end">
+            <div className="space-y-3">
+              <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
+                <Compass className="h-3.5 w-3.5" />
+                Explore Tutor
+              </div>
+              <h1 className="page-title">Train by topic, not by chance</h1>
+              <p className="page-subtitle max-w-2xl">
+                Get guided teaching or jump straight into an adaptive quiz with
+                confidence tracking and source-backed explanations.
               </p>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="secondary">Adaptive questions</Badge>
+                <Badge variant="outline">Confidence calibration</Badge>
+                <Badge variant="outline">Background generation</Badge>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-center">
+              <div className="rounded-xl border border-border/70 bg-background/70 px-2 py-3">
+                <p className="text-lg font-semibold">{inputCount}</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  Target Qs
+                </p>
+              </div>
+              <div className="rounded-xl border border-border/70 bg-background/70 px-2 py-3">
+                <p className="text-lg font-semibold">{inputLevel}</p>
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                  Level
+                </p>
+              </div>
             </div>
           </div>
         </div>
@@ -387,27 +465,45 @@ export default function ExplorePage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Choose Your Topic</CardTitle>
+            <CardTitle>Choose your focus</CardTitle>
             <CardDescription>
-              Type any medical topic and select your level to begin.
+              Preferences are saved automatically and restored next time.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <label className="space-y-1.5">
-              <span className="text-sm font-medium">Topic</span>
+          <CardContent className="space-y-5">
+            <label className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium">Topic</span>
+                <span className="text-xs text-muted-foreground">
+                  {inputTopic.length}/200
+                </span>
+              </div>
               <input
                 type="text"
                 value={inputTopic}
                 onChange={(e) => setInputTopic(e.target.value)}
-                placeholder="e.g. Cardiac Arrhythmias, Renal Physiology, Pharmacokinetics..."
+                placeholder="e.g. Cardiac arrhythmias, renal physiology, pharmacokinetics..."
                 maxLength={200}
                 className="w-full rounded-xl border border-border/70 bg-background/80 px-3 py-2 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-primary/35"
                 onKeyDown={(e) => e.key === "Enter" && handlePrimarySetupAction()}
               />
             </label>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="space-y-1.5">
+            <div className="flex flex-wrap gap-1.5">
+              {TOPIC_SUGGESTIONS.map((suggestion) => (
+                <button
+                  key={suggestion}
+                  type="button"
+                  onClick={() => setInputTopic(suggestion)}
+                  className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="space-y-2">
                 <span className="text-sm font-medium">Level</span>
                 <select
                   value={inputLevel}
@@ -421,7 +517,8 @@ export default function ExplorePage() {
                   ))}
                 </select>
               </label>
-              <label className="space-y-1.5">
+
+              <div className="space-y-2">
                 <span className="text-sm font-medium">
                   Questions ({inputCount})
                 </span>
@@ -434,7 +531,20 @@ export default function ExplorePage() {
                   onChange={(e) => setInputCount(Number(e.target.value))}
                   className="w-full accent-primary"
                 />
-              </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[5, 10, 15, 20].map((countPreset) => (
+                    <Button
+                      key={countPreset}
+                      type="button"
+                      size="sm"
+                      variant={inputCount === countPreset ? "secondary" : "outline"}
+                      onClick={() => setInputCount(countPreset)}
+                    >
+                      {countPreset}
+                    </Button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className="rounded-xl border border-border/70 bg-background/70 p-3">
@@ -461,16 +571,16 @@ export default function ExplorePage() {
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
                 {inputIntent === "learn"
-                  ? "Start with a structured topic briefing, then jump to quiz when ready."
-                  : "Start questions immediately. Additional questions continue in background."}
+                  ? "Start with structured teaching, then launch a quiz when ready."
+                  : "Start questions immediately. Extra questions keep generating in background."}
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 onClick={handlePrimarySetupAction}
                 disabled={!inputTopic.trim()}
-                className="min-w-36"
+                className="min-w-40"
               >
                 {inputIntent === "learn" ? (
                   <>
@@ -481,8 +591,20 @@ export default function ExplorePage() {
                   <>
                     Start Quiz
                     <ArrowRight className="ml-2 h-4 w-4" />
-                  </>
-                )}
+                    </>
+                  )}
+              </Button>
+
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() =>
+                  setInputIntent((current) =>
+                    current === "learn" ? "quiz" : "learn"
+                  )
+                }
+              >
+                Switch to {inputIntent === "learn" ? "Quick Quiz" : "Guided Learn"}
               </Button>
             </div>
           </CardContent>

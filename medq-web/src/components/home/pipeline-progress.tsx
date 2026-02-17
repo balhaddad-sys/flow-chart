@@ -25,19 +25,18 @@ function getActiveStep(props: PipelineProgressProps): number {
   if (!props.hasSections) return 1;
   if (!props.hasPlan) return 2;
   if (!props.hasQuizAttempts) return 3;
-  return 5; // all done
+  return 5;
 }
 
 export function PipelineProgress(props: PipelineProgressProps) {
   const activeStep = getActiveStep(props);
 
-  // Hide when all steps complete
   if (activeStep >= steps.length) return null;
 
   const progressPercent = (activeStep / steps.length) * 100;
 
   return (
-    <div className="glass-card space-y-4 p-4 sm:p-5">
+    <div className="glass-card space-y-4 p-4 sm:p-5 animate-in-up">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-semibold">Learning Pipeline</p>
         <span className="text-xs text-muted-foreground">
@@ -65,20 +64,20 @@ export function PipelineProgress(props: PipelineProgressProps) {
               <Link
                 href={step.href}
                 className={cn(
-                  "flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium transition-all",
+                  "flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium transition-all duration-300",
                   isComplete && "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300",
-                  isCurrent && "bg-primary text-primary-foreground shadow-[0_8px_18px_-12px_rgba(30,64,175,0.8)]",
+                  isCurrent && "bg-primary text-primary-foreground shadow-[0_8px_18px_-12px] shadow-primary/50 animate-glow-pulse",
                   !isComplete && !isCurrent && "bg-muted/70 text-muted-foreground"
                 )}
               >
-                <StepIcon className="h-3.5 w-3.5" />
+                <StepIcon className={cn("h-3.5 w-3.5", isComplete && "animate-in-scale")} />
                 {step.label}
               </Link>
               {i < steps.length - 1 && (
                 <div
                   className={cn(
-                    "h-px flex-1 min-w-4",
-                    i < activeStep ? "bg-foreground/20" : "bg-border"
+                    "h-px flex-1 min-w-4 transition-colors duration-500",
+                    i < activeStep ? "bg-emerald-500/40" : "bg-border"
                   )}
                 />
               )}

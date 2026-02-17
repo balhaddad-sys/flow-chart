@@ -52,6 +52,32 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
     setTutorLoading(false);
   }, [question.id]);
 
+  // Keyboard shortcuts: A/B/C/D or 1/2/3/4 to select, Enter to advance, Escape to go back
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      const keyMap: Record<string, number> = { a: 0, b: 1, c: 2, d: 3, "1": 0, "2": 1, "3": 2, "4": 3 };
+      const optionIndex = keyMap[e.key.toLowerCase()];
+
+      if (optionIndex !== undefined && optionIndex < question.options.length && !isAnswered && !submitting) {
+        e.preventDefault();
+        handleSelect(optionIndex);
+      } else if (e.key === "Enter" && isAnswered) {
+        e.preventDefault();
+        if (isLast) finishQuiz();
+        else nextQuestion();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        window.history.back();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question.id, isAnswered, submitting, isLast]);
+
   async function handleSelect(optionIndex: number) {
     if (isAnswered || submitting) return;
     setPendingIndex(optionIndex);
@@ -106,7 +132,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
       : "text-yellow-600 dark:text-yellow-400";
 
   return (
-    <Card className="mx-auto max-w-3xl overflow-hidden">
+    <Card className="glass-card mx-auto max-w-3xl overflow-hidden rounded-2xl">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <Badge variant="outline" className="border-border/70 bg-background/70 font-mono text-xs">
@@ -177,6 +203,13 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
             </button>
           );
         })}
+
+        {/* Keyboard hint — desktop only */}
+        {!isAnswered && !submitting && (
+          <p className="hidden text-center text-[11px] text-muted-foreground/50 md:block">
+            Press <kbd className="rounded border border-border/60 bg-muted/50 px-1 py-0.5 font-mono text-[10px]">A</kbd>-<kbd className="rounded border border-border/60 bg-muted/50 px-1 py-0.5 font-mono text-[10px]">D</kbd> to select · <kbd className="rounded border border-border/60 bg-muted/50 px-1 py-0.5 font-mono text-[10px]">Enter</kbd> to advance
+          </p>
+        )}
 
         {/* Post-answer section */}
         {isAnswered && (

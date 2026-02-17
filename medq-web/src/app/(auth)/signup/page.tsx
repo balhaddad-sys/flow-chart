@@ -7,7 +7,23 @@ import { signUpWithEmail, signInWithGoogle } from "@/lib/firebase/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { AuthLayout } from "@/components/auth/auth-layout";
+import { cn } from "@/lib/utils";
+
+function getPasswordStrength(password: string): { score: number; label: string; color: string } {
+  let score = 0;
+  if (password.length >= 6) score++;
+  if (password.length >= 10) score++;
+  if (/[A-Z]/.test(password) && /[a-z]/.test(password)) score++;
+  if (/[0-9]/.test(password)) score++;
+  if (/[^A-Za-z0-9]/.test(password)) score++;
+
+  if (score <= 1) return { score: 1, label: "Weak", color: "bg-red-500" };
+  if (score <= 2) return { score: 2, label: "Fair", color: "bg-orange-500" };
+  if (score <= 3) return { score: 3, label: "Good", color: "bg-yellow-500" };
+  if (score <= 4) return { score: 4, label: "Strong", color: "bg-green-500" };
+  return { score: 5, label: "Very strong", color: "bg-emerald-500" };
+}
 
 export default function SignupPage() {
   const router = useRouter();
@@ -16,6 +32,8 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const strength = password.length > 0 ? getPasswordStrength(password) : null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -50,74 +68,27 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-md overflow-hidden">
-        <CardHeader className="text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">MedQ</p>
-          <CardTitle className="text-2xl font-semibold">Create your account</CardTitle>
-          <CardDescription>Start your medical study journey with MedQ</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="John Doe"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="At least 6 characters"
-                required
-                minLength={6}
-              />
-            </div>
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Creating account..." : "Create Account"}
-            </Button>
-          </form>
+    <AuthLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="space-y-2 text-center lg:text-left">
+          <h1 className="text-2xl font-semibold tracking-tight animate-in-up stagger-1">
+            Create your account
+          </h1>
+          <p className="text-sm text-muted-foreground animate-in-up stagger-2">
+            Start your medical study journey with MedQ
+          </p>
+        </div>
 
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">or</span>
-            </div>
-          </div>
-
+        {/* Google button */}
+        <div className="animate-in-up stagger-3">
           <Button
             variant="outline"
-            className="w-full"
+            className="w-full h-11 gap-2.5 rounded-xl text-sm font-medium"
             onClick={handleGoogle}
             disabled={loading}
           >
-            <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+            <svg className="h-4 w-4" viewBox="0 0 24 24">
               <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
               <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
               <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
@@ -125,16 +96,101 @@ export default function SignupPage() {
             </svg>
             Continue with Google
           </Button>
-        </CardContent>
-        <CardFooter className="justify-center">
-          <p className="text-sm text-muted-foreground">
-            Already have an account?{" "}
-            <Link href="/login" className="text-primary hover:underline">
-              Sign in
-            </Link>
-          </p>
-        </CardFooter>
-      </Card>
-    </div>
+        </div>
+
+        {/* Divider */}
+        <div className="relative animate-in-up stagger-3">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t border-border/60" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-3 text-muted-foreground/70">or continue with email</span>
+          </div>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {error && (
+            <div className="animate-in-up rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
+              {error}
+            </div>
+          )}
+
+          <div className="space-y-2 animate-in-up stagger-4">
+            <Label htmlFor="name" className="text-sm font-medium">Full Name</Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="John Doe"
+              className="h-11 rounded-xl"
+              required
+            />
+          </div>
+
+          <div className="space-y-2 animate-in-up stagger-5">
+            <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="h-11 rounded-xl"
+              required
+            />
+          </div>
+
+          <div className="space-y-2 animate-in-up stagger-6">
+            <Label htmlFor="password" className="text-sm font-medium">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 6 characters"
+              className="h-11 rounded-xl"
+              required
+              minLength={6}
+            />
+            {/* Password strength indicator */}
+            {strength && (
+              <div className="space-y-1.5 pt-1">
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map((level) => (
+                    <div
+                      key={level}
+                      className={cn(
+                        "h-1 flex-1 rounded-full transition-colors duration-300",
+                        level <= strength.score ? strength.color : "bg-muted"
+                      )}
+                    />
+                  ))}
+                </div>
+                <p className="text-[11px] text-muted-foreground">{strength.label}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="animate-in-up stagger-7">
+            <Button
+              type="submit"
+              className="w-full h-11 rounded-xl text-sm font-medium"
+              disabled={loading}
+            >
+              {loading ? "Creating account..." : "Create Account"}
+            </Button>
+          </div>
+        </form>
+
+        {/* Footer */}
+        <p className="text-center text-sm text-muted-foreground animate-in-up stagger-8">
+          Already have an account?{" "}
+          <Link href="/login" className="text-primary font-medium hover:text-primary/80 transition-colors">
+            Sign in
+          </Link>
+        </p>
+      </div>
+    </AuthLayout>
   );
 }

@@ -1,165 +1,146 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 import { jsonrepair } from "jsonrepair";
+import { verifyFirebaseToken } from "@/lib/server/firebase-token";
 
 const MODEL_ID = "gemini-2.0-flash";
-const FIREBASE_PROJECT_ID =
-  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "medq-a6cc6";
+const MODEL_TIMEOUT_MS = 30_000;
+const INPUT_TITLE_MAX_CHARS = 180;
+const INPUT_SECTION_MAX_CHARS = 20_000;
+const PROMPT_SECTION_MAX_CHARS = 8_000;
 
-/* ── Firebase public key cache ──────────────────────────────────────── */
-const CERTS_URL =
-  "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com";
+const SUMMARY_CACHE_TTL_MS = 10 * 60 * 1000;
+const SUMMARY_CACHE_MAX_ENTRIES = 128;
 
-let certsCache: { keys: Record<string, string>; expiresAt: number } | null =
-  null;
-
-async function fetchPublicKeys(): Promise<Record<string, string>> {
-  if (certsCache && Date.now() < certsCache.expiresAt) return certsCache.keys;
-
-  const res = await fetch(CERTS_URL);
-  if (!res.ok) throw new Error("Failed to fetch Firebase public keys");
-
-  const keys = (await res.json()) as Record<string, string>;
-  const cc = res.headers.get("cache-control") ?? "";
-  const m = cc.match(/max-age=(\d+)/);
-  const ttl = m ? parseInt(m[1], 10) * 1000 : 3_600_000;
-
-  certsCache = { keys, expiresAt: Date.now() + ttl };
-  return keys;
+interface SummaryCacheEntry {
+  value: Record<string, unknown>;
+  expiresAt: number;
 }
 
-/* ── Helpers ─────────────────────────────────────────────────────────── */
-function base64urlDecode(input: string): Uint8Array {
-  const base64 = input.replace(/-/g, "+").replace(/_/g, "/");
-  const padded = base64.padEnd(
-    base64.length + ((4 - (base64.length % 4)) % 4),
-    "="
-  );
-  const binary = atob(padded);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return bytes;
-}
+const summaryCache = new Map<string, SummaryCacheEntry>();
+const inFlightSummaries = new Map<string, Promise<Record<string, unknown>>>();
 
-function pemToSpki(pem: string): ArrayBuffer {
-  const b64 = pem
-    .replace(/-----BEGIN CERTIFICATE-----/, "")
-    .replace(/-----END CERTIFICATE-----/, "")
-    .replace(/\s/g, "");
-  const der = atob(b64);
-  const bytes = new Uint8Array(der.length);
-  for (let i = 0; i < der.length; i++) bytes[i] = der.charCodeAt(i);
-  return bytes.buffer.slice(0) as ArrayBuffer;
-}
+function trimSummaryCache() {
+  if (summaryCache.size <= SUMMARY_CACHE_MAX_ENTRIES) return;
 
-/* ── Token verification ──────────────────────────────────────────────── */
-
-/**
- * Verify a Firebase ID token cryptographically using Google's rotating
- * public certificates (RS256). Validates kid, alg, signature, issuer,
- * audience, and expiry.
- */
-async function verifyFirebaseToken(
-  authHeader: string | null
-): Promise<{ uid: string } | null> {
-  if (!authHeader?.startsWith("Bearer ")) return null;
-
-  const token = authHeader.slice(7);
-  try {
-    const [rawHeader, rawPayload, rawSig] = token.split(".");
-    if (!rawHeader || !rawPayload || !rawSig) return null;
-
-    const header = JSON.parse(
-      Buffer.from(rawHeader, "base64url").toString("utf-8")
-    );
-    const payload = JSON.parse(
-      Buffer.from(rawPayload, "base64url").toString("utf-8")
-    );
-
-    // Claim validation
-    const now = Math.floor(Date.now() / 1000);
-    if (
-      header.alg !== "RS256" ||
-      !header.kid ||
-      payload.iss !==
-        `https://securetoken.google.com/${FIREBASE_PROJECT_ID}` ||
-      payload.aud !== FIREBASE_PROJECT_ID ||
-      !payload.sub ||
-      typeof payload.sub !== "string" ||
-      (payload.exp && payload.exp < now)
-    ) {
-      return null;
+  const now = Date.now();
+  for (const [key, entry] of summaryCache.entries()) {
+    if (entry.expiresAt <= now) {
+      summaryCache.delete(key);
     }
+  }
 
-    // Signature verification against Google's public certs
-    const certs = await fetchPublicKeys();
-    const certPem = certs[header.kid];
-    if (!certPem) return null;
+  while (summaryCache.size > SUMMARY_CACHE_MAX_ENTRIES) {
+    const oldestKey = summaryCache.keys().next().value as string | undefined;
+    if (!oldestKey) break;
+    summaryCache.delete(oldestKey);
+  }
+}
 
-    const key = await crypto.subtle.importKey(
-      "spki",
-      pemToSpki(certPem),
-      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-      false,
-      ["verify"]
-    );
+function readSummaryCache(key: string): Record<string, unknown> | null {
+  const entry = summaryCache.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    summaryCache.delete(key);
+    return null;
+  }
+  return entry.value;
+}
 
-    const sigBytes = base64urlDecode(rawSig);
-    const valid = await crypto.subtle.verify(
-      "RSASSA-PKCS1-v1_5",
-      key,
-      sigBytes.buffer.slice(sigBytes.byteOffset, sigBytes.byteOffset + sigBytes.byteLength) as ArrayBuffer,
-      new TextEncoder().encode(`${rawHeader}.${rawPayload}`)
-    );
+function writeSummaryCache(key: string, value: Record<string, unknown>) {
+  summaryCache.set(key, {
+    value,
+    expiresAt: Date.now() + SUMMARY_CACHE_TTL_MS,
+  });
+  trimSummaryCache();
+}
 
-    return valid ? { uid: payload.sub } : null;
+function quickHash(input: string): string {
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash +=
+      (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+  }
+  return (hash >>> 0).toString(16);
+}
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  timeoutMessage: string
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+  });
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
+
+function parseJsonSafe(value: string): unknown {
+  try {
+    return JSON.parse(value);
   } catch {
     return null;
   }
 }
 
-/* ── JSON extraction ─────────────────────────────────────────────────── */
-function extractJson(text: string) {
-  const parse = (v: string) => {
-    try {
-      return JSON.parse(v);
-    } catch {
-      return null;
-    }
-  };
-
-  const raw = parse(text);
-  if (raw) return raw;
+function extractJson(text: string): Record<string, unknown> {
+  const raw = parseJsonSafe(text);
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    return raw as Record<string, unknown>;
+  }
 
   const cleaned = text
     .replace(/```json\s*/gi, "")
     .replace(/```\s*/g, "")
     .trim();
 
-  const cleanedParsed = parse(cleaned);
-  if (cleanedParsed) return cleanedParsed;
-
-  try {
-    return JSON.parse(jsonrepair(cleaned));
-  } catch {
-    // continue
+  const cleanedParsed = parseJsonSafe(cleaned);
+  if (
+    cleanedParsed &&
+    typeof cleanedParsed === "object" &&
+    !Array.isArray(cleanedParsed)
+  ) {
+    return cleanedParsed as Record<string, unknown>;
   }
 
-  const start = Math.min(
-    cleaned.indexOf("{") === -1 ? Infinity : cleaned.indexOf("{"),
-    cleaned.indexOf("[") === -1 ? Infinity : cleaned.indexOf("[")
-  );
-  if (start === Infinity) throw new Error("Could not parse model output as JSON.");
+  try {
+    const repaired = JSON.parse(jsonrepair(cleaned)) as unknown;
+    if (repaired && typeof repaired === "object" && !Array.isArray(repaired)) {
+      return repaired as Record<string, unknown>;
+    }
+  } catch {
+    // Continue to bracket extraction fallback
+  }
 
-  const isArray = cleaned[start] === "[";
-  const end = cleaned.lastIndexOf(isArray ? "]" : "}");
-  if (end <= start) throw new Error("Malformed JSON in model output.");
+  const start = cleaned.indexOf("{");
+  const end = cleaned.lastIndexOf("}");
+  if (start === -1 || end <= start) {
+    throw new Error("Could not parse model output as JSON.");
+  }
 
   const sliced = cleaned.slice(start, end + 1);
-  return parse(sliced) ?? JSON.parse(jsonrepair(sliced));
+  const slicedParsed = parseJsonSafe(sliced);
+  if (slicedParsed && typeof slicedParsed === "object" && !Array.isArray(slicedParsed)) {
+    return slicedParsed as Record<string, unknown>;
+  }
+
+  const repairedSliced = JSON.parse(jsonrepair(sliced)) as unknown;
+  if (
+    repairedSliced &&
+    typeof repairedSliced === "object" &&
+    !Array.isArray(repairedSliced)
+  ) {
+    return repairedSliced as Record<string, unknown>;
+  }
+
+  throw new Error("Model output was not valid JSON object.");
 }
 
-/* ── Route handler ───────────────────────────────────────────────────── */
 export async function POST(req: NextRequest) {
   const user = await verifyFirebaseToken(req.headers.get("authorization"));
   if (!user) {
@@ -181,31 +162,56 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const body = await req.json();
-  const { sectionText, title } = body;
-
-  if (!sectionText || !title) {
+  let body: Record<string, unknown>;
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
     return NextResponse.json(
-      { error: "sectionText and title are required" },
+      { success: false, error: "Invalid JSON payload." },
       { status: 400 }
     );
   }
 
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: MODEL_ID,
-    generationConfig: { maxOutputTokens: 1024, temperature: 0.3 },
-  });
+  const titleRaw = typeof body.title === "string" ? body.title.trim() : "";
+  const sectionTextRaw =
+    typeof body.sectionText === "string" ? body.sectionText.trim() : "";
 
-  const systemPrompt = `You are MedQ Summarizer. Create thoughtful, exam-focused medical study notes.
+  if (!titleRaw || !sectionTextRaw) {
+    return NextResponse.json(
+      { success: false, error: "sectionText and title are required" },
+      { status: 400 }
+    );
+  }
+
+  const title = titleRaw.slice(0, INPUT_TITLE_MAX_CHARS);
+  const sectionText = sectionTextRaw.slice(0, INPUT_SECTION_MAX_CHARS);
+  const promptSectionText = sectionText.slice(0, PROMPT_SECTION_MAX_CHARS);
+
+  const cacheKey = `${user.uid}:${quickHash(
+    `${title}::${sectionText.length}::${sectionText}`
+  )}`;
+  const cached = readSummaryCache(cacheKey);
+  if (cached) {
+    return NextResponse.json({ success: true, data: cached, cached: true });
+  }
+
+  let summaryPromise = inFlightSummaries.get(cacheKey);
+  if (!summaryPromise) {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: MODEL_ID,
+      generationConfig: { maxOutputTokens: 1024, temperature: 0.2 },
+    });
+
+    const systemPrompt = `You are MedQ Summarizer. Create thoughtful, exam-focused medical study notes.
 Prioritize mechanism-level understanding, clinical interpretation, and decision points.
 Output STRICT JSON only. No markdown, no commentary, no code fences.`;
 
-  const userPrompt = `Section: "${title}"
+    const userPrompt = `Section: "${title}"
 
 Text:
 """
-${sectionText.slice(0, 8000)}
+${promptSectionText}
 """
 
 Return this exact JSON schema:
@@ -215,21 +221,32 @@ Return this exact JSON schema:
   "mnemonics": ["string — 0-3 concise memory aids if applicable"]
 }`;
 
-  try {
-    const result = await model.generateContent({
-      systemInstruction: systemPrompt,
-      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
-    });
+    summaryPromise = withTimeout(
+      model
+        .generateContent({
+          systemInstruction: systemPrompt,
+          contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+        })
+        .then((result) => extractJson(result.response.text())),
+      MODEL_TIMEOUT_MS,
+      "Summary generation timed out. Please retry."
+    );
+    inFlightSummaries.set(cacheKey, summaryPromise);
+  }
 
-    const text = result.response.text();
-    const parsed = extractJson(text);
-    return NextResponse.json({ success: true, data: parsed });
+  try {
+    const parsed = await summaryPromise;
+    writeSummaryCache(cacheKey, parsed);
+    return NextResponse.json({ success: true, data: parsed, cached: false });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Gemini API error";
+    const status = message.toLowerCase().includes("timed out") ? 504 : 500;
     return NextResponse.json(
       { success: false, error: message },
-      { status: 500 }
+      { status }
     );
+  } finally {
+    inFlightSummaries.delete(cacheKey);
   }
 }

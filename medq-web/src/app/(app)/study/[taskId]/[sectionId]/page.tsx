@@ -620,7 +620,7 @@ export default function StudySessionPage({
   return (
     <div className="flex flex-col">
       {/* ── Sticky header ── sits below the CourseSwitcherBar (min-h-12) */}
-      <div className="sticky top-12 z-10 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="sticky top-12 z-10 border-b border-border/50 bg-background/80 backdrop-blur-2xl">
         {/* Row 1: back + title + timer */}
         <div className="flex items-center gap-2 px-4 pt-3 pb-2">
           <button
@@ -639,8 +639,12 @@ export default function StudySessionPage({
 
           {/* Timer pill */}
           <div className="flex items-center gap-1 shrink-0">
-            <div className="flex items-center gap-1.5 rounded-full bg-muted/80 pl-2.5 pr-1 py-1">
-              <Clock className="h-3 w-3 text-muted-foreground" />
+            <div className={`flex items-center gap-1.5 rounded-full pl-2.5 pr-1 py-1 transition-colors ${
+              seconds > 3600 ? "bg-red-500/15 text-red-600 dark:text-red-400" :
+              seconds > 1800 ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" :
+              "bg-muted/80"
+            }`}>
+              <Clock className="h-3 w-3" />
               <span className="font-mono text-xs tabular-nums font-medium min-w-[2.5rem] text-center">
                 {formatted}
               </span>

@@ -2,7 +2,7 @@
 
 import { use, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useCourseStore } from "@/lib/stores/course-store";
@@ -13,6 +13,12 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { ChatMessage as ChatMessageType } from "@/lib/types/chat";
+
+function toMillis(value: unknown): number {
+  if (!value || typeof value !== "object") return 0;
+  const timestamp = value as { toMillis?: () => number };
+  return typeof timestamp.toMillis === "function" ? timestamp.toMillis() : 0;
+}
 
 export default function ChatThreadPage({ params }: { params: Promise<{ threadId: string }> }) {
   const { threadId } = use(params);
@@ -28,15 +34,22 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
     if (!uid) return;
     const q = query(
       collection(db, "users", uid, "chatMessages"),
-      where("threadId", "==", threadId),
-      orderBy("createdAt", "asc")
+      where("threadId", "==", threadId)
     );
-    const unsub = onSnapshot(q, (snap) => {
-      setMessages(
-        snap.docs.map((d) => ({ ...d.data(), id: d.id }) as ChatMessageType)
-      );
-      setLoading(false);
-    });
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setMessages(
+          snap.docs
+            .map((d) => ({ ...d.data(), id: d.id }) as ChatMessageType)
+            .sort((a, b) => toMillis(a.createdAt) - toMillis(b.createdAt))
+        );
+        setLoading(false);
+      },
+      () => {
+        setLoading(false);
+      }
+    );
     return unsub;
   }, [uid, threadId]);
 

@@ -35,6 +35,8 @@ import {
 } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Progress } from "@/components/ui/progress";
+import { ProgressRing } from "@/components/ui/progress-ring";
+import { NumberTicker } from "@/components/ui/animate-in";
 import { toast } from "sonner";
 
 interface AnswerState {
@@ -252,8 +254,8 @@ export default function AssessmentPage() {
       <div className="glass-card p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="page-title">Adaptive Assessment</h1>
-            <p className="page-subtitle">
+            <h1 className="page-title animate-in-up stagger-1">Adaptive Assessment</h1>
+            <p className="page-subtitle animate-in-up stagger-2">
               Topic-focused diagnostics with level-based scoring and weakness intelligence.
             </p>
           </div>
@@ -507,22 +509,25 @@ export default function AssessmentPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border border-border/70 bg-background/70 p-3">
-                  <p className="text-xs text-muted-foreground">Readiness</p>
-                  <p className="mt-1 text-2xl font-semibold">{report.readinessScore}%</p>
-                  <Progress value={report.readinessScore} className="mt-2 h-2" />
+                <div className="rounded-xl border border-border/70 bg-background/70 p-4 flex items-center gap-3">
+                  <ProgressRing value={report.readinessScore} size={48} strokeWidth={4} color="oklch(0.65 0.20 260)" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Readiness</p>
+                    <p className="text-xl font-bold tabular-nums"><NumberTicker value={report.readinessScore} />%</p>
+                  </div>
                 </div>
-                <div className="rounded-xl border border-border/70 bg-background/70 p-3">
-                  <p className="text-xs text-muted-foreground">Accuracy</p>
-                  <p className="mt-1 text-2xl font-semibold">{report.overallAccuracy}%</p>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {report.answeredCount}/{report.totalQuestions} answered
-                  </p>
+                <div className="rounded-xl border border-border/70 bg-background/70 p-4 flex items-center gap-3">
+                  <ProgressRing value={report.overallAccuracy} size={48} strokeWidth={4} color="oklch(0.70 0.18 155)" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Accuracy</p>
+                    <p className="text-xl font-bold tabular-nums"><NumberTicker value={report.overallAccuracy} />%</p>
+                    <p className="text-[11px] text-muted-foreground tabular-nums">{report.answeredCount}/{report.totalQuestions} answered</p>
+                  </div>
                 </div>
-                <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+                <div className="rounded-xl border border-border/70 bg-background/70 p-4">
                   <p className="text-xs text-muted-foreground">Pace</p>
-                  <p className="mt-1 text-2xl font-semibold">{report.avgTimeSec}s</p>
-                  <p className="mt-2 text-xs text-muted-foreground">
+                  <p className="mt-1 text-xl font-bold tabular-nums"><NumberTicker value={report.avgTimeSec} />s</p>
+                  <p className="mt-1 text-[11px] text-muted-foreground tabular-nums">
                     Target {report.targetTimeSec}s per item
                   </p>
                 </div>
