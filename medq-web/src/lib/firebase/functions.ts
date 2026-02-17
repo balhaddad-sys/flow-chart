@@ -384,12 +384,36 @@ export interface ExploreQuizResult {
   backgroundJobId?: string;
 }
 
+export interface ExploreTopicInsightResult {
+  topic: string;
+  level: string;
+  levelLabel: string;
+  modelUsed: string;
+  summary: string;
+  corePoints: string[];
+  clinicalPitfalls: string[];
+  redFlags: string[];
+  studyApproach: string[];
+  citations?: Array<{
+    source: string;
+    title: string;
+    url: string;
+  }>;
+}
+
 export function exploreQuiz(params: {
   topic: string;
   level: string;
   count?: number;
 }) {
   return callFunction<ExploreQuizResult>("exploreQuiz", params);
+}
+
+export function exploreTopicInsight(params: {
+  topic: string;
+  level: string;
+}) {
+  return callFunction<ExploreTopicInsightResult>("exploreTopicInsight", params);
 }
 
 // --- Fix Plan ---
@@ -437,4 +461,14 @@ export function deleteFile(params: { fileId: string }) {
 // --- User Data ---
 export function deleteUserData() {
   return callFunction("deleteUserData", {});
+}
+
+// --- Admin: Reprocess Blueprints ---
+export function reprocessBlueprints(params: { courseId?: string }) {
+  return callFunction<{
+    updated: number;
+    failed: number;
+    total: number;
+    message: string;
+  }>("reprocessBlueprints", params);
 }

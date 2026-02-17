@@ -43,6 +43,7 @@ const { finishAssessmentSession } = require("./assessment/finishAssessmentSessio
 // ── Explore ─────────────────────────────────────────────────────────────────
 const { exploreQuiz } = require("./explore/exploreQuiz");
 const { processExploreBackfillJob } = require("./explore/processExploreBackfillJob");
+const { exploreTopicInsight } = require("./explore/exploreTopicInsight");
 
 // ── Analytics ────────────────────────────────────────────────────────────────
 const { submitAttempt } = require("./analytics/submitAttempt");
@@ -54,6 +55,7 @@ const { createCourse } = require("./admin/createCourse");
 const { deleteUserData } = require("./admin/deleteUserData");
 const { deleteFile } = require("./admin/deleteFile");
 const { healthCheck } = require("./admin/healthCheck");
+const { reprocessBlueprints } = require("./admin/reprocessBlueprints");
 
 // ── Exports ──────────────────────────────────────────────────────────────────
 exports.processUploadedFile = processUploadedFile;
@@ -74,6 +76,7 @@ exports.submitAssessmentAnswer = submitAssessmentAnswer;
 exports.finishAssessmentSession = finishAssessmentSession;
 exports.exploreQuiz = exploreQuiz;
 exports.processExploreBackfillJob = processExploreBackfillJob;
+exports.exploreTopicInsight = exploreTopicInsight;
 exports.submitAttempt = submitAttempt;
 exports.computeWeakness = computeWeakness;
 exports.runFixPlan = runFixPlan;
@@ -81,6 +84,7 @@ exports.createCourse = createCourse;
 exports.deleteUserData = deleteUserData;
 exports.deleteFile = deleteFile;
 exports.healthCheck = healthCheck;
+exports.reprocessBlueprints = reprocessBlueprints;
 
 // ── Chat ─────────────────────────────────────────────────────────────────
 const { sendChatMessage } = require("./chat/sendChatMessage");
