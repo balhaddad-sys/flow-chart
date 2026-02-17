@@ -32,7 +32,7 @@ import * as fn from "@/lib/firebase/functions";
 import { doc, onSnapshot, collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { toast } from "sonner";
-import type { SectionModel } from "@/lib/types/section";
+import type { SectionModel, SectionBlueprint } from "@/lib/types/section";
 
 interface AISummary {
   summary: string;
@@ -292,14 +292,36 @@ function isUsefulTopic(topic: string): boolean {
   // Filter out book titles, author names, edition labels
   if (/^(chapter|edited|edition|third|fourth|fifth|sixth)\b/i.test(t)) return false;
   if (/^[A-Z]+$/.test(t) && t.length < 15) return false; // Single uppercase word like "NEUROSCIENCE"
+  // Filter out generic page/slide/section ranges like "Pages 11-20" or "Neuroscience: Pages 11-20"
+  if (/\b(?:pages?|slides?|section)\s*\d+(?:\s*[-–—]\s*\d+)?\s*$/i.test(t)) return false;
   return true;
 }
 
 function deriveFallbackGuide(
   sectionTitle: string | undefined,
   noteSections: NoteSection[],
-  blocks: { type: "heading" | "paragraph"; content: string }[]
+  blocks: { type: "heading" | "paragraph"; content: string }[],
+  blueprint?: SectionBlueprint | null,
 ): FallbackGuide {
+  // ── If blueprint has real data, prefer it over templates ──
+  if (blueprint) {
+    const bpObjectives = Array.isArray(blueprint.learningObjectives) ? blueprint.learningObjectives.filter(Boolean) : [];
+    const bpHighYield = Array.isArray(blueprint.highYieldPoints) ? blueprint.highYieldPoints.filter(Boolean) : [];
+    const bpConcepts = Array.isArray(blueprint.keyConcepts) ? blueprint.keyConcepts.filter(Boolean) : [];
+    const bpTraps = Array.isArray(blueprint.commonTraps) ? blueprint.commonTraps.filter(Boolean) : [];
+
+    if (bpObjectives.length > 0 || bpHighYield.length > 0) {
+      return {
+        roadmap: bpConcepts.length > 0 ? bpConcepts.slice(0, 5) : dedupe([sectionTitle ?? "Section overview"], 3),
+        objectives: bpObjectives.slice(0, 6),
+        highYield: bpHighYield.slice(0, 5),
+        examAngles: bpTraps.slice(0, 4),
+        recallPrompts: [],
+      };
+    }
+  }
+
+  // ── Derive from section headings and content ──
   const roadmap = dedupe(
     noteSections
       .map((s) => s.title)
@@ -320,36 +342,31 @@ function deriveFallbackGuide(
     5
   );
 
-  // Build objectives from actual content and focus on exam decision-making.
-  const objectives = dedupe(
-    [
-      ...focusTopics.slice(0, 3).map(
-        (topic) => `Understand the mechanism and clinical relevance of ${topic}.`
-      ),
-      ...focusTopics.slice(0, 2).map(
-        (topic) => `Differentiate ${topic} from closely related diagnoses in vignettes.`
-      ),
-      keySentences.length > 0
-        ? "Link hallmark findings to the next-best diagnostic or management step."
-        : "",
-    ].filter(Boolean),
-    6
-  );
+  // Use actual content sentences as objectives instead of template fill-ins
+  const objectives: string[] = [];
+  if (focusTopics.length > 0) {
+    // Only use real topic names (not page ranges) for objectives
+    for (const topic of focusTopics.slice(0, 3)) {
+      objectives.push(`Understand the mechanism and clinical relevance of ${topic}.`);
+    }
+  }
+  // Fill remaining slots with actual key sentences from the content
+  for (const sentence of keySentences) {
+    if (objectives.length >= 5) break;
+    objectives.push(sentence);
+  }
+  if (objectives.length === 0 && keySentences.length > 0) {
+    objectives.push(...keySentences.slice(0, 4));
+  }
 
-  const examAngles = dedupe(
-    [
-      ...focusTopics.slice(0, 3).map(
-        (topic) => `Most testable angle: ${topic} — identify the single decisive clue.`
-      ),
-      ...focusTopics.slice(0, 2).map(
-        (topic) => `Pitfall check: avoid misclassifying ${topic} when look-alike options appear.`
-      ),
-      keySentences[0] ? `Anchor fact: ${keySentences[0]}` : "",
-    ].filter(Boolean),
-    6
-  );
+  const examAngles: string[] = [];
+  for (const topic of focusTopics.slice(0, 2)) {
+    examAngles.push(`Most testable angle: ${topic} — identify the single decisive clue.`);
+  }
+  if (keySentences.length > 0 && examAngles.length < 4) {
+    examAngles.push(`Anchor fact: ${keySentences[0]}`);
+  }
 
-  // Build reasoning prompts from actual topics in the material.
   const recallPrompts = dedupe(
     [
       ...focusTopics
@@ -358,16 +375,15 @@ function deriveFallbackGuide(
       ...focusTopics
         .slice(0, 2)
         .map((topic) => `What finding would make you choose or reject ${topic} in a clinical stem?`),
-      "Which red flag in this section should trigger urgent escalation?",
     ],
-    6
+    4
   );
 
   return {
-    roadmap: roadmap.length > 0 ? roadmap : dedupe([sectionTitle ?? "Section overview"], 3),
-    objectives,
+    roadmap: roadmap.length > 0 ? roadmap : (focusTopics.length > 0 ? focusTopics : dedupe([sectionTitle ?? "Section overview"], 3)),
+    objectives: dedupe(objectives, 6),
     highYield: keySentences,
-    examAngles,
+    examAngles: dedupe(examAngles, 4),
     recallPrompts,
   };
 }
@@ -452,17 +468,22 @@ export default function StudySessionPage({
   }, [textBlocks, sectionText]);
 
   const fallbackGuide = useMemo(
-    () => deriveFallbackGuide(section?.title, noteSections, textBlocks),
-    [section?.title, noteSections, textBlocks]
+    () => deriveFallbackGuide(section?.title, noteSections, textBlocks, section?.blueprint),
+    [section?.title, noteSections, textBlocks, section?.blueprint]
   );
   const sourceSnippets = useMemo(
     () => deriveSourceSnippets(sectionText),
     [sectionText]
   );
-  const sourceParagraphs = useMemo(
-    () => deriveSourceParagraphs(noteSections),
-    [noteSections]
-  );
+  const sourceParagraphs = useMemo(() => {
+    const paragraphs = deriveSourceParagraphs(noteSections);
+    // Cross-deduplicate: remove paragraphs that substantially overlap with snippets
+    const snippetKeys = new Set(sourceSnippets.map((s) => s.toLowerCase().replace(/\s+/g, " ").slice(0, 80)));
+    return paragraphs.filter((p) => {
+      const pKey = p.toLowerCase().replace(/\s+/g, " ").slice(0, 80);
+      return !snippetKeys.has(pKey);
+    });
+  }, [noteSections, sourceSnippets]);
   const snippetTargets = useMemo(
     () =>
       sourceSnippets.map((snippet) => ({
