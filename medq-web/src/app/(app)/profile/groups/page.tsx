@@ -11,10 +11,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { ListLoadingState, LoadingButtonLabel } from "@/components/ui/loading-state";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Users, Plus, LogIn, Loader2, ArrowLeft } from "lucide-react";
+import { Users, Plus, LogIn, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import type { StudyGroup } from "@/lib/types/group";
 
@@ -158,8 +158,7 @@ export default function GroupsPage() {
                   <p className="text-sm text-destructive">{joinError}</p>
                 )}
                 <Button onClick={handleJoin} disabled={joining || !joinCode.trim()} className="w-full">
-                  {joining ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Join Group
+                  {joining ? <LoadingButtonLabel label="Joining..." /> : "Join Group"}
                 </Button>
               </div>
             </DialogContent>
@@ -194,8 +193,7 @@ export default function GroupsPage() {
                   />
                 </div>
                 <Button onClick={handleCreate} disabled={creating || !createName.trim()} className="w-full">
-                  {creating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Create Group
+                  {creating ? <LoadingButtonLabel label="Creating group..." /> : "Create Group"}
                 </Button>
               </div>
             </DialogContent>
@@ -209,9 +207,7 @@ export default function GroupsPage() {
 
       <div className="space-y-3">
         {loading ? (
-          Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 w-full rounded-lg" />
-          ))
+          <ListLoadingState rows={3} />
         ) : groups.length === 0 ? (
           <EmptyState
             icon={Users}

@@ -11,6 +11,7 @@ import { useFiles } from "@/lib/hooks/useFiles";
 import { useCourseStore } from "@/lib/stores/course-store";
 import { SectionList } from "@/components/library/section-list";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { InlineLoadingState, LoadingButtonLabel } from "@/components/ui/loading-state";
 import * as fn from "@/lib/firebase/functions";
 import { toast } from "sonner";
 
@@ -25,6 +26,7 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
   const [retrying, setRetrying] = useState(false);
 
   const file = files.find((f) => f.id === fileId);
+  const isFileLoading = !file && loading;
   const hasFailedSections = sections.some((s) => s.aiStatus === "FAILED" || s.questionsStatus === "FAILED");
 
   async function handleRetry() {
@@ -56,7 +58,11 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Link href="/library" className="hover:text-foreground">Library</Link>
         <span>/</span>
-        <span className="truncate text-foreground">{file?.originalName ?? "Loading..."}</span>
+        <span className="truncate text-foreground">
+          {file?.originalName ?? (
+            <InlineLoadingState label="Loading file..." className="text-xs" />
+          )}
+        </span>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
@@ -64,7 +70,7 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
           <div className="flex items-center gap-2">
             <FileText className="h-5 w-5 text-muted-foreground" />
             <h1 className="truncate text-xl font-semibold tracking-tight">
-              {file?.originalName ?? "Loading..."}
+              {file?.originalName ?? "Preparing file details..."}
             </h1>
           </div>
           {file && (
@@ -79,8 +85,14 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
         <div className="ml-auto flex items-center gap-1">
           {hasFailedSections && (
             <Button variant="outline" size="sm" onClick={handleRetry} disabled={retrying}>
-              <RefreshCw className={`mr-1 h-4 w-4 ${retrying ? "animate-spin" : ""}`} />
-              {retrying ? "Retrying..." : "Retry Failed"}
+              {retrying ? (
+                <LoadingButtonLabel label="Retrying..." />
+              ) : (
+                <>
+                  <RefreshCw className="mr-1 h-4 w-4" />
+                  Retry Failed
+                </>
+              )}
             </Button>
           )}
           {file && (
@@ -93,6 +105,11 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
 
       <div>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Sections</h2>
+        {isFileLoading && (
+          <div className="mb-3 rounded-xl border border-border/60 bg-background/70 px-3 py-2.5">
+            <InlineLoadingState label="Loading sections for this file..." />
+          </div>
+        )}
         <SectionList sections={sections} loading={loading} />
       </div>
     </div>

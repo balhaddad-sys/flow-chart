@@ -34,6 +34,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import {
+  InlineLoadingState,
+  LoadingButtonLabel,
+  SectionLoadingState,
+} from "@/components/ui/loading-state";
 import { Progress } from "@/components/ui/progress";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { NumberTicker } from "@/components/ui/animate-in";
@@ -281,10 +286,12 @@ export default function AssessmentPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {catalogLoading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading assessment catalog...
-              </div>
+              <SectionLoadingState
+                title="Loading assessment catalog"
+                description="Collecting available topics and levels."
+                rows={2}
+                className="border-0 bg-transparent p-0 shadow-none"
+              />
             ) : catalogError ? (
               <div className="rounded-lg border border-destructive/25 bg-destructive/5 p-3 text-sm text-destructive">
                 {catalogError}
@@ -347,10 +354,7 @@ export default function AssessmentPage() {
             <div className="flex flex-wrap gap-2">
               <Button onClick={handleStartAssessment} disabled={!canStart}>
                 {starting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Starting...
-                  </>
+                  <LoadingButtonLabel label="Starting assessment..." />
                 ) : (
                   <>
                     Start Assessment
@@ -448,10 +452,7 @@ export default function AssessmentPage() {
               })}
 
               {submitting && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Submitting answer...
-                </div>
+                <InlineLoadingState label="Submitting answer..." />
               )}
 
               {currentAnswer && (
@@ -484,10 +485,7 @@ export default function AssessmentPage() {
                       disabled={finishing}
                     >
                       {finishing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Finishing...
-                        </>
+                        <LoadingButtonLabel label="Finishing..." />
                       ) : (
                         "End Now"
                       )}

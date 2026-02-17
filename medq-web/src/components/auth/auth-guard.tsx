@@ -3,7 +3,8 @@
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { AlertTriangle, RefreshCw, GraduationCap } from "lucide-react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
+import { PageLoadingState } from "@/components/ui/loading-state";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading, error } = useAuth();
@@ -25,17 +26,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   }, [user, loading]);
 
   if (loading) {
-    return (
-      <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-5">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/12 animate-in-scale">
-          <GraduationCap className="h-8 w-8 text-primary" />
-        </div>
-        <div className="h-6 w-6 animate-spin rounded-full border-[2.5px] border-primary/20 border-t-primary" />
-        <p className="text-sm text-muted-foreground animate-in-fade stagger-3">
-          Preparing your workspace...
-        </p>
-      </div>
-    );
+    return <PageLoadingState title="Preparing your workspace" description="Checking your session and loading your study data." minHeightClassName="min-h-[100dvh]" />;
   }
 
   if (error) {

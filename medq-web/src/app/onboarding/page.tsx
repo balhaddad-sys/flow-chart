@@ -8,6 +8,7 @@ import { useCourses } from "@/lib/hooks/useCourses";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageLoadingState, LoadingButtonLabel } from "@/components/ui/loading-state";
 import {
   ChevronLeft,
   ChevronRight,
@@ -179,12 +180,12 @@ export default function OnboardingPage() {
 
   if (coursesLoading && !showCreateFlow) {
     return (
-      <div className="flex min-h-[100dvh] items-center justify-center p-4">
-        <div className="glass-card w-full max-w-xl rounded-2xl p-8 text-center">
-          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
-          <p className="mt-4 text-sm text-muted-foreground">Loading your courses...</p>
-        </div>
-      </div>
+      <PageLoadingState
+        title="Loading your courses"
+        description="Fetching your existing courses before setup."
+        minHeightClassName="min-h-[100dvh]"
+        className="p-4"
+      />
     );
   }
 
@@ -362,10 +363,7 @@ export default function OnboardingPage() {
                 disabled={creating || !canProceed}
               >
                 {creating ? (
-                  <>
-                    <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground/20 border-t-primary-foreground" />
-                    Creating...
-                  </>
+                  <LoadingButtonLabel label="Creating..." />
                 ) : (
                   <>
                     Finish Setup

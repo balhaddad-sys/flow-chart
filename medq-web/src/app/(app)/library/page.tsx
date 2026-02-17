@@ -6,13 +6,13 @@ import { useTasks } from "@/lib/hooks/useTasks";
 import { useCourseStore } from "@/lib/stores/course-store";
 import { FileUploadZone } from "@/components/library/file-upload-zone";
 import { FileCard } from "@/components/library/file-card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { InlineLoadingState, ListLoadingState } from "@/components/ui/loading-state";
 import { Upload, ArrowRight } from "lucide-react";
 
 export default function LibraryPage() {
   const courseId = useCourseStore((s) => s.activeCourseId);
   const { files, loading } = useFiles(courseId);
-  const { tasks } = useTasks(courseId);
+  const { tasks, loading: tasksLoading } = useTasks(courseId);
   const hasFiles = files.length > 0;
   const hasPlan = tasks.length > 0;
   const backgroundProcessingCount = files.filter(
@@ -34,9 +34,7 @@ export default function LibraryPage() {
 
       <div className="space-y-3">
         {loading ? (
-          Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 w-full rounded-xl" />
-          ))
+          <ListLoadingState rows={4} />
         ) : files.length === 0 ? (
           <div className="glass-card flex flex-col items-center justify-center rounded-2xl border-dashed py-16 text-center">
             <Upload className="mb-3 h-10 w-10 text-muted-foreground/30" />
@@ -57,7 +55,13 @@ export default function LibraryPage() {
             )}
             {hasFiles && !hasPlan && (
               <div className="glass-card flex items-center justify-between gap-3 px-4 py-3 text-sm border-primary/15 animate-in-up">
-                <span className="text-muted-foreground">Files uploaded. Head to Plan to generate your schedule.</span>
+                <span className="text-muted-foreground">
+                  {tasksLoading ? (
+                    <InlineLoadingState label="Checking your plan status..." />
+                  ) : (
+                    "Files uploaded. Head to Plan to generate your schedule."
+                  )}
+                </span>
                 <Link href="/today/plan" className="inline-flex items-center gap-1 font-medium text-primary hover:text-primary/80 transition-colors">
                   Go to Plan
                   <ArrowRight className="h-3.5 w-3.5" />

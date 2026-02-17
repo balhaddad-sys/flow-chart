@@ -1,15 +1,16 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useTasks } from "@/lib/hooks/useTasks";
 import { useSections } from "@/lib/hooks/useSections";
 import { useCourseStore } from "@/lib/stores/course-store";
 import { useCourses } from "@/lib/hooks/useCourses";
 import { groupTasksByDay } from "@/lib/utils/date";
+import { buildSectionMap } from "@/lib/utils/task-title";
 import { TaskRow } from "@/components/planner/task-row";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { LoadingButtonLabel, SectionLoadingState } from "@/components/ui/loading-state";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { NumberTicker } from "@/components/ui/animate-in";
 import {
@@ -33,6 +34,8 @@ export default function PlanPage() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const autoGenTriggered = useRef(false);
+
+  const sectionMap = useMemo(() => buildSectionMap(sections), [sections]);
 
   const analyzedCount = sections.filter((s) => s.aiStatus === "ANALYZED").length;
   const pendingOrProcessing = sections.filter(
@@ -144,12 +147,18 @@ export default function PlanPage() {
           {tasks.length === 0 ? (
             <Button onClick={handleGenerate} disabled={generating || !courseId} size="sm" className="rounded-xl">
               <Plus className="mr-1.5 h-4 w-4" />
-              {generating ? "Generating..." : "Generate Plan"}
+              {generating ? "Generating plan..." : "Generate Plan"}
             </Button>
           ) : (
             <Button variant="outline" size="sm" className="rounded-xl" onClick={handleRegen} disabled={generating}>
-              <RefreshCw className={`mr-1.5 h-4 w-4 ${generating ? "animate-spin" : ""}`} />
-              {generating ? "Regenerating..." : "Regenerate"}
+              {generating ? (
+                <LoadingButtonLabel label="Regenerating..." />
+              ) : (
+                <>
+                  <RefreshCw className="mr-1.5 h-4 w-4" />
+                  Regenerate
+                </>
+              )}
             </Button>
           )}
         </div>
@@ -198,15 +207,11 @@ export default function PlanPage() {
       )}
 
       {loading ? (
-        <div className="space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="space-y-2">
-              <Skeleton className="h-5 w-24" />
-              <Skeleton className="h-16 w-full rounded-xl" />
-              <Skeleton className="h-16 w-full rounded-xl" />
-            </div>
-          ))}
-        </div>
+        <SectionLoadingState
+          title="Loading study plan"
+          description="Building your day-by-day tasks."
+          rows={4}
+        />
       ) : tasks.length === 0 ? (
         <div className="glass-card flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 text-center">
           <CalendarDays className="mb-3 h-10 w-10 text-muted-foreground/40" />
@@ -232,7 +237,7 @@ export default function PlanPage() {
               </div>
               <div className="space-y-2">
                 {todayGroup.tasks.map((task) => (
-                  <TaskRow key={task.id} task={task} />
+                  <TaskRow key={task.id} task={task} sectionMap={sectionMap} />
                 ))}
               </div>
             </div>
@@ -252,7 +257,7 @@ export default function PlanPage() {
               </div>
               <div className="space-y-2">
                 {group.tasks.map((task) => (
-                  <TaskRow key={task.id} task={task} />
+                  <TaskRow key={task.id} task={task} sectionMap={sectionMap} />
                 ))}
               </div>
             </div>

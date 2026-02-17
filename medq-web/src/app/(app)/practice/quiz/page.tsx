@@ -10,7 +10,8 @@ import { QuizResults } from "@/components/quiz/quiz-results";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { CircleHelp, GraduationCap } from "lucide-react";
+import { PageLoadingState } from "@/components/ui/loading-state";
+import { CircleHelp } from "lucide-react";
 import * as fn from "@/lib/firebase/functions";
 import type { QuizMode } from "@/lib/firebase/functions";
 import type { QuestionModel } from "@/lib/types/question";
@@ -72,15 +73,11 @@ export default function QuizPage() {
 
   if (loading) {
     return (
-      <div className="page-wrap flex flex-col items-center justify-center py-24">
-        <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 animate-glow-pulse">
-          <GraduationCap className="h-8 w-8 text-primary" />
-        </div>
-        <div className="mt-4 h-1 w-32 overflow-hidden rounded-full bg-muted">
-          <div className="h-full w-full animate-shimmer bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
-        </div>
-        <p className="mt-3 text-sm text-muted-foreground">Loading questions...</p>
-      </div>
+      <PageLoadingState
+        title="Preparing your quiz"
+        description="Loading questions and calibrating your practice session."
+        className="page-wrap py-16"
+      />
     );
   }
 

@@ -19,7 +19,7 @@ import { useSections } from "@/lib/hooks/useSections";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { SectionLoadingState } from "@/components/ui/loading-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import * as fn from "@/lib/firebase/functions";
@@ -254,11 +254,11 @@ export default function PracticePage() {
       )}
 
       {loading ? (
-        <div className="glass-card space-y-3 p-4">
-          {[1, 2, 3].map((item) => (
-            <Skeleton key={item} className="h-20 w-full rounded-xl" />
-          ))}
-        </div>
+        <SectionLoadingState
+          title="Loading practice sections"
+          description="Fetching analyzed sections and quiz readiness."
+          rows={4}
+        />
       ) : sections.length === 0 ? (
         <EmptyState
           icon={AlertCircle}

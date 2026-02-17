@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -10,12 +10,14 @@ import { useStats } from "@/lib/hooks/useStats";
 import { useFiles } from "@/lib/hooks/useFiles";
 import { useSections } from "@/lib/hooks/useSections";
 import { useCourseStore } from "@/lib/stores/course-store";
+import { buildSectionMap } from "@/lib/utils/task-title";
 import { StatsCards } from "@/components/home/stats-cards";
 import { TodayChecklist } from "@/components/home/today-checklist";
 import { ExamCountdown } from "@/components/home/exam-countdown";
 import { WeakTopicsBanner } from "@/components/home/weak-topics-banner";
 import { PipelineProgress } from "@/components/home/pipeline-progress";
 import { Button } from "@/components/ui/button";
+import { PageLoadingState, InlineLoadingState } from "@/components/ui/loading-state";
 import {
   Upload,
   Calendar,
@@ -59,12 +61,13 @@ export default function TodayPage() {
     null;
 
   const activeCourse = courses.find((c) => c.id === effectiveCourseId);
-  const { files } = useFiles(effectiveCourseId);
-  const { sections } = useSections(effectiveCourseId);
+  const { files, loading: filesLoading } = useFiles(effectiveCourseId);
+  const { sections, loading: sectionsLoading } = useSections(effectiveCourseId);
   const { tasks: todayTasks, loading: tasksLoading } =
     useTodayTasks(effectiveCourseId);
-  const { stats } = useStats(effectiveCourseId);
+  const { stats, loading: statsLoading } = useStats(effectiveCourseId);
 
+  const sectionMap = useMemo(() => buildSectionMap(sections), [sections]);
   const [fixPlanLoading, setFixPlanLoading] = useState(false);
 
   const hasFiles = files.length > 0;
@@ -105,6 +108,16 @@ export default function TodayPage() {
   }
   quickActions.push({ label: "AI Chat", href: "/ai", icon: Sparkles });
 
+  if (coursesLoading) {
+    return (
+      <PageLoadingState
+        title="Loading your dashboard"
+        description="Preparing your courses, tasks, and progress data."
+        className="page-wrap py-16"
+      />
+    );
+  }
+
   return (
     <div className="page-wrap page-stack">
       {/* Header: Greeting + Exam countdown */}
@@ -129,6 +142,11 @@ export default function TodayPage() {
             />
           </div>
         </div>
+        {(filesLoading || sectionsLoading) && (
+          <div className="mt-3">
+            <InlineLoadingState label="Syncing course content..." />
+          </div>
+        )}
 
         {/* Quick Actions */}
         <div className="mt-5 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap animate-in-up stagger-4">
@@ -156,11 +174,11 @@ export default function TodayPage() {
       />
 
       {/* Stats */}
-      <StatsCards stats={stats} />
+      <StatsCards stats={stats} loading={statsLoading} />
 
       {/* Today's Tasks + Weak Topics */}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
-        <TodayChecklist tasks={todayTasks} loading={tasksLoading} />
+        <TodayChecklist tasks={todayTasks} loading={tasksLoading} sectionMap={sectionMap} />
         <div className="space-y-4">
           <WeakTopicsBanner topics={weakTopics} />
 

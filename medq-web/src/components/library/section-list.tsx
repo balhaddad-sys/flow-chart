@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ListLoadingState } from "@/components/ui/loading-state";
 import { BookOpen, Loader2, CheckCircle2, AlertCircle, HelpCircle } from "lucide-react";
 import type { SectionModel } from "@/lib/types/section";
 
@@ -21,13 +22,7 @@ const aiStatusConfig: Record<string, { icon: typeof BookOpen; color: string; lab
 
 export function SectionList({ sections, loading }: SectionListProps) {
   if (loading) {
-    return (
-      <div className="space-y-2">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="h-16 animate-pulse rounded-lg bg-muted" />
-        ))}
-      </div>
-    );
+    return <ListLoadingState rows={4} />;
   }
 
   if (sections.length === 0) {

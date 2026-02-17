@@ -66,6 +66,15 @@ function isOCRNoise(line: string): boolean {
   return false;
 }
 
+/** Fix common OCR artifacts: hyphenated line-breaks, stray whitespace */
+function cleanOCR(text: string): string {
+  return text
+    .replace(/(\w)- (\w)/g, "$1$2")   // "syner- gist" → "synergist"
+    .replace(/(\w)-\n(\w)/g, "$1$2")   // hyphen + newline
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 function isHeadingLine(line: string): boolean {
   const t = line.trim();
   if (!t || t.length > 120) return false;
@@ -170,16 +179,21 @@ function dedupe(strings: string[], max = 6): string[] {
 }
 
 function splitSentences(text: string): string[] {
-  return text
+  const cleaned = cleanOCR(text);
+  const all = cleaned
     .split(/(?<=[.!?])\s+/)
     .map((s) => s.trim())
     .filter((s) => s.length >= 40 && s.length <= 220 && !s.includes("http"));
+
+  // Prefer sentences that start with uppercase (proper sentence boundaries)
+  const proper = all.filter((s) => /^[A-Z]/.test(s));
+  return proper.length >= 3 ? proper : all;
 }
 
 function deriveSourceSnippets(sectionText: string | null, max = 4): string[] {
   if (!sectionText) return [];
 
-  const chunks = sectionText
+  const chunks = cleanOCR(sectionText)
     .replace(/\r/g, "")
     .split(/\n{2,}/)
     .map((c) => c.trim())
@@ -198,6 +212,7 @@ function deriveSourceSnippets(sectionText: string | null, max = 4): string[] {
         (s) =>
           s.length >= 80 &&
           s.length <= 260 &&
+          /^[A-Z]/.test(s) &&
           !isOCRNoise(s) &&
           !METADATA_LINE_RE.test(s)
       );
@@ -211,15 +226,21 @@ function deriveSourceSnippets(sectionText: string | null, max = 4): string[] {
     }
   }
 
+  // Fallback: accept sentences that don't start with uppercase
   for (const chunk of chunks) {
     if (snippets.length >= max) break;
     if (isOCRNoise(chunk)) continue;
-    const fallback = chunk.slice(0, 220).trim();
-    if (fallback.length < 80) continue;
-    const key = fallback.toLowerCase().replace(/\s+/g, " ");
-    if (seen.has(key)) continue;
-    seen.add(key);
-    snippets.push(fallback);
+    const sentences = chunk
+      .split(/(?<=[.!?])\s+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length >= 80 && s.length <= 260 && !isOCRNoise(s) && !METADATA_LINE_RE.test(s));
+    for (const sentence of sentences) {
+      const key = sentence.toLowerCase().replace(/\s+/g, " ");
+      if (seen.has(key)) continue;
+      seen.add(key);
+      snippets.push(sentence);
+      if (snippets.length >= max) return snippets;
+    }
   }
 
   return snippets;
@@ -236,10 +257,11 @@ function deriveSourceParagraphs(noteSections: NoteSection[], max = 12): string[]
         .trim();
       if (value.length < 80 || isOCRNoise(value)) continue;
 
-      const key = value.toLowerCase();
+      const cleaned = cleanOCR(value);
+      const key = cleaned.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push(value);
+      out.push(cleaned);
       if (out.length >= max) return out;
     }
   }
@@ -303,17 +325,20 @@ function deriveFallbackGuide(
 ): FallbackGuide {
   // ── If blueprint has real data, prefer it over templates ──
   if (blueprint) {
-    const bpObjectives = Array.isArray(blueprint.learningObjectives) ? blueprint.learningObjectives.filter(Boolean) : [];
-    const bpHighYield = Array.isArray(blueprint.highYieldPoints) ? blueprint.highYieldPoints.filter(Boolean) : [];
-    const bpConcepts = Array.isArray(blueprint.keyConcepts) ? blueprint.keyConcepts.filter(Boolean) : [];
-    const bpTraps = Array.isArray(blueprint.commonTraps) ? blueprint.commonTraps.filter(Boolean) : [];
+    const bpObjectives = Array.isArray(blueprint.learningObjectives) ? blueprint.learningObjectives.filter(Boolean).map(cleanOCR) : [];
+    const bpHighYield = Array.isArray(blueprint.highYieldPoints) ? blueprint.highYieldPoints.filter(Boolean).map(cleanOCR) : [];
+    const bpConcepts = Array.isArray(blueprint.keyConcepts) ? blueprint.keyConcepts.filter(Boolean).map(cleanOCR) : [];
 
     if (bpObjectives.length > 0 || bpHighYield.length > 0) {
+      // Deduplicate highYield against objectives so sections never repeat
+      const objKeys = new Set(bpObjectives.map((s) => s.toLowerCase()));
+      const uniqueHighYield = bpHighYield.filter((s) => !objKeys.has(s.toLowerCase()));
+
       return {
         roadmap: bpConcepts.length > 0 ? bpConcepts.slice(0, 5) : dedupe([sectionTitle ?? "Section overview"], 3),
         objectives: bpObjectives.slice(0, 6),
-        highYield: bpHighYield.slice(0, 5),
-        examAngles: bpTraps.slice(0, 4),
+        highYield: uniqueHighYield.slice(0, 5),
+        examAngles: [],          // Don't duplicate — commonTraps already shown in its own card
         recallPrompts: [],
       };
     }
@@ -331,7 +356,7 @@ function deriveFallbackGuide(
     .map((b) => b.content)
     .join(" ");
 
-  const keySentences = dedupe(splitSentences(paragraphText), 5);
+  const keySentences = dedupe(splitSentences(paragraphText), 8);
   const focusTopics = dedupe(
     [
       ...(sectionTitle && isUsefulTopic(sectionTitle) ? [sectionTitle] : []),
@@ -340,29 +365,36 @@ function deriveFallbackGuide(
     5
   );
 
-  // Use actual content sentences as objectives instead of template fill-ins
+  // ── Build objectives: prefer topic-based, fill with sentences ──
   const objectives: string[] = [];
+  const usedSentenceKeys = new Set<string>();
+
   if (focusTopics.length > 0) {
-    // Only use real topic names (not page ranges) for objectives
     for (const topic of focusTopics.slice(0, 3)) {
       objectives.push(`Understand the mechanism and clinical relevance of ${topic}.`);
     }
   }
-  // Fill remaining slots with actual key sentences from the content
+  // Fill remaining slots with key sentences
   for (const sentence of keySentences) {
     if (objectives.length >= 5) break;
     objectives.push(sentence);
+    usedSentenceKeys.add(sentence.toLowerCase());
   }
   if (objectives.length === 0 && keySentences.length > 0) {
-    objectives.push(...keySentences.slice(0, 4));
+    for (const s of keySentences.slice(0, 4)) {
+      objectives.push(s);
+      usedSentenceKeys.add(s.toLowerCase());
+    }
   }
+
+  // ── highYield only gets sentences NOT already used in objectives ──
+  const highYield = keySentences.filter(
+    (s) => !usedSentenceKeys.has(s.toLowerCase())
+  );
 
   const examAngles: string[] = [];
   for (const topic of focusTopics.slice(0, 2)) {
     examAngles.push(`Most testable angle: ${topic} — identify the single decisive clue.`);
-  }
-  if (keySentences.length > 0 && examAngles.length < 4) {
-    examAngles.push(`Anchor fact: ${keySentences[0]}`);
   }
 
   const recallPrompts = dedupe(
@@ -380,7 +412,7 @@ function deriveFallbackGuide(
   return {
     roadmap: roadmap.length > 0 ? roadmap : (focusTopics.length > 0 ? focusTopics : dedupe([sectionTitle ?? "Section overview"], 3)),
     objectives: dedupe(objectives, 6),
-    highYield: keySentences,
+    highYield,
     examAngles: dedupe(examAngles, 4),
     recallPrompts,
   };
@@ -602,7 +634,22 @@ export default function StudySessionPage({
   }
 
   const formatted = getFormatted();
-  const bp = section?.blueprint;
+  const rawBp = section?.blueprint;
+  const bp = useMemo(() => {
+    if (!rawBp) return null;
+    const objectives = rawBp.learningObjectives?.map(cleanOCR) ?? [];
+    const highYield = rawBp.highYieldPoints?.map(cleanOCR) ?? [];
+    // Deduplicate: remove high-yield items that duplicate learning objectives
+    const objKeys = new Set(objectives.map((s) => s.toLowerCase()));
+    const uniqueHighYield = highYield.filter((s) => !objKeys.has(s.toLowerCase()));
+    return {
+      learningObjectives: objectives,
+      keyConcepts: rawBp.keyConcepts?.map(cleanOCR) ?? [],
+      highYieldPoints: uniqueHighYield,
+      commonTraps: rawBp.commonTraps?.map(cleanOCR) ?? [],
+      termsToDefine: rawBp.termsToDefine?.map(cleanOCR) ?? [],
+    };
+  }, [rawBp]);
   const hasBlueprintGuide = !!bp && (
     (bp.learningObjectives?.length ?? 0) > 0 ||
     (bp.keyConcepts?.length ?? 0) > 0 ||

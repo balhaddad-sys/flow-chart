@@ -2,15 +2,19 @@
 
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { ListLoadingState } from "@/components/ui/loading-state";
 import { CheckCircle2, Circle, BookOpen, HelpCircle, RotateCcw, Check } from "lucide-react";
 import { updateTask } from "@/lib/firebase/firestore";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { cn } from "@/lib/utils";
+import { resolveTaskBody } from "@/lib/utils/task-title";
 import type { TaskModel } from "@/lib/types/task";
+import type { SectionModel } from "@/lib/types/section";
 
 interface TodayChecklistProps {
   tasks: TaskModel[];
   loading: boolean;
+  sectionMap?: Map<string, SectionModel>;
 }
 
 const typeIcon: Record<string, typeof BookOpen> = {
@@ -31,14 +35,10 @@ const typeLabel: Record<string, string> = {
   REVIEW: "Review",
 };
 
-function normalizeTaskTitle(title: string): string {
-  let value = title.trim();
-  value = value.replace(/^(study|questions|review)\s*:\s*/i, "");
-  value = value.replace(/^\[\d+\]\s*/, "");
-  return value;
-}
+const EMPTY_MAP = new Map<string, SectionModel>();
 
-export function TodayChecklist({ tasks, loading }: TodayChecklistProps) {
+export function TodayChecklist({ tasks, loading, sectionMap }: TodayChecklistProps) {
+  const map = sectionMap ?? EMPTY_MAP;
   const { uid } = useAuth();
   const router = useRouter();
 
@@ -70,11 +70,7 @@ export function TodayChecklist({ tasks, loading }: TodayChecklistProps) {
       </div>
 
       {loading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-14 animate-shimmer rounded-xl bg-muted" />
-          ))}
-        </div>
+        <ListLoadingState rows={3} />
       ) : tasks.length === 0 ? (
         <div className="flex items-center gap-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-4 py-4 text-sm text-emerald-700 dark:text-emerald-300">
           <Check className="h-4 w-4 shrink-0" />
@@ -85,7 +81,7 @@ export function TodayChecklist({ tasks, loading }: TodayChecklistProps) {
           {tasks.map((task, i) => {
             const Icon = typeIcon[task.type] ?? BookOpen;
             const isDone = task.status === "DONE";
-            const cleanTitle = normalizeTaskTitle(task.title);
+            const cleanTitle = resolveTaskBody(task, map);
             const taskTypeLabel = typeLabel[task.type] ?? task.type;
             const typeTone = typeColor[task.type] ?? "";
             return (

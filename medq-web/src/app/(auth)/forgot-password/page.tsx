@@ -6,6 +6,7 @@ import { resetPassword } from "@/lib/firebase/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LoadingButtonLabel } from "@/components/ui/loading-state";
 import { ArrowLeft, CheckCircle2, Mail } from "lucide-react";
 import { AuthLayout } from "@/components/auth/auth-layout";
 
@@ -121,7 +122,7 @@ export default function ForgotPasswordPage() {
               className="w-full h-11 rounded-xl text-sm font-medium"
               disabled={loading}
             >
-              {loading ? "Sending..." : "Send Reset Link"}
+              {loading ? <LoadingButtonLabel label="Sending..." /> : "Send Reset Link"}
             </Button>
           </div>
         </form>

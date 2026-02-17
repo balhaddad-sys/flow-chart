@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useStats } from "@/lib/hooks/useStats";
 import { useTasks } from "@/lib/hooks/useTasks";
 import { useCourseStore } from "@/lib/stores/course-store";
-import { Skeleton } from "@/components/ui/skeleton";
+import { SectionLoadingState } from "@/components/ui/loading-state";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft } from "lucide-react";
 import {
@@ -87,11 +87,14 @@ export default function AnalyticsPage() {
   if (loading) {
     return (
       <div className="page-wrap page-stack max-w-6xl">
-        <Skeleton className="h-8 w-48" />
+        <SectionLoadingState
+          title="Loading analytics"
+          description="Crunching your study trends and performance data."
+          rows={2}
+        />
         <div className="grid gap-4 md:grid-cols-2">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-64 rounded-2xl" />
-          ))}
+          <SectionLoadingState title="Preparing charts" description="Rendering your progress visuals." rows={2} />
+          <SectionLoadingState title="Preparing insights" description="Collecting accuracy and task stats." rows={2} />
         </div>
       </div>
     );

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PageLoadingState } from "@/components/ui/loading-state";
 import {
   Card,
   CardContent,
@@ -615,51 +616,54 @@ export default function ExplorePage() {
 
   // ── LOADING ────────────────────────────────────────────────────────────
   if (phase === "loading") {
-    return (
-      <div className="page-wrap flex flex-col items-center justify-center py-24">
-        {store.loadingError ? (
-          <>
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10">
-              <XCircle className="h-6 w-6 text-destructive" />
-            </div>
-            <p className="text-sm font-medium text-destructive">Something went wrong</p>
-            <p className="mt-1 max-w-xs text-center text-xs text-muted-foreground">
-              {store.loadingError}
-            </p>
-            <div className="mt-5 flex gap-3">
-              <Button variant="outline" onClick={() => store.reset()}>
-                Back to Setup
-              </Button>
-              <Button onClick={handleRetry}>
-                Retry
-              </Button>
-            </div>
-          </>
-        ) : (
-          <>
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="mt-4 text-sm text-muted-foreground">
-              {store.userPath === "learn"
-                ? <>Generating teaching content for &ldquo;{store.topic || inputTopic}&rdquo;...</>
-                : <>Preparing your first questions on &ldquo;{store.topic || inputTopic}&rdquo;...</>}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {store.userPath === "learn"
-                ? "Building comprehensive teaching material with charts and clinical data."
-                : isAdvancedLevel
-                  ? "Advanced levels start in seconds; remaining questions continue in background."
-                  : "Initial questions usually load in under 20 seconds."}
-            </p>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="mt-6"
-              onClick={() => store.reset()}
-            >
-              Cancel
+    if (store.loadingError) {
+      return (
+        <div className="page-wrap flex flex-col items-center justify-center py-24">
+          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10">
+            <XCircle className="h-6 w-6 text-destructive" />
+          </div>
+          <p className="text-sm font-medium text-destructive">Something went wrong</p>
+          <p className="mt-1 max-w-xs text-center text-xs text-muted-foreground">
+            {store.loadingError}
+          </p>
+          <div className="mt-5 flex gap-3">
+            <Button variant="outline" onClick={() => store.reset()}>
+              Back to Setup
             </Button>
-          </>
-        )}
+            <Button onClick={handleRetry}>
+              Retry
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="page-wrap py-16">
+        <PageLoadingState
+          title={
+            store.userPath === "learn"
+              ? `Generating teaching content for "${store.topic || inputTopic}"`
+              : `Preparing quiz questions for "${store.topic || inputTopic}"`
+          }
+          description={
+            store.userPath === "learn"
+              ? "Building structured teaching notes with clinical context and exam focus."
+              : isAdvancedLevel
+                ? "Advanced levels load in phases. Extra questions continue in the background."
+                : "Initial questions usually load in under 20 seconds."
+          }
+          minHeightClassName="min-h-[45dvh]"
+        />
+        <div className="mt-4 text-center">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => store.reset()}
+          >
+            Cancel
+          </Button>
+        </div>
       </div>
     );
   }

@@ -8,12 +8,11 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { ListLoadingState, LoadingButtonLabel } from "@/components/ui/loading-state";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
   MessageSquare,
   Plus,
-  Loader2,
   Compass,
   ArrowRight,
   Search,
@@ -96,11 +95,11 @@ export default function AiPage() {
                 size="sm"
               >
                 {creating ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <LoadingButtonLabel label="Creating..." />
                 ) : (
                   <Plus className="mr-2 h-4 w-4" />
                 )}
-                New Chat
+                {!creating && "New Chat"}
               </Button>
               {latestThread && (
                 <Button
@@ -150,9 +149,7 @@ export default function AiPage() {
         </div>
 
         {loading ? (
-          Array.from({ length: 4 }).map((_, index) => (
-            <Skeleton key={index} className="h-20 w-full rounded-xl" />
-          ))
+          <ListLoadingState rows={4} />
         ) : filteredThreads.length === 0 ? (
           <EmptyState
             icon={MessageSquare}
