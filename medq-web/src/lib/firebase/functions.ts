@@ -367,6 +367,13 @@ export interface ExploreQuestion {
     title: string;
     url: string;
   }>;
+  citationMeta?: {
+    trustedSourceCount: number;
+    uniqueSources: string[];
+    citationCount: number;
+    fallbackUsed: boolean;
+    evidenceQuality: "HIGH" | "MODERATE" | "LOW" | string;
+  };
 }
 
 export interface ExploreQuizResult {

@@ -7,7 +7,7 @@ $ErrorActionPreference = "Stop"
 
 function Require-Command([string]$Name) {
   if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
-    throw "Required command '$Name' is not available in PATH."
+    throw "Required command '$Name' is not available in PATH. Install Flutter SDK first: https://docs.flutter.dev/get-started/install"
   }
 }
 
@@ -41,3 +41,4 @@ Write-Host "Next:"
 Write-Host "1) Configure Firebase Android app and keep google-services.json in android/app/"
 Write-Host "2) Create android/key.properties from android/key.properties.example"
 Write-Host "3) Run scripts/build-android-aab.ps1"
+Write-Host "4) Run scripts/check-playstore-readiness.ps1"

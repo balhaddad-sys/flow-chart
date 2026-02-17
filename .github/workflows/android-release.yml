@@ -26,6 +26,7 @@ jobs:
       FIREBASE_ANDROID_STORAGE_BUCKET: ${{ secrets.FIREBASE_ANDROID_STORAGE_BUCKET }}
       MEDQ_PRIVACY_URL: ${{ secrets.MEDQ_PRIVACY_URL }}
       MEDQ_TERMS_URL: ${{ secrets.MEDQ_TERMS_URL }}
+      MEDQ_SUPPORT_EMAIL: ${{ secrets.MEDQ_SUPPORT_EMAIL }}
 
     steps:
       - name: Checkout
@@ -54,6 +55,7 @@ jobs:
             FIREBASE_ANDROID_MESSAGING_SENDER_ID
             MEDQ_PRIVACY_URL
             MEDQ_TERMS_URL
+            MEDQ_SUPPORT_EMAIL
             ANDROID_UPLOAD_KEYSTORE_BASE64
             ANDROID_KEYSTORE_PASSWORD
             ANDROID_KEY_PASSWORD
@@ -97,6 +99,20 @@ jobs:
       - name: Resolve Flutter dependencies
         run: flutter pub get
 
+      - name: Validate legal URLs are reachable
+        run: |
+          for url in "$MEDQ_PRIVACY_URL" "$MEDQ_TERMS_URL"; do
+            if ! curl -fLs --max-time 20 "$url" >/dev/null; then
+              echo "Legal URL not reachable: $url"
+              exit 1
+            fi
+          done
+
+      - name: Analyze and test before release build
+        run: |
+          flutter analyze
+          flutter test
+
       - name: Determine build metadata
         id: meta
         run: |
@@ -120,7 +136,8 @@ jobs:
             --dart-define=FIREBASE_ANDROID_PROJECT_ID="$FIREBASE_ANDROID_PROJECT_ID" \
             --dart-define=FIREBASE_ANDROID_STORAGE_BUCKET="$FIREBASE_ANDROID_STORAGE_BUCKET" \
             --dart-define=MEDQ_PRIVACY_URL="$MEDQ_PRIVACY_URL" \
-            --dart-define=MEDQ_TERMS_URL="$MEDQ_TERMS_URL"
+            --dart-define=MEDQ_TERMS_URL="$MEDQ_TERMS_URL" \
+            --dart-define=MEDQ_SUPPORT_EMAIL="$MEDQ_SUPPORT_EMAIL"
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4

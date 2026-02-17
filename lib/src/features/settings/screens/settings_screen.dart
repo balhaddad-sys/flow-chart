@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../app.dart';
 import '../../../core/constants/app_colors.dart';
@@ -16,6 +17,10 @@ import '../../../core/widgets/course_selector_sheet.dart';
 import '../../../models/course_model.dart';
 import '../../home/providers/home_provider.dart';
 
+final packageInfoProvider = FutureProvider<PackageInfo>((ref) async {
+  return PackageInfo.fromPlatform();
+});
+
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -27,6 +32,7 @@ class SettingsScreen extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final coursesAsync = ref.watch(coursesProvider);
     final activeCourseId = ref.watch(activeCourseIdProvider);
+    final packageInfoAsync = ref.watch(packageInfoProvider);
 
     return Scaffold(
       body: ListView(
@@ -461,14 +467,47 @@ class SettingsScreen extends ConsumerWidget {
                             : AppColors.textSecondary,
                         size: 20),
                     title: const Text('Version'),
-                    trailing: Text(
-                      '1.0.0',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: isDark
-                                ? AppColors.darkTextTertiary
-                                : AppColors.textTertiary,
-                          ),
+                    trailing: packageInfoAsync.when(
+                      data: (info) => Text(
+                        '${info.version}+${info.buildNumber}',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: isDark
+                                  ? AppColors.darkTextTertiary
+                                  : AppColors.textTertiary,
+                            ),
+                      ),
+                      loading: () => Text(
+                        'Loading...',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: isDark
+                                  ? AppColors.darkTextTertiary
+                                  : AppColors.textTertiary,
+                            ),
+                      ),
+                      error: (_, __) => Text(
+                        'Unknown',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: isDark
+                                  ? AppColors.darkTextTertiary
+                                  : AppColors.textTertiary,
+                            ),
+                      ),
                     ),
+                  ),
+                  _divider(isDark),
+                  ListTile(
+                    leading: Icon(Icons.health_and_safety_outlined,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.textSecondary,
+                        size: 20),
+                    title: const Text('Medical Safety Notice'),
+                    trailing: Icon(Icons.chevron_right,
+                        color: isDark
+                            ? AppColors.darkTextTertiary
+                            : AppColors.textTertiary,
+                        size: 20),
+                    onTap: () => _showMedicalNotice(context),
                   ),
                   _divider(isDark),
                   ListTile(
@@ -506,6 +545,33 @@ class SettingsScreen extends ConsumerWidget {
                       context,
                       AppLinks.termsOfServiceUrl,
                       label: 'Terms of Service',
+                    ),
+                  ),
+                  _divider(isDark),
+                  ListTile(
+                    leading: Icon(Icons.support_agent_outlined,
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.textSecondary,
+                        size: 20),
+                    title: const Text('Contact Support'),
+                    subtitle: Text(
+                      AppLinks.supportEmail,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: isDark
+                                ? AppColors.darkTextTertiary
+                                : AppColors.textTertiary,
+                          ),
+                    ),
+                    trailing: Icon(Icons.chevron_right,
+                        color: isDark
+                            ? AppColors.darkTextTertiary
+                            : AppColors.textTertiary,
+                        size: 20),
+                    onTap: () => openExternalLink(
+                      context,
+                      AppLinks.supportMailto,
+                      label: 'Support',
                     ),
                   ),
                 ],
@@ -597,6 +663,26 @@ class SettingsScreen extends ConsumerWidget {
 
           // Extra bottom spacing
           const SizedBox(height: 96),
+        ],
+      ),
+    );
+  }
+
+  void _showMedicalNotice(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Medical Safety Notice'),
+        content: const Text(
+          'MedQ is an educational study tool and does not provide medical diagnosis or treatment.\n\n'
+          'Do not use MedQ as a substitute for professional clinical judgment.\n\n'
+          'If you believe there is a medical emergency, contact local emergency services immediately.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
         ],
       ),
     );

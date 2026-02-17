@@ -12,6 +12,10 @@ Run from repo root:
 
 This will create `android/` if missing and add `android/key.properties.example`.
 
+If Flutter is not installed on your machine, install Flutter SDK first:
+
+https://docs.flutter.dev/get-started/install
+
 ## 2) Configure Firebase for Android
 
 1. In Firebase Console, add an **Android app** to project `medq-a6cc6`.
@@ -66,10 +70,13 @@ Before submitting to Play Console:
 - App access instructions included if login is required.
 - Test credentials prepared for Play review.
 
+Use template: `docs/PLAY_REVIEW_APP_ACCESS_TEMPLATE.md`
+
 The app reads legal links from Dart defines:
 
 - `MEDQ_PRIVACY_URL`
 - `MEDQ_TERMS_URL`
+- `MEDQ_SUPPORT_EMAIL`
 
 ## 6) Recommended Release Process
 
@@ -95,3 +102,17 @@ Required repository secrets:
 - `FIREBASE_ANDROID_STORAGE_BUCKET`
 - `MEDQ_PRIVACY_URL`
 - `MEDQ_TERMS_URL`
+- `MEDQ_SUPPORT_EMAIL`
+
+## 8) Automated Preflight Check
+
+Use this local script before creating a release:
+
+```powershell
+.\scripts\check-playstore-readiness.ps1 `
+  -PrivacyUrl https://your-domain/privacy `
+  -TermsUrl https://your-domain/terms
+```
+
+It validates required files, secret-safe gitignore paths, Android release pipeline,
+and legal URL reachability.

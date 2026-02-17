@@ -50,6 +50,32 @@ function buildCitationFallbacks(stem, topicTags) {
   ];
 }
 
+function buildCitationMeta(citations) {
+  const safe = Array.isArray(citations) ? citations : [];
+  const uniqueSources = Array.from(new Set(
+    safe.map((c) => String(c?.source || "").trim()).filter(Boolean)
+  ));
+  const fallbackUsed = safe.some((c) =>
+    /^(PubMed|UpToDate|Medscape):/i.test(String(c?.title || ""))
+  );
+  const trustedSourceCount = uniqueSources.length;
+
+  let evidenceQuality = "LOW";
+  if (!fallbackUsed && safe.length >= 3 && trustedSourceCount >= 2) {
+    evidenceQuality = "HIGH";
+  } else if (safe.length >= 2) {
+    evidenceQuality = "MODERATE";
+  }
+
+  return {
+    trustedSourceCount,
+    uniqueSources,
+    citationCount: safe.length,
+    fallbackUsed,
+    evidenceQuality,
+  };
+}
+
 function normaliseCitations(rawCitations, { stem, topicTags }) {
   const citations = [];
   const seenTitles = new Set();
@@ -149,6 +175,7 @@ function normaliseQuestion(raw, defaults) {
     stem: raw.stem,
     topicTags,
   });
+  const citationMeta = buildCitationMeta(citations);
 
   return {
     topicTags,
@@ -169,6 +196,7 @@ function normaliseQuestion(raw, defaults) {
       label:     truncate(sanitizeText(raw.source_ref?.sectionLabel || raw.sourceRef?.sectionLabel || defaults.sectionTitle), 200),
     },
     citations,
+    citationMeta,
     stats: { timesAnswered: 0, timesCorrect: 0, avgTimeSec: 0 },
   };
 }

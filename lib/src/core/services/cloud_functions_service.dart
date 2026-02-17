@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_functions/cloud_functions.dart';
 
 /// Wrapper around Firebase Cloud Functions callable endpoints.
@@ -6,49 +8,126 @@ import 'package:cloud_functions/cloud_functions.dart';
 ///   Error:   { "success": false, "error": { "code": "...", "message": "..." } }
 class CloudFunctionsService {
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
+  static const Duration _callTimeout = Duration(seconds: 45);
+  static const int _maxRetries = 2;
+  static const int _baseRetryDelayMs = 800;
+  static const Set<String> _transientCodes = {
+    'unavailable',
+    'deadline-exceeded',
+    'resource-exhausted',
+    'internal',
+    'network-request-failed',
+  };
+
+  String _normaliseCode(String code) {
+    return code.trim().toLowerCase().replaceAll('_', '-');
+  }
+
+  bool _isTransientCode(String code) {
+    final normalized = _normaliseCode(code);
+    return _transientCodes.contains(normalized);
+  }
+
+  String _uiCode(String code) {
+    return _normaliseCode(code).toUpperCase().replaceAll('-', '_');
+  }
 
   Future<Map<String, dynamic>> _call(
     String name,
     Map<String, dynamic> data,
   ) async {
-    final callable = _functions.httpsCallable(name);
-    final result = await callable.call(data);
+    for (var attempt = 0; attempt <= _maxRetries; attempt++) {
+      try {
+        final callable = _functions.httpsCallable(
+          name,
+          options: HttpsCallableOptions(timeout: _callTimeout),
+        );
+        final result = await callable.call(data);
 
-    final dynamic raw = result.data;
-    Map<String, dynamic> response;
+        final dynamic raw = result.data;
+        Map<String, dynamic> response;
 
-    if (raw is Map) {
-      response = Map<String, dynamic>.from(raw);
-    } else if (raw is String) {
-      throw CloudFunctionException(
-        code: 'INVALID_RESPONSE',
-        message: raw,
-      );
-    } else {
-      throw CloudFunctionException(
-        code: 'INVALID_RESPONSE',
-        message: 'Unexpected response type: ${raw.runtimeType}',
-      );
-    }
+        if (raw is Map) {
+          response = Map<String, dynamic>.from(raw);
+        } else if (raw is String) {
+          throw CloudFunctionException(
+            code: 'INVALID_RESPONSE',
+            message: raw,
+          );
+        } else {
+          throw CloudFunctionException(
+            code: 'INVALID_RESPONSE',
+            message: 'Unexpected response type: ${raw.runtimeType}',
+          );
+        }
 
-    if (response['success'] != true) {
-      final error = response['error'];
-      String code = 'UNKNOWN';
-      String message = 'Unknown error';
-      if (error is Map) {
-        code = error['code']?.toString() ?? code;
-        message = error['message']?.toString() ?? message;
-      } else if (error is String) {
-        message = error;
+        if (response['success'] != true) {
+          final error = response['error'];
+          String code = 'UNKNOWN';
+          String message = 'Unknown error';
+          if (error is Map) {
+            code = error['code']?.toString() ?? code;
+            message = error['message']?.toString() ?? message;
+          } else if (error is String) {
+            message = error;
+          }
+          throw CloudFunctionException(code: _uiCode(code), message: message);
+        }
+
+        final responseData = response['data'];
+        if (responseData is Map) {
+          return Map<String, dynamic>.from(responseData);
+        }
+        return response;
+      } on CloudFunctionException catch (error) {
+        if (attempt < _maxRetries && _isTransientCode(error.code)) {
+          await Future.delayed(
+            Duration(milliseconds: _baseRetryDelayMs * (1 << attempt)),
+          );
+          continue;
+        }
+        rethrow;
+      } on FirebaseFunctionsException catch (error) {
+        final code = _normaliseCode(error.code);
+        final message = error.message ?? 'Request failed. Please try again.';
+        if (attempt < _maxRetries && _isTransientCode(code)) {
+          await Future.delayed(
+            Duration(milliseconds: _baseRetryDelayMs * (1 << attempt)),
+          );
+          continue;
+        }
+        throw CloudFunctionException(
+          code: _uiCode(code),
+          message: message,
+        );
+      } on TimeoutException {
+        if (attempt < _maxRetries) {
+          await Future.delayed(
+            Duration(milliseconds: _baseRetryDelayMs * (1 << attempt)),
+          );
+          continue;
+        }
+        throw const CloudFunctionException(
+          code: 'DEADLINE_EXCEEDED',
+          message: 'Request timed out. Please try again.',
+        );
+      } catch (error) {
+        if (attempt < _maxRetries) {
+          await Future.delayed(
+            Duration(milliseconds: _baseRetryDelayMs * (1 << attempt)),
+          );
+          continue;
+        }
+        throw CloudFunctionException(
+          code: 'INTERNAL',
+          message: 'Unexpected error while calling "$name".',
+        );
       }
-      throw CloudFunctionException(code: code, message: message);
     }
-
-    final responseData = response['data'];
-    if (responseData is Map) {
-      return Map<String, dynamic>.from(responseData);
-    }
-    return response;
+    throw const CloudFunctionException(
+      code: 'INTERNAL',
+      message: 'Request failed after retries.',
+    );
   }
 
   /// Generic public callable for one-off function invocations (e.g. deleteUserData).

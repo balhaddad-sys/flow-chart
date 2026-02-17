@@ -22,6 +22,7 @@ interface ExploreStore {
   questions: ExploreQuestion[];
   currentIndex: number;
   answers: Map<string, number>;
+  confidence: Map<string, number>;
   results: Map<string, boolean>;
   modelUsed: string;
   qualityGatePassed?: boolean;
@@ -40,7 +41,8 @@ interface ExploreStore {
     meta?: ExploreMeta
   ) => void;
   syncBackgroundQuestions: (questions: ExploreQuestion[], meta?: ExploreMeta) => void;
-  answerQuestion: (questionId: string, answerIndex: number) => void;
+  setConfidence: (questionId: string, confidence: number) => void;
+  answerQuestion: (questionId: string, answerIndex: number, confidence?: number) => void;
   nextQuestion: () => void;
   finishQuiz: () => void;
   resumeQuiz: () => void;
@@ -62,6 +64,7 @@ export const useExploreStore = create<ExploreStore>((set, get) => ({
   questions: [],
   currentIndex: 0,
   answers: new Map(),
+  confidence: new Map(),
   results: new Map(),
   modelUsed: "",
   qualityGatePassed: undefined,
@@ -90,6 +93,7 @@ export const useExploreStore = create<ExploreStore>((set, get) => ({
       targetCount: Math.max(questions.length, meta?.targetCount ?? questions.length),
       currentIndex: 0,
       answers: new Map(),
+      confidence: new Map(),
       results: new Map(),
       modelUsed: meta?.modelUsed || "",
       qualityGatePassed: meta?.qualityGatePassed,
@@ -138,15 +142,34 @@ export const useExploreStore = create<ExploreStore>((set, get) => ({
     });
   },
 
-  answerQuestion: (questionId, answerIndex) => {
-    const { questions, answers, results } = get();
+  setConfidence: (questionId, confidenceValue) => {
+    const normalized = Math.min(5, Math.max(1, Math.floor(Number(confidenceValue) || 0)));
+    if (!questionId || !normalized) return;
+    set((state) => {
+      const nextConfidence = new Map(state.confidence);
+      nextConfidence.set(questionId, normalized);
+      return { confidence: nextConfidence };
+    });
+  },
+
+  answerQuestion: (questionId, answerIndex, confidenceValue) => {
+    const { questions, answers, results, confidence } = get();
     const q = questions.find((item) => item.id === questionId);
     if (!q) return;
     const nextAnswers = new Map(answers);
     const nextResults = new Map(results);
+    const nextConfidence = new Map(confidence);
+    const resolvedConfidence = Math.min(
+      5,
+      Math.max(1, Math.floor(Number(confidenceValue ?? nextConfidence.get(questionId) ?? 0) || 0))
+    );
+
     nextAnswers.set(questionId, answerIndex);
     nextResults.set(questionId, answerIndex === q.correctIndex);
-    set({ answers: nextAnswers, results: nextResults });
+    if (resolvedConfidence) {
+      nextConfidence.set(questionId, resolvedConfidence);
+    }
+    set({ answers: nextAnswers, results: nextResults, confidence: nextConfidence });
   },
 
   nextQuestion: () =>
@@ -189,6 +212,7 @@ export const useExploreStore = create<ExploreStore>((set, get) => ({
       questions: [],
       currentIndex: 0,
       answers: new Map(),
+      confidence: new Map(),
       results: new Map(),
       modelUsed: "",
       qualityGatePassed: undefined,

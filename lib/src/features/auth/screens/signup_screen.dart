@@ -7,6 +7,7 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/error_banner.dart';
 import '../../../core/widgets/google_sign_in_button.dart';
+import '../../../core/widgets/legal_footer.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../providers/auth_state_provider.dart';
 
@@ -23,6 +24,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _acceptedLegal = false;
   bool _obscurePassword = true;
   late final AnimationController _animController;
   late final Animation<double> _fadeIn;
@@ -53,6 +55,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   }
 
   void _handleSignUp() {
+    if (!_acceptedLegal) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please accept Terms and Privacy to continue.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
     if (!_formKey.currentState!.validate()) return;
     ref.read(authScreenProvider.notifier).signUp(
           _nameController.text.trim(),
@@ -62,6 +73,15 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   }
 
   void _handleGoogleSignIn() {
+    if (!_acceptedLegal) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please accept Terms and Privacy to continue.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
     ref.read(authScreenProvider.notifier).signInWithGoogle();
   }
 
@@ -242,6 +262,29 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                                             _handleSignUp(),
                                         validator: Validators.password,
                                       ),
+                                      const SizedBox(height: 14),
+                                      CheckboxListTile(
+                                        value: _acceptedLegal,
+                                        onChanged: (value) => setState(
+                                          () => _acceptedLegal = value ?? false,
+                                        ),
+                                        contentPadding: EdgeInsets.zero,
+                                        controlAffinity:
+                                            ListTileControlAffinity.leading,
+                                        dense: true,
+                                        title: Text(
+                                          'I agree to the Terms and Privacy Policy and understand MedQ is educational only.',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .bodySmall
+                                              ?.copyWith(
+                                                color: isDark
+                                                    ? AppColors.darkTextSecondary
+                                                    : AppColors.textSecondary,
+                                                height: 1.3,
+                                              ),
+                                        ),
+                                      ),
                                       const SizedBox(height: 24),
                                       PrimaryButton(
                                         label: 'Create Account',
@@ -296,6 +339,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                                       AuthScreenState.loading,
                                   label: 'Sign up with Google',
                                 ),
+                                const SizedBox(height: 18),
+                                const LegalFooter(),
                                 AppSpacing.gapXl,
                               ],
                             ),

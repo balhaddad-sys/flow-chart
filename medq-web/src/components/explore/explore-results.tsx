@@ -23,6 +23,7 @@ export function ExploreResults() {
   const {
     questions,
     answers,
+    confidence,
     results,
     topic,
     levelLabel,
@@ -40,6 +41,25 @@ export function ExploreResults() {
   const unanswered = Math.max(0, total - answered);
   const correct = Array.from(results.values()).filter(Boolean).length;
   const accuracy = answered > 0 ? Math.round((correct / answered) * 100) : 0;
+  const answeredQuestionIds = questions
+    .map((q) => q.id)
+    .filter((id) => answers.has(id));
+  const confidenceValues = answeredQuestionIds
+    .map((id) => Number(confidence.get(id) || 0))
+    .filter((value) => value > 0);
+  const avgConfidence =
+    confidenceValues.length > 0 ?
+      Number((confidenceValues.reduce((sum, v) => sum + v, 0) / confidenceValues.length).toFixed(2)) :
+      null;
+  const predictedAccuracyPercent =
+    avgConfidence != null ? Math.round(((avgConfidence - 1) / 4) * 100) : null;
+  const calibrationGapPercent =
+    predictedAccuracyPercent != null ? predictedAccuracyPercent - accuracy : null;
+  const overconfidentMisses = answeredQuestionIds.filter((id) => {
+    const c = Number(confidence.get(id) || 0);
+    const isCorrect = results.get(id) === true;
+    return c >= 4 && !isCorrect;
+  }).length;
 
   return (
     <div className="space-y-5">
@@ -57,6 +77,23 @@ export function ExploreResults() {
             <p className="mt-1 text-muted-foreground">
               {correct} out of {answered} answered correctly
             </p>
+            {avgConfidence != null && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Avg confidence: {avgConfidence}/5
+              </p>
+            )}
+            {calibrationGapPercent != null && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Calibration gap: {calibrationGapPercent > 0 ? "+" : ""}{calibrationGapPercent}%{" "}
+                {calibrationGapPercent > 8 ? "(overconfident)" :
+                  calibrationGapPercent < -8 ? "(underconfident)" : "(well-calibrated)"}
+              </p>
+            )}
+            {overconfidentMisses > 0 && (
+              <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                {overconfidentMisses} high-confidence miss{overconfidentMisses === 1 ? "" : "es"}: review those clues first.
+              </p>
+            )}
             {target > total && (
               <p className="mt-1 text-xs text-muted-foreground">
                 {total}/{target} questions ready so far
@@ -116,6 +153,10 @@ export function ExploreResults() {
                         {String.fromCharCode(65 + q.correctIndex)}.{" "}
                         {q.options[q.correctIndex]}
                       </p>
+                      <p>
+                        <span className="font-medium">Confidence:</span>{" "}
+                        {confidence.get(q.id) != null ? `${confidence.get(q.id)}/5` : "—"}
+                      </p>
                       {q.explanation?.keyTakeaway && (
                         <div className="rounded-lg border border-border/60 bg-muted/30 p-2">
                           <p className="text-xs font-semibold uppercase tracking-wide text-primary">
@@ -163,9 +204,19 @@ export function ExploreResults() {
                       )}
                       {(q.citations?.length ?? 0) > 0 && (
                         <div className="space-y-1.5 pt-1">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Verified sources
-                          </p>
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                              Verified sources
+                            </p>
+                            <Badge variant={q.citationMeta?.evidenceQuality === "HIGH" ? "secondary" : "outline"}>
+                              Evidence {q.citationMeta?.evidenceQuality || "MODERATE"}
+                            </Badge>
+                          </div>
+                          {q.citationMeta?.fallbackUsed && (
+                            <p className="text-xs text-amber-600 dark:text-amber-400">
+                              Search links are trusted endpoints. Verify exact publication details.
+                            </p>
+                          )}
                           {q.citations?.slice(0, 3).map((citation, idx) => (
                             <a
                               key={`${citation.url}_${idx}`}

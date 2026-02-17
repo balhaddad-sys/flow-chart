@@ -114,6 +114,9 @@ describe("lib/serialize", () => {
       expect(result.citations).toHaveLength(2);
       expect(result.citations[0].source).toBe("PubMed");
       expect(result.citations[1].source).toBe("Medscape");
+      expect(result.citationMeta).toBeDefined();
+      expect(result.citationMeta.trustedSourceCount).toBeGreaterThanOrEqual(2);
+      expect(result.citationMeta.fallbackUsed).toBe(false);
       expect(result.stats).toEqual({ timesAnswered: 0, timesCorrect: 0, avgTimeSec: 0 });
     });
 
@@ -175,6 +178,7 @@ describe("lib/serialize", () => {
       const result = normaliseQuestion(raw, defaults);
       expect(result.citations.length).toBeGreaterThanOrEqual(2);
       expect(result.citations[0].url).toMatch(/^https:\/\/pubmed\.ncbi\.nlm\.nih\.gov\//);
+      expect(result.citationMeta.fallbackUsed).toBe(true);
     });
 
     it("filters untrusted citation domains and falls back safely", () => {

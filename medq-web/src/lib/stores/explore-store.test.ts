@@ -40,6 +40,7 @@ describe("Explore Store", () => {
       expect(state.questions).toEqual([]);
       expect(state.currentIndex).toBe(0);
       expect(state.answers.size).toBe(0);
+      expect(state.confidence.size).toBe(0);
       expect(state.results.size).toBe(0);
       expect(state.backgroundJobId).toBeNull();
       expect(state.backfillStatus).toBe("idle");
@@ -96,6 +97,7 @@ describe("Explore Store", () => {
       expect(state.qualityScore).toBe(0.85);
       expect(state.currentIndex).toBe(0);
       expect(state.answers.size).toBe(0);
+      expect(state.confidence.size).toBe(0);
     });
   });
 
@@ -109,13 +111,16 @@ describe("Explore Store", () => {
       useExploreStore.getState().startQuiz(questions, "Topic", "MD3", "MD3", {});
 
       // Answer first question correctly
+      useExploreStore.getState().setConfidence("eq1", 5);
       useExploreStore.getState().answerQuestion("eq1", 2);
       expect(useExploreStore.getState().answers.get("eq1")).toBe(2);
+      expect(useExploreStore.getState().confidence.get("eq1")).toBe(5);
       expect(useExploreStore.getState().results.get("eq1")).toBe(true);
 
       // Answer second question incorrectly
-      useExploreStore.getState().answerQuestion("eq2", 3);
+      useExploreStore.getState().answerQuestion("eq2", 3, 2);
       expect(useExploreStore.getState().answers.get("eq2")).toBe(3);
+      expect(useExploreStore.getState().confidence.get("eq2")).toBe(2);
       expect(useExploreStore.getState().results.get("eq2")).toBe(false);
     });
 
@@ -124,6 +129,15 @@ describe("Explore Store", () => {
       useExploreStore.getState().answerQuestion("nonexistent", 0);
 
       expect(useExploreStore.getState().answers.size).toBe(0);
+    });
+
+    it("clamps confidence to 1..5", () => {
+      useExploreStore.getState().startQuiz([mockExploreQuestion({ id: "eq1" })], "T", "MD3", "L", {});
+      useExploreStore.getState().setConfidence("eq1", 99);
+      expect(useExploreStore.getState().confidence.get("eq1")).toBe(5);
+
+      useExploreStore.getState().setConfidence("eq1", -1);
+      expect(useExploreStore.getState().confidence.get("eq1")).toBe(1);
     });
   });
 

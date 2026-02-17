@@ -144,9 +144,14 @@ This repo is set up for web-first delivery and supports Android release builds f
 
 # Build signed AAB (requires keystore + Firebase Android defines)
 .\scripts\build-android-aab.ps1 -BuildName 1.0.0 -BuildNumber 10
+
+# Optional preflight check before release
+.\scripts\check-playstore-readiness.ps1 -SkipUrlCheck
 ```
 
 Detailed guide: `docs/PLAY_STORE_READINESS.md`
+Consumer checklist: `docs/CONSUMER_READINESS.md`
+Play reviewer app-access template: `docs/PLAY_REVIEW_APP_ACCESS_TEMPLATE.md`
 
 ## Project Structure
 
@@ -250,6 +255,9 @@ cd functions && npm test
 | `ANTHROPIC_API_KEY` | Cloud Functions secret | Claude API key for tutoring, chat, and fix plans |
 | `FIREBASE_SERVICE_ACCOUNT` | GitHub Actions secret | Service account JSON for CI/CD deployment |
 | `NEXT_PUBLIC_FIREBASE_*` | `medq-web/.env.local` | Firebase client config (6 variables) |
+| `MEDQ_PRIVACY_URL` | Flutter release dart-define / GH secret | Public privacy policy URL for Android build |
+| `MEDQ_TERMS_URL` | Flutter release dart-define / GH secret | Public terms URL for Android build |
+| `MEDQ_SUPPORT_EMAIL` | Flutter release dart-define / GH secret | End-user support email shown in app settings |
 
 ## Security
 

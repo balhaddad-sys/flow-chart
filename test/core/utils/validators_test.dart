@@ -23,11 +23,19 @@ void main() {
 
     group('password', () {
       test('returns null for valid password', () {
-        expect(Validators.password('password123'), isNull);
+        expect(Validators.password('Password123'), isNull);
       });
 
       test('returns error for short password', () {
         expect(Validators.password('abc'), isNotNull);
+      });
+
+      test('returns error for missing number', () {
+        expect(Validators.password('PasswordOnly'), isNotNull);
+      });
+
+      test('returns error for missing letter', () {
+        expect(Validators.password('12345678'), isNotNull);
       });
 
       test('returns error for empty password', () {

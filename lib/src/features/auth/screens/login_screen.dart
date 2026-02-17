@@ -7,6 +7,7 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/error_banner.dart';
 import '../../../core/widgets/google_sign_in_button.dart';
+import '../../../core/widgets/legal_footer.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../providers/auth_state_provider.dart';
 
@@ -293,6 +294,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               ),
                             ],
                           ),
+                          const SizedBox(height: 18),
+                          const LegalFooter(),
                           AppSpacing.gapXl,
                         ],
                       ),

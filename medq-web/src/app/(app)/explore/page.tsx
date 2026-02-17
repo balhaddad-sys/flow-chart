@@ -70,6 +70,56 @@ function buildGuidelineTrendData(
     }));
 }
 
+function confidenceLabel(confidence: number | null | undefined) {
+  const safe = Number(confidence || 0);
+  if (safe >= 4) return "High confidence";
+  if (safe >= 3) return "Moderate confidence";
+  if (safe >= 1) return "Low confidence";
+  return "Not set";
+}
+
+function buildCalibrationFeedback({
+  confidence,
+  isCorrect,
+}: {
+  confidence: number | null | undefined;
+  isCorrect: boolean;
+}) {
+  const safe = Number(confidence || 0);
+  if (safe >= 4 && !isCorrect) {
+    return {
+      title: "Overconfident miss",
+      message: "You were very confident but missed this. Identify the single clinical clue you over-weighted.",
+      toneClass: "text-amber-600 dark:text-amber-400",
+    };
+  }
+  if (safe <= 2 && isCorrect) {
+    return {
+      title: "Underconfident correct",
+      message: "Your reasoning was right. Trust your diagnostic process when similar clues appear again.",
+      toneClass: "text-blue-600 dark:text-blue-400",
+    };
+  }
+  if (safe >= 4 && isCorrect) {
+    return {
+      title: "Well-calibrated correct",
+      message: "Strong confidence and correct answer. Keep this reasoning template for similar scenarios.",
+      toneClass: "text-green-600 dark:text-green-400",
+    };
+  }
+  return {
+    title: "Calibration check",
+    message: "Before moving on, restate the decisive clue and compare it with your confidence level.",
+    toneClass: "text-muted-foreground",
+  };
+}
+
+function evidenceBadgeVariant(evidenceQuality: string | undefined) {
+  const q = String(evidenceQuality || "").toUpperCase();
+  if (q === "HIGH") return "secondary" as const;
+  return "outline" as const;
+}
+
 export default function ExplorePage() {
   const { uid } = useAuth();
   const store = useExploreStore();
@@ -78,6 +128,7 @@ export default function ExplorePage() {
     questions,
     currentIndex,
     answers,
+    confidence,
     results,
     error,
     topic,
@@ -91,6 +142,7 @@ export default function ExplorePage() {
   } = store;
   const syncBackgroundQuestions = store.syncBackgroundQuestions;
   const setBackfillStatus = store.setBackfillStatus;
+  const setConfidence = store.setConfidence;
   const syncedCountRef = useRef(0);
   const terminalStatusRef = useRef<string | null>(null);
 
@@ -110,6 +162,8 @@ export default function ExplorePage() {
   const currentQuestion = questions[currentIndex] ?? null;
   const currentAnswer =
     currentQuestion != null ? answers.get(currentQuestion.id) : undefined;
+  const currentConfidence =
+    currentQuestion != null ? confidence.get(currentQuestion.id) : undefined;
   const isAnswered = currentAnswer !== undefined;
   const isAdvancedLevel = ADVANCED_LEVEL_IDS.has(store.level || inputLevel);
   const answeredCount = answers.size;
@@ -123,6 +177,14 @@ export default function ExplorePage() {
     isAnswered && currentAnswer != null
       ? optionReasoning[currentAnswer] || ""
       : "";
+  const isCurrentCorrect =
+    isAnswered && currentQuestion != null
+      ? results.get(currentQuestion.id) === true
+      : false;
+  const calibrationFeedback = buildCalibrationFeedback({
+    confidence: currentConfidence,
+    isCorrect: isCurrentCorrect,
+  });
   const guidelineTrendData = buildGuidelineTrendData(quizInsight?.guidelineUpdates);
   const latestGuidelineUpdates = (quizInsight?.guidelineUpdates || []).slice(0, 5);
 
@@ -299,7 +361,11 @@ export default function ExplorePage() {
 
   function handleSelectAnswer(optionIndex: number) {
     if (!currentQuestion || isAnswered) return;
-    store.answerQuestion(currentQuestion.id, optionIndex);
+    if (currentConfidence == null) {
+      toast.message("Set your confidence first (low, moderate, or high).");
+      return;
+    }
+    store.answerQuestion(currentQuestion.id, optionIndex, currentConfidence);
   }
 
   function handleNext() {
@@ -834,6 +900,41 @@ export default function ExplorePage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                Confidence calibration
+              </p>
+              <Badge variant="outline">
+                {confidenceLabel(currentConfidence)}
+              </Badge>
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Set confidence before answering. This improves metacognition and reduces overconfidence errors.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {[
+                { value: 1, label: "Low (1-2)" },
+                { value: 3, label: "Moderate (3)" },
+                { value: 5, label: "High (4-5)" },
+              ].map((item) => {
+                const isActive = currentConfidence === item.value;
+                return (
+                  <Button
+                    key={item.value}
+                    type="button"
+                    size="sm"
+                    variant={isActive ? "secondary" : "outline"}
+                    onClick={() => setConfidence(currentQuestion.id, item.value)}
+                    disabled={isAnswered}
+                  >
+                    {item.label}
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+
           {currentQuestion.options.map((option, idx) => {
             const selected = currentAnswer === idx;
             const isCorrectOption = currentQuestion.correctIndex === idx;
@@ -879,6 +980,15 @@ export default function ExplorePage() {
                 {results.get(currentQuestion.id)
                   ? "Correct!"
                   : `Incorrect. Answer: ${String.fromCharCode(65 + currentQuestion.correctIndex)}`}
+              </div>
+
+              <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+                <p className={`text-xs font-semibold uppercase tracking-wide ${calibrationFeedback.toneClass}`}>
+                  {calibrationFeedback.title}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {calibrationFeedback.message}
+                </p>
               </div>
 
               {currentQuestion.explanation?.keyTakeaway && (
@@ -938,9 +1048,19 @@ export default function ExplorePage() {
 
               {(currentQuestion.citations?.length ?? 0) > 0 && (
                 <div className="rounded-xl border border-border/70 bg-background/70 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Verified sources
-                  </p>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Verified sources
+                    </p>
+                    <Badge variant={evidenceBadgeVariant(currentQuestion.citationMeta?.evidenceQuality)}>
+                      Evidence {currentQuestion.citationMeta?.evidenceQuality || "MODERATE"}
+                    </Badge>
+                  </div>
+                  {currentQuestion.citationMeta?.fallbackUsed && (
+                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                      Source links are trusted search endpoints. Verify the exact publication before relying clinically.
+                    </p>
+                  )}
                   <div className="mt-2 space-y-1.5">
                     {currentQuestion.citations?.slice(0, 3).map((citation, idx) => (
                       <a

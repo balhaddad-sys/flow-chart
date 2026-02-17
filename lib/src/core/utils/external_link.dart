@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -19,7 +20,7 @@ Future<void> openExternalLink(
 
   final opened = await launchUrl(
     parsed,
-    mode: LaunchMode.externalApplication,
+    mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
   );
 
   if (!opened) {

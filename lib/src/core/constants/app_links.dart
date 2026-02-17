@@ -11,4 +11,11 @@ class AppLinks {
     'MEDQ_TERMS_URL',
     defaultValue: 'https://medq-a6cc6.web.app/terms',
   );
+
+  static const String supportEmail = String.fromEnvironment(
+    'MEDQ_SUPPORT_EMAIL',
+    defaultValue: 'support@medq.app',
+  );
+
+  static String get supportMailto => 'mailto:$supportEmail';
 }
