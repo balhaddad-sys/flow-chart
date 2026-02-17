@@ -153,7 +153,7 @@ export default function OnboardingPage() {
   function handleContinueWithCourse(courseId: string) {
     setActiveCourseId(courseId);
     reset();
-    router.replace("/home");
+    router.replace("/today");
   }
 
   if (coursesLoading && !showCreateFlow) {

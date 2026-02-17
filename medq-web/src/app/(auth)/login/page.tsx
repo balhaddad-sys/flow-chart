@@ -22,7 +22,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await signInWithEmail(email, password);
-      router.replace("/home");
+      router.replace("/today");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Sign in failed");
     } finally {
@@ -35,7 +35,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await signInWithGoogle();
-      router.replace("/home");
+      router.replace("/today");
     } catch (err: unknown) {
       if (err && typeof err === "object" && "code" in err && err.code === "auth/popup-blocked") return;
       setError(err instanceof Error ? err.message : "Google sign in failed");
