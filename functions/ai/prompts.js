@@ -305,18 +305,36 @@ Write a concise but thoughtful topic briefing.
 Quality rules:
 - Keep language clear and practical for ${levelLabel}.
 - Prioritize mechanism-level understanding and clinical decision relevance.
+- Include a compact clinical framework: pathophysiology, diagnosis, management, escalation.
 - Include common pitfalls and red flags.
 - Include a short study approach the learner can act on immediately.
-- Provide 2-4 citations from PubMed/UpToDate/Medscape only.
+- Include 3-6 recent guideline/review updates with year when available (prefer the most recent 5 years).
+- Provide 3-6 citations from PubMed/UpToDate/Medscape only.
 - For each citation, provide source + specific topic/article title (do NOT generate URLs).
 
 Return this exact JSON schema:
 {
   "summary": "string — 4-7 sentence high-yield overview",
   "core_points": ["string — 5-8 key bullet points"],
+  "clinical_framework": {
+    "pathophysiology": "string — concise mechanism-focused explanation",
+    "diagnostic_approach": ["string — practical diagnostic steps"],
+    "management_approach": ["string — treatment priorities and sequencing"],
+    "escalation_triggers": ["string — signs that require urgent escalation"]
+  },
   "clinical_pitfalls": ["string — 3-5 common mistakes or traps"],
   "red_flags": ["string — 2-5 urgent warning signs or escalation cues"],
   "study_approach": ["string — 3-5 concrete next study steps"],
+  "guideline_updates": [
+    {
+      "year": "integer|null — publication/update year when known",
+      "source": "PUBMED | UPTODATE | MEDSCAPE",
+      "title": "string — guideline/review title",
+      "key_change": "string — what changed or what is emphasized",
+      "practice_impact": "string — why this matters in clinical decisions",
+      "strength": "string — HIGH | MODERATE | EMERGING"
+    }
+  ],
   "citations": [
     {
       "source": "PUBMED | UPTODATE | MEDSCAPE",

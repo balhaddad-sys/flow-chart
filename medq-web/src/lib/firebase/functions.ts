@@ -391,9 +391,25 @@ export interface ExploreTopicInsightResult {
   modelUsed: string;
   summary: string;
   corePoints: string[];
+  clinicalFramework: {
+    pathophysiology: string;
+    diagnosticApproach: string[];
+    managementApproach: string[];
+    escalationTriggers: string[];
+  };
   clinicalPitfalls: string[];
   redFlags: string[];
   studyApproach: string[];
+  guidelineUpdates: Array<{
+    year: number | null;
+    source: string;
+    title: string;
+    keyChange: string;
+    practiceImpact: string;
+    strength: "HIGH" | "MODERATE" | "EMERGING" | string;
+    impactScore: number;
+    url: string;
+  }>;
   citations?: Array<{
     source: string;
     title: string;

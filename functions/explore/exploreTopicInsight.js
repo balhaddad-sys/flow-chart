@@ -24,6 +24,8 @@ const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
 const MAX_TOPIC_LEN = 200;
 const MAX_SUMMARY_LEN = 2_400;
 const MAX_LIST_ITEMS = 8;
+const MAX_FRAMEWORK_TEXT_LEN = 1_000;
+const MAX_GUIDELINE_UPDATES = 6;
 const GEMINI_TIMEOUT_MS = 35_000;
 const CLAUDE_TIMEOUT_MS = 45_000;
 
@@ -66,6 +68,123 @@ function normaliseStringList(input, { maxItems = MAX_LIST_ITEMS, maxLen = 260 } 
     .map((item) => truncate(sanitizeText(item || ""), maxLen))
     .filter(Boolean)
     .slice(0, maxItems);
+}
+
+function normaliseGuidelineYear(rawYear) {
+  if (rawYear == null) return null;
+  const currentYear = new Date().getFullYear();
+  const minYear = Math.max(1990, currentYear - 30);
+  const maxYear = currentYear + 1;
+
+  if (typeof rawYear === "number" && Number.isFinite(rawYear)) {
+    const year = Math.floor(rawYear);
+    return year >= minYear && year <= maxYear ? year : null;
+  }
+
+  const rawText = String(rawYear || "").trim();
+  const match = rawText.match(/\b(19|20)\d{2}\b/);
+  if (!match) return null;
+  const year = Number(match[0]);
+  return year >= minYear && year <= maxYear ? year : null;
+}
+
+function normaliseGuidelineStrength(rawStrength) {
+  const text = String(rawStrength || "").toLowerCase().trim();
+  if (!text) return "MODERATE";
+  if (text.includes("high") || text.includes("strong") || text === "a") return "HIGH";
+  if (text.includes("emerging") || text.includes("limited") || text.includes("low")) return "EMERGING";
+  return "MODERATE";
+}
+
+function strengthToImpactScore(strength) {
+  switch (String(strength || "").toUpperCase()) {
+    case "HIGH":
+      return 5;
+    case "EMERGING":
+      return 2;
+    case "MODERATE":
+    default:
+      return 3;
+  }
+}
+
+function normaliseClinicalFramework(rawFramework) {
+  const pathophysiology = truncate(
+    sanitizeText(
+      rawFramework?.pathophysiology ||
+      rawFramework?.mechanism ||
+      ""
+    ),
+    MAX_FRAMEWORK_TEXT_LEN
+  );
+  const diagnosticApproach = normaliseStringList(
+    rawFramework?.diagnostic_approach || rawFramework?.diagnosticApproach,
+    { maxItems: 7, maxLen: 260 }
+  );
+  const managementApproach = normaliseStringList(
+    rawFramework?.management_approach || rawFramework?.managementApproach,
+    { maxItems: 7, maxLen: 260 }
+  );
+  const escalationTriggers = normaliseStringList(
+    rawFramework?.escalation_triggers || rawFramework?.escalationTriggers,
+    { maxItems: 6, maxLen: 220 }
+  );
+
+  return {
+    pathophysiology,
+    diagnosticApproach,
+    managementApproach,
+    escalationTriggers,
+  };
+}
+
+function normaliseGuidelineUpdates(rawUpdates) {
+  if (!Array.isArray(rawUpdates)) return [];
+  const updates = [];
+  const seen = new Set();
+
+  for (const item of rawUpdates.slice(0, 10)) {
+    if (!item || typeof item !== "object") continue;
+    const source = normaliseCitationSource(item.source);
+    const title = truncate(sanitizeText(item.title || item.label || ""), 220);
+    if (!title) continue;
+
+    const key = `${source}:${title.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    const year = normaliseGuidelineYear(item.year || item.publishedYear || item.published_at);
+    const keyChange = truncate(sanitizeText(item.key_change || item.keyChange || ""), 260);
+    const practiceImpact = truncate(
+      sanitizeText(item.practice_impact || item.practiceImpact || ""),
+      260
+    );
+    const strength = normaliseGuidelineStrength(item.strength || item.evidence || item.grade);
+    const impactScore = Math.max(
+      1,
+      Math.min(5, Math.floor(Number(item.impact_score || item.impactScore) || strengthToImpactScore(strength)))
+    );
+
+    updates.push({
+      year,
+      source,
+      title,
+      keyChange,
+      practiceImpact,
+      strength,
+      impactScore,
+      url: buildSearchUrl(source, year ? `${title} ${year}` : title),
+    });
+  }
+
+  return updates
+    .sort((a, b) => {
+      const yearA = a.year || 0;
+      const yearB = b.year || 0;
+      if (yearA !== yearB) return yearB - yearA;
+      return b.impactScore - a.impactScore;
+    })
+    .slice(0, MAX_GUIDELINE_UPDATES);
 }
 
 function normaliseCitations(rawCitations, topic) {
@@ -116,6 +235,9 @@ function normaliseInsightPayload(raw, topic) {
     sanitizeText(raw?.summary || raw?.overview || ""),
     MAX_SUMMARY_LEN
   );
+  const clinicalFramework = normaliseClinicalFramework(
+    raw?.clinical_framework || raw?.clinicalFramework || {}
+  );
   const corePoints = normaliseStringList(raw?.core_points || raw?.corePoints || raw?.key_points || raw?.keyPoints, {
     maxItems: 8,
     maxLen: 320,
@@ -132,16 +254,25 @@ function normaliseInsightPayload(raw, topic) {
     maxItems: 6,
     maxLen: 220,
   });
+  const guidelineUpdates = normaliseGuidelineUpdates(
+    raw?.guideline_updates || raw?.guidelineUpdates
+  );
   const citations = normaliseCitations(raw?.citations, topic);
 
-  if (!summary && corePoints.length === 0) return null;
+  const hasFrameworkContent =
+    !!clinicalFramework.pathophysiology ||
+    clinicalFramework.diagnosticApproach.length > 0 ||
+    clinicalFramework.managementApproach.length > 0;
+  if (!summary && corePoints.length === 0 && !hasFrameworkContent) return null;
 
   return {
     summary,
     corePoints,
+    clinicalFramework,
     clinicalPitfalls,
     redFlags,
     studyApproach,
+    guidelineUpdates,
     citations,
   };
 }
@@ -246,5 +377,6 @@ module.exports.__private = {
   normaliseCitationSource,
   buildSearchUrl,
   normaliseCitations,
+  normaliseGuidelineUpdates,
   normaliseInsightPayload,
 };

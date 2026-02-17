@@ -41,6 +41,35 @@ const EXPLORE_LEVELS = [
 ];
 const ADVANCED_LEVEL_IDS = new Set(["MD4", "MD5", "INTERN", "RESIDENT", "POSTGRADUATE"]);
 
+function buildGuidelineTrendData(
+  updates: fn.ExploreTopicInsightResult["guidelineUpdates"] | undefined
+) {
+  const yearlyMap = new Map<
+    number,
+    { year: number; updateCount: number; impactTotal: number }
+  >();
+
+  for (const update of updates || []) {
+    if (typeof update.year !== "number") continue;
+    const bucket = yearlyMap.get(update.year) || {
+      year: update.year,
+      updateCount: 0,
+      impactTotal: 0,
+    };
+    bucket.updateCount += 1;
+    bucket.impactTotal += Number(update.impactScore || 0);
+    yearlyMap.set(update.year, bucket);
+  }
+
+  return Array.from(yearlyMap.values())
+    .sort((a, b) => a.year - b.year)
+    .map((item) => ({
+      year: String(item.year),
+      updates: item.updateCount,
+      impact: Number((item.impactTotal / item.updateCount).toFixed(2)),
+    }));
+}
+
 export default function ExplorePage() {
   const { uid } = useAuth();
   const store = useExploreStore();
@@ -94,6 +123,8 @@ export default function ExplorePage() {
     isAnswered && currentAnswer != null
       ? optionReasoning[currentAnswer] || ""
       : "";
+  const guidelineTrendData = buildGuidelineTrendData(quizInsight?.guidelineUpdates);
+  const latestGuidelineUpdates = (quizInsight?.guidelineUpdates || []).slice(0, 5);
 
   async function loadTopicInsight(
     topicValue: string,
@@ -384,18 +415,42 @@ export default function ExplorePage() {
                 <p className="mt-2 text-sm text-muted-foreground">
                   {setupInsight.summary}
                 </p>
-                {setupInsight.corePoints.length > 0 && (
-                  <div className="mt-2 space-y-1.5">
-                    {setupInsight.corePoints.slice(0, 4).map((point, i) => (
-                      <p
-                        key={`${point}_${i}`}
-                        className="text-xs text-muted-foreground"
-                      >
-                        {i + 1}. {point}
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {setupInsight.corePoints.length > 0 && (
+                    <div className="rounded-lg border border-border/60 bg-background/60 p-2.5">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                        Key points
                       </p>
-                    ))}
-                  </div>
-                )}
+                      <div className="mt-1.5 space-y-1">
+                        {setupInsight.corePoints.slice(0, 3).map((point, i) => (
+                          <p
+                            key={`${point}_${i}`}
+                            className="text-xs text-muted-foreground"
+                          >
+                            {i + 1}. {point}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {(setupInsight.guidelineUpdates?.length ?? 0) > 0 && (
+                    <div className="rounded-lg border border-border/60 bg-background/60 p-2.5">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                        Recent guidelines
+                      </p>
+                      <div className="mt-1.5 space-y-1">
+                        {setupInsight.guidelineUpdates.slice(0, 3).map((update, i) => (
+                          <p
+                            key={`${update.title}_${i}`}
+                            className="text-xs text-muted-foreground"
+                          >
+                            {update.year ? `${update.year} - ` : ""}{update.title}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </CardContent>
@@ -476,7 +531,7 @@ export default function ExplorePage() {
               High-yield context for {topic || "this topic"}.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
             {!quizInsight && insightLoading && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -485,63 +540,231 @@ export default function ExplorePage() {
             )}
             {quizInsight && (
               <>
-                <p className="text-sm text-muted-foreground">
-                  {quizInsight.summary}
-                </p>
+                <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                    Overview
+                  </p>
+                  <p className="mt-1.5 text-sm text-muted-foreground">
+                    {quizInsight.summary}
+                  </p>
+                </div>
 
-                {quizInsight.corePoints.length > 0 && (
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {quizInsight.corePoints.length > 0 && (
+                    <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                        Core points
+                      </p>
+                      <div className="mt-2 space-y-1.5">
+                        {quizInsight.corePoints.slice(0, 8).map((point, i) => (
+                          <p
+                            key={`${point}_${i}`}
+                            className="text-sm text-muted-foreground"
+                          >
+                            {i + 1}. {point}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="rounded-xl border border-border/70 bg-background/70 p-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                      Core points
+                      Clinical framework
                     </p>
-                    <div className="mt-2 space-y-1.5">
-                      {quizInsight.corePoints.slice(0, 6).map((point, i) => (
-                        <p
-                          key={`${point}_${i}`}
-                          className="text-sm text-muted-foreground"
-                        >
-                          {i + 1}. {point}
+                    {quizInsight.clinicalFramework?.pathophysiology && (
+                      <div className="mt-2">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Pathophysiology
                         </p>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {quizInsight.clinicalFramework.pathophysiology}
+                        </p>
+                      </div>
+                    )}
+                    {(quizInsight.clinicalFramework?.diagnosticApproach?.length ?? 0) > 0 && (
+                      <div className="mt-2">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Diagnostic approach
+                        </p>
+                        <div className="mt-1 space-y-1">
+                          {quizInsight.clinicalFramework.diagnosticApproach.map((step, i) => (
+                            <p key={`${step}_${i}`} className="text-sm text-muted-foreground">
+                              {i + 1}. {step}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {(quizInsight.clinicalFramework?.managementApproach?.length ?? 0) > 0 && (
+                      <div className="mt-2">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Management approach
+                        </p>
+                        <div className="mt-1 space-y-1">
+                          {quizInsight.clinicalFramework.managementApproach.map((step, i) => (
+                            <p key={`${step}_${i}`} className="text-sm text-muted-foreground">
+                              {i + 1}. {step}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {(quizInsight.clinicalFramework?.escalationTriggers?.length ?? 0) > 0 && (
+                      <div className="mt-2">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">
+                          Escalation triggers
+                        </p>
+                        <div className="mt-1 space-y-1">
+                          {quizInsight.clinicalFramework.escalationTriggers.map((step, i) => (
+                            <p key={`${step}_${i}`} className="text-sm text-muted-foreground">
+                              {i + 1}. {step}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {(latestGuidelineUpdates.length > 0 || guidelineTrendData.length > 0) && (
+                  <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                        Recent guideline trend
+                      </p>
+                      <Badge variant="outline">
+                        {latestGuidelineUpdates.length} updates
+                      </Badge>
+                    </div>
+
+                    {guidelineTrendData.length > 0 ? (
+                      <div className="mt-3 rounded-lg border border-border/60 bg-background/60 p-3">
+                        <div className="flex items-end gap-2 overflow-x-auto pb-1">
+                          {guidelineTrendData.map((point) => (
+                            <div
+                              key={point.year}
+                              className="min-w-[58px] flex-1 rounded-lg border border-border/50 bg-background/70 p-1.5"
+                            >
+                              <div className="flex h-24 items-end justify-center gap-1.5">
+                                <div
+                                  className="w-3 rounded-t bg-primary/80"
+                                  style={{
+                                    height: `${Math.max(10, Math.min(96, point.impact * 18))}px`,
+                                  }}
+                                  title={`Avg impact: ${point.impact}/5`}
+                                />
+                                <div
+                                  className="w-3 rounded-t bg-muted-foreground/55"
+                                  style={{
+                                    height: `${Math.max(8, Math.min(96, point.updates * 20))}px`,
+                                  }}
+                                  title={`Updates: ${point.updates}`}
+                                />
+                              </div>
+                              <p className="mt-1 text-center text-[10px] text-muted-foreground">
+                                {point.year}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="mt-2 text-[11px] text-muted-foreground">
+                          <span className="font-medium text-primary">Primary bar:</span>{" "}
+                          average impact (1-5),{" "}
+                          <span className="font-medium text-muted-foreground">
+                            secondary bar:
+                          </span>{" "}
+                          number of updates.
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Timeline points will appear when publication years are available.
+                      </p>
+                    )}
+
+                    <div className="mt-3 space-y-2">
+                      {latestGuidelineUpdates.map((update, i) => (
+                        <a
+                          key={`${update.title}_${i}`}
+                          href={update.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="group block rounded-lg border border-border/60 bg-background/70 p-2.5 transition-colors hover:bg-accent/40"
+                        >
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <Badge variant="outline">
+                              {update.year ?? "Year n/a"}
+                            </Badge>
+                            <Badge variant="outline">{update.source}</Badge>
+                            <Badge
+                              variant={
+                                update.strength === "HIGH" ? "secondary" : "outline"
+                              }
+                            >
+                              {update.strength}
+                            </Badge>
+                          </div>
+                          <p className="mt-1.5 text-sm font-medium">{update.title}</p>
+                          {update.keyChange && (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              <span className="font-medium">Key change: </span>
+                              {update.keyChange}
+                            </p>
+                          )}
+                          {update.practiceImpact && (
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              <span className="font-medium">Practice impact: </span>
+                              {update.practiceImpact}
+                            </p>
+                          )}
+                          <div className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
+                            <span>Open source</span>
+                            <ExternalLink className="h-3 w-3" />
+                          </div>
+                        </a>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {quizInsight.clinicalPitfalls.length > 0 && (
-                  <div className="rounded-xl border border-border/70 bg-background/70 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
-                      Clinical pitfalls
-                    </p>
-                    <div className="mt-2 space-y-1.5">
-                      {quizInsight.clinicalPitfalls.map((item, i) => (
-                        <p
-                          key={`${item}_${i}`}
-                          className="text-sm text-muted-foreground"
-                        >
-                          {i + 1}. {item}
-                        </p>
-                      ))}
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {quizInsight.clinicalPitfalls.length > 0 && (
+                    <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                        Clinical pitfalls
+                      </p>
+                      <div className="mt-2 space-y-1.5">
+                        {quizInsight.clinicalPitfalls.map((item, i) => (
+                          <p
+                            key={`${item}_${i}`}
+                            className="text-sm text-muted-foreground"
+                          >
+                            {i + 1}. {item}
+                          </p>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {quizInsight.redFlags.length > 0 && (
-                  <div className="rounded-xl border border-border/70 bg-background/70 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">
-                      Red flags
-                    </p>
-                    <div className="mt-2 space-y-1.5">
-                      {quizInsight.redFlags.map((item, i) => (
-                        <p
-                          key={`${item}_${i}`}
-                          className="text-sm text-muted-foreground"
-                        >
-                          {i + 1}. {item}
-                        </p>
-                      ))}
+                  {quizInsight.redFlags.length > 0 && (
+                    <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">
+                        Red flags
+                      </p>
+                      <div className="mt-2 space-y-1.5">
+                        {quizInsight.redFlags.map((item, i) => (
+                          <p
+                            key={`${item}_${i}`}
+                            className="text-sm text-muted-foreground"
+                          >
+                            {i + 1}. {item}
+                          </p>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 {quizInsight.studyApproach.length > 0 && (
                   <div className="rounded-xl border border-border/70 bg-background/70 p-3">
@@ -567,7 +790,7 @@ export default function ExplorePage() {
                       Topic sources
                     </p>
                     <div className="mt-2 space-y-1.5">
-                      {quizInsight.citations?.slice(0, 4).map((citation, idx) => (
+                      {quizInsight.citations?.slice(0, 6).map((citation, idx) => (
                         <a
                           key={`${citation.url}_${idx}`}
                           href={citation.url}
