@@ -284,6 +284,31 @@ describe("Explore Store", () => {
     });
   });
 
+  describe("USER FLOW: Loading error with retry", () => {
+    it("setLoadingError keeps phase as loading", () => {
+      useExploreStore.getState().startLoading("Topic", "MD3");
+      useExploreStore.getState().setLoadingError("AI failed");
+
+      const state = useExploreStore.getState();
+      expect(state.phase).toBe("loading");
+      expect(state.loadingError).toBe("AI failed");
+    });
+
+    it("startLoading clears loadingError", () => {
+      useExploreStore.getState().setLoadingError("old error");
+      useExploreStore.getState().startLoading("Topic", "MD3");
+
+      expect(useExploreStore.getState().loadingError).toBeNull();
+    });
+
+    it("reset clears loadingError", () => {
+      useExploreStore.getState().setLoadingError("old error");
+      useExploreStore.getState().reset();
+
+      expect(useExploreStore.getState().loadingError).toBeNull();
+    });
+  });
+
   describe("USER FLOW: Full explore session (10 questions)", () => {
     it("simulates a complete explore quiz with background sync", () => {
       // Phase 1: Loading
@@ -443,6 +468,7 @@ describe("Explore Store", () => {
       expect(state.backfillStatus).toBe("idle");
       expect(state.modelUsed).toBe("");
       expect(state.userPath).toBeNull();
+      expect(state.loadingError).toBeNull();
       expect(state.topicInsight).toBeNull();
       expect(state.insightLoading).toBe(false);
       expect(state.insightError).toBeNull();

@@ -221,6 +221,7 @@ function exploreQuestionsUserPrompt({
   complexityGuidance = "",
   strictMode = false,
   conciseMode = false,
+  learnedContext = "",
   excludeStems = [],
 }) {
   const stemHints = Array.isArray(excludeStems)
@@ -236,6 +237,7 @@ Difficulty range: ${minDifficulty} to ${maxDifficulty} (scale 1-5)
 ${hardFloorCount > 0 ? `Hard-floor target: at least ${hardFloorCount} questions must be difficulty 4 or 5` : ""}
 ${expertFloorCount > 0 ? `Expert-floor target: at least ${expertFloorCount} questions must be difficulty 5` : ""}
 ${complexityGuidance ? `Complexity guidance: ${complexityGuidance}` : ""}
+${learnedContext ? `Learned context from prior runs: ${learnedContext}` : ""}
 ${strictMode ? "Strict mode: Reject simplistic recall-only questions. Prefer nuanced clinical reasoning and management trade-offs." : ""}
 ${conciseMode ? "Concise mode: keep each explanation field compact (prefer <= 35 words) while still giving mechanism + clinical reasoning." : ""}
 ${stemHints.length > 0 ? `Avoid repeating or closely paraphrasing these stems:\n${stemHints.map((stem, i) => `${i + 1}. ${stem}`).join("\n")}` : ""}
@@ -252,6 +254,7 @@ Quality rules:
 - For correct_why, include the decisive clinical clue + core mechanism + next-best interpretation.
 - For why_others_wrong, explain why each option is incorrect in this vignette and why it could be tempting.
 - Keep each explanation focused and non-redundant.
+- Avoid repeating prior scenario templates; vary patient demographics and presentation style while staying within topic scope.
 - Every question must include 2-3 citations from PubMed/UpToDate/Medscape only.
 - For each citation, provide the source name and a specific topic/article title (do NOT generate URLs).
 

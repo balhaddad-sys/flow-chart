@@ -1001,11 +1001,11 @@ export default function StudySessionPage({
                       ))}
                     </ul>
                     {sourceParagraphs.length > 0 && (
-                      <div className="mt-4 border-t border-slate-200/80 pt-4 dark:border-slate-800">
-                        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                          Source Text
-                        </p>
-                        <ul className="space-y-2.5">
+                      <details className="mt-4 border-t border-slate-200/80 pt-4 dark:border-slate-800">
+                        <summary className="cursor-pointer text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                          Source text ({sourceParagraphs.length} paragraphs)
+                        </summary>
+                        <ul className="mt-2 space-y-2.5">
                           {sourceParagraphs.map((paragraph, i) => (
                             <li
                               key={`src_paragraph_${i}`}
@@ -1020,7 +1020,7 @@ export default function StudySessionPage({
                             </li>
                           ))}
                         </ul>
-                      </div>
+                      </details>
                     )}
                   </div>
                 )}

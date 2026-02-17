@@ -23,6 +23,7 @@ import { Progress } from "@/components/ui/progress";
 import { useExploreStore } from "@/lib/stores/explore-store";
 import { ExploreResults } from "@/components/explore/explore-results";
 import { ExploreTeaching } from "@/components/explore/explore-teaching";
+import { ExploreAskAiWidget } from "@/components/explore/explore-ask-ai-widget";
 import * as fn from "@/lib/firebase/functions";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { db } from "@/lib/firebase/client";
@@ -120,6 +121,7 @@ export default function ExplorePage() {
   const [inputTopic, setInputTopic] = useState("");
   const [inputLevel, setInputLevel] = useState("MD3");
   const [inputCount, setInputCount] = useState(10);
+  const [inputIntent, setInputIntent] = useState<"quiz" | "learn">("quiz");
 
   const currentQuestion = questions[currentIndex] ?? null;
   const currentAnswer =
@@ -243,7 +245,7 @@ export default function ExplorePage() {
       store.setTopicInsight(insight);
       store.startTeaching(insight);
     } catch (err) {
-      store.setError(
+      store.setLoadingError(
         err instanceof Error ? err.message : "Failed to generate teaching content."
       );
     }
@@ -287,10 +289,27 @@ export default function ExplorePage() {
         );
       }
     } catch (err) {
-      store.setError(
+      store.setLoadingError(
         err instanceof Error ? err.message : "Failed to generate questions."
       );
     }
+  }
+
+  function handleRetry() {
+    store.setLoadingError(null);
+    if (store.userPath === "learn") {
+      handleLearnTopic();
+    } else {
+      handleStartQuiz();
+    }
+  }
+
+  async function handlePrimarySetupAction() {
+    if (inputIntent === "learn") {
+      await handleLearnTopic();
+      return;
+    }
+    await handleStartQuiz();
   }
 
   async function handleQuizFromTeaching() {
@@ -319,7 +338,7 @@ export default function ExplorePage() {
           }
         );
       } catch (err) {
-        store.setError(
+        store.setLoadingError(
           err instanceof Error ? err.message : "Failed to generate questions."
         );
       }
@@ -383,7 +402,7 @@ export default function ExplorePage() {
                 placeholder="e.g. Cardiac Arrhythmias, Renal Physiology, Pharmacokinetics..."
                 maxLength={200}
                 className="w-full rounded-xl border border-border/70 bg-background/80 px-3 py-2 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-primary/35"
-                onKeyDown={(e) => e.key === "Enter" && handleStartQuiz()}
+                onKeyDown={(e) => e.key === "Enter" && handlePrimarySetupAction()}
               />
             </label>
 
@@ -418,18 +437,52 @@ export default function ExplorePage() {
               </label>
             </div>
 
+            <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Study mode
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={inputIntent === "quiz" ? "secondary" : "outline"}
+                  onClick={() => setInputIntent("quiz")}
+                >
+                  Quick Quiz
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={inputIntent === "learn" ? "secondary" : "outline"}
+                  onClick={() => setInputIntent("learn")}
+                >
+                  Guided Learn
+                </Button>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {inputIntent === "learn"
+                  ? "Start with a structured topic briefing, then jump to quiz when ready."
+                  : "Start questions immediately. Additional questions continue in background."}
+              </p>
+            </div>
+
             <div className="flex flex-wrap gap-2">
-              <Button onClick={handleLearnTopic} disabled={!inputTopic.trim()}>
-                <BookOpen className="mr-2 h-4 w-4" />
-                Learn Topic
-              </Button>
               <Button
-                variant="outline"
-                onClick={handleStartQuiz}
+                onClick={handlePrimarySetupAction}
                 disabled={!inputTopic.trim()}
+                className="min-w-36"
               >
-                Start Quiz
-                <ArrowRight className="ml-2 h-4 w-4" />
+                {inputIntent === "learn" ? (
+                  <>
+                    <BookOpen className="mr-2 h-4 w-4" />
+                    Start Learning
+                  </>
+                ) : (
+                  <>
+                    Start Quiz
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </>
+                )}
               </Button>
             </div>
           </CardContent>
@@ -442,19 +495,49 @@ export default function ExplorePage() {
   if (phase === "loading") {
     return (
       <div className="page-wrap flex flex-col items-center justify-center py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="mt-4 text-sm text-muted-foreground">
-          {store.userPath === "learn"
-            ? <>Generating teaching content for &ldquo;{store.topic || inputTopic}&rdquo;...</>
-            : <>Preparing your first questions on &ldquo;{store.topic || inputTopic}&rdquo;...</>}
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {store.userPath === "learn"
-            ? "Building comprehensive teaching material with charts and clinical data."
-            : isAdvancedLevel
-              ? "Advanced levels start in seconds; remaining questions continue in background."
-              : "Initial questions usually load in under 20 seconds."}
-        </p>
+        {store.loadingError ? (
+          <>
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/10">
+              <XCircle className="h-6 w-6 text-destructive" />
+            </div>
+            <p className="text-sm font-medium text-destructive">Something went wrong</p>
+            <p className="mt-1 max-w-xs text-center text-xs text-muted-foreground">
+              {store.loadingError}
+            </p>
+            <div className="mt-5 flex gap-3">
+              <Button variant="outline" onClick={() => store.reset()}>
+                Back to Setup
+              </Button>
+              <Button onClick={handleRetry}>
+                Retry
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="mt-4 text-sm text-muted-foreground">
+              {store.userPath === "learn"
+                ? <>Generating teaching content for &ldquo;{store.topic || inputTopic}&rdquo;...</>
+                : <>Preparing your first questions on &ldquo;{store.topic || inputTopic}&rdquo;...</>}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {store.userPath === "learn"
+                ? "Building comprehensive teaching material with charts and clinical data."
+                : isAdvancedLevel
+                  ? "Advanced levels start in seconds; remaining questions continue in background."
+                  : "Initial questions usually load in under 20 seconds."}
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-6"
+              onClick={() => store.reset()}
+            >
+              Cancel
+            </Button>
+          </>
+        )}
       </div>
     );
   }
@@ -467,6 +550,7 @@ export default function ExplorePage() {
           onStartQuiz={handleQuizFromTeaching}
           onNewTopic={() => store.reset()}
         />
+        <ExploreAskAiWidget />
       </div>
     );
   }
@@ -637,70 +721,81 @@ export default function ExplorePage() {
                 </div>
               )}
 
-              {selectedOptionReason && (
-                <div className="rounded-xl border border-border/70 bg-background/70 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
-                    Reasoning for your selected option
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {selectedOptionReason}
-                  </p>
-                </div>
-              )}
-
-              {optionReasoning.length > 0 && (
-                <div className="rounded-xl border border-border/70 bg-background/70 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Option-by-option reasoning
-                  </p>
-                  <div className="mt-2 space-y-1.5">
-                    {currentQuestion.options.map((option, optionIndex) => {
-                      const reasoning = optionReasoning[optionIndex];
-                      if (!reasoning) return null;
-                      return (
-                        <p
-                          key={`${option}_${optionIndex}`}
-                          className="text-sm text-muted-foreground"
-                        >
-                          {String.fromCharCode(65 + optionIndex)}. {reasoning}
+              {(selectedOptionReason ||
+                optionReasoning.length > 0 ||
+                (currentQuestion.citations?.length ?? 0) > 0) && (
+                <details className="rounded-xl border border-border/70 bg-background/70 p-3">
+                  <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Deep review and sources
+                  </summary>
+                  <div className="mt-3 space-y-3">
+                    {selectedOptionReason && (
+                      <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                          Reasoning for your selected option
                         </p>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {selectedOptionReason}
+                        </p>
+                      </div>
+                    )}
 
-              {(currentQuestion.citations?.length ?? 0) > 0 && (
-                <div className="rounded-xl border border-border/70 bg-background/70 p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Verified sources
-                    </p>
-                    <Badge variant={evidenceBadgeVariant(currentQuestion.citationMeta?.evidenceQuality)}>
-                      Evidence {currentQuestion.citationMeta?.evidenceQuality || "MODERATE"}
-                    </Badge>
+                    {optionReasoning.length > 0 && (
+                      <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Option-by-option reasoning
+                        </p>
+                        <div className="mt-2 space-y-1.5">
+                          {currentQuestion.options.map((option, optionIndex) => {
+                            const reasoning = optionReasoning[optionIndex];
+                            if (!reasoning) return null;
+                            return (
+                              <p
+                                key={`${option}_${optionIndex}`}
+                                className="text-sm text-muted-foreground"
+                              >
+                                {String.fromCharCode(65 + optionIndex)}. {reasoning}
+                              </p>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {(currentQuestion.citations?.length ?? 0) > 0 && (
+                      <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            Verified sources
+                          </p>
+                          <Badge variant={evidenceBadgeVariant(currentQuestion.citationMeta?.evidenceQuality)}>
+                            Evidence {currentQuestion.citationMeta?.evidenceQuality || "MODERATE"}
+                          </Badge>
+                        </div>
+                        {currentQuestion.citationMeta?.fallbackUsed && (
+                          <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                            Source links are trusted search endpoints. Verify the exact publication before relying clinically.
+                          </p>
+                        )}
+                        <div className="mt-2 space-y-1.5">
+                          {currentQuestion.citations?.slice(0, 3).map((citation, idx) => (
+                            <a
+                              key={`${citation.url}_${idx}`}
+                              href={citation.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="group flex items-start gap-2 rounded-lg border border-border/60 bg-background/70 px-2.5 py-2 text-sm transition-colors hover:bg-accent/40"
+                            >
+                              <span className="font-medium text-primary">{citation.source}</span>
+                              <span className="flex-1 text-muted-foreground">{citation.title}</span>
+                              <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-foreground" />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  {currentQuestion.citationMeta?.fallbackUsed && (
-                    <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                      Source links are trusted search endpoints. Verify the exact publication before relying clinically.
-                    </p>
-                  )}
-                  <div className="mt-2 space-y-1.5">
-                    {currentQuestion.citations?.slice(0, 3).map((citation, idx) => (
-                      <a
-                        key={`${citation.url}_${idx}`}
-                        href={citation.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="group flex items-start gap-2 rounded-lg border border-border/60 bg-background/70 px-2.5 py-2 text-sm transition-colors hover:bg-accent/40"
-                      >
-                        <span className="font-medium text-primary">{citation.source}</span>
-                        <span className="flex-1 text-muted-foreground">{citation.title}</span>
-                        <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-foreground" />
-                      </a>
-                    ))}
-                  </div>
-                </div>
+                </details>
               )}
 
               <div className="flex flex-wrap gap-2">
@@ -712,24 +807,33 @@ export default function ExplorePage() {
                     : "Next Question"}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
-                {!isLastLoadedQuestion && (
-                  <Button
-                    variant="outline"
-                    onClick={() => store.finishQuiz()}
-                  >
-                    End Now
-                  </Button>
-                )}
-                {store.topicInsight && (
-                  <Button
-                    variant="ghost"
-                    onClick={() => store.goToTeachingFromQuiz()}
-                  >
-                    <BookOpen className="mr-2 h-4 w-4" />
-                    Don&apos;t understand? Review teaching
-                  </Button>
-                )}
               </div>
+              {(!isLastLoadedQuestion || store.topicInsight) && (
+                <details className="rounded-xl border border-border/70 bg-background/70 p-3">
+                  <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    More actions
+                  </summary>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {!isLastLoadedQuestion && (
+                      <Button
+                        variant="outline"
+                        onClick={() => store.finishQuiz()}
+                      >
+                        End now
+                      </Button>
+                    )}
+                    {store.topicInsight && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => store.goToTeachingFromQuiz()}
+                      >
+                        <BookOpen className="mr-2 h-4 w-4" />
+                        Review teaching
+                      </Button>
+                    )}
+                  </div>
+                </details>
+              )}
               {waitingForMoreQuestions && (
                 <p className="text-xs text-muted-foreground">
                   Generating {targetCount - questions.length} more questions in the

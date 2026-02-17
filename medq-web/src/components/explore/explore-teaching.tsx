@@ -610,6 +610,9 @@ export function ExploreTeaching({ onStartQuiz, onNewTopic }: ExploreTeachingProp
                 <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
               </a>
             ))}
+            <p className="mt-3 border-t border-border/40 pt-2.5 text-[11px] italic text-muted-foreground/70">
+              Links open search results — verify specific articles before clinical use.
+            </p>
           </CardContent>
         </Card>
       )}

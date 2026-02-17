@@ -13,6 +13,12 @@ const { Errors, fail, ok, safeError } = require("../lib/errors");
 const log = require("../lib/logger");
 const { getAssessmentLevel } = require("../assessment/engine");
 const { generateExploreQuestions } = require("./exploreEngine");
+const {
+  buildExploreProfileDocId,
+  extractRecentStems,
+  computeExploreProfilePatch,
+  buildLearnedContext,
+} = require("./exploreLearningProfile");
 
 const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
 const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
@@ -29,6 +35,7 @@ async function queueExploreBackfillJob({
   modelUsed,
   qualityGatePassed,
   qualityScore,
+  profileDocId,
 }) {
   const jobRef = db.collection(`users/${uid}/jobs`).doc();
   await jobRef.set({
@@ -44,6 +51,7 @@ async function queueExploreBackfillJob({
     modelUsed,
     qualityGatePassed,
     qualityScore,
+    profileDocId: profileDocId || null,
     requestedBy: uid,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -71,6 +79,24 @@ exports.exploreQuiz = functions
     const { topic, level } = data;
     const levelProfile = getAssessmentLevel(level);
     const fastReadyCount = Math.min(FAST_READY_COUNT, count);
+    const profileDocId = buildExploreProfileDocId(topic, levelProfile.id);
+    const profileRef = db.doc(`users/${uid}/exploreProfiles/${profileDocId}`);
+
+    let profile = null;
+    try {
+      const profileSnap = await profileRef.get();
+      profile = profileSnap.exists ? profileSnap.data() : null;
+    } catch (error) {
+      log.warn("Explore profile read failed; proceeding without learned context", {
+        uid,
+        topic,
+        level: levelProfile.id,
+        error: error.message,
+      });
+    }
+
+    const learnedContext = buildLearnedContext(profile, levelProfile);
+    const profileExcludeStems = extractRecentStems(profile, 12);
 
     try {
       const fastStart = await generateExploreQuestions({
@@ -78,6 +104,8 @@ exports.exploreQuiz = functions
         levelProfile,
         count: fastReadyCount,
         mode: "fast",
+        learnedContext,
+        excludeStems: profileExcludeStems,
         totalBudgetMs: 35_000,
       });
 
@@ -104,8 +132,41 @@ exports.exploreQuiz = functions
           modelUsed: fastStart.modelUsed,
           qualityGatePassed: fastStart.qualityGatePassed,
           qualityScore: fastStart.qualityScore,
+          profileDocId,
         });
         backgroundQueued = true;
+      }
+
+      try {
+        const profilePatch = computeExploreProfilePatch(profile || {}, {
+          topic,
+          level: levelProfile.id,
+          modelUsed: fastStart.modelUsed,
+          questions: readyQuestions,
+          evaluation: {
+            qualityScore: fastStart.qualityScore,
+            metrics: fastStart.metrics,
+            targets: fastStart.targets,
+          },
+        });
+        const payload = {
+          ...profilePatch,
+          topic,
+          level: levelProfile.id,
+          levelLabel: levelProfile.label,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        if (!profile?.createdAt) {
+          payload.createdAt = admin.firestore.FieldValue.serverTimestamp();
+        }
+        await profileRef.set(payload, { merge: true });
+      } catch (profileWriteError) {
+        log.warn("Explore profile update failed after fast-start", {
+          uid,
+          topic,
+          level: levelProfile.id,
+          error: profileWriteError.message,
+        });
       }
 
       log.info("Explore quiz generated (fast-start)", {
@@ -118,6 +179,7 @@ exports.exploreQuiz = functions
         modelUsed: fastStart.modelUsed,
         qualityGatePassed: fastStart.qualityGatePassed,
         qualityScore: fastStart.qualityScore,
+        learnedProfileRuns: profile?.runs || 0,
         phaseDurationsMs: fastStart.phaseDurationsMs,
         backgroundQueued,
         backgroundJobId,

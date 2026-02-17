@@ -238,6 +238,7 @@ async function generateFastStartQuestions({
   requestedCount,
   targets,
   excludeStemSet,
+  learnedContext = "",
 }) {
   const phaseDurationsMs = {};
   const isAdvanced = ADVANCED_LEVELS.has(levelProfile.id);
@@ -255,6 +256,7 @@ async function generateFastStartQuestions({
       complexityGuidance: getComplexityGuidance(levelProfile),
       strictMode: isAdvanced,
       conciseMode: true,
+      learnedContext,
       excludeStems,
     });
 
@@ -341,6 +343,7 @@ async function generateFullQuestions({
   targets,
   excludeStemSet,
   totalBudgetMs,
+  learnedContext = "",
 }) {
   const isAdvanced = ADVANCED_LEVELS.has(levelProfile.id);
   const phaseDurationsMs = {};
@@ -359,6 +362,7 @@ async function generateFullQuestions({
       complexityGuidance: getComplexityGuidance(levelProfile),
       strictMode,
       conciseMode,
+      learnedContext,
       excludeStems,
     });
 
@@ -593,6 +597,7 @@ async function generateExploreQuestions({
   levelProfile,
   count,
   mode = "full",
+  learnedContext = "",
   excludeStems = [],
   totalBudgetMs = 75_000,
 }) {
@@ -607,6 +612,7 @@ async function generateExploreQuestions({
       requestedCount,
       targets,
       excludeStemSet,
+      learnedContext,
     });
   }
 
@@ -616,6 +622,7 @@ async function generateExploreQuestions({
     requestedCount,
     targets,
     excludeStemSet,
+    learnedContext,
     totalBudgetMs: Math.max(30_000, Number(totalBudgetMs) || 75_000),
   });
 }

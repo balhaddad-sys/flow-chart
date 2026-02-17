@@ -13,6 +13,8 @@ const { truncate } = require("../lib/utils");
 const { getAssessmentLevel } = require("../assessment/engine");
 const { generateQuestions: geminiGenerate } = require("../ai/geminiClient");
 const { generateQuestions: claudeGenerate } = require("../ai/aiClient");
+const { db } = require("../lib/firestore");
+const { buildExploreProfileDocId } = require("./exploreLearningProfile");
 const {
   EXPLORE_TOPIC_INSIGHT_SYSTEM,
   exploreTopicInsightUserPrompt,
@@ -514,6 +516,40 @@ exports.exploreTopicInsight = functions
 
       if (!payload) {
         return fail(Errors.AI_FAILED, "Could not generate a topic briefing right now.");
+      }
+
+      try {
+        const profileDocId = buildExploreProfileDocId(topic, levelProfile.id);
+        const profileRef = db.doc(`users/${uid}/exploreProfiles/${profileDocId}`);
+        const focusTags = normaliseStringList(
+          []
+            .concat(payload.corePoints || [])
+            .concat(payload.clinicalFramework?.diagnosticApproach || [])
+            .concat(payload.clinicalFramework?.managementApproach || []),
+          { maxItems: 8, maxLen: 80 }
+        );
+
+        await profileRef.set(
+          {
+            topic,
+            level: levelProfile.id,
+            levelLabel: levelProfile.label,
+            focusTags,
+            insightSummary: truncate(payload.summary || "", 1200),
+            lastInsightModel: modelUsed,
+            lastInsightAt: functions.firestore.FieldValue.serverTimestamp(),
+            updatedAt: functions.firestore.FieldValue.serverTimestamp(),
+            createdAt: functions.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true }
+        );
+      } catch (profileWriteError) {
+        log.warn("Explore profile update failed after topic insight", {
+          uid,
+          topic,
+          level: levelProfile.id,
+          error: profileWriteError.message,
+        });
       }
 
       return ok({

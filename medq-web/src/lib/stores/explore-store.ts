@@ -33,6 +33,7 @@ interface ExploreStore {
   backfillStatus: BackfillStatus;
   backfillError: string | null;
   error: string | null;
+  loadingError: string | null;
 
   topicInsight: ExploreTopicInsightResult | null;
   insightLoading: boolean;
@@ -61,6 +62,7 @@ interface ExploreStore {
   resumeQuiz: () => void;
   setBackfillStatus: (status: BackfillStatus, error?: string | null) => void;
   setError: (msg: string) => void;
+  setLoadingError: (msg: string | null) => void;
   reset: () => void;
 }
 
@@ -87,6 +89,7 @@ export const useExploreStore = create<ExploreStore>((set, get) => ({
   backfillStatus: "idle",
   backfillError: null,
   error: null,
+  loadingError: null,
 
   topicInsight: null,
   insightLoading: false,
@@ -100,6 +103,7 @@ export const useExploreStore = create<ExploreStore>((set, get) => ({
       topic,
       level,
       error: null,
+      loadingError: null,
       backfillError: null,
     }),
 
@@ -251,6 +255,8 @@ export const useExploreStore = create<ExploreStore>((set, get) => ({
 
   setError: (msg) => set({ phase: "setup", error: msg, backfillError: null }),
 
+  setLoadingError: (msg) => set({ loadingError: msg }),
+
   reset: () =>
     set({
       phase: "setup",
@@ -271,6 +277,7 @@ export const useExploreStore = create<ExploreStore>((set, get) => ({
       backfillStatus: "idle",
       backfillError: null,
       error: null,
+      loadingError: null,
       topicInsight: null,
       insightLoading: false,
       insightError: null,

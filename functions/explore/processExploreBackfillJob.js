@@ -8,6 +8,12 @@ const admin = require("firebase-admin");
 const { getAssessmentLevel } = require("../assessment/engine");
 const { generateExploreQuestions, mergeQuestionSets, evaluateQuestionSet } = require("./exploreEngine");
 const log = require("../lib/logger");
+const {
+  buildExploreProfileDocId,
+  extractRecentStems,
+  computeExploreProfilePatch,
+  buildLearnedContext,
+} = require("./exploreLearningProfile");
 
 const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
 const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
@@ -64,6 +70,24 @@ exports.processExploreBackfillJob = functions
     }
 
     const levelProfile = getAssessmentLevel(level);
+    const profileDocId = String(job.profileDocId || "").trim() || buildExploreProfileDocId(topic, levelProfile.id);
+    const profileRef = snap.ref.firestore.doc(`users/${uid}/exploreProfiles/${profileDocId}`);
+    let profile = null;
+    try {
+      const profileSnap = await profileRef.get();
+      profile = profileSnap.exists ? profileSnap.data() : null;
+    } catch (error) {
+      log.warn("Explore profile read failed during backfill", {
+        uid,
+        jobId,
+        topic,
+        level: levelProfile.id,
+        error: error.message,
+      });
+    }
+
+    const learnedContext = buildLearnedContext(profile, levelProfile);
+    const profileExcludeStems = extractRecentStems(profile, 16);
     const alreadyReady = Math.max(0, seedQuestions.length);
     const remainingCount = Math.max(0, targetCount - alreadyReady);
 
@@ -90,6 +114,7 @@ exports.processExploreBackfillJob = functions
       const generationCount = Math.min(20, Math.max(3, remainingCount + 1));
       const excludeStems = seedQuestions
         .map((q) => String(q?.stem || "").replace(/\s+/g, " ").trim())
+        .concat(profileExcludeStems)
         .filter(Boolean);
 
       const generated = await generateExploreQuestions({
@@ -97,6 +122,7 @@ exports.processExploreBackfillJob = functions
         levelProfile,
         count: generationCount,
         mode: "full",
+        learnedContext,
         excludeStems,
         totalBudgetMs: 120_000,
       });
@@ -106,6 +132,35 @@ exports.processExploreBackfillJob = functions
         : seedQuestions;
       const finalRemaining = Math.max(0, targetCount - mergedQuestions.length);
       const evaluation = evaluateQuestionSet(mergedQuestions, levelProfile, targetCount);
+
+      try {
+        const profilePatch = computeExploreProfilePatch(profile || {}, {
+          topic,
+          level: levelProfile.id,
+          modelUsed: `${String(job.modelUsed || "fast-start")}+${generated.modelUsed || "backfill"}`,
+          questions: mergedQuestions,
+          evaluation,
+        });
+        const payload = {
+          ...profilePatch,
+          topic,
+          level: levelProfile.id,
+          levelLabel: levelProfile.label,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        };
+        if (!profile?.createdAt) {
+          payload.createdAt = admin.firestore.FieldValue.serverTimestamp();
+        }
+        await profileRef.set(payload, { merge: true });
+      } catch (profileWriteError) {
+        log.warn("Explore profile update failed after backfill", {
+          uid,
+          jobId,
+          topic,
+          level: levelProfile.id,
+          error: profileWriteError.message,
+        });
+      }
 
       await snap.ref.update({
         status: "COMPLETED",
@@ -137,6 +192,7 @@ exports.processExploreBackfillJob = functions
         readyAtStart: alreadyReady,
         finalCount: mergedQuestions.length,
         finalRemaining,
+        profileDocId,
         modelUsed: `${String(job.modelUsed || "fast-start")}+${generated.modelUsed || "backfill"}`,
         qualityGatePassed: evaluation.qualityGatePassed,
         qualityScore: evaluation.qualityScore,
