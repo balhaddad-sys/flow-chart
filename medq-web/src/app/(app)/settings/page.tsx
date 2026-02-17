@@ -20,6 +20,7 @@ import {
   GraduationCap,
   ShieldCheck,
   FileText,
+  RefreshCw,
 } from "lucide-react";
 import * as fn from "@/lib/firebase/functions";
 import { toast } from "sonner";
@@ -35,11 +36,24 @@ export default function SettingsPage() {
   const { user } = useAuth();
   const { mode, setMode } = useThemeStore();
   const [deleting, setDeleting] = useState(false);
+  const [reprocessing, setReprocessing] = useState(false);
 
   async function handleSignOut() {
     await signOut();
     toast.success("Signed out.");
     router.replace("/login");
+  }
+
+  async function handleReprocessBlueprints() {
+    setReprocessing(true);
+    try {
+      const result = await fn.reprocessBlueprints({});
+      toast.success(result.message || `Updated ${result.updated} section titles.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to reprocess.");
+    } finally {
+      setReprocessing(false);
+    }
   }
 
   async function handleDeleteAccount() {
@@ -115,13 +129,26 @@ export default function SettingsPage() {
           <CardTitle>Courses</CardTitle>
           <CardDescription>Manage your courses and create new ones</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-3">
           <Link href="/onboarding?new=1">
             <Button variant="outline">
               <GraduationCap className="mr-2 h-4 w-4" />
               Manage Courses
             </Button>
           </Link>
+          <div>
+            <Button variant="outline" onClick={handleReprocessBlueprints} disabled={reprocessing}>
+              {reprocessing ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              Refresh Section Titles
+            </Button>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Re-analyzes sections with generic titles like &quot;Pages 1-10&quot;
+            </p>
+          </div>
         </CardContent>
       </Card>
 
