@@ -18,13 +18,15 @@ Future<void> openExternalLink(
     return;
   }
 
+  final messenger = ScaffoldMessenger.of(context);
+
   final opened = await launchUrl(
     parsed,
     mode: kIsWeb ? LaunchMode.platformDefault : LaunchMode.externalApplication,
   );
 
   if (!opened) {
-    ScaffoldMessenger.of(context).showSnackBar(
+    messenger.showSnackBar(
       SnackBar(
         content: Text('Could not open ${label ?? 'link'}.'),
         behavior: SnackBarBehavior.floating,
