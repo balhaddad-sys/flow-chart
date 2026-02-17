@@ -205,22 +205,26 @@ function deriveFallbackGuide(
 
   const keySentences = dedupe(splitSentences(paragraphText), 5);
 
+  // Build objectives from actual content — not AI-style instructions
   const objectives = dedupe(
     [
-      ...roadmap.map((topic) => `Explain ${topic} clearly and clinically.`),
       sectionTitle && isUsefulTopic(sectionTitle)
-        ? `Summarize the full section: ${sectionTitle}.`
+        ? `Core concepts of ${sectionTitle}`
         : "",
-      "Identify the highest-yield exam points and common pitfalls.",
+      ...roadmap.map((topic) => `${topic} — key points and clinical relevance`),
+      keySentences.length > 0
+        ? "High-yield facts and common exam topics"
+        : "",
     ].filter(Boolean),
     5
   );
 
+  // Build review questions from actual topics in the material
   const recallPrompts = dedupe(
     [
-      ...roadmap.map((topic) => `What are the key mechanisms, clues, and traps in ${topic}?`),
-      "How would you teach this section in 60 seconds?",
-      "Which details here are most likely to appear in an SBA question?",
+      ...roadmap.slice(0, 3).map((topic) => `What are the main points about ${topic}?`),
+      ...roadmap.slice(3, 5).map((topic) => `How does ${topic} relate to clinical practice?`),
+      "What are the most testable facts from this section?",
     ],
     6
   );

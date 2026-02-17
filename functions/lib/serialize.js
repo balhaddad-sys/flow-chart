@@ -180,8 +180,9 @@ function normaliseQuestion(raw, defaults) {
  * @returns {object|null} Normalised tutor data or `null` if malformed.
  */
 function normaliseTutorResponse(raw) {
-  const tutor = raw?.tutor || raw;
-  if (!tutor.correct_answer || !tutor.why_correct) return null;
+  if (!raw) return null;
+  const tutor = raw.tutor || raw;
+  if (!tutor || !tutor.correct_answer || !tutor.why_correct) return null;
 
   return {
     correctAnswer:  sanitizeText(tutor.correct_answer) || "",

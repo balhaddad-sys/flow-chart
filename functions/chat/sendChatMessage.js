@@ -84,105 +84,119 @@ exports.sendChatMessage = functions
       );
     }
 
-    // Save user message
-    const userMsgRef = await db
-      .collection("users")
-      .doc(uid)
-      .collection("chatMessages")
-      .add({
-        threadId,
-        role: "user",
-        content: message,
-        citations: [],
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-    // Get recent thread history
-    const historySnap = await db
-      .collection("users")
-      .doc(uid)
-      .collection("chatMessages")
-      .where("threadId", "==", threadId)
-      .orderBy("createdAt", "desc")
-      .limit(10)
-      .get();
-
-    const threadHistory = historySnap.docs
-      .map((d) => d.data())
-      .reverse()
-      .filter((m) => m.content !== message); // exclude the message we just saved
-
-    // Get section context from the course (use blueprint data, not raw text)
-    let sectionContext = [];
     try {
-      const sectionsSnap = await db
+      // Save user message
+      const userMsgRef = await db
         .collection("users")
         .doc(uid)
-        .collection("sections")
-        .where("courseId", "==", courseId)
-        .where("aiStatus", "==", "ANALYZED")
-        .limit(5)
+        .collection("chatMessages")
+        .add({
+          threadId,
+          role: "user",
+          content: message,
+          citations: [],
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+      // Get recent thread history
+      const historySnap = await db
+        .collection("users")
+        .doc(uid)
+        .collection("chatMessages")
+        .where("threadId", "==", threadId)
+        .orderBy("createdAt", "desc")
+        .limit(10)
         .get();
 
-      sectionContext = sectionsSnap.docs.map((d) => {
-        const data = d.data();
-        const bp = data.blueprint || {};
-        const parts = [];
-        if (bp.learningObjectives) parts.push("Objectives: " + bp.learningObjectives.join("; "));
-        if (bp.keyConcepts) parts.push("Key concepts: " + bp.keyConcepts.join("; "));
-        if (bp.highYieldPoints) parts.push("High-yield: " + bp.highYieldPoints.join("; "));
-        return {
-          title: bp.title || data.title || "Untitled",
-          text: parts.join("\n").slice(0, 2000),
-        };
-      });
+      const threadHistory = historySnap.docs
+        .map((d) => d.data())
+        .reverse()
+        .filter((m) => m.content !== message); // exclude the message we just saved
+
+      // Get section context from the course (use blueprint data, not raw text)
+      let sectionContext = [];
+      try {
+        const sectionsSnap = await db
+          .collection("users")
+          .doc(uid)
+          .collection("sections")
+          .where("courseId", "==", courseId)
+          .where("aiStatus", "==", "ANALYZED")
+          .limit(5)
+          .get();
+
+        sectionContext = sectionsSnap.docs.map((d) => {
+          const secData = d.data();
+          const bp = secData.blueprint || {};
+          const parts = [];
+          if (bp.learningObjectives) parts.push("Objectives: " + bp.learningObjectives.join("; "));
+          if (bp.keyConcepts) parts.push("Key concepts: " + bp.keyConcepts.join("; "));
+          if (bp.highYieldPoints) parts.push("High-yield: " + bp.highYieldPoints.join("; "));
+          return {
+            title: bp.title || secData.title || "Untitled",
+            text: parts.join("\n").slice(0, 2000),
+          };
+        });
+      } catch (err) {
+        console.warn("Could not fetch section context:", err.message);
+      }
+
+      // Call Claude for response
+      const userPrompt = chatUserPrompt({ message, sectionContext, threadHistory });
+      const result = await callClaude(CHAT_SYSTEM, userPrompt, "HEAVY", 2048);
+
+      let responseText = "I'm sorry, I couldn't generate a response. Please try again.";
+      let citations = [];
+
+      if (result.success && result.data) {
+        responseText = result.data.response || responseText;
+        citations = result.data.citations || [];
+      } else {
+        console.error("AI call failed:", result.error);
+      }
+
+      // Save assistant message
+      await db
+        .collection("users")
+        .doc(uid)
+        .collection("chatMessages")
+        .add({
+          threadId,
+          role: "assistant",
+          content: responseText,
+          citations,
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+      // Update thread metadata
+      try {
+        await db
+          .collection("users")
+          .doc(uid)
+          .collection("chatThreads")
+          .doc(threadId)
+          .update({
+            lastMessage: responseText.slice(0, 100),
+            messageCount: admin.firestore.FieldValue.increment(2),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+      } catch (threadErr) {
+        console.warn("Could not update thread metadata:", threadErr.message);
+      }
+
+      return {
+        success: true,
+        data: {
+          userMessageId: userMsgRef.id,
+          response: responseText,
+          citations,
+        },
+      };
     } catch (err) {
-      console.warn("Could not fetch section context:", err.message);
+      console.error("sendChatMessage error:", err);
+      throw new functions.https.HttpsError(
+        "internal",
+        "Failed to process your message. Please try again."
+      );
     }
-
-    // Call Claude Opus for response
-    const userPrompt = chatUserPrompt({ message, sectionContext, threadHistory });
-    const result = await callClaude(CHAT_SYSTEM, userPrompt, "HEAVY", 2048);
-
-    let responseText = "I'm sorry, I couldn't generate a response. Please try again.";
-    let citations = [];
-
-    if (result.success && result.data) {
-      responseText = result.data.response || responseText;
-      citations = result.data.citations || [];
-    }
-
-    // Save assistant message
-    await db
-      .collection("users")
-      .doc(uid)
-      .collection("chatMessages")
-      .add({
-        threadId,
-        role: "assistant",
-        content: responseText,
-        citations,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-    // Update thread metadata
-    await db
-      .collection("users")
-      .doc(uid)
-      .collection("chatThreads")
-      .doc(threadId)
-      .update({
-        lastMessage: responseText.slice(0, 100),
-        messageCount: admin.firestore.FieldValue.increment(2),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-    return {
-      success: true,
-      data: {
-        userMessageId: userMsgRef.id,
-        response: responseText,
-        citations,
-      },
-    };
   });
