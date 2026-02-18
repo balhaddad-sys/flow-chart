@@ -11,12 +11,9 @@ import {
   Target,
   AlertTriangle,
   Lightbulb,
-  Loader2,
   Clock,
   BrainCircuit,
   Sparkles,
-  MessageCircle,
-  Send,
   HelpCircle,
   RotateCcw,
 } from "lucide-react";
@@ -32,9 +29,10 @@ import { useTimerStore } from "@/lib/stores/timer-store";
 import { updateTask } from "@/lib/firebase/firestore";
 import { getTextBlob } from "@/lib/firebase/storage";
 import * as fn from "@/lib/firebase/functions";
-import { doc, onSnapshot, collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { toast } from "sonner";
+import { StudyAskAiWidget } from "@/components/study/study-ask-ai-widget";
 import type { SectionModel, SectionBlueprint } from "@/lib/types/section";
 import type { TaskModel } from "@/lib/types/task";
 
@@ -476,11 +474,6 @@ export default function StudySessionPage({
   const [activeSourceParagraphIndex, setActiveSourceParagraphIndex] = useState<number | null>(null);
   const sourceParagraphRefs = useRef<Record<number, HTMLLIElement | null>>({});
 
-  // Ask AI state
-  const [chatMessages, setChatMessages] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
-  const [chatInput, setChatInput] = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
-  const [chatThreadId, setChatThreadId] = useState<string | null>(null);
 
   // Fetch task to determine knowledge stage
   useEffect(() => {
@@ -625,54 +618,6 @@ export default function StudySessionPage({
     }
   }, [sectionText, section?.title]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function handleAskAI() {
-    const question = chatInput.trim();
-    if (!question || chatLoading) return;
-    if (!uid || !section?.courseId) {
-      toast.error("Unable to send — course data not loaded yet.");
-      return;
-    }
-
-    setChatInput("");
-    setChatMessages((prev) => [...prev, { role: "user", content: question }]);
-    setChatLoading(true);
-
-    try {
-      // Create thread on first message
-      let threadId = chatThreadId;
-      if (!threadId) {
-        try {
-          const ref = await addDoc(collection(db, "users", uid, "chatThreads"), {
-            courseId: section.courseId,
-            title: `Study: ${section.title || "Section"}`,
-            messageCount: 0,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
-          });
-          threadId = ref.id;
-          setChatThreadId(threadId);
-        } catch (threadErr) {
-          console.error("Failed to create chat thread:", threadErr);
-          throw new Error("Could not start a conversation. Please try again.");
-        }
-      }
-
-      const result = await fn.sendChatMessage({
-        threadId,
-        message: question,
-        courseId: section.courseId,
-      });
-
-      setChatMessages((prev) => [...prev, { role: "assistant", content: result.response }]);
-    } catch (error) {
-      console.error("Ask AI error:", error);
-      const message = error instanceof Error ? error.message : "Failed to get response.";
-      setChatMessages((prev) => [...prev, { role: "assistant", content: `Error: ${message}` }]);
-    } finally {
-      setChatLoading(false);
-    }
-  }
-
   async function handleComplete() {
     if (!uid) return;
     pause();
@@ -793,7 +738,7 @@ export default function StudySessionPage({
       <div className="mx-auto w-full max-w-2xl flex-1 px-4 pt-5 pb-8 sm:px-6">
         <Tabs defaultValue={defaultTab} className="space-y-5">
           {/* Tab selector */}
-          <TabsList className="grid w-full grid-cols-3 h-10 rounded-xl p-1">
+          <TabsList className="grid w-full grid-cols-2 h-10 rounded-xl p-1">
             <TabsTrigger value="guide" className="rounded-lg gap-1.5 text-xs sm:text-sm data-[state=active]:shadow-sm">
               <BookOpen className="h-3.5 w-3.5" />
               Guide
@@ -801,10 +746,6 @@ export default function StudySessionPage({
             <TabsTrigger value="notes" className="rounded-lg gap-1.5 text-xs sm:text-sm data-[state=active]:shadow-sm">
               <Lightbulb className="h-3.5 w-3.5" />
               Notes
-            </TabsTrigger>
-            <TabsTrigger value="ask" className="rounded-lg gap-1.5 text-xs sm:text-sm data-[state=active]:shadow-sm">
-              <MessageCircle className="h-3.5 w-3.5" />
-              Ask AI
             </TabsTrigger>
           </TabsList>
 
@@ -1281,79 +1222,14 @@ export default function StudySessionPage({
             )}
           </TabsContent>
 
-          {/* ─── Ask AI Tab ─── */}
-          <TabsContent value="ask" className="mt-0">
-            <div className="space-y-4">
-              {/* Chat messages */}
-              {chatMessages.length > 0 ? (
-                <div className="space-y-3">
-                  {chatMessages.map((msg, i) => (
-                    <div
-                      key={i}
-                      className={`rounded-2xl p-4 text-[13px] sm:text-sm leading-relaxed ${
-                        msg.role === "user"
-                          ? "ml-8 border bg-primary/5 text-foreground"
-                          : "mr-4 border border-blue-200/60 bg-blue-50/40 dark:border-blue-900/50 dark:bg-blue-950/20"
-                      }`}
-                    >
-                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        {msg.role === "user" ? "You" : "AI Tutor"}
-                      </p>
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
-                    </div>
-                  ))}
-                  {chatLoading && (
-                    <div className="mr-4 rounded-2xl border border-blue-200/60 bg-blue-50/40 p-4 dark:border-blue-900/50 dark:bg-blue-950/20">
-                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">AI Tutor</p>
-                      <InlineLoadingState label="Thinking..." />
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="flex items-center justify-center h-14 w-14 rounded-2xl bg-blue-100/80 dark:bg-blue-950/40 mb-4">
-                    <MessageCircle className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <p className="text-sm font-medium">Ask about this section</p>
-                  <p className="mt-1.5 text-xs text-muted-foreground max-w-[260px] leading-relaxed">
-                    Ask any question about {section?.title || "this topic"} and get an explanation from the AI tutor.
-                  </p>
-                </div>
-              )}
-
-              {/* Input */}
-              <div className="sticky bottom-0 rounded-2xl border bg-card p-3">
-                <form
-                  onSubmit={(e) => { e.preventDefault(); handleAskAI(); }}
-                  className="flex items-center gap-2"
-                >
-                  <input
-                    type="text"
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    placeholder="Ask a question about this section..."
-                    maxLength={500}
-                    disabled={chatLoading}
-                    className="flex-1 rounded-xl border border-border/70 bg-background/80 px-3 py-2.5 text-sm outline-none ring-offset-background placeholder:text-muted-foreground/60 focus:ring-2 focus:ring-primary/35 disabled:opacity-50"
-                  />
-                  <Button
-                    type="submit"
-                    size="sm"
-                    disabled={!chatInput.trim() || chatLoading}
-                    className="h-10 w-10 shrink-0 rounded-xl p-0"
-                  >
-                    {chatLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Send className="h-4 w-4" />
-                    )}
-                  </Button>
-                </form>
-              </div>
-            </div>
-          </TabsContent>
         </Tabs>
       </div>
+
+      {/* Floating AI chat widget */}
+      <StudyAskAiWidget
+        sectionTitle={section?.title}
+        courseId={section?.courseId}
+      />
     </div>
   );
 }
