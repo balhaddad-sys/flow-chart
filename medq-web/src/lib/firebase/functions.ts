@@ -565,3 +565,31 @@ export function reprocessBlueprints(params: { courseId?: string }) {
     message: string;
   }>("reprocessBlueprints", params);
 }
+
+// ── Consumer-ready additions ────────────────────────────────────────────────
+
+export type FlagReason =
+  | "incorrect"
+  | "ambiguous"
+  | "bad_explanation"
+  | "source_mismatch"
+  | "duplicate"
+  | "other";
+
+/** Flag a question for quality review. */
+export function flagQuestion(params: {
+  questionId: string;
+  reason: FlagReason;
+  freeText?: string;
+}) {
+  return callFunction<{ flagId: string }>("flagQuestion", params);
+}
+
+/** Seed the high-yield sample deck into a new user's account. */
+export function seedSampleDeck() {
+  return callFunction<{
+    courseId: string | null;
+    questionCount: number;
+    alreadySeeded: boolean;
+  }>("seedSampleDeck", {});
+}
