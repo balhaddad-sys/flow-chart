@@ -39,6 +39,7 @@ export default function QuizPage() {
 
   useEffect(() => {
     if (!canLoad || questions.length > 0) return;
+    let cancelled = false;
 
     async function loadQuiz() {
       setLoading(true);
@@ -51,6 +52,7 @@ export default function QuizPage() {
           mode,
           count: 10,
         });
+        if (cancelled) return;
         const quizQuestions = (result as unknown as { questions?: QuestionModel[] }).questions ?? [];
         if (quizQuestions.length === 0) {
           setError("No questions available yet. Generate questions from the Practice page first.");
@@ -58,13 +60,15 @@ export default function QuizPage() {
           startQuiz(quizQuestions);
         }
       } catch (err) {
+        if (cancelled) return;
         setError(err instanceof Error ? err.message : "Failed to load quiz");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
 
     loadQuiz();
+    return () => { cancelled = true; };
   }, [canLoad, courseId, sectionId, topicTag, mode, questions.length, startQuiz]);
 
   useEffect(() => {

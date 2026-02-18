@@ -55,8 +55,7 @@ export function useTodayTasks(courseId: string | null) {
     const unsub = subscribeTodayTasks(uid, courseId, (data) => {
       setTasks(data);
       setLoading(false);
-    }, (err) => {
-      console.error("useTodayTasks error:", err);
+    }, () => {
       setLoading(false);
     });
     return unsub;

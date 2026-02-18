@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useDebouncedValue } from "@/lib/hooks/useDebounce";
 import { useRouter } from "next/navigation";
 import { useCourseStore } from "@/lib/stores/course-store";
 import { useChatThreads } from "@/lib/hooks/useChatThreads";
@@ -33,15 +34,16 @@ export default function AiPage() {
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState("");
 
+  const debouncedSearch = useDebouncedValue(search, 200);
   const filteredThreads = useMemo(() => {
-    const term = search.trim().toLowerCase();
+    const term = debouncedSearch.trim().toLowerCase();
     if (!term) return threads;
     return threads.filter((thread) => {
       const title = thread.title?.toLowerCase() ?? "";
       const preview = thread.lastMessage?.toLowerCase() ?? "";
       return title.includes(term) || preview.includes(term);
     });
-  }, [threads, search]);
+  }, [threads, debouncedSearch]);
 
   const totalMessages = useMemo(
     () => threads.reduce((sum, thread) => sum + (thread.messageCount || 0), 0),
