@@ -42,7 +42,6 @@ import {
   findBestParagraphIndex,
   deriveFallbackGuide,
 } from "@/lib/utils/study-text";
-import type { NoteSection, FallbackGuide } from "@/lib/utils/study-text";
 import type { SectionModel } from "@/lib/types/section";
 import type { TaskModel } from "@/lib/types/task";
 

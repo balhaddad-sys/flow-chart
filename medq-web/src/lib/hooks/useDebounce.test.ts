@@ -169,7 +169,7 @@ describe("useDebouncedCallback", () => {
   });
 
   it("uses latest callback reference", () => {
-    let latestValue = 0;
+    const latestValue = 0;
     const fn1 = jest.fn(() => latestValue);
 
     const { result, rerender } = renderHook(

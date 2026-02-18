@@ -19,8 +19,9 @@ export function FileUploadZone() {
   const cleanupTimers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
   useEffect(() => {
+    const timers = cleanupTimers.current;
     return () => {
-      cleanupTimers.current.forEach((t) => clearTimeout(t));
+      timers.forEach((t) => clearTimeout(t));
     };
   }, []);
 

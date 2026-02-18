@@ -360,7 +360,7 @@ describe("deriveFallbackGuide", () => {
       highYieldPoints: ["Mitral stenosis key finding", "Cardiac cycle phases"],
       keyConcepts: ["Systole", "Diastole", "Valve competence"],
     };
-    const guide = deriveFallbackGuide("Cardiology", sampleSections, sampleBlocks, blueprint as any);
+    const guide = deriveFallbackGuide("Cardiology", sampleSections, sampleBlocks, blueprint as unknown as import("@/lib/types/section").SectionBlueprint);
     expect(guide.objectives.length).toBeGreaterThan(0);
     expect(guide.roadmap.length).toBeGreaterThan(0);
   });
