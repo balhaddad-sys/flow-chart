@@ -79,18 +79,19 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 p-4 sm:space-y-5 sm:p-6">
+    <div className="page-wrap page-stack max-w-2xl">
       {/* Avatar header */}
-      <div className="glass-card overflow-hidden rounded-2xl">
-        <div className="h-20 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent" />
-        <div className="px-5 pb-5">
+      <div className="glass-card overflow-hidden">
+        <div className="h-1 w-full bg-gradient-to-r from-primary/40 via-primary to-primary/40" />
+        <div className="h-20 bg-gradient-to-r from-primary/18 via-primary/8 to-transparent" />
+        <div className="px-6 pb-6">
           <div className="-mt-8 flex items-end gap-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl border-4 border-card bg-primary/12 text-xl font-bold text-primary">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border-4 border-card bg-primary/15 text-xl font-bold text-primary shadow-sm">
               {getInitials(user?.displayName)}
             </div>
-            <div className="pb-1">
-              <h1 className="text-lg font-semibold tracking-tight">{user?.displayName ?? "Student"}</h1>
-              <p className="text-sm text-muted-foreground">{user?.email}</p>
+            <div className="pb-1 min-w-0">
+              <h1 className="text-lg font-bold tracking-tight truncate">{user?.displayName ?? "Student"}</h1>
+              <p className="text-sm text-muted-foreground truncate">{user?.email}</p>
             </div>
           </div>
         </div>
@@ -98,7 +99,7 @@ export default function ProfilePage() {
 
       {/* Appearance */}
       <div className="glass-card rounded-2xl p-5 animate-in-up stagger-1">
-        <h2 className="text-sm font-semibold">Appearance</h2>
+        <h2 className="text-[0.8125rem] font-semibold tracking-tight">Appearance</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">Customize how MedQ looks</p>
         <div className="mt-4 flex gap-2">
           {themeOptions.map((opt) => (
@@ -121,7 +122,7 @@ export default function ProfilePage() {
 
       {/* Courses */}
       <div className="glass-card rounded-2xl p-5 animate-in-up stagger-2">
-        <h2 className="text-sm font-semibold">Courses</h2>
+        <h2 className="text-[0.8125rem] font-semibold tracking-tight">Courses</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">Manage your courses and create new ones</p>
         <div className="mt-4 space-y-3">
           <Link href="/onboarding?new=1">
@@ -164,7 +165,7 @@ export default function ProfilePage() {
 
       {/* Account actions */}
       <div className="glass-card rounded-2xl p-5 animate-in-up stagger-4">
-        <h2 className="text-sm font-semibold">Account</h2>
+        <h2 className="text-[0.8125rem] font-semibold tracking-tight">Account</h2>
         <div className="mt-4 space-y-3">
           <Button variant="outline" onClick={handleSignOut} className="rounded-xl">
             <LogOut className="mr-2 h-4 w-4" />
@@ -175,7 +176,7 @@ export default function ProfilePage() {
 
       {/* Legal */}
       <div className="glass-card rounded-2xl p-5 animate-in-up stagger-5">
-        <h2 className="text-sm font-semibold">Legal & Safety</h2>
+        <h2 className="text-[0.8125rem] font-semibold tracking-tight">Legal & Safety</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
           MedQ is an educational study platform and is not a clinical decision tool.
         </p>
@@ -197,7 +198,7 @@ export default function ProfilePage() {
 
       {/* Danger Zone */}
       <div className="glass-card rounded-2xl border-destructive/30 p-5 animate-in-up stagger-6">
-        <h2 className="text-sm font-semibold text-destructive">Danger Zone</h2>
+        <h2 className="text-[0.8125rem] font-semibold tracking-tight text-destructive">Danger Zone</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Permanently delete your account and all associated data.
         </p>

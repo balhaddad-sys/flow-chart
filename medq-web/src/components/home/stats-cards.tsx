@@ -17,10 +17,10 @@ export function StatsCards({ stats, loading = false }: StatsCardsProps) {
     return (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
-          <div key={index} className="metric-card space-y-3">
-            <Skeleton className="h-4 w-2/5 rounded-full" />
-            <Skeleton className="h-7 w-1/2 rounded-full" />
-            <Skeleton className="h-3 w-2/3 rounded-full" />
+          <div key={index} className="metric-card space-y-4">
+            <Skeleton className="h-3 w-2/5 rounded-full" />
+            <Skeleton className="h-9 w-3/5 rounded-full" />
+            <Skeleton className="h-3 w-4/5 rounded-full" />
           </div>
         ))}
       </div>
@@ -28,63 +28,87 @@ export function StatsCards({ stats, loading = false }: StatsCardsProps) {
   }
 
   const totalHours = stats ? Math.round(stats.totalStudyMinutes / 60) : 0;
-  const accuracy = stats ? Math.round(stats.overallAccuracy * 100) : 0;
+  const totalMins  = stats ? stats.totalStudyMinutes % 60 : 0;
+  const accuracy   = stats ? Math.round(stats.overallAccuracy * 100) : 0;
   const completion = stats ? Math.round(stats.completionPercent * 100) : 0;
   const streakDays = stats?.streakDays ?? 0;
+  const answered   = stats?.totalQuestionsAnswered ?? 0;
 
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+
       {/* Study Time */}
-      <div className="metric-card animate-in-up stagger-1">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-500/12">
-            <Clock className="h-5 w-5 text-sky-500" />
+      <div className="metric-card animate-in-up stagger-1 flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-500/12">
+            <Clock className="h-[1.0625rem] w-[1.0625rem] text-sky-500" />
           </div>
-          <div>
-            <p className="text-xs font-medium text-muted-foreground">Study Time</p>
-            <div className="flex items-baseline gap-1">
-              <NumberTicker value={totalHours} className="text-2xl font-bold tabular-nums" />
-              <span className="text-sm text-muted-foreground">hrs</span>
-            </div>
+          <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
+            Study Time
+          </span>
+        </div>
+        <div>
+          <div className="flex items-baseline gap-1.5">
+            <NumberTicker value={totalHours} className="stat-number" />
+            <span className="text-base font-semibold text-muted-foreground">h</span>
+            {totalMins > 0 && (
+              <>
+                <NumberTicker value={totalMins} className="stat-number" />
+                <span className="text-base font-semibold text-muted-foreground">m</span>
+              </>
+            )}
           </div>
+          <p className="mt-0.5 text-[0.75rem] text-muted-foreground">
+            Total logged this course
+          </p>
         </div>
       </div>
 
       {/* Accuracy */}
-      <div className="metric-card animate-in-up stagger-2">
-        <div className="flex items-center gap-3">
+      <div className="metric-card animate-in-up stagger-2 flex flex-col gap-3">
+        <div className="flex items-center justify-between">
           <ProgressRing
             value={accuracy}
-            size={40}
-            strokeWidth={4}
+            size={36}
+            strokeWidth={3.5}
             color="oklch(0.65 0.19 155)"
           />
-          <div>
-            <p className="text-xs font-medium text-muted-foreground">Accuracy</p>
-            <div className="flex items-baseline gap-1">
-              <NumberTicker value={accuracy} className="text-2xl font-bold tabular-nums" />
-              <span className="text-sm text-muted-foreground">%</span>
-            </div>
+          <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
+            Accuracy
+          </span>
+        </div>
+        <div>
+          <div className="flex items-baseline gap-1">
+            <NumberTicker value={accuracy} className="stat-number" />
+            <span className="text-base font-semibold text-muted-foreground">%</span>
           </div>
+          <p className="mt-0.5 text-[0.75rem] text-muted-foreground">
+            {answered > 0 ? `Across ${answered.toLocaleString()} questions` : "No attempts yet"}
+          </p>
         </div>
       </div>
 
       {/* Completion */}
-      <div className="metric-card animate-in-up stagger-3">
-        <div className="flex items-center gap-3">
+      <div className="metric-card animate-in-up stagger-3 flex flex-col gap-3">
+        <div className="flex items-center justify-between">
           <ProgressRing
             value={completion}
-            size={40}
-            strokeWidth={4}
+            size={36}
+            strokeWidth={3.5}
             color="oklch(0.65 0.19 270)"
           />
-          <div>
-            <p className="text-xs font-medium text-muted-foreground">Completion</p>
-            <div className="flex items-baseline gap-1">
-              <NumberTicker value={completion} className="text-2xl font-bold tabular-nums" />
-              <span className="text-sm text-muted-foreground">%</span>
-            </div>
+          <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
+            Completion
+          </span>
+        </div>
+        <div>
+          <div className="flex items-baseline gap-1">
+            <NumberTicker value={completion} className="stat-number" />
+            <span className="text-base font-semibold text-muted-foreground">%</span>
           </div>
+          <p className="mt-0.5 text-[0.75rem] text-muted-foreground">
+            {completion >= 100 ? "Course complete" : `${100 - completion}% remaining`}
+          </p>
         </div>
       </div>
 

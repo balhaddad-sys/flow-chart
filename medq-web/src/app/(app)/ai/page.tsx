@@ -19,7 +19,6 @@ import {
   Search,
   Sparkles,
   Clock3,
-  Bot,
 } from "lucide-react";
 import { NumberTicker } from "@/components/ui/animate-in";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
@@ -73,67 +72,61 @@ export default function AiPage() {
 
   return (
     <div className="page-wrap page-stack">
-      <section className="glass-card overflow-hidden p-5 sm:p-6">
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_14rem] lg:items-end">
-          <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary animate-in-up stagger-1">
-              <Bot className="h-3.5 w-3.5" />
-              AI Workspace
-            </div>
-            <h1 className="page-title animate-in-up stagger-2">Clinical reasoning assistant</h1>
-            <p className="page-subtitle max-w-2xl animate-in-up stagger-3">
-              Explore any topic, keep longitudinal chat threads, and get
-              context-aware guidance from your study material.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => router.push("/ai/explore")} size="sm">
-                <Compass className="mr-2 h-4 w-4" />
-                Explore Topic
-              </Button>
-              <Button
-                onClick={handleNewThread}
-                disabled={creating || !courseId}
-                variant="outline"
-                size="sm"
-              >
-                {creating ? (
-                  <LoadingButtonLabel label="Creating..." />
-                ) : (
-                  <Plus className="mr-2 h-4 w-4" />
-                )}
-                {!creating && "New Chat"}
-              </Button>
-              {latestThread && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => router.push(`/ai/${latestThread.id}`)}
-                >
-                  Resume latest
-                  <ArrowRight className="ml-2 h-4 w-4" />
+      <section className="glass-card overflow-hidden">
+        <div className="h-1 w-full bg-gradient-to-r from-primary/40 via-primary to-primary/40" />
+        <div className="p-6 sm:p-8">
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+            <div className="space-y-3">
+              <span className="section-label animate-in-up stagger-1">AI Workspace</span>
+              <h1 className="page-title animate-in-up stagger-2">Clinical Reasoning Assistant</h1>
+              <p className="page-subtitle max-w-xl animate-in-up stagger-3">
+                Explore any medical topic in depth, maintain longitudinal conversation threads, and receive context-aware guidance grounded in your own study materials.
+              </p>
+              <div className="flex flex-wrap gap-2 animate-in-up stagger-4">
+                <Button onClick={() => router.push("/ai/explore")} size="sm">
+                  <Compass className="mr-1.5 h-3.5 w-3.5" />
+                  Explore Topic
                 </Button>
-              )}
+                <Button
+                  onClick={handleNewThread}
+                  disabled={creating || !courseId}
+                  variant="outline"
+                  size="sm"
+                >
+                  {creating ? (
+                    <LoadingButtonLabel label="Creating..." />
+                  ) : (
+                    <Plus className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  {!creating && "New Chat"}
+                </Button>
+                {latestThread && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => router.push(`/ai/${latestThread.id}`)}
+                  >
+                    Resume latest
+                    <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
             </div>
-          </div>
 
-          <div className="grid grid-cols-3 gap-2 text-center">
-            <div className="rounded-xl border border-border/70 bg-background/75 px-2 py-3">
-              <NumberTicker value={threads.length} className="text-lg font-semibold" />
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                Threads
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/70 bg-background/75 px-2 py-3">
-              <NumberTicker value={totalMessages} className="text-lg font-semibold" />
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                Messages
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/70 bg-background/75 px-2 py-3">
-              <p className="text-lg font-semibold">{courseId ? "On" : "Off"}</p>
-              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                Course
-              </p>
+            {/* Stats */}
+            <div className="flex gap-3 shrink-0">
+              <div className="rounded-xl border border-border/70 bg-background/75 px-4 py-3 text-center min-w-[5rem]">
+                <NumberTicker value={threads.length} className="text-2xl font-bold tabular-nums tracking-tight" />
+                <p className="mt-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
+                  Threads
+                </p>
+              </div>
+              <div className="rounded-xl border border-border/70 bg-background/75 px-4 py-3 text-center min-w-[5rem]">
+                <NumberTicker value={totalMessages} className="text-2xl font-bold tabular-nums tracking-tight" />
+                <p className="mt-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
+                  Messages
+                </p>
+              </div>
             </div>
           </div>
         </div>
