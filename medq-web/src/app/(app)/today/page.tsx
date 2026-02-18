@@ -17,7 +17,11 @@ import { ExamCountdown } from "@/components/home/exam-countdown";
 import { WeakTopicsBanner } from "@/components/home/weak-topics-banner";
 import { PipelineProgress } from "@/components/home/pipeline-progress";
 import { Button } from "@/components/ui/button";
-import { PageLoadingState, InlineLoadingState } from "@/components/ui/loading-state";
+import {
+  PageLoadingState,
+  InlineLoadingState,
+  LoadingButtonLabel,
+} from "@/components/ui/loading-state";
 import {
   Upload,
   Calendar,
@@ -25,7 +29,6 @@ import {
   Sparkles,
   BarChart3,
   Wrench,
-  Loader2,
 } from "lucide-react";
 import * as fn from "@/lib/firebase/functions";
 import { toast } from "sonner";
@@ -191,11 +194,13 @@ export default function TodayPage() {
               disabled={fixPlanLoading || !effectiveCourseId}
             >
               {fixPlanLoading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <LoadingButtonLabel label="Generating..." />
               ) : (
-                <Wrench className="mr-2 h-4 w-4" />
+                <>
+                  <Wrench className="mr-2 h-4 w-4" />
+                  Generate Fix Plan
+                </>
               )}
-              Generate Fix Plan
             </Button>
           )}
         </div>

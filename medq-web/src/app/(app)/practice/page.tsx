@@ -19,7 +19,11 @@ import { useSections } from "@/lib/hooks/useSections";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { SectionLoadingState } from "@/components/ui/loading-state";
+import {
+  InlineLoadingState,
+  LoadingButtonLabel,
+  SectionLoadingState,
+} from "@/components/ui/loading-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import * as fn from "@/lib/firebase/functions";
@@ -94,12 +98,16 @@ function SectionQuestionCard({
           </p>
         )}
         {section.questionsStatus === "GENERATING" && (
-          <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            {section.questionsCount > 0
-              ? `${section.questionsCount} ready — generating more...`
-              : "Generating questions..."}
-          </p>
+          <div className="mt-1.5">
+            <InlineLoadingState
+              className="text-xs"
+              label={
+                section.questionsCount > 0
+                  ? `${section.questionsCount} ready — generating more...`
+                  : "Generating questions..."
+              }
+            />
+          </div>
         )}
       </div>
       <div className="flex shrink-0 flex-col gap-2">
@@ -119,13 +127,20 @@ function SectionQuestionCard({
             disabled={generating}
           >
             {generating ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <LoadingButtonLabel
+                label={section.questionsStatus === "FAILED" ? "Retrying..." : "Generating..."}
+              />
             ) : section.questionsStatus === "FAILED" ? (
-              <RefreshCw className="mr-2 h-4 w-4" />
+              <>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Retry
+              </>
             ) : (
-              <Sparkles className="mr-2 h-4 w-4" />
+              <>
+                <Sparkles className="mr-2 h-4 w-4" />
+                Generate
+              </>
             )}
-            {section.questionsStatus === "FAILED" ? "Retry" : "Generate"}
           </Button>
         ) : (
           <Button size="sm" variant="ghost" disabled className="rounded-xl">

@@ -55,7 +55,9 @@ exports.finishAssessmentSession = functions.https.onCall(async (data, context) =
       }
     }
 
-    const profile = computeWeaknessProfile(responses, questionMap, session.level);
+    const profile = computeWeaknessProfile(responses, questionMap, session.level, {
+      focusTopicTag: session.topicTagNormalized || session.topicTag || "",
+    });
     const recommendations = buildRecommendationPlan(profile);
     const finalReport = {
       sessionId,

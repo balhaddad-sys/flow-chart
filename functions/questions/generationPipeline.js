@@ -21,6 +21,65 @@ const {
 
 const QUESTION_BACKFILL_JOB_TYPE = "QUESTION_BACKFILL";
 
+const STEM_STOP_WORDS = new Set([
+  "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "has", "have",
+  "in", "into", "is", "it", "its", "of", "on", "or", "that", "the", "their", "then",
+  "there", "these", "this", "to", "was", "were", "which", "with", "patient", "most",
+  "likely", "following", "best", "next", "step", "regarding", "clinical", "question",
+]);
+
+function normaliseStem(stem) {
+  return String(stem || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s']/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function tokenSet(stem) {
+  const tokens = normaliseStem(stem)
+    .split(" ")
+    .filter((token) => token.length > 2 && !STEM_STOP_WORDS.has(token));
+  return new Set(tokens);
+}
+
+function stemSimilarity(stemA, stemB) {
+  const a = tokenSet(stemA);
+  const b = tokenSet(stemB);
+  if (a.size === 0 || b.size === 0) return 0;
+
+  let overlap = 0;
+  for (const token of a) {
+    if (b.has(token)) overlap++;
+  }
+  return overlap / Math.max(a.size, b.size);
+}
+
+function isNearDuplicateStem(stemA, stemB, threshold = 0.7) {
+  const a = normaliseStem(stemA);
+  const b = normaliseStem(stemB);
+  if (!a || !b) return false;
+  if (a === b) return true;
+
+  if ((a.length >= 90 || b.length >= 90) && (a.includes(b) || b.includes(a))) {
+    return true;
+  }
+
+  return stemSimilarity(a, b) >= threshold;
+}
+
+function countDistinctStems(stems, threshold = 0.7) {
+  const representatives = [];
+  for (const stem of stems) {
+    if (!stem) continue;
+    if (representatives.some((candidate) => isNearDuplicateStem(stem, candidate, threshold))) {
+      continue;
+    }
+    representatives.push(stem);
+  }
+  return representatives.length;
+}
+
 async function fetchExistingQuestionState({ uid, courseId, sectionId, limit = 120 }) {
   const existingSnap = await db
     .collection(`users/${uid}/questions`)
@@ -29,13 +88,15 @@ async function fetchExistingQuestionState({ uid, courseId, sectionId, limit = 12
     .limit(limit)
     .get();
 
+  const existingStems = existingSnap.docs
+    .map((doc) => normaliseStem(doc.data().stem))
+    .filter(Boolean);
+
   return {
     count: existingSnap.size,
-    stems: new Set(
-      existingSnap.docs
-        .map((doc) => String(doc.data().stem || "").trim().toLowerCase())
-        .filter(Boolean)
-    ),
+    distinctCount: countDistinctStems(existingStems),
+    stems: new Set(existingStems),
+    stemList: existingStems,
   };
 }
 
@@ -80,11 +141,15 @@ async function generateAndPersistBatch({
   sourceFileName,
   existingCount,
   existingStems,
+  existingStemList,
   targetCount,
 }) {
   const target = clampInt(targetCount || 10, 1, 30);
   const safeExisting = clampInt(existingCount || 0, 0, 1000);
   const currentStems = existingStems instanceof Set ? existingStems : new Set();
+  const currentStemList = Array.isArray(existingStemList)
+    ? [...existingStemList]
+    : [...currentStems];
 
   if (safeExisting >= target) {
     return {
@@ -169,12 +234,18 @@ async function generateAndPersistBatch({
     const normalised = normaliseQuestion(raw, defaults);
     if (!normalised) continue;
 
-    const stemKey = String(normalised.stem || "").trim().toLowerCase();
-    if (stemKey && currentStems.has(stemKey)) {
+    const stemKey = normaliseStem(normalised.stem);
+    const isDuplicateBySimilarity = stemKey &&
+      currentStemList.some((existingStem) => isNearDuplicateStem(stemKey, existingStem));
+
+    if (stemKey && (currentStems.has(stemKey) || isDuplicateBySimilarity)) {
       duplicateStemSkipped++;
       continue;
     }
-    if (stemKey) currentStems.add(stemKey);
+    if (stemKey) {
+      currentStems.add(stemKey);
+      currentStemList.push(stemKey);
+    }
 
     validItems.push({
       ref: db.collection(`users/${uid}/questions`).doc(),

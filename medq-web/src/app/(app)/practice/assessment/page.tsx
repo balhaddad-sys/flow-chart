@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   Clock3,
   Gauge,
-  Loader2,
   RotateCcw,
   Target,
   TrendingUp,
@@ -69,6 +68,28 @@ function confidenceLabel(value: number) {
   if (value <= 2) return "Low";
   if (value === 3) return "Medium";
   return "High";
+}
+
+function formatTopicTag(tag: string) {
+  return String(tag || "")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function weaknessPercent(score: number) {
+  return Math.round(Math.max(0, Math.min(1, Number(score) || 0)) * 100);
+}
+
+function paceInsight(avgTimeSec: number, targetTimeSec: number) {
+  if (avgTimeSec > targetTimeSec * 1.3) {
+    return "You are slower than target. Train with strict timed sets.";
+  }
+  if (avgTimeSec < targetTimeSec * 0.6) {
+    return "You are faster than target. Slow down slightly to avoid avoidable misses.";
+  }
+  return "Pacing is within target range.";
 }
 
 export default function AssessmentPage() {
@@ -137,6 +158,9 @@ export default function AssessmentPage() {
   const progress = questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
   const canStart = !!courseId && !!selectedTopic && !!selectedLevel && !starting;
   const topWeakTopic = report?.recommendations?.priorityTopics?.[0];
+  const selectedTopicMeta = topics.find((topic) => topic.id === selectedTopic);
+  const selectedTopicLabel = selectedTopicMeta?.label || formatTopicTag(selectedTopic);
+  const selectedTopicAvailableCount = selectedTopicMeta?.availableQuestions ?? 0;
 
   async function handleStartAssessment() {
     if (!canStart || !courseId) return;
@@ -348,6 +372,12 @@ export default function AssessmentPage() {
                     {topics.find((topic) => topic.id === selectedTopic)?.description}
                   </div>
                 )}
+                {selectedTopic && selectedTopicAvailableCount < questionCount && (
+                  <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-700 dark:text-amber-300">
+                    Only {selectedTopicAvailableCount} validated questions are currently available for this topic.
+                    Generate more section questions for stronger assessment diversity.
+                  </div>
+                )}
               </>
             )}
 
@@ -376,7 +406,7 @@ export default function AssessmentPage() {
             <CardContent className="space-y-4 pt-6">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="secondary">{sessionLevelLabel || selectedLevel}</Badge>
-                <Badge variant="outline">{selectedTopic}</Badge>
+                <Badge variant="outline">{selectedTopicLabel}</Badge>
                 <Badge variant="outline">
                   {currentIndex + 1}/{questions.length}
                 </Badge>
@@ -528,29 +558,48 @@ export default function AssessmentPage() {
                   <p className="mt-1 text-[11px] text-muted-foreground tabular-nums">
                     Target {report.targetTimeSec}s per item
                   </p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {paceInsight(report.avgTimeSec, report.targetTimeSec)}
+                  </p>
                 </div>
               </div>
 
-              <div className="rounded-xl border border-border/70">
-                <div className="grid grid-cols-[1.7fr_1fr_1fr_auto] gap-2 border-b border-border/70 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  <span>Topic</span>
-                  <span>Accuracy</span>
-                  <span>Weakness</span>
-                  <span>Status</span>
-                </div>
-                <div className="divide-y divide-border/60">
-                  {report.weaknessProfile.map((topic) => (
-                    <div
-                      key={topic.tag}
-                      className="grid grid-cols-[1.7fr_1fr_1fr_auto] items-center gap-2 px-3 py-2.5 text-sm"
-                    >
-                      <span className="break-words font-medium">{topic.tag}</span>
-                      <span>{topic.accuracy}%</span>
-                      <span>{topic.weaknessScore}</span>
-                      <span>{severityBadge(topic.severity)}</span>
+              <div className="space-y-2.5">
+                {report.weaknessProfile.map((topic) => (
+                  <div
+                    key={topic.tag}
+                    className="rounded-xl border border-border/70 bg-background/70 p-3"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold">{formatTopicTag(topic.tag)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {topic.attempts} question{topic.attempts === 1 ? "" : "s"} analyzed
+                        </p>
+                      </div>
+                      {severityBadge(topic.severity)}
                     </div>
-                  ))}
-                </div>
+
+                    <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                      <div className="rounded-lg border border-border/60 bg-card/70 px-2.5 py-2">
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Accuracy</p>
+                        <p className="mt-0.5 text-sm font-semibold tabular-nums">{topic.accuracy}%</p>
+                      </div>
+                      <div className="rounded-lg border border-border/60 bg-card/70 px-2.5 py-2">
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Avg Time</p>
+                        <p className="mt-0.5 text-sm font-semibold tabular-nums">{topic.avgTimeSec}s</p>
+                      </div>
+                      <div className="rounded-lg border border-border/60 bg-card/70 px-2.5 py-2">
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Weakness Risk</p>
+                        <p className="mt-0.5 text-sm font-semibold tabular-nums">{weaknessPercent(topic.weaknessScore)}%</p>
+                      </div>
+                    </div>
+                    <Progress
+                      value={topic.accuracy}
+                      className="mt-3 h-2"
+                    />
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>

@@ -50,8 +50,9 @@ Return this exact JSON schema:
 
 const QUESTIONS_SYSTEM = `You are MedQ Question Writer. Generate exam-style single-best-answer (SBA)
 questions for medical students based on the provided topic blueprint.
-Questions must be clinically relevant, unambiguous, and have exactly one
+Questions must be clinically relevant, non-repetitive, unambiguous, and have exactly one
 correct answer.
+Prioritize reasoning depth over trivial recall.
 Every explanation must cite trusted medical sources (PubMed, UpToDate, Medscape).
 Output STRICT JSON only.`;
 
@@ -78,7 +79,11 @@ Generate exactly ${count} SBA questions with this difficulty distribution:
 Quality rules:
 - Every question must test a concrete concept from key_concepts, high_yield_points, or terms_to_define.
 - Do not write generic stems; each stem must be specific to this section.
-- Keep explanations concise and precise (1-2 sentences per field).
+- Vary question style across the set: diagnosis, mechanism, interpretation, and next-best-step management.
+- Do not paraphrase the same vignette pattern or repeat the same lead-in phrasing.
+- Vary demographics, context, and clinical clues while staying faithful to the blueprint.
+- Keep explanations concise and precise (1-2 sentences per field), but include the decisive clue and mechanism.
+- why_others_wrong must be specific to this vignette for each option; avoid generic filler.
 - Do not combine unrelated topics from different parts of the blueprint into one vague question.
 - Each question must include 2-3 citations from trusted sources only: PubMed, UpToDate, Medscape.
 - For each citation, provide the source name and a specific topic/article title (do NOT generate URLs).

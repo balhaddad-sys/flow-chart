@@ -71,19 +71,21 @@ exports.generateQuestions = functions
 
       // Count existing questions first. If we already have enough, return instantly.
       const existingState = await fetchExistingQuestionState({ uid, courseId, sectionId });
-      const { targetCount, existingCount, missingCount } = computeFastStartCounts(count, existingState.count);
+      const effectiveCount = existingState.distinctCount || existingState.count;
+      const { targetCount, missingCount } = computeFastStartCounts(count, effectiveCount);
 
-      if (existingCount >= targetCount) {
+      if (effectiveCount >= targetCount) {
         await sectionRef.set(
           {
             questionsStatus: "COMPLETED",
-            questionsCount: existingCount,
+            questionsCount: existingState.count,
             questionsErrorMessage: admin.firestore.FieldValue.delete(),
           },
           { merge: true }
         );
         return ok({
-          questionCount: existingCount,
+          questionCount: existingState.count,
+          effectiveQuestionCount: effectiveCount,
           skippedCount: 0,
           fromCache: true,
           backgroundQueued: false,
@@ -116,20 +118,22 @@ exports.generateQuestions = functions
         courseId,
         sectionId,
         requested: targetCount,
-        existingCount,
+        existingCount: existingState.count,
+        effectiveCount,
         missingCount,
         jobId: backfillJobId,
         durationMs: Date.now() - t0,
       });
 
       return ok({
-        questionCount: existingCount,
+        questionCount: existingState.count,
+        effectiveQuestionCount: effectiveCount,
         generatedNow: 0,
         skippedCount: 0,
         backgroundQueued: true,
         remainingCount: missingCount,
         targetCount,
-        readyNow: existingCount,
+        readyNow: existingState.count,
         jobId: backfillJobId,
         durationMs: Date.now() - t0,
         message: `Generating ${missingCount} questions in the background.`,

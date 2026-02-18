@@ -7,6 +7,7 @@ import { signOut } from "@/lib/firebase/auth";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useThemeStore } from "@/lib/stores/theme-store";
 import { Button } from "@/components/ui/button";
+import { LoadingButtonLabel } from "@/components/ui/loading-state";
 import { cn } from "@/lib/utils";
 import {
   Sun,
@@ -14,7 +15,6 @@ import {
   Monitor,
   LogOut,
   Trash2,
-  Loader2,
   GraduationCap,
   ShieldCheck,
   FileText,
@@ -133,11 +133,13 @@ export default function ProfilePage() {
           <div>
             <Button variant="outline" className="rounded-xl" onClick={handleReprocessBlueprints} disabled={reprocessing}>
               {reprocessing ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <LoadingButtonLabel label="Refreshing..." />
               ) : (
-                <RefreshCw className="mr-2 h-4 w-4" />
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Refresh Section Titles
+                </>
               )}
-              Refresh Section Titles
             </Button>
             <p className="mt-1 text-xs text-muted-foreground">
               Re-analyzes sections with generic titles like &quot;Pages 1-10&quot;
@@ -202,11 +204,13 @@ export default function ProfilePage() {
         <div className="mt-4">
           <Button variant="destructive" onClick={handleDeleteAccount} disabled={deleting} className="rounded-xl">
             {deleting ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <LoadingButtonLabel label="Deleting..." />
             ) : (
-              <Trash2 className="mr-2 h-4 w-4" />
+              <>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Account
+              </>
             )}
-            Delete Account
           </Button>
         </div>
       </div>

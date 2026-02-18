@@ -94,8 +94,9 @@ exports.processQuestionBackfillJob = functions
       }
 
       const existingState = await fetchExistingQuestionState({ uid, courseId, sectionId });
+      const existingDistinctCount = existingState.distinctCount || existingState.count;
 
-      if (existingState.count >= targetCount) {
+      if (existingDistinctCount >= targetCount) {
         await Promise.all([
           sectionRef.update({
             questionsStatus: "COMPLETED",
@@ -116,7 +117,7 @@ exports.processQuestionBackfillJob = functions
       }
 
       if (attempt > maxAttempts || noProgressStreak >= MAX_NO_PROGRESS_STREAK) {
-        const fallbackStatus = existingState.count > 0 ? "COMPLETED" : "FAILED";
+        const fallbackStatus = existingDistinctCount > 0 ? "COMPLETED" : "FAILED";
         await Promise.all([
           sectionRef.update({
             questionsStatus: fallbackStatus,
@@ -139,15 +140,16 @@ exports.processQuestionBackfillJob = functions
       }
 
       const sourceFileName = await resolveSourceFileName(uid, section.fileId);
-      const stepTarget = Math.min(targetCount, existingState.count + BACKFILL_STEP_COUNT);
+      const stepTarget = Math.min(targetCount, existingDistinctCount + BACKFILL_STEP_COUNT);
       const batch = await generateAndPersistBatch({
         uid,
         courseId,
         sectionId,
         section,
         sourceFileName,
-        existingCount: existingState.count,
+        existingCount: existingDistinctCount,
         existingStems: existingState.stems,
+        existingStemList: existingState.stemList,
         targetCount: stepTarget,
       });
 
@@ -156,7 +158,7 @@ exports.processQuestionBackfillJob = functions
         const shouldStop = attempt >= maxAttempts || nextNoProgressStreak >= MAX_NO_PROGRESS_STREAK;
 
         if (shouldStop) {
-          const fallbackStatus = existingState.count > 0 ? "COMPLETED" : "FAILED";
+          const fallbackStatus = existingDistinctCount > 0 ? "COMPLETED" : "FAILED";
           await Promise.all([
             sectionRef.update({
               questionsStatus: fallbackStatus,
@@ -210,7 +212,8 @@ exports.processQuestionBackfillJob = functions
       }
 
       const finalCount = existingState.count + batch.generatedNow;
-      const reachedTarget = finalCount >= targetCount;
+      const finalDistinctCount = existingDistinctCount + batch.generatedNow;
+      const reachedTarget = finalDistinctCount >= targetCount;
       const nextNoProgressStreak = batch.generatedNow > 0 ? 0 : noProgressStreak + 1;
       const outOfAttempts = attempt >= maxAttempts;
       const stalled = nextNoProgressStreak >= MAX_NO_PROGRESS_STREAK;
@@ -223,7 +226,7 @@ exports.processQuestionBackfillJob = functions
       });
 
       if (reachedTarget || outOfAttempts || stalled) {
-        const fallbackStatus = finalCount > 0 ? "COMPLETED" : "FAILED";
+        const fallbackStatus = finalDistinctCount > 0 ? "COMPLETED" : "FAILED";
         await Promise.all([
           sectionRef.update({
             questionsStatus: reachedTarget ? "COMPLETED" : fallbackStatus,

@@ -108,6 +108,17 @@ const ASSESSMENT_TOPIC_LIBRARY = Object.freeze([
   { id: "emergency", label: "Emergency Medicine", description: "Acute care prioritization and emergency protocols." },
 ]);
 
+const STEM_STOP_WORDS = new Set([
+  "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "has", "have",
+  "in", "into", "is", "it", "its", "of", "on", "or", "that", "the", "their", "then",
+  "there", "these", "this", "to", "was", "were", "which", "with", "patient", "most",
+  "likely", "following", "best", "next", "step", "regarding", "shows", "showing",
+  "findings", "presentation", "clinical", "diagnosis", "management", "question",
+]);
+
+const GENERIC_DISTRACTOR_RE =
+  /this option is incorrect|incorrect in this vignette|not the best answer|not correct/i;
+
 function normalizeTopicTag(tag) {
   return String(tag || "")
     .trim()
@@ -129,7 +140,109 @@ function getAssessmentLevel(level) {
   return ASSESSMENT_LEVELS.find((item) => item.id === id) || ASSESSMENT_LEVELS[2];
 }
 
-function selectAssessmentQuestions(questions, { level, count = 20 }) {
+function normaliseStem(stem) {
+  return String(stem || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s']/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function stemTokenSet(stem) {
+  const tokens = normaliseStem(stem)
+    .split(" ")
+    .filter((token) => token.length > 2 && !STEM_STOP_WORDS.has(token));
+  return new Set(tokens);
+}
+
+function stemSimilarity(stemA, stemB) {
+  const a = stemTokenSet(stemA);
+  const b = stemTokenSet(stemB);
+  if (a.size === 0 || b.size === 0) return 0;
+
+  let overlap = 0;
+  for (const token of a) {
+    if (b.has(token)) overlap++;
+  }
+
+  return overlap / Math.max(a.size, b.size);
+}
+
+function isNearDuplicateStem(stemA, stemB, threshold = 0.68) {
+  const a = normaliseStem(stemA);
+  const b = normaliseStem(stemB);
+  if (!a || !b) return false;
+  if (a === b) return true;
+
+  if ((a.length >= 90 || b.length >= 90) && (a.includes(b) || b.includes(a))) {
+    return true;
+  }
+
+  return stemSimilarity(a, b) >= threshold;
+}
+
+function deriveQuestionFocusTag(question, focusTopicTag = "") {
+  const normalizedFocus = normalizeTopicTag(focusTopicTag);
+  const tags = Array.isArray(question?.topicTags)
+    ? question.topicTags.map(normalizeTopicTag).filter(Boolean)
+    : [];
+
+  if (tags.length === 0) return "general";
+
+  if (normalizedFocus && tags.includes(normalizedFocus)) {
+    const subtopic = tags.find((tag) => tag !== normalizedFocus && tag !== "general");
+    return subtopic || normalizedFocus;
+  }
+
+  return tags[0];
+}
+
+function questionReasoningDepth(question) {
+  const explanation = question?.explanation || {};
+  const correctWhy = String(explanation.correctWhy || explanation.correct_why || "").trim();
+  const whyOthers = Array.isArray(explanation.whyOthersWrong || explanation.why_others_wrong)
+    ? (explanation.whyOthersWrong || explanation.why_others_wrong)
+    : [];
+  const keyTakeaway = String(explanation.keyTakeaway || explanation.key_takeaway || "").trim();
+  const citations = Array.isArray(question?.citations) ? question.citations : [];
+
+  const nonGenericDistractors = whyOthers.filter((item) => {
+    const text = String(item || "").trim();
+    return text.length >= 30 && !GENERIC_DISTRACTOR_RE.test(text);
+  }).length;
+
+  const correctWhyScore = Math.min(12, correctWhy.length / 22);
+  const takeawayScore = Math.min(6, keyTakeaway.length / 28);
+  const distractorScore = Math.min(12, nonGenericDistractors * 2.4);
+  const citationScore = Math.min(6, citations.length * 2);
+
+  return correctWhyScore + takeawayScore + distractorScore + citationScore;
+}
+
+function questionSelectionBaseScore(question, profile) {
+  const difficulty = clampInt(question?.difficulty || 3, 1, 5);
+  const midpoint = (profile.minDifficulty + profile.maxDifficulty) / 2;
+  const inBand = difficulty >= profile.minDifficulty && difficulty <= profile.maxDifficulty;
+  const fitScore = inBand
+    ? 26 - Math.abs(difficulty - midpoint) * 4
+    : Math.max(4, 14 - Math.abs(difficulty - midpoint) * 6);
+  const optionCountScore = Array.isArray(question?.options) && question.options.length >= 4 ? 4 : 0;
+
+  return fitScore + optionCountScore + questionReasoningDepth(question);
+}
+
+function dynamicQuestionScore(question, profile, focusTopicTag, tagUsage, sectionUsage) {
+  const tagKey = deriveQuestionFocusTag(question, focusTopicTag);
+  const sectionKey = String(
+    question?.sectionId ||
+    question?.sourceRef?.sectionId ||
+    "unknown"
+  );
+  const diversityPenalty = (tagUsage.get(tagKey) || 0) * 9 + (sectionUsage.get(sectionKey) || 0) * 6;
+  return questionSelectionBaseScore(question, profile) - diversityPenalty;
+}
+
+function selectAssessmentQuestions(questions, { level, count = 20, focusTopicTag = "" } = {}) {
   const profile = getAssessmentLevel(level);
   const safeCount = clampInt(count, 5, 40);
   const valid = questions.filter(
@@ -150,22 +263,78 @@ function selectAssessmentQuestions(questions, { level, count = 20 }) {
   );
   const farBand = valid.filter((q) => !inBand.includes(q) && !nearBand.includes(q));
 
-  const selection = [];
-  selection.push(...shuffleArray(inBand).slice(0, safeCount));
-  if (selection.length < safeCount) {
-    const need = safeCount - selection.length;
-    selection.push(...shuffleArray(nearBand).slice(0, need));
-  }
-  if (selection.length < safeCount) {
-    const need = safeCount - selection.length;
-    selection.push(...shuffleArray(farBand).slice(0, need));
+  const pools = [shuffleArray(inBand), shuffleArray(nearBand), shuffleArray(farBand)];
+  const selected = [];
+  const selectedIds = new Set();
+  const selectedStems = [];
+  const tagUsage = new Map();
+  const sectionUsage = new Map();
+
+  function registerSelection(question) {
+    selected.push(question);
+    selectedIds.add(question.id);
+    selectedStems.push(String(question.stem || ""));
+
+    const tagKey = deriveQuestionFocusTag(question, focusTopicTag);
+    const sectionKey = String(question.sectionId || question.sourceRef?.sectionId || "unknown");
+    tagUsage.set(tagKey, (tagUsage.get(tagKey) || 0) + 1);
+    sectionUsage.set(sectionKey, (sectionUsage.get(sectionKey) || 0) + 1);
   }
 
-  return selection;
+  function pickRound(similarityThreshold) {
+    let pickedAny = true;
+
+    while (selected.length < safeCount && pickedAny) {
+      pickedAny = false;
+
+      for (const pool of pools) {
+        if (selected.length >= safeCount) break;
+
+        const candidates = pool
+          .filter((question) => !selectedIds.has(question.id))
+          .sort(
+            (a, b) =>
+              dynamicQuestionScore(b, profile, focusTopicTag, tagUsage, sectionUsage) -
+              dynamicQuestionScore(a, profile, focusTopicTag, tagUsage, sectionUsage)
+          );
+
+        const candidate = candidates.find((question) =>
+          !selectedStems.some((stem) => isNearDuplicateStem(question.stem, stem, similarityThreshold))
+        );
+
+        if (!candidate) continue;
+        registerSelection(candidate);
+        pickedAny = true;
+      }
+    }
+  }
+
+  // Strong duplicate filtering first, then progressively relaxed if needed.
+  pickRound(0.62);
+  if (selected.length < safeCount) pickRound(0.7);
+  if (selected.length < safeCount) pickRound(0.78);
+
+  if (selected.length < safeCount) {
+    const fallback = shuffleArray(valid).sort(
+      (a, b) =>
+        dynamicQuestionScore(b, profile, focusTopicTag, tagUsage, sectionUsage) -
+        dynamicQuestionScore(a, profile, focusTopicTag, tagUsage, sectionUsage)
+    );
+
+    for (const question of fallback) {
+      if (selected.length >= safeCount) break;
+      if (selectedIds.has(question.id)) continue;
+      if (selectedStems.some((stem) => isNearDuplicateStem(question.stem, stem, 0.88))) continue;
+      registerSelection(question);
+    }
+  }
+
+  return selected;
 }
 
-function computeWeaknessProfile(responses, questionMap, level) {
+function computeWeaknessProfile(responses, questionMap, level, options = {}) {
   const profile = getAssessmentLevel(level);
+  const focusTopicTag = normalizeTopicTag(options.focusTopicTag || "");
   const topicStats = new Map();
 
   let totalCorrect = 0;
@@ -181,36 +350,30 @@ function computeWeaknessProfile(responses, questionMap, level) {
     if (correct) totalCorrect++;
     totalTime += timeSpentSec;
 
-    const tags = Array.isArray(question.topicTags) && question.topicTags.length > 0
-      ? question.topicTags.map(normalizeTopicTag)
-      : ["general"];
-    const uniqueTags = [...new Set(tags)];
+    const tag = deriveQuestionFocusTag(question, focusTopicTag);
+    const current = topicStats.get(tag) || {
+      tag,
+      attempts: 0,
+      correct: 0,
+      totalTimeSec: 0,
+      confidenceSum: 0,
+      confidenceCount: 0,
+      weightedMiss: 0,
+    };
 
-    for (const tag of uniqueTags) {
-      const current = topicStats.get(tag) || {
-        tag,
-        attempts: 0,
-        correct: 0,
-        totalTimeSec: 0,
-        confidenceSum: 0,
-        confidenceCount: 0,
-        weightedMiss: 0,
-      };
-
-      current.attempts++;
-      current.totalTimeSec += timeSpentSec;
-      if (correct) current.correct++;
-      if (!correct) {
-        const difficultyWeight = Math.max(1, Math.min(5, question.difficulty || 3)) / 5;
-        current.weightedMiss += difficultyWeight;
-      }
-      if (confidence != null) {
-        current.confidenceSum += confidence;
-        current.confidenceCount++;
-      }
-
-      topicStats.set(tag, current);
+    current.attempts++;
+    current.totalTimeSec += timeSpentSec;
+    if (correct) current.correct++;
+    if (!correct) {
+      const difficultyWeight = Math.max(1, Math.min(5, question.difficulty || 3)) / 5;
+      current.weightedMiss += difficultyWeight;
     }
+    if (confidence != null) {
+      current.confidenceSum += confidence;
+      current.confidenceCount++;
+    }
+
+    topicStats.set(tag, current);
   }
 
   const topicBreakdown = [...topicStats.values()]

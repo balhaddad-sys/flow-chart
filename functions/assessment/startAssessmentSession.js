@@ -69,7 +69,11 @@ exports.startAssessmentSession = functions.https.onCall(async (data, context) =>
       );
     }
 
-    const selected = selectAssessmentQuestions(questions, { level, count: questionCount });
+    const selected = selectAssessmentQuestions(questions, {
+      level,
+      count: questionCount,
+      focusTopicTag: normalizedTopicTag,
+    });
 
     if (selected.length < 5) {
       return fail(

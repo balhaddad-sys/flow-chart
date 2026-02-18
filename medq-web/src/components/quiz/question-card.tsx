@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { InlineLoadingState, LoadingButtonLabel } from "@/components/ui/loading-state";
 import {
   CheckCircle2,
   XCircle,
@@ -316,18 +317,21 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
                 className="gap-2"
               >
                 {tutorLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <LoadingButtonLabel label="Thinking..." />
                 ) : (
-                  <Lightbulb className="h-4 w-4" />
+                  <>
+                    <Lightbulb className="h-4 w-4" />
+                    Ask AI Tutor
+                  </>
                 )}
-                {tutorLoading ? "Thinking..." : "Ask AI Tutor"}
               </Button>
             )}
 
             {isAnswered && !attemptId && !tutorResponse && (
-              <p className="text-xs text-muted-foreground">
-                Tutor available once your answer syncs.
-              </p>
+              <InlineLoadingState
+                className="text-xs"
+                label="Tutor available once your answer syncs."
+              />
             )}
 
             {tutorResponse && (

@@ -6,7 +6,6 @@ import {
   BookOpen,
   CheckCircle2,
   Compass,
-  Loader2,
   XCircle,
   ExternalLink,
 } from "lucide-react";
