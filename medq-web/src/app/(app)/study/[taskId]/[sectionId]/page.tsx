@@ -17,11 +17,16 @@ import {
   Sparkles,
   MessageCircle,
   Send,
+  HelpCircle,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Skeleton } from "@/components/ui/skeleton";
+import {
+  InlineLoadingState,
+  SectionLoadingState,
+} from "@/components/ui/loading-state";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useTimerStore } from "@/lib/stores/timer-store";
 import { updateTask } from "@/lib/firebase/firestore";
@@ -31,6 +36,39 @@ import { doc, onSnapshot, collection, addDoc, serverTimestamp } from "firebase/f
 import { db } from "@/lib/firebase/client";
 import { toast } from "sonner";
 import type { SectionModel, SectionBlueprint } from "@/lib/types/section";
+import type { TaskModel } from "@/lib/types/task";
+
+type KnowledgeStage = "STUDY" | "QUESTIONS" | "REVIEW";
+
+const STAGE_META: Record<KnowledgeStage, {
+  label: string;
+  description: string;
+  icon: typeof BookOpen;
+  color: string;
+  bg: string;
+}> = {
+  STUDY: {
+    label: "Learn",
+    description: "Build understanding — focus on objectives and key concepts.",
+    icon: BookOpen,
+    color: "text-blue-600 dark:text-blue-400",
+    bg: "bg-blue-100 dark:bg-blue-950/60",
+  },
+  QUESTIONS: {
+    label: "Test",
+    description: "Challenge your recall — focus on high-yield facts and common traps.",
+    icon: HelpCircle,
+    color: "text-emerald-600 dark:text-emerald-400",
+    bg: "bg-emerald-100 dark:bg-emerald-950/60",
+  },
+  REVIEW: {
+    label: "Review",
+    description: "Consolidate knowledge — synthesize and practice recall.",
+    icon: RotateCcw,
+    color: "text-violet-600 dark:text-violet-400",
+    bg: "bg-violet-100 dark:bg-violet-950/60",
+  },
+};
 
 interface AISummary {
   summary: string;
@@ -427,6 +465,7 @@ export default function StudySessionPage({
   const router = useRouter();
   const { user, uid } = useAuth();
   const { seconds, isRunning, start, pause, reset, getFormatted } = useTimerStore();
+  const [task, setTask] = useState<TaskModel | null>(null);
   const [section, setSection] = useState<SectionModel | null>(null);
   const [sectionText, setSectionText] = useState<string | null>(null);
   const [textLoading, setTextLoading] = useState(false);
@@ -442,6 +481,17 @@ export default function StudySessionPage({
   const [chatInput, setChatInput] = useState("");
   const [chatLoading, setChatLoading] = useState(false);
   const [chatThreadId, setChatThreadId] = useState<string | null>(null);
+
+  // Fetch task to determine knowledge stage
+  useEffect(() => {
+    if (!uid) return;
+    const unsub = onSnapshot(doc(db, "users", uid, "tasks", taskId), (snap) => {
+      if (snap.exists()) {
+        setTask({ ...snap.data(), id: snap.id } as TaskModel);
+      }
+    });
+    return unsub;
+  }, [uid, taskId]);
 
   useEffect(() => {
     if (!uid) return;
@@ -634,6 +684,7 @@ export default function StudySessionPage({
   }
 
   const formatted = getFormatted();
+  const stage: KnowledgeStage = (task?.type as KnowledgeStage) ?? "STUDY";
   const rawBp = section?.blueprint;
   const bp = useMemo(() => {
     if (!rawBp) return null;
@@ -663,6 +714,8 @@ export default function StudySessionPage({
     fallbackGuide.recallPrompts.length > 0;
   const hasGuide = hasBlueprintGuide || hasFallbackGuide;
   const defaultTab = hasGuide ? "guide" : "notes";
+  const stageMeta = STAGE_META[stage];
+  const StageIcon = stageMeta.icon;
 
   return (
     <div className="flex flex-col">
@@ -680,7 +733,7 @@ export default function StudySessionPage({
 
           <div className="min-w-0 flex-1 text-center">
             <p className="text-xs font-medium truncate px-2">
-              {section?.title ?? "Loading..."}
+              {section?.title ?? "Loading section..."}
             </p>
           </div>
 
@@ -715,6 +768,13 @@ export default function StudySessionPage({
         {/* Row 2: topic tags */}
         {section && (section.estMinutes || (section.topicTags && section.topicTags.length > 0)) && (
           <div className="flex items-center gap-1.5 px-4 pb-2.5 overflow-x-auto scrollbar-none">
+            <Badge
+              variant="secondary"
+              className={`text-[10px] shrink-0 rounded-full border-transparent ${stageMeta.bg} ${stageMeta.color}`}
+            >
+              <StageIcon className="mr-1 h-3 w-3" />
+              {stageMeta.label}
+            </Badge>
             {section.estMinutes && (
               <Badge variant="outline" className="text-[10px] shrink-0 rounded-full">
                 ~{section.estMinutes} min
@@ -750,129 +810,258 @@ export default function StudySessionPage({
 
           {/* ─── Guide Tab ─── */}
           <TabsContent value="guide" className="space-y-4 mt-0">
+            {/* Stage banner */}
+            {(() => {
+              const meta = STAGE_META[stage];
+              const StageIcon = meta.icon;
+              return (
+                <div className="flex items-center gap-3 rounded-2xl border bg-card p-3 sm:p-4">
+                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${meta.bg}`}>
+                    <StageIcon className={`h-4.5 w-4.5 ${meta.color}`} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{meta.label}</p>
+                    <p className="text-[13px] leading-snug text-foreground/70">{meta.description}</p>
+                  </div>
+                </div>
+              );
+            })()}
+
             {hasBlueprintGuide ? (
               <>
-                {bp.learningObjectives?.length > 0 && (
-                  <div className="rounded-2xl border bg-card p-4 sm:p-5">
-                    <div className="flex items-center gap-2.5 mb-3">
-                      <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-blue-100 dark:bg-blue-950/60">
-                        <Target className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                {/* ── STUDY: Objectives → Concepts → Terms → High-Yield → Synthesis ── */}
+                {stage === "STUDY" && (
+                  <>
+                    {bp.learningObjectives?.length > 0 && (
+                      <div className="rounded-2xl border bg-card p-4 sm:p-5">
+                        <div className="flex items-center gap-2.5 mb-3">
+                          <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-blue-100 dark:bg-blue-950/60">
+                            <Target className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <h3 className="text-sm font-semibold">Learning Objectives</h3>
+                        </div>
+                        <ul className="space-y-3">
+                          {bp.learningObjectives.map((obj, i) => (
+                            <li key={i} className="flex gap-3 text-[13px] sm:text-sm leading-relaxed">
+                              <span className="mt-1.5 shrink-0 h-2 w-2 rounded-full bg-blue-500/60" />
+                              <span className="text-foreground/80">{obj}</span>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
-                      <h3 className="text-sm font-semibold">Learning Objectives</h3>
-                    </div>
-                    <ul className="space-y-3">
-                      {bp.learningObjectives.map((obj, i) => (
-                        <li key={i} className="flex gap-3 text-[13px] sm:text-sm leading-relaxed">
-                          <span className="mt-1.5 shrink-0 h-2 w-2 rounded-full bg-blue-500/60" />
-                          <span className="text-foreground/80">{obj}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {bp.keyConcepts?.length > 0 && (
-                  <div className="rounded-2xl border bg-card p-4 sm:p-5">
-                    <h3 className="text-sm font-semibold mb-3">Key Concepts</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {bp.keyConcepts.map((concept, i) => (
-                        <span key={i} className="inline-flex rounded-full bg-secondary/80 px-3 py-1.5 text-xs font-medium">
-                          {concept}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {bp.highYieldPoints?.length > 0 && (
-                  <div className="rounded-2xl border border-green-200/80 bg-green-50/50 p-4 sm:p-5 dark:border-green-900/50 dark:bg-green-950/20">
-                    <div className="flex items-center gap-2.5 mb-3">
-                      <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-green-100 dark:bg-green-900/40">
-                        <Lightbulb className="h-4 w-4 text-green-600 dark:text-green-400" />
+                    )}
+                    {bp.keyConcepts?.length > 0 && (
+                      <div className="rounded-2xl border bg-card p-4 sm:p-5">
+                        <h3 className="text-sm font-semibold mb-3">Key Concepts</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {bp.keyConcepts.map((concept, i) => (
+                            <span key={i} className="inline-flex rounded-full bg-secondary/80 px-3 py-1.5 text-xs font-medium">{concept}</span>
+                          ))}
+                        </div>
                       </div>
-                      <h3 className="text-sm font-semibold">High-Yield Points</h3>
-                    </div>
-                    <ul className="space-y-3">
-                      {bp.highYieldPoints.map((point, i) => (
-                        <li key={i} className="flex gap-3 text-[13px] sm:text-sm leading-relaxed">
-                          <span className="mt-1.5 shrink-0 h-2 w-2 rounded-full bg-green-500/60" />
-                          <span className="text-foreground/80">{point}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {bp.commonTraps?.length > 0 && (
-                  <div className="rounded-2xl border border-orange-200/80 bg-orange-50/50 p-4 sm:p-5 dark:border-orange-900/50 dark:bg-orange-950/20">
-                    <div className="flex items-center gap-2.5 mb-3">
-                      <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-orange-100 dark:bg-orange-900/40">
-                        <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                    )}
+                    {bp.termsToDefine?.length > 0 && (
+                      <div className="rounded-2xl border bg-card p-4 sm:p-5">
+                        <h3 className="text-sm font-semibold mb-3">Terms to Know</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {bp.termsToDefine.map((term, i) => (
+                            <span key={i} className="inline-flex rounded-full border px-3 py-1.5 text-xs font-medium">{term}</span>
+                          ))}
+                        </div>
                       </div>
-                      <h3 className="text-sm font-semibold">Common Traps</h3>
-                    </div>
-                    <ul className="space-y-3">
-                      {bp.commonTraps.map((trap, i) => (
-                        <li key={i} className="flex gap-3 text-[13px] sm:text-sm leading-relaxed">
-                          <span className="mt-1.5 shrink-0 h-2 w-2 rounded-full bg-orange-500/60" />
-                          <span className="text-foreground/80">{trap}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {bp.termsToDefine?.length > 0 && (
-                  <div className="rounded-2xl border bg-card p-4 sm:p-5">
-                    <h3 className="text-sm font-semibold mb-3">Terms to Know</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {bp.termsToDefine.map((term, i) => (
-                        <span key={i} className="inline-flex rounded-full border px-3 py-1.5 text-xs font-medium">
-                          {term}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {summary?.summary && (
-                  <div className="rounded-2xl border border-blue-200/80 bg-blue-50/45 p-4 sm:p-5 dark:border-blue-900/50 dark:bg-blue-950/20">
-                    <div className="mb-3 flex items-center gap-2.5">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/50">
-                        <BrainCircuit className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    )}
+                    {bp.highYieldPoints?.length > 0 && (
+                      <div className="rounded-2xl border border-green-200/80 bg-green-50/50 p-4 sm:p-5 dark:border-green-900/50 dark:bg-green-950/20">
+                        <div className="flex items-center gap-2.5 mb-3">
+                          <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-green-100 dark:bg-green-900/40">
+                            <Lightbulb className="h-4 w-4 text-green-600 dark:text-green-400" />
+                          </div>
+                          <h3 className="text-sm font-semibold">High-Yield Points</h3>
+                        </div>
+                        <ul className="space-y-3">
+                          {bp.highYieldPoints.map((point, i) => (
+                            <li key={i} className="flex gap-3 text-[13px] sm:text-sm leading-relaxed">
+                              <span className="mt-1.5 shrink-0 h-2 w-2 rounded-full bg-green-500/60" />
+                              <span className="text-foreground/80">{point}</span>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
-                      <h3 className="text-sm font-semibold">Clinical Synthesis</h3>
-                    </div>
-                    <p className="text-[13px] sm:text-sm leading-relaxed text-foreground/85">{summary.summary}</p>
-                  </div>
+                    )}
+                    {summary?.summary && (
+                      <div className="rounded-2xl border border-blue-200/80 bg-blue-50/45 p-4 sm:p-5 dark:border-blue-900/50 dark:bg-blue-950/20">
+                        <div className="mb-3 flex items-center gap-2.5">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/50">
+                            <BrainCircuit className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <h3 className="text-sm font-semibold">Clinical Synthesis</h3>
+                        </div>
+                        <p className="text-[13px] sm:text-sm leading-relaxed text-foreground/85">{summary.summary}</p>
+                      </div>
+                    )}
+                  </>
                 )}
 
-                {(fallbackGuide.examAngles.length > 0 || fallbackGuide.recallPrompts.length > 0) && (
-                  <div className="rounded-2xl border border-violet-200/80 bg-violet-50/45 p-4 sm:p-5 dark:border-violet-900/50 dark:bg-violet-950/20">
-                    <div className="mb-3 flex items-center gap-2.5">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/50">
-                        <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                {/* ── QUESTIONS: High-Yield → Traps → Concepts → Drills ── */}
+                {stage === "QUESTIONS" && (
+                  <>
+                    {bp.highYieldPoints?.length > 0 && (
+                      <div className="rounded-2xl border border-green-200/80 bg-green-50/50 p-4 sm:p-5 dark:border-green-900/50 dark:bg-green-950/20">
+                        <div className="flex items-center gap-2.5 mb-3">
+                          <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-green-100 dark:bg-green-900/40">
+                            <Lightbulb className="h-4 w-4 text-green-600 dark:text-green-400" />
+                          </div>
+                          <h3 className="text-sm font-semibold">High-Yield Points</h3>
+                        </div>
+                        <ul className="space-y-3">
+                          {bp.highYieldPoints.map((point, i) => (
+                            <li key={i} className="flex gap-3 text-[13px] sm:text-sm leading-relaxed">
+                              <span className="mt-1.5 shrink-0 h-2 w-2 rounded-full bg-green-500/60" />
+                              <span className="text-foreground/80">{point}</span>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
-                      <h3 className="text-sm font-semibold">Reasoning Drills</h3>
-                    </div>
-                    <ul className="space-y-2.5">
-                      {fallbackGuide.examAngles.slice(0, 3).map((item, i) => (
-                        <li key={`angle_${i}`} className="rounded-xl border border-violet-200/60 bg-violet-50/40 px-3 py-2 text-[13px] sm:text-sm text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/20 dark:text-violet-300">
-                          {item}
-                        </li>
-                      ))}
-                      {fallbackGuide.recallPrompts.slice(0, 3).map((prompt, i) => (
-                        <li key={`prompt_${i}`} className="rounded-xl border border-violet-200/60 bg-violet-50/40 px-3 py-2 text-[13px] sm:text-sm text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/20 dark:text-violet-300">
-                          {prompt}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                    )}
+                    {bp.commonTraps?.length > 0 && (
+                      <div className="rounded-2xl border border-orange-200/80 bg-orange-50/50 p-4 sm:p-5 dark:border-orange-900/50 dark:bg-orange-950/20">
+                        <div className="flex items-center gap-2.5 mb-3">
+                          <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-orange-100 dark:bg-orange-900/40">
+                            <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                          </div>
+                          <h3 className="text-sm font-semibold">Common Traps</h3>
+                        </div>
+                        <ul className="space-y-3">
+                          {bp.commonTraps.map((trap, i) => (
+                            <li key={i} className="flex gap-3 text-[13px] sm:text-sm leading-relaxed">
+                              <span className="mt-1.5 shrink-0 h-2 w-2 rounded-full bg-orange-500/60" />
+                              <span className="text-foreground/80">{trap}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {bp.keyConcepts?.length > 0 && (
+                      <div className="rounded-2xl border bg-card p-4 sm:p-5">
+                        <h3 className="text-sm font-semibold mb-3">Key Concepts</h3>
+                        <div className="flex flex-wrap gap-2">
+                          {bp.keyConcepts.map((concept, i) => (
+                            <span key={i} className="inline-flex rounded-full bg-secondary/80 px-3 py-1.5 text-xs font-medium">{concept}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {(fallbackGuide.examAngles.length > 0 || fallbackGuide.recallPrompts.length > 0) && (
+                      <div className="rounded-2xl border border-violet-200/80 bg-violet-50/45 p-4 sm:p-5 dark:border-violet-900/50 dark:bg-violet-950/20">
+                        <div className="mb-3 flex items-center gap-2.5">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/50">
+                            <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                          </div>
+                          <h3 className="text-sm font-semibold">Reasoning Drills</h3>
+                        </div>
+                        <ul className="space-y-2.5">
+                          {fallbackGuide.examAngles.slice(0, 3).map((item, i) => (
+                            <li key={`angle_${i}`} className="rounded-xl border border-violet-200/60 bg-violet-50/40 px-3 py-2 text-[13px] sm:text-sm text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/20 dark:text-violet-300">{item}</li>
+                          ))}
+                          {fallbackGuide.recallPrompts.slice(0, 3).map((prompt, i) => (
+                            <li key={`prompt_${i}`} className="rounded-xl border border-violet-200/60 bg-violet-50/40 px-3 py-2 text-[13px] sm:text-sm text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/20 dark:text-violet-300">{prompt}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* ── REVIEW: Synthesis → Recall → Quick-Refresh → Traps → Memory Aids ── */}
+                {stage === "REVIEW" && (
+                  <>
+                    {summary?.summary && (
+                      <div className="rounded-2xl border border-blue-200/80 bg-blue-50/45 p-4 sm:p-5 dark:border-blue-900/50 dark:bg-blue-950/20">
+                        <div className="mb-3 flex items-center gap-2.5">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/50">
+                            <BrainCircuit className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          <h3 className="text-sm font-semibold">Clinical Synthesis</h3>
+                        </div>
+                        <p className="text-[13px] sm:text-sm leading-relaxed text-foreground/85">{summary.summary}</p>
+                      </div>
+                    )}
+                    {(fallbackGuide.recallPrompts.length > 0 || fallbackGuide.examAngles.length > 0) && (
+                      <div className="rounded-2xl border border-violet-200/80 bg-violet-50/45 p-4 sm:p-5 dark:border-violet-900/50 dark:bg-violet-950/20">
+                        <div className="mb-3 flex items-center gap-2.5">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/50">
+                            <Sparkles className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                          </div>
+                          <h3 className="text-sm font-semibold">Recall Practice</h3>
+                        </div>
+                        <ul className="space-y-2.5">
+                          {fallbackGuide.recallPrompts.slice(0, 3).map((prompt, i) => (
+                            <li key={`prompt_${i}`} className="rounded-xl border border-violet-200/60 bg-violet-50/40 px-3 py-2 text-[13px] sm:text-sm text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/20 dark:text-violet-300">{prompt}</li>
+                          ))}
+                          {fallbackGuide.examAngles.slice(0, 3).map((item, i) => (
+                            <li key={`angle_${i}`} className="rounded-xl border border-violet-200/60 bg-violet-50/40 px-3 py-2 text-[13px] sm:text-sm text-violet-700 dark:border-violet-900/60 dark:bg-violet-950/20 dark:text-violet-300">{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {bp.highYieldPoints?.length > 0 && (
+                      <div className="rounded-2xl border border-green-200/80 bg-green-50/50 p-4 sm:p-5 dark:border-green-900/50 dark:bg-green-950/20">
+                        <div className="flex items-center gap-2.5 mb-3">
+                          <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-green-100 dark:bg-green-900/40">
+                            <Lightbulb className="h-4 w-4 text-green-600 dark:text-green-400" />
+                          </div>
+                          <h3 className="text-sm font-semibold">Quick Refresh</h3>
+                        </div>
+                        <ul className="space-y-3">
+                          {bp.highYieldPoints.map((point, i) => (
+                            <li key={i} className="flex gap-3 text-[13px] sm:text-sm leading-relaxed">
+                              <span className="mt-1.5 shrink-0 h-2 w-2 rounded-full bg-green-500/60" />
+                              <span className="text-foreground/80">{point}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {bp.commonTraps?.length > 0 && (
+                      <div className="rounded-2xl border border-orange-200/80 bg-orange-50/50 p-4 sm:p-5 dark:border-orange-900/50 dark:bg-orange-950/20">
+                        <div className="flex items-center gap-2.5 mb-3">
+                          <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-orange-100 dark:bg-orange-900/40">
+                            <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                          </div>
+                          <h3 className="text-sm font-semibold">Watch Out For</h3>
+                        </div>
+                        <ul className="space-y-3">
+                          {bp.commonTraps.map((trap, i) => (
+                            <li key={i} className="flex gap-3 text-[13px] sm:text-sm leading-relaxed">
+                              <span className="mt-1.5 shrink-0 h-2 w-2 rounded-full bg-orange-500/60" />
+                              <span className="text-foreground/80">{trap}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {(summary?.mnemonics?.length ?? 0) > 0 && (
+                      <div className="rounded-2xl border border-violet-200/80 bg-violet-50/50 p-4 sm:p-5 dark:border-violet-900/50 dark:bg-violet-950/20">
+                        <div className="flex items-center gap-2.5 mb-3">
+                          <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-violet-100 dark:bg-violet-900/40">
+                            <BrainCircuit className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                          </div>
+                          <h3 className="text-sm font-semibold">Memory Aids</h3>
+                        </div>
+                        <ul className="space-y-2">
+                          {summary!.mnemonics!.map((m, i) => (
+                            <li key={i} className="text-[13px] sm:text-sm leading-relaxed text-violet-700 dark:text-violet-300">{m}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </>
                 )}
               </>
             ) : hasFallbackGuide ? (
               <div className="space-y-4">
-                {fallbackGuide.objectives.length > 0 && (
+                {/* STUDY: objectives + highYield */}
+                {stage === "STUDY" && fallbackGuide.objectives.length > 0 && (
                   <div className="rounded-2xl border border-blue-200/80 bg-blue-50/45 p-4 sm:p-5 dark:border-blue-900/50 dark:bg-blue-950/20">
                     <div className="mb-3 flex items-center gap-2.5">
                       <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-100 dark:bg-blue-900/50">
@@ -897,7 +1086,7 @@ export default function StudySessionPage({
                       <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-green-100 dark:bg-green-900/50">
                         <Sparkles className="h-4 w-4 text-green-600 dark:text-green-400" />
                       </div>
-                      <h3 className="text-sm font-semibold">High-Yield Highlights</h3>
+                      <h3 className="text-sm font-semibold">{stage === "REVIEW" ? "Quick Refresh" : "High-Yield Highlights"}</h3>
                     </div>
                     <ul className="space-y-2.5">
                       {fallbackGuide.highYield.map((item, i) => (
@@ -910,13 +1099,13 @@ export default function StudySessionPage({
                   </div>
                 )}
 
-                {fallbackGuide.examAngles.length > 0 && (
+                {stage !== "STUDY" && fallbackGuide.examAngles.length > 0 && (
                   <div className="rounded-2xl border border-violet-200/80 bg-violet-50/45 p-4 sm:p-5 dark:border-violet-900/50 dark:bg-violet-950/20">
                     <div className="mb-3 flex items-center gap-2.5">
                       <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900/50">
                         <BrainCircuit className="h-4 w-4 text-violet-600 dark:text-violet-400" />
                       </div>
-                      <h3 className="text-sm font-semibold">Exam Angles</h3>
+                      <h3 className="text-sm font-semibold">{stage === "REVIEW" ? "Recall Practice" : "Exam Angles"}</h3>
                     </div>
                     <ul className="space-y-2.5">
                       {fallbackGuide.examAngles.map((item, i) => (
@@ -945,23 +1134,12 @@ export default function StudySessionPage({
           {/* ─── Notes Tab (AI-generated study notes) ─── */}
           <TabsContent value="notes" className="space-y-4 mt-0">
             {summaryLoading ? (
-              <div className="space-y-4 py-2">
-                <div className="rounded-2xl border bg-card p-4 sm:p-5 space-y-3">
-                  <div className="flex items-center gap-2.5">
-                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                    <p className="text-sm font-medium">Generating study notes...</p>
-                  </div>
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-[92%]" />
-                  <Skeleton className="h-4 w-[85%]" />
-                </div>
-                <div className="rounded-2xl border bg-card p-4 sm:p-5 space-y-3">
-                  <Skeleton className="h-5 w-1/3" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-[90%]" />
-                  <Skeleton className="h-4 w-full" />
-                </div>
-              </div>
+              <SectionLoadingState
+                title="Generating study notes"
+                description="Building a concise clinical summary from your section."
+                rows={3}
+                className="rounded-2xl"
+              />
             ) : summary ? (
               <>
                 <div className="rounded-2xl border bg-card p-4 sm:p-5">
@@ -1093,6 +1271,12 @@ export default function StudySessionPage({
                     Section text must be loaded first.
                   </p>
                 )}
+                {textLoading && (
+                  <InlineLoadingState
+                    label="Loading section text..."
+                    className="mt-3 text-[11px]"
+                  />
+                )}
               </div>
             )}
           </TabsContent>
@@ -1121,10 +1305,7 @@ export default function StudySessionPage({
                   {chatLoading && (
                     <div className="mr-4 rounded-2xl border border-blue-200/60 bg-blue-50/40 p-4 dark:border-blue-900/50 dark:bg-blue-950/20">
                       <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">AI Tutor</p>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Thinking...
-                      </div>
+                      <InlineLoadingState label="Thinking..." />
                     </div>
                   )}
                 </div>

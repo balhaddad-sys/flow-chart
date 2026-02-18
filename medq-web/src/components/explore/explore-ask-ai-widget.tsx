@@ -5,7 +5,6 @@ import {
   MessageCircle,
   X,
   Send,
-  Loader2,
   Trash2,
   CircleStop,
   Sparkles,
@@ -13,6 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { InlineLoadingState } from "@/components/ui/loading-state";
 import { useExploreStore } from "@/lib/stores/explore-store";
 import { useAuth } from "@/lib/hooks/useAuth";
 
@@ -162,6 +162,10 @@ export function ExploreAskAiWidget() {
   const runRequest = useCallback(
     async (message: string, historyBeforeRequest: ChatMsg[], appendUser: boolean) => {
       if (!topicInsight || loading) return;
+      if (!user) {
+        setRequestError("Not signed in. Please refresh the page.");
+        return;
+      }
 
       const trimmed = message.trim();
       if (!trimmed) return;
@@ -391,8 +395,7 @@ export function ExploreAskAiWidget() {
         {loading && (
           <div className="flex justify-start">
             <div className="mr-5 flex items-center gap-2 rounded-xl border border-border/60 bg-background/80 px-3 py-2 text-sm text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Thinking...
+              <InlineLoadingState label="Thinking..." className="text-sm" />
             </div>
           </div>
         )}
