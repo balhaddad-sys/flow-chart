@@ -133,7 +133,7 @@ export function SidebarV2() {
       )}
 
       {/* Navigation */}
-      <nav className="relative flex-1 p-3">
+      <nav aria-label="Main navigation" className="relative flex-1 p-3">
         {/* Sliding active indicator */}
         {activeIndex >= 0 && (
           <div
@@ -149,6 +149,7 @@ export function SidebarV2() {
               <Link
                 key={item.href}
                 href={item.href}
+                aria-current={active ? "page" : undefined}
                 className={cn(
                   "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-all duration-200",
                   active

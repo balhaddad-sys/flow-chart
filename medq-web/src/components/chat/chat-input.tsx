@@ -28,6 +28,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Ask about your study material..."
+          aria-label="Message input"
           className="flex-1 resize-none rounded-xl border border-border/70 bg-background/75 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           rows={1}
           onKeyDown={(e) => {
@@ -37,7 +38,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
             }
           }}
         />
-        <Button type="submit" size="icon" disabled={disabled || !text.trim()}>
+        <Button type="submit" size="icon" aria-label="Send message" disabled={disabled || !text.trim()}>
           {disabled ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (

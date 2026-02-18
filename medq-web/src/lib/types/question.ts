@@ -31,7 +31,7 @@ export interface QuestionModel {
   sectionId: string;
   topicTags: string[];
   difficulty: number;
-  type: string; // SBA
+  type: "SBA" | (string & {});
   stem: string;
   options: string[];
   correctIndex: number;
