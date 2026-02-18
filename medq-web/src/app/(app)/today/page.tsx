@@ -86,12 +86,18 @@ export default function TodayPage() {
     return "Good evening";
   };
 
+  const todayDate = new Date().toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+
   async function handleFixPlan() {
     if (!effectiveCourseId) return;
     setFixPlanLoading(true);
     try {
       await fn.runFixPlan({ courseId: effectiveCourseId });
-      toast.success("Fix plan generated! Check your plan for new tasks.");
+      toast.success("Fix plan generated. Check your plan for updated tasks.");
     } catch {
       toast.error("Failed to generate fix plan.");
     } finally {
@@ -123,52 +129,72 @@ export default function TodayPage() {
 
   return (
     <div className="page-wrap page-stack">
-      {/* Header: Greeting + Exam countdown */}
-      <section className="glass-card overflow-hidden p-5 sm:p-7">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0 space-y-2">
-            <p className="animate-in-up stagger-1 text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              Study Command Center
-            </p>
-            <h1 className="animate-in-up stagger-2 page-title break-words">
-              {greeting()},{" "}
-              <span className="text-gradient">{user?.displayName || "Student"}</span>
-            </h1>
-            {activeCourse && (
-              <p className="animate-in-up stagger-3 page-subtitle break-words">{activeCourse.title}</p>
-            )}
-          </div>
-          <div className="animate-in-up stagger-2">
-            <ExamCountdown
-              examDate={activeCourse?.examDate}
-              courseTitle={activeCourse?.title}
-            />
-          </div>
-        </div>
-        {(filesLoading || sectionsLoading) && (
-          <div className="mt-3">
-            <InlineLoadingState label="Syncing course content..." />
-          </div>
-        )}
 
-        {/* Quick Actions */}
-        <div className="mt-5 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap animate-in-up stagger-4">
-          {quickActions.slice(0, 4).map((action) => (
-            <Link key={action.href} href={action.href} className="w-full sm:w-auto">
-              <Button
-                variant={action.href === "/ai" ? "default" : "outline"}
-                size="sm"
-                className="w-full justify-start sm:w-auto sm:justify-center rounded-xl transition-all active:scale-[0.97]"
-              >
-                <action.icon className="mr-2 h-4 w-4" />
-                {action.label}
-              </Button>
-            </Link>
-          ))}
+      {/* ── Hero section ───────────────────────────────── */}
+      <section className="glass-card overflow-hidden">
+        {/* Decorative top accent bar */}
+        <div className="h-1 w-full bg-gradient-to-r from-primary/40 via-primary to-primary/40" />
+
+        <div className="p-6 sm:p-8">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+
+            {/* Left: greeting + title */}
+            <div className="min-w-0 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="section-label animate-in-up stagger-1">
+                  Study Command Center
+                </span>
+                <span className="section-label text-border animate-in-up stagger-1">·</span>
+                <span className="section-label animate-in-up stagger-1">{todayDate}</span>
+              </div>
+
+              <div>
+                <h1 className="page-title animate-in-up stagger-2">
+                  {greeting()},{" "}
+                  <span className="text-gradient">{user?.displayName?.split(" ")[0] || "Student"}</span>
+                </h1>
+                {activeCourse && (
+                  <p className="page-subtitle animate-in-up stagger-3 mt-1.5">
+                    {activeCourse.title} — your personalised study plan is ready.
+                  </p>
+                )}
+              </div>
+
+              {(filesLoading || sectionsLoading) && (
+                <div className="animate-in-up stagger-4">
+                  <InlineLoadingState label="Syncing course content..." />
+                </div>
+              )}
+
+              {/* Quick Actions */}
+              <div className="animate-in-up stagger-4 flex flex-wrap gap-2 pt-1">
+                {quickActions.slice(0, 4).map((action) => (
+                  <Link key={action.href} href={action.href}>
+                    <Button
+                      variant={action.href === "/ai" ? "default" : "outline"}
+                      size="sm"
+                      className="rounded-xl"
+                    >
+                      <action.icon className="mr-1.5 h-3.5 w-3.5" />
+                      {action.label}
+                    </Button>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* Right: exam countdown */}
+            <div className="animate-in-up stagger-3 shrink-0">
+              <ExamCountdown
+                examDate={activeCourse?.examDate}
+                courseTitle={activeCourse?.title}
+              />
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* Pipeline Progress */}
+      {/* ── Pipeline setup progress (only shown until complete) ── */}
       <PipelineProgress
         hasFiles={hasFiles}
         hasSections={hasSections}
@@ -176,16 +202,25 @@ export default function TodayPage() {
         hasQuizAttempts={hasQuizAttempts}
       />
 
-      {/* Stats */}
-      <StatsCards stats={stats} loading={statsLoading} />
+      {/* ── Performance metrics ────────────────────────── */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="section-label">Performance Overview</h2>
+          <Link href="/today/analytics" className="inline-flex items-center gap-1 text-[0.75rem] font-medium text-muted-foreground hover:text-foreground transition-colors">
+            <BarChart3 className="h-3.5 w-3.5" />
+            Full Analytics
+          </Link>
+        </div>
+        <StatsCards stats={stats} loading={statsLoading} />
+      </section>
 
-      {/* Today's Tasks + Weak Topics */}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
+      {/* ── Tasks + Weak Topics two-column ─────────────── */}
+      <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
         <TodayChecklist tasks={todayTasks} loading={tasksLoading} sectionMap={sectionMap} />
+
         <div className="space-y-4">
           <WeakTopicsBanner topics={weakTopics} />
 
-          {/* Fix Plan button */}
           {weakTopics.length > 0 && (
             <Button
               variant="outline"
@@ -198,29 +233,29 @@ export default function TodayPage() {
               ) : (
                 <>
                   <Wrench className="mr-2 h-4 w-4" />
-                  Generate Fix Plan
+                  Generate Remediation Plan
                 </>
               )}
             </Button>
           )}
-        </div>
-      </div>
 
-      {/* Sub-page links */}
-      <div className="flex flex-wrap gap-3">
-        <Link href="/today/plan">
-          <Button variant="outline" size="sm" className="rounded-xl">
-            <Calendar className="mr-2 h-4 w-4" />
-            View Full Plan
-          </Button>
-        </Link>
-        <Link href="/today/analytics">
-          <Button variant="outline" size="sm" className="rounded-xl">
-            <BarChart3 className="mr-2 h-4 w-4" />
-            View Analytics
-          </Button>
-        </Link>
-      </div>
+          {/* Sub-page navigation */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <Link href="/today/plan" className="block">
+              <Button variant="outline" size="sm" className="w-full rounded-xl">
+                <Calendar className="mr-2 h-3.5 w-3.5" />
+                Full Plan
+              </Button>
+            </Link>
+            <Link href="/today/analytics" className="block">
+              <Button variant="outline" size="sm" className="w-full rounded-xl">
+                <BarChart3 className="mr-2 h-3.5 w-3.5" />
+                Analytics
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

@@ -242,29 +242,41 @@ export default function PracticePage() {
 
   return (
     <div className="page-wrap page-stack">
-      <div className="glass-card p-5 sm:p-6">
-        <h1 className="page-title animate-in-up stagger-1">Practice</h1>
-        <p className="page-subtitle animate-in-up stagger-2">
-          {activeCourse ? `Quiz yourself on ${activeCourse.title}` : "Select sections and start quizzing"}
-        </p>
+      <div className="glass-card overflow-hidden">
+        <div className="h-1 w-full bg-gradient-to-r from-primary/40 via-primary to-primary/40" />
+        <div className="flex items-start gap-4 p-6 sm:p-8">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/12">
+            <CircleHelp className="h-5 w-5 text-primary" />
+          </div>
+          <div className="space-y-1">
+            <p className="section-label animate-in-up stagger-1">Assessment</p>
+            <h1 className="page-title animate-in-up stagger-2">Practice</h1>
+            <p className="page-subtitle animate-in-up stagger-3">
+              {activeCourse
+                ? `Test your knowledge of ${activeCourse.title} with AI-generated questions tailored to your weak areas.`
+                : "Select sections and start quizzing to reinforce your understanding."}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Mode cards */}
       {!loading && categorized.ready.length > 0 && (
-        <div className="grid gap-3 sm:grid-cols-3 animate-in-up stagger-3">
-          {modeCards.map((mode) => (
-            <Link key={mode.href} href={mode.href}>
-              <div className={cn(
-                "surface-interactive rounded-2xl border border-border/70 bg-card/85 p-4 text-center"
-              )}>
-                <div className={cn("mx-auto flex h-10 w-10 items-center justify-center rounded-xl", mode.bg)}>
-                  <mode.icon className={cn("h-5 w-5", mode.color)} />
+        <div className="space-y-2">
+          <h2 className="section-label">Quiz Modes</h2>
+          <div className="grid gap-3 sm:grid-cols-3 animate-in-up stagger-3">
+            {modeCards.map((mode) => (
+              <Link key={mode.href} href={mode.href}>
+                <div className="surface-interactive p-5">
+                  <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", mode.bg)}>
+                    <mode.icon className={cn("h-5 w-5", mode.color)} />
+                  </div>
+                  <p className="mt-3.5 text-sm font-semibold tracking-tight">{mode.label}</p>
+                  <p className="mt-1 text-[0.75rem] leading-relaxed text-muted-foreground">{mode.description}</p>
                 </div>
-                <p className="mt-3 text-sm font-semibold">{mode.label}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{mode.description}</p>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            ))}
+          </div>
         </div>
       )}
 

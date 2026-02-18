@@ -279,19 +279,24 @@
 @layer utilities {
   /* Page layout */
   .page-wrap {
-    @apply mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-6;
+    @apply mx-auto w-full max-w-5xl px-4 py-5 sm:px-8 sm:py-8;
   }
 
   .page-stack {
-    @apply space-y-4 sm:space-y-6;
+    @apply space-y-5 sm:space-y-7;
   }
 
   .page-title {
-    @apply text-2xl font-semibold leading-tight sm:text-3xl;
+    @apply text-2xl font-semibold leading-tight tracking-tight sm:text-[1.75rem];
   }
 
   .page-subtitle {
-    @apply text-sm text-muted-foreground sm:text-base;
+    @apply mt-1.5 text-sm leading-relaxed text-muted-foreground sm:text-[0.9375rem];
+  }
+
+  /* Section labels — small all-caps eyebrow above headings */
+  .section-label {
+    @apply text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground;
   }
 
   /* Surfaces */
@@ -332,11 +337,11 @@
 
   .surface-interactive:hover {
     transform: translateY(-2px);
-    border-color: var(--glow);
+    border-color: color-mix(in oklab, var(--color-primary) 30%, transparent);
     box-shadow:
       0 2px 4px oklch(0.2 0.02 250 / 0.06),
       0 12px 32px -8px oklch(0.2 0.02 250 / 0.12),
-      0 0 0 1px var(--glow);
+      0 0 0 1px color-mix(in oklab, var(--color-primary) 18%, transparent);
   }
 
   .surface-interactive:active {
@@ -352,7 +357,7 @@
   }
 
   .metric-card {
-    @apply rounded-2xl border border-border/60 bg-card/88 p-4 sm:p-5;
+    @apply rounded-2xl border border-border/60 bg-card/90 p-5 sm:p-6;
     box-shadow:
       0 1px 2px oklch(0.2 0.02 250 / 0.04),
       0 6px 16px -6px oklch(0.2 0.02 250 / 0.07);
@@ -364,10 +369,15 @@
     background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--color-border) 80%, var(--color-primary)), transparent);
   }
 
+  /* Stat number — large tabular figure for metrics */
+  .stat-number {
+    @apply text-3xl font-bold tabular-nums tracking-tight;
+  }
+
   /* Text utilities */
   .text-gradient {
     @apply bg-clip-text text-transparent;
-    background-image: linear-gradient(135deg, var(--color-primary), oklch(0.7 0.12 180));
+    background-image: linear-gradient(135deg, var(--color-primary), oklch(0.7 0.12 175));
   }
 
   .text-balance {

@@ -26,11 +26,11 @@ import {
 import { useMemo } from "react";
 
 const navItems = [
-  { href: "/today", label: "Today", icon: Home },
-  { href: "/library", label: "Library", icon: Library },
-  { href: "/practice", label: "Practice", icon: CircleHelp },
-  { href: "/ai", label: "AI", icon: Sparkles },
-  { href: "/profile", label: "Profile", icon: User },
+  { href: "/today", label: "Today", icon: Home, description: "Dashboard & tasks" },
+  { href: "/library", label: "Library", icon: Library, description: "Study materials" },
+  { href: "/practice", label: "Practice", icon: CircleHelp, description: "Quizzes & assessment" },
+  { href: "/ai", label: "AI", icon: Sparkles, description: "Clinical reasoning" },
+  { href: "/profile", label: "Profile", icon: User, description: "Account & settings" },
 ];
 
 function isNavActive(pathname: string, href: string): boolean {
@@ -69,19 +69,19 @@ export function SidebarV2() {
   );
 
   return (
-    <aside className="sticky top-0 hidden h-[100dvh] flex-col border-r border-sidebar-border/60 bg-sidebar/90 backdrop-blur-xl md:flex">
+    <aside className="sticky top-0 hidden h-[100dvh] flex-col border-r border-sidebar-border/50 bg-sidebar/95 backdrop-blur-2xl md:flex">
       {/* Branding */}
-      <div className="border-b border-sidebar-border/60 px-5 py-5">
-        <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/18 via-primary/6 to-transparent p-4">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15">
-              <GraduationCap className="h-5 w-5 text-primary" />
+      <div className="px-5 py-5">
+        <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/15 via-primary/6 to-transparent p-4 shadow-[inset_0_1px_0_oklch(1_0_0/0.06)]">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/18 shadow-sm">
+              <GraduationCap className="h-[1.1rem] w-[1.1rem] text-primary" />
             </div>
             <div>
-              <span className="block text-lg font-semibold tracking-tight text-sidebar-foreground">
+              <span className="block text-[1.0625rem] font-bold tracking-tight text-sidebar-foreground">
                 MedQ
               </span>
-              <p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              <p className="text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground/80">
                 AI Study Cockpit
               </p>
             </div>
@@ -91,17 +91,20 @@ export function SidebarV2() {
 
       {/* Course switcher */}
       {courses.length > 0 && (
-        <div className="border-b border-sidebar-border/60 p-3">
+        <div className="px-4 pb-3">
+          <p className="mb-1.5 px-1 text-[0.6rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
+            Active Course
+          </p>
           <DropdownMenu>
-            <DropdownMenuTrigger className="flex w-full items-center gap-2.5 rounded-xl border border-sidebar-border/70 bg-card/60 px-3 py-2.5 text-sm font-medium transition-all hover:bg-accent/70 hover:border-primary/25">
+            <DropdownMenuTrigger className="flex w-full items-center gap-2.5 rounded-xl border border-sidebar-border/80 bg-card/50 px-3 py-2.5 text-sm font-medium transition-all hover:bg-accent/60 hover:border-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <span
-                className="h-2.5 w-2.5 shrink-0 rounded-full"
-                style={{ backgroundColor: activeCourse ? courseColor(activeCourse.title) : "var(--muted)" }}
+                className="h-2 w-2 shrink-0 rounded-full ring-2 ring-white/20"
+                style={{ backgroundColor: activeCourse ? courseColor(activeCourse.title) : "var(--muted-foreground)" }}
               />
-              <span className="flex-1 truncate text-left">
+              <span className="flex-1 truncate text-left text-[0.8125rem]">
                 {activeCourse?.title ?? "Select course"}
               </span>
-              <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
               {courses.map((course) => (
@@ -133,16 +136,20 @@ export function SidebarV2() {
       )}
 
       {/* Navigation */}
-      <nav aria-label="Main navigation" className="relative flex-1 p-3">
+      <nav aria-label="Main navigation" className="relative flex-1 px-3 py-2">
+        <p className="mb-2 px-2 text-[0.6rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
+          Navigation
+        </p>
+
         {/* Sliding active indicator */}
         {activeIndex >= 0 && (
           <div
-            className="absolute left-3 right-3 h-[44px] rounded-xl bg-primary/10 border border-primary/20 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
-            style={{ transform: `translateY(${activeIndex * 50}px)` }}
+            className="absolute left-3 right-3 h-[46px] rounded-xl bg-primary/9 border border-primary/18 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
+            style={{ transform: `translateY(calc(${activeIndex * 52}px + 1.5rem))` }}
           />
         )}
 
-        <div className="relative space-y-1.5">
+        <div className="relative space-y-1">
           {navItems.map((item) => {
             const active = isNavActive(pathname, item.href);
             return (
@@ -151,7 +158,7 @@ export function SidebarV2() {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-all duration-200",
+                  "group flex items-center gap-3 rounded-xl px-3 py-[0.6875rem] text-[0.8125rem] font-medium transition-all duration-200",
                   active
                     ? "text-foreground"
                     : "text-muted-foreground hover:text-foreground"
@@ -159,13 +166,13 @@ export function SidebarV2() {
               >
                 <item.icon
                   className={cn(
-                    "h-[18px] w-[18px] transition-all duration-200",
+                    "h-[1.0625rem] w-[1.0625rem] shrink-0 transition-all duration-200",
                     active
                       ? "text-primary scale-110"
-                      : "text-muted-foreground group-hover:text-foreground group-hover:scale-105"
+                      : "text-muted-foreground/80 group-hover:text-foreground group-hover:scale-105"
                   )}
                 />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
               </Link>
             );
           })}
@@ -173,17 +180,17 @@ export function SidebarV2() {
       </nav>
 
       {/* User footer */}
-      <div className="border-t border-sidebar-border/60 p-3">
+      <div className="border-t border-sidebar-border/50 p-3">
         <Link
           href="/profile"
-          className="flex items-center gap-2.5 rounded-xl px-3 py-2.5 transition-colors hover:bg-accent/70"
+          className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-accent/60 group"
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/12 text-xs font-semibold text-primary">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[0.6875rem] font-bold text-primary ring-2 ring-primary/10">
             {getInitials(user?.displayName)}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{user?.displayName || "User"}</p>
-            <p className="truncate text-[11px] text-muted-foreground">{user?.email}</p>
+            <p className="truncate text-[0.8125rem] font-semibold leading-tight">{user?.displayName || "Student"}</p>
+            <p className="truncate text-[0.6875rem] text-muted-foreground leading-tight mt-0.5">{user?.email}</p>
           </div>
         </Link>
       </div>
