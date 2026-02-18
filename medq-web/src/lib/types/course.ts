@@ -19,6 +19,7 @@ export interface CourseModel {
   fileCount?: number;
   sectionCount?: number;
   questionCount?: number;
+  isSampleDeck?: boolean;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }

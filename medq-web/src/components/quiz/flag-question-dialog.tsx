@@ -109,7 +109,7 @@ export function FlagQuestionDialog({ questionId, trigger }: FlagQuestionDialogPr
                 {/* Reason options */}
                 <div className="space-y-2">
                   <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    What's wrong?
+                    What&apos;s wrong?
                   </p>
                   <div className="space-y-1.5">
                     {FLAG_OPTIONS.map((opt) => (

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { BookOpen, X, FileText, ChevronRight, ExternalLink } from "lucide-react";
-import { cn } from "@/lib/utils";
 import type { QuestionSourceCitation, QuestionCitation, QuestionSourceRef } from "@/lib/types/question";
 
 interface SourceCitationDrawerProps {

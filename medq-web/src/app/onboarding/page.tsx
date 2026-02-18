@@ -14,7 +14,6 @@ import {
   ChevronRight,
   GraduationCap,
   CalendarDays,
-  Clock,
   Sparkles,
   CheckCircle2,
   Target,
