@@ -5,21 +5,13 @@ import {
   ArrowRight,
   BookOpen,
   CheckCircle2,
-  Compass,
   XCircle,
   ExternalLink,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { PageLoadingState } from "@/components/ui/loading-state";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { useExploreStore } from "@/lib/stores/explore-store";
 import { ExploreResults } from "@/components/explore/explore-results";
 import { ExploreTeaching } from "@/components/explore/explore-teaching";
@@ -422,39 +414,12 @@ export default function ExplorePage() {
   if (phase === "setup") {
     return (
       <div className="page-wrap page-stack">
-        <div className="glass-card overflow-hidden p-5 sm:p-6">
-          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_13rem] lg:items-end">
-            <div className="space-y-3">
-              <div className="inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
-                <Compass className="h-3.5 w-3.5" />
-                Explore Tutor
-              </div>
-              <h1 className="page-title">Train by topic, not by chance</h1>
-              <p className="page-subtitle max-w-2xl">
-                Get guided teaching or jump straight into an adaptive quiz with
-                confidence tracking and source-backed explanations.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary">Adaptive questions</Badge>
-                <Badge variant="outline">Confidence calibration</Badge>
-                <Badge variant="outline">Background generation</Badge>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-center">
-              <div className="rounded-xl border border-border/70 bg-background/70 px-2 py-3">
-                <p className="text-lg font-semibold">{inputCount}</p>
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  Target Qs
-                </p>
-              </div>
-              <div className="rounded-xl border border-border/70 bg-background/70 px-2 py-3">
-                <p className="text-lg font-semibold">{inputLevel}</p>
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  Level
-                </p>
-              </div>
-            </div>
-          </div>
+        {/* Hero */}
+        <div className="glass-card p-5 sm:p-6 animate-in-up">
+          <h1 className="page-title text-balance">Explore any topic</h1>
+          <p className="mt-1.5 page-subtitle max-w-md">
+            Learn with structured teaching or test yourself with adaptive questions.
+          </p>
         </div>
 
         {error && (
@@ -463,63 +428,106 @@ export default function ExplorePage() {
           </div>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Choose your focus</CardTitle>
-            <CardDescription>
-              Preferences are saved automatically and restored next time.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <label className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-medium">Topic</span>
-                <span className="text-xs text-muted-foreground">
-                  {inputTopic.length}/200
-                </span>
-              </div>
-              <input
-                type="text"
-                value={inputTopic}
-                onChange={(e) => setInputTopic(e.target.value)}
-                placeholder="e.g. Cardiac arrhythmias, renal physiology, pharmacokinetics..."
-                maxLength={200}
+        {/* Topic input */}
+        <div className="glass-card p-4 sm:p-5 animate-in-up stagger-1">
+          <label className="block">
+            <span className="text-sm font-medium">What do you want to study?</span>
+            <input
+              type="text"
+              value={inputTopic}
+              onChange={(e) => setInputTopic(e.target.value)}
+              placeholder="e.g. Cardiac arrhythmias, renal physiology..."
+              maxLength={200}
+              className="mt-2 w-full rounded-xl border border-border/70 bg-background/80 px-3 py-2.5 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-primary/35"
+              onKeyDown={(e) => e.key === "Enter" && handlePrimarySetupAction()}
+            />
+          </label>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {TOPIC_SUGGESTIONS.map((suggestion) => (
+              <button
+                key={suggestion}
+                type="button"
+                onClick={() => setInputTopic(suggestion)}
+                className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Mode selection */}
+        <div className="grid grid-cols-2 gap-3 animate-in-up stagger-2">
+          <button
+            type="button"
+            onClick={() => setInputIntent("learn")}
+            className={`surface-interactive flex flex-col items-center gap-2 p-4 text-center transition-all ${
+              inputIntent === "learn"
+                ? "border-blue-500/60 ring-2 ring-blue-500/20"
+                : ""
+            }`}
+          >
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${
+              inputIntent === "learn" ? "bg-blue-500/15" : "bg-muted"
+            }`}>
+              <BookOpen className={`h-5 w-5 ${
+                inputIntent === "learn" ? "text-blue-500" : "text-muted-foreground"
+              }`} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">Learn</p>
+              <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground">
+                Teaching first, then quiz
+              </p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setInputIntent("quiz")}
+            className={`surface-interactive flex flex-col items-center gap-2 p-4 text-center transition-all ${
+              inputIntent === "quiz"
+                ? "border-emerald-500/60 ring-2 ring-emerald-500/20"
+                : ""
+            }`}
+          >
+            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${
+              inputIntent === "quiz" ? "bg-emerald-500/15" : "bg-muted"
+            }`}>
+              <Zap className={`h-5 w-5 ${
+                inputIntent === "quiz" ? "text-emerald-500" : "text-muted-foreground"
+              }`} />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">Quiz</p>
+              <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground">
+                Jump straight into questions
+              </p>
+            </div>
+          </button>
+        </div>
+
+        {/* Settings */}
+        <div className="glass-card p-4 sm:p-5 animate-in-up stagger-3">
+          <div className={`grid gap-4 ${inputIntent === "quiz" ? "grid-cols-2" : ""}`}>
+            <label className="space-y-1.5">
+              <span className="text-xs font-medium text-muted-foreground">Level</span>
+              <select
+                value={inputLevel}
+                onChange={(e) => setInputLevel(e.target.value)}
                 className="w-full rounded-xl border border-border/70 bg-background/80 px-3 py-2 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-primary/35"
-                onKeyDown={(e) => e.key === "Enter" && handlePrimarySetupAction()}
-              />
+              >
+                {EXPLORE_LEVELS.map((lvl) => (
+                  <option key={lvl.id} value={lvl.id}>
+                    {lvl.label}
+                  </option>
+                ))}
+              </select>
             </label>
 
-            <div className="flex flex-wrap gap-1.5">
-              {TOPIC_SUGGESTIONS.map((suggestion) => (
-                <button
-                  key={suggestion}
-                  type="button"
-                  onClick={() => setInputTopic(suggestion)}
-                  className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
-                >
-                  {suggestion}
-                </button>
-              ))}
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className="space-y-2">
-                <span className="text-sm font-medium">Level</span>
-                <select
-                  value={inputLevel}
-                  onChange={(e) => setInputLevel(e.target.value)}
-                  className="w-full rounded-xl border border-border/70 bg-background/80 px-3 py-2 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-primary/35"
-                >
-                  {EXPLORE_LEVELS.map((lvl) => (
-                    <option key={lvl.id} value={lvl.id}>
-                      {lvl.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="space-y-2">
-                <span className="text-sm font-medium">
+            {inputIntent === "quiz" && (
+              <label className="space-y-1.5">
+                <span className="text-xs font-medium text-muted-foreground">
                   Questions ({inputCount})
                 </span>
                 <input
@@ -531,84 +539,48 @@ export default function ExplorePage() {
                   onChange={(e) => setInputCount(Number(e.target.value))}
                   className="w-full accent-primary"
                 />
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-1">
                   {[5, 10, 15, 20].map((countPreset) => (
-                    <Button
+                    <button
                       key={countPreset}
                       type="button"
-                      size="sm"
-                      variant={inputCount === countPreset ? "secondary" : "outline"}
                       onClick={() => setInputCount(countPreset)}
+                      className={`rounded-lg px-2 py-0.5 text-xs font-medium transition-colors ${
+                        inputCount === countPreset
+                          ? "bg-primary/15 text-primary"
+                          : "text-muted-foreground hover:bg-accent/50"
+                      }`}
                     >
                       {countPreset}
-                    </Button>
+                    </button>
                   ))}
                 </div>
-              </div>
-            </div>
+              </label>
+            )}
+          </div>
+        </div>
 
-            <div className="rounded-xl border border-border/70 bg-background/70 p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Study mode
-              </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={inputIntent === "quiz" ? "secondary" : "outline"}
-                  onClick={() => setInputIntent("quiz")}
-                >
-                  Quick Quiz
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={inputIntent === "learn" ? "secondary" : "outline"}
-                  onClick={() => setInputIntent("learn")}
-                >
-                  Guided Learn
-                </Button>
-              </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {inputIntent === "learn"
-                  ? "Start with structured teaching, then launch a quiz when ready."
-                  : "Start questions immediately. Extra questions keep generating in background."}
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                onClick={handlePrimarySetupAction}
-                disabled={!inputTopic.trim()}
-                className="min-w-40"
-              >
-                {inputIntent === "learn" ? (
-                  <>
-                    <BookOpen className="mr-2 h-4 w-4" />
-                    Start Learning
-                  </>
-                ) : (
-                  <>
-                    Start Quiz
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                    </>
-                  )}
-              </Button>
-
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() =>
-                  setInputIntent((current) =>
-                    current === "learn" ? "quiz" : "learn"
-                  )
-                }
-              >
-                Switch to {inputIntent === "learn" ? "Quick Quiz" : "Guided Learn"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* CTA */}
+        <div className="animate-in-up stagger-4">
+          <Button
+            onClick={handlePrimarySetupAction}
+            disabled={!inputTopic.trim()}
+            className="w-full sm:w-auto sm:min-w-48"
+            size="lg"
+          >
+            {inputIntent === "learn" ? (
+              <>
+                <BookOpen className="mr-2 h-4 w-4" />
+                Start Learning
+              </>
+            ) : (
+              <>
+                Start Quiz
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     );
   }
@@ -694,80 +666,70 @@ export default function ExplorePage() {
 
   return (
     <div className="page-wrap page-stack">
-      <Card>
-        <CardContent className="space-y-3 pt-6">
+      {/* Progress header */}
+      <div className="glass-card p-4 animate-in-up">
+        <div className="flex items-center justify-between gap-3">
+          <p className="min-w-0 truncate text-sm font-medium">{topic}</p>
+          <span className="shrink-0 text-xs text-muted-foreground">
+            {currentIndex + 1} of {questions.length}
+          </span>
+        </div>
+        <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-primary transition-all duration-300"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+        {backfillError && (
+          <p className="mt-2 text-xs text-destructive">{backfillError}</p>
+        )}
+      </div>
+
+      {/* Question card */}
+      <div className="glass-card p-4 sm:p-5 animate-in-up stagger-1 space-y-4">
+        <p className="text-base font-semibold leading-relaxed">
+          {currentQuestion.stem}
+        </p>
+
+        {/* Confidence — inline row */}
+        {!isAnswered ? (
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">{topic}</Badge>
-            <Badge variant="outline">{levelLabel}</Badge>
-            <Badge variant="outline">
-              {currentIndex + 1}/{questions.length}
-            </Badge>
-            <Badge variant="outline">
-              Answered {answeredCount}/{questions.length}
-            </Badge>
-            {targetCount > questions.length && (
-              <Badge variant="outline">
-                Target {questions.length}/{targetCount}
-              </Badge>
-            )}
-            {backfillStatus === "running" && (
-              <Badge variant="outline">Generating more...</Badge>
-            )}
-            {typeof qualityScore === "number" && (
-              <Badge variant={qualityGatePassed ? "secondary" : "outline"}>
-                Quality {Math.round(qualityScore * 100)}%
-              </Badge>
-            )}
+            <span className="text-xs text-muted-foreground">How confident?</span>
+            {[
+              { value: 1, label: "Low" },
+              { value: 3, label: "Medium" },
+              { value: 5, label: "High" },
+            ].map((item) => {
+              const isActive = currentConfidence === item.value;
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => setConfidence(currentQuestion.id, item.value)}
+                  className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                    isActive
+                      ? "bg-primary/15 text-primary ring-1 ring-primary/30"
+                      : "bg-muted text-muted-foreground hover:bg-accent/50"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
           </div>
-          <Progress value={progressPercent} className="h-2.5" />
-          {backfillError && (
-            <p className="text-xs text-destructive">{backfillError}</p>
-          )}
-        </CardContent>
-      </Card>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Confidence: {confidenceLabel(currentConfidence)}
+          </p>
+        )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg leading-relaxed">
-            {currentQuestion.stem}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="rounded-xl border border-border/70 bg-background/70 p-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                Confidence calibration
-              </p>
-              <Badge variant="outline">
-                {confidenceLabel(currentConfidence)}
-              </Badge>
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Set confidence before answering. This improves metacognition and reduces overconfidence errors.
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {[
-                { value: 1, label: "Low (1-2)" },
-                { value: 3, label: "Moderate (3)" },
-                { value: 5, label: "High (4-5)" },
-              ].map((item) => {
-                const isActive = currentConfidence === item.value;
-                return (
-                  <Button
-                    key={item.value}
-                    type="button"
-                    size="sm"
-                    variant={isActive ? "secondary" : "outline"}
-                    onClick={() => setConfidence(currentQuestion.id, item.value)}
-                    disabled={isAnswered}
-                  >
-                    {item.label}
-                  </Button>
-                );
-              })}
-            </div>
-          </div>
-
+        {/* Options */}
+        {currentConfidence == null && !isAnswered && (
+          <p className="text-xs text-muted-foreground/70">
+            Set confidence to unlock options
+          </p>
+        )}
+        <div className={`space-y-2 ${currentConfidence == null && !isAnswered ? "opacity-50 pointer-events-none" : ""}`}>
           {currentQuestion.options.map((option, idx) => {
             const selected = currentAnswer === idx;
             const isCorrectOption = currentQuestion.correctIndex === idx;
@@ -800,175 +762,180 @@ export default function ExplorePage() {
               </button>
             );
           })}
+        </div>
 
-          {isAnswered && (
-            <div className="space-y-3 pt-2">
-              <div
-                className={`rounded-xl px-3 py-2 text-sm font-medium ${
-                  results.get(currentQuestion.id)
-                    ? "bg-green-500/10 text-green-700 dark:text-green-300"
-                    : "bg-red-500/10 text-red-700 dark:text-red-300"
-                }`}
-              >
+        {/* Post-answer */}
+        {isAnswered && (
+          <div className="space-y-3 pt-1">
+            {/* Result banner + Next button */}
+            <div
+              className={`flex items-center justify-between gap-3 rounded-xl px-3 py-2 ${
+                results.get(currentQuestion.id)
+                  ? "bg-green-500/10 text-green-700 dark:text-green-300"
+                  : "bg-red-500/10 text-red-700 dark:text-red-300"
+              }`}
+            >
+              <span className="text-sm font-medium">
                 {results.get(currentQuestion.id)
                   ? "Correct!"
-                  : `Incorrect. Answer: ${String.fromCharCode(65 + currentQuestion.correctIndex)}`}
-              </div>
-
-              <div className="rounded-xl border border-border/70 bg-background/70 p-3">
-                <p className={`text-xs font-semibold uppercase tracking-wide ${calibrationFeedback.toneClass}`}>
-                  {calibrationFeedback.title}
-                </p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {calibrationFeedback.message}
-                </p>
-              </div>
-
-              {currentQuestion.explanation?.keyTakeaway && (
-                <div className="rounded-xl border border-border/70 bg-background/70 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-                    Key takeaway
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {currentQuestion.explanation.keyTakeaway}
-                  </p>
-                </div>
-              )}
-
-              {currentQuestion.explanation?.correctWhy && (
-                <div className="rounded-xl border border-border/70 bg-background/70 p-3">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-green-600 dark:text-green-400">
-                    Why correct
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {currentQuestion.explanation.correctWhy}
-                  </p>
-                </div>
-              )}
-
-              {(selectedOptionReason ||
-                optionReasoning.length > 0 ||
-                (currentQuestion.citations?.length ?? 0) > 0) && (
-                <details className="rounded-xl border border-border/70 bg-background/70 p-3">
-                  <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Deep review and sources
-                  </summary>
-                  <div className="mt-3 space-y-3">
-                    {selectedOptionReason && (
-                      <div className="rounded-xl border border-border/70 bg-background/70 p-3">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
-                          Reasoning for your selected option
-                        </p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {selectedOptionReason}
-                        </p>
-                      </div>
-                    )}
-
-                    {optionReasoning.length > 0 && (
-                      <div className="rounded-xl border border-border/70 bg-background/70 p-3">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                          Option-by-option reasoning
-                        </p>
-                        <div className="mt-2 space-y-1.5">
-                          {currentQuestion.options.map((option, optionIndex) => {
-                            const reasoning = optionReasoning[optionIndex];
-                            if (!reasoning) return null;
-                            return (
-                              <p
-                                key={`${option}_${optionIndex}`}
-                                className="text-sm text-muted-foreground"
-                              >
-                                {String.fromCharCode(65 + optionIndex)}. {reasoning}
-                              </p>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {(currentQuestion.citations?.length ?? 0) > 0 && (
-                      <div className="rounded-xl border border-border/70 bg-background/70 p-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Verified sources
-                          </p>
-                          <Badge variant={evidenceBadgeVariant(currentQuestion.citationMeta?.evidenceQuality)}>
-                            Evidence {currentQuestion.citationMeta?.evidenceQuality || "MODERATE"}
-                          </Badge>
-                        </div>
-                        {currentQuestion.citationMeta?.fallbackUsed && (
-                          <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
-                            Source links are trusted search endpoints. Verify the exact publication before relying clinically.
-                          </p>
-                        )}
-                        <div className="mt-2 space-y-1.5">
-                          {currentQuestion.citations?.slice(0, 3).map((citation, idx) => (
-                            <a
-                              key={`${citation.url}_${idx}`}
-                              href={citation.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="group flex items-start gap-2 rounded-lg border border-border/60 bg-background/70 px-2.5 py-2 text-sm transition-colors hover:bg-accent/40"
-                            >
-                              <span className="font-medium text-primary">{citation.source}</span>
-                              <span className="flex-1 text-muted-foreground">{citation.title}</span>
-                              <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-foreground" />
-                            </a>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </details>
-              )}
-
-              <div className="flex flex-wrap gap-2">
-                <Button onClick={handleNext}>
-                  {isLastLoadedQuestion
-                    ? waitingForMoreQuestions
-                      ? "Finish For Now"
-                      : "See Results"
-                    : "Next Question"}
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </div>
-              {(!isLastLoadedQuestion || store.topicInsight) && (
-                <details className="rounded-xl border border-border/70 bg-background/70 p-3">
-                  <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    More actions
-                  </summary>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {!isLastLoadedQuestion && (
-                      <Button
-                        variant="outline"
-                        onClick={() => store.finishQuiz()}
-                      >
-                        End now
-                      </Button>
-                    )}
-                    {store.topicInsight && (
-                      <Button
-                        variant="ghost"
-                        onClick={() => store.goToTeachingFromQuiz()}
-                      >
-                        <BookOpen className="mr-2 h-4 w-4" />
-                        Review teaching
-                      </Button>
-                    )}
-                  </div>
-                </details>
-              )}
-              {waitingForMoreQuestions && (
-                <p className="text-xs text-muted-foreground">
-                  Generating {targetCount - questions.length} more questions in the
-                  background. You can finish now or wait for more.
-                </p>
-              )}
+                  : `Incorrect — ${String.fromCharCode(65 + currentQuestion.correctIndex)}`}
+              </span>
+              <Button size="sm" onClick={handleNext} className="shrink-0">
+                {isLastLoadedQuestion
+                  ? waitingForMoreQuestions
+                    ? "Finish"
+                    : "Results"
+                  : "Next"}
+                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+              </Button>
             </div>
-          )}
-        </CardContent>
-      </Card>
+
+            {/* Calibration — inline */}
+            <p className={`text-xs ${calibrationFeedback.toneClass}`}>
+              <span className="font-semibold">{calibrationFeedback.title}:</span>{" "}
+              {calibrationFeedback.message}
+            </p>
+
+            {/* Key takeaway + Why correct — merged box */}
+            {(currentQuestion.explanation?.keyTakeaway ||
+              currentQuestion.explanation?.correctWhy) && (
+              <div className="rounded-xl border border-border/70 bg-background/70 p-3 space-y-2">
+                {currentQuestion.explanation?.keyTakeaway && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+                      Key takeaway
+                    </p>
+                    <p className="mt-0.5 text-sm text-muted-foreground">
+                      {currentQuestion.explanation.keyTakeaway}
+                    </p>
+                  </div>
+                )}
+                {currentQuestion.explanation?.correctWhy && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-green-600 dark:text-green-400">
+                      Why correct
+                    </p>
+                    <p className="mt-0.5 text-sm text-muted-foreground">
+                      {currentQuestion.explanation.correctWhy}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Deep review accordion — includes sources + more actions */}
+            {(selectedOptionReason ||
+              optionReasoning.length > 0 ||
+              (currentQuestion.citations?.length ?? 0) > 0 ||
+              !isLastLoadedQuestion ||
+              store.topicInsight) && (
+              <details className="rounded-xl border border-border/70 bg-background/70 p-3">
+                <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Deep review
+                </summary>
+                <div className="mt-3 space-y-3">
+                  {selectedOptionReason && (
+                    <div>
+                      <p className="text-xs font-semibold text-amber-600 dark:text-amber-400">
+                        Your selected option
+                      </p>
+                      <p className="mt-0.5 text-sm text-muted-foreground">
+                        {selectedOptionReason}
+                      </p>
+                    </div>
+                  )}
+
+                  {optionReasoning.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground">
+                        Option-by-option reasoning
+                      </p>
+                      <div className="mt-1.5 space-y-1">
+                        {currentQuestion.options.map((option, optionIndex) => {
+                          const reasoning = optionReasoning[optionIndex];
+                          if (!reasoning) return null;
+                          return (
+                            <p
+                              key={`${option}_${optionIndex}`}
+                              className="text-sm text-muted-foreground"
+                            >
+                              {String.fromCharCode(65 + optionIndex)}. {reasoning}
+                            </p>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {(currentQuestion.citations?.length ?? 0) > 0 && (
+                    <div>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs font-semibold text-muted-foreground">
+                          Sources
+                        </p>
+                        <Badge variant={evidenceBadgeVariant(currentQuestion.citationMeta?.evidenceQuality)}>
+                          {currentQuestion.citationMeta?.evidenceQuality || "MODERATE"}
+                        </Badge>
+                      </div>
+                      {currentQuestion.citationMeta?.fallbackUsed && (
+                        <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">
+                          Verify the exact publication before relying clinically.
+                        </p>
+                      )}
+                      <div className="mt-2 space-y-1.5">
+                        {currentQuestion.citations?.slice(0, 3).map((citation, idx) => (
+                          <a
+                            key={`${citation.url}_${idx}`}
+                            href={citation.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="group flex items-start gap-2 rounded-lg border border-border/60 bg-background/70 px-2.5 py-2 text-sm transition-colors hover:bg-accent/40"
+                          >
+                            <span className="font-medium text-primary">{citation.source}</span>
+                            <span className="flex-1 text-muted-foreground">{citation.title}</span>
+                            <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground group-hover:text-foreground" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actions inside deep review */}
+                  {(!isLastLoadedQuestion || store.topicInsight) && (
+                    <div className="flex flex-wrap gap-2 border-t border-border/50 pt-3">
+                      {!isLastLoadedQuestion && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => store.finishQuiz()}
+                        >
+                          End quiz
+                        </Button>
+                      )}
+                      {store.topicInsight && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => store.goToTeachingFromQuiz()}
+                        >
+                          <BookOpen className="mr-1.5 h-3.5 w-3.5" />
+                          Review teaching
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </details>
+            )}
+
+            {waitingForMoreQuestions && (
+              <p className="text-xs text-muted-foreground">
+                Generating {targetCount - questions.length} more in background.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
