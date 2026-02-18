@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { ListLoadingState } from "@/components/ui/loading-state";
@@ -41,11 +42,17 @@ export function TodayChecklist({ tasks, loading, sectionMap }: TodayChecklistPro
   const map = sectionMap ?? EMPTY_MAP;
   const { uid } = useAuth();
   const router = useRouter();
+  const togglingRef = useRef(new Set<string>());
 
   async function toggleTask(task: TaskModel) {
-    if (!uid) return;
-    const newStatus = task.status === "DONE" ? "TODO" : "DONE";
-    await updateTask(uid, task.id, { status: newStatus });
+    if (!uid || togglingRef.current.has(task.id)) return;
+    togglingRef.current.add(task.id);
+    try {
+      const newStatus = task.status === "DONE" ? "TODO" : "DONE";
+      await updateTask(uid, task.id, { status: newStatus });
+    } finally {
+      togglingRef.current.delete(task.id);
+    }
   }
 
   function handleNavigate(task: TaskModel) {

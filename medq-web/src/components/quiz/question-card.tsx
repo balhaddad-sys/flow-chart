@@ -95,8 +95,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
       if (result.tutorResponse) {
         setTutorResponse(result.tutorResponse);
       }
-    } catch (err) {
-      console.warn("submitAttempt failed, using local check:", err);
+    } catch {
       const correct = optionIndex === question.correctIndex;
       answerQuestion(question.id, optionIndex, correct);
     } finally {

@@ -8,7 +8,7 @@ export interface TimeWindow {
 export interface TaskModel {
   id: string;
   courseId: string;
-  type: string; // STUDY | QUESTIONS | REVIEW
+  type: "STUDY" | "QUESTIONS" | "REVIEW" | (string & {});
   title: string;
   sectionIds: string[];
   topicTags: string[];
@@ -17,7 +17,7 @@ export interface TaskModel {
   difficulty: number;
   dueDate: Timestamp;
   timeWindow?: TimeWindow;
-  status: string; // TODO | IN_PROGRESS | DONE | SKIPPED
+  status: "TODO" | "IN_PROGRESS" | "DONE" | "SKIPPED" | (string & {});
   completedAt?: Timestamp;
   isPinned: boolean;
   priority: number;

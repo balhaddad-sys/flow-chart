@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Upload, FileText, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -16,6 +16,13 @@ export function FileUploadZone() {
   const [uploads, setUploads] = useState<
     Map<string, { name: string; progress: UploadProgress | null; error?: string }>
   >(new Map());
+  const cleanupTimers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
+  useEffect(() => {
+    return () => {
+      cleanupTimers.current.forEach((t) => clearTimeout(t));
+    };
+  }, []);
 
   const handleFiles = useCallback(
     async (files: FileList | File[]) => {
@@ -65,13 +72,15 @@ export function FileUploadZone() {
 
           toast.success(`${file.name} uploaded. Processing continues in the background.`);
           // Remove completed upload after 3 seconds
-          setTimeout(() => {
+          const timer = setTimeout(() => {
+            cleanupTimers.current.delete(timer);
             setUploads((prev) => {
               const next = new Map(prev);
               next.delete(file.name);
               return next;
             });
           }, 3000);
+          cleanupTimers.current.add(timer);
         } catch {
           toast.error(`Failed to upload ${file.name}.`);
           setUploads((prev) => {
@@ -144,7 +153,7 @@ export function FileUploadZone() {
               <div className="flex-1 min-w-0">
                 <p className="truncate text-sm">{upload.name}</p>
                 {upload.error ? (
-                  <p className="text-xs text-destructive">{upload.error}</p>
+                  <p role="alert" className="text-xs text-destructive">{upload.error}</p>
                 ) : upload.progress ? (
                   <Progress value={upload.progress.percent} className="mt-1 h-1.5" />
                 ) : null}
@@ -154,6 +163,7 @@ export function FileUploadZone() {
               )}
               {upload.error && (
                 <button
+                  aria-label={`Dismiss error for ${upload.name}`}
                   onClick={() =>
                     setUploads((prev) => {
                       const next = new Map(prev);

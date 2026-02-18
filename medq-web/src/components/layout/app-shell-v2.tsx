@@ -12,7 +12,7 @@ export function AppShellV2({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-[100dvh] md:grid md:grid-cols-[17.5rem_minmax(0,1fr)]">
       <SidebarV2 />
-      <main className="relative overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+      <main id="main-content" className="relative overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
         <FileProcessingNotifier />
 
         {/* Ambient gradient overlays */}

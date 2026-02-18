@@ -151,7 +151,6 @@ export function subscribeTasks(
       cb(snap.docs.map((d) => withId<TaskModel>(d as never)));
     },
     (err) => {
-      console.error("subscribeTasks error:", err);
       onError?.(err);
     }
   );
@@ -181,7 +180,6 @@ export function subscribeTodayTasks(
       cb(snap.docs.map((d) => withId<TaskModel>(d as never)));
     },
     (err) => {
-      console.error("subscribeTodayTasks error:", err);
       onError?.(err);
     }
   );

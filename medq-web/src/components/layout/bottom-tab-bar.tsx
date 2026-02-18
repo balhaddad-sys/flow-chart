@@ -35,7 +35,7 @@ export function BottomTabBar() {
   const indicatorOffset = activeIndex >= 0 ? `${activeIndex * 20 + 10}%` : "10%";
 
   return (
-    <nav className="fixed inset-x-3 bottom-3 z-50 overflow-hidden rounded-2xl border border-border/50 bg-card/88 shadow-[0_-4px_24px_-8px_oklch(0.2_0.02_250/0.15)] backdrop-blur-2xl pb-[max(env(safe-area-inset-bottom),0.2rem)] md:hidden">
+    <nav aria-label="Main navigation" className="fixed inset-x-3 bottom-3 z-50 overflow-hidden rounded-2xl border border-border/50 bg-card/88 shadow-[0_-4px_24px_-8px_oklch(0.2_0.02_250/0.15)] backdrop-blur-2xl pb-[max(env(safe-area-inset-bottom),0.2rem)] md:hidden">
       {/* Sliding indicator blob */}
       {activeIndex >= 0 && (
         <div
@@ -51,8 +51,10 @@ export function BottomTabBar() {
             <Link
               key={tab.href}
               href={tab.href}
+              aria-current={active ? "page" : undefined}
+              aria-label={tab.label}
               className={cn(
-                "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-2.5 text-[10px] font-medium transition-all duration-200 active:scale-95",
+                "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-3 text-[10px] font-medium transition-all duration-200 active:scale-95 min-h-[44px]",
                 active
                   ? "text-primary"
                   : "text-muted-foreground"
