@@ -19,6 +19,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import * as fn from "@/lib/firebase/functions";
+import { toast } from "sonner";
 
 interface ChatMsg {
   role: "user" | "assistant";
@@ -71,7 +72,14 @@ export function StudyAskAiWidget({
   const handleSend = useCallback(async () => {
     const question = input.trim();
     if (!question || loading) return;
-    if (!uid || !courseId) return;
+    if (!uid) {
+      toast.error("Please sign in to use AI chat.");
+      return;
+    }
+    if (!courseId) {
+      toast.error("Course context not available yet. Please wait a moment and try again.");
+      return;
+    }
 
     setInput("");
     setMessages((prev) => [...prev, { role: "user", content: question }]);

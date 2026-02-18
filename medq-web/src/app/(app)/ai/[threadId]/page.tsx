@@ -59,7 +59,14 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   }, [messages.length]);
 
   async function handleSend(content: string) {
-    if (!uid || !courseId) return;
+    if (!uid) {
+      toast.error("Please sign in to use AI chat.");
+      return;
+    }
+    if (!courseId) {
+      toast.error("No active course selected. Please select a course first.");
+      return;
+    }
     setSending(true);
 
     try {
