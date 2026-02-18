@@ -105,13 +105,10 @@ export default function ExplorePage() {
     results,
     error,
     topic,
-    levelLabel,
     targetCount,
     backgroundJobId,
     backfillStatus,
     backfillError,
-    qualityGatePassed,
-    qualityScore,
   } = store;
   const syncBackgroundQuestions = store.syncBackgroundQuestions;
   const setBackfillStatus = store.setBackfillStatus;
