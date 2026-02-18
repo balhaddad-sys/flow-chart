@@ -13,6 +13,7 @@ const { truncate } = require("../lib/utils");
 const { getAssessmentLevel } = require("../assessment/engine");
 const { generateQuestions: geminiGenerate } = require("../ai/geminiClient");
 const { generateQuestions: claudeGenerate } = require("../ai/aiClient");
+const admin = require("firebase-admin");
 const { db } = require("../lib/firestore");
 const { buildExploreProfileDocId } = require("./exploreLearningProfile");
 const {
@@ -537,9 +538,9 @@ exports.exploreTopicInsight = functions
             focusTags,
             insightSummary: truncate(payload.summary || "", 1200),
             lastInsightModel: modelUsed,
-            lastInsightAt: functions.firestore.FieldValue.serverTimestamp(),
-            updatedAt: functions.firestore.FieldValue.serverTimestamp(),
-            createdAt: functions.firestore.FieldValue.serverTimestamp(),
+            lastInsightAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
           },
           { merge: true }
         );

@@ -138,20 +138,22 @@ function computeExploreProfilePatch(previous = {}, input = {}) {
   };
 }
 
-function buildLearnedContext(profile = {}, levelProfile = {}) {
-  const runs = clampInt(profile.runs || 0, 0, 100_000);
+function buildLearnedContext(profile, levelProfile) {
+  const safeProfile = profile || {};
+  const safeLevelProfile = levelProfile || {};
+  const runs = clampInt(safeProfile.runs || 0, 0, 100_000);
   if (runs <= 0) return "";
 
   const lines = [];
-  const focusTags = Array.isArray(profile.focusTags) ? profile.focusTags.slice(0, 6) : [];
+  const focusTags = Array.isArray(safeProfile.focusTags) ? safeProfile.focusTags.slice(0, 6) : [];
   if (focusTags.length > 0) {
     lines.push(`Prior high-yield focus tags: ${focusTags.join(", ")}.`);
   }
 
-  const qualityScoreEma = clampFloat(profile.qualityScoreEma || 0, 0, 1);
-  const inBandRatioEma = clampFloat(profile.inBandRatioEma || 0, 0, 1);
-  const hardCoverageEma = clampFloat(profile.hardCoverageEma || 0, 0, 1);
-  const advancedLevel = Number(levelProfile.minDifficulty || 1) >= 4;
+  const qualityScoreEma = clampFloat(safeProfile.qualityScoreEma || 0, 0, 1);
+  const inBandRatioEma = clampFloat(safeProfile.inBandRatioEma || 0, 0, 1);
+  const hardCoverageEma = clampFloat(safeProfile.hardCoverageEma || 0, 0, 1);
+  const advancedLevel = Number(safeLevelProfile.minDifficulty || 1) >= 4;
 
   if (qualityScoreEma < 0.75 || inBandRatioEma < 0.8) {
     lines.push("Prior runs drifted in relevance. Keep every vignette tightly anchored to the topic and level.");
