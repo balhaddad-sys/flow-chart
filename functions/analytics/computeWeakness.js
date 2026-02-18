@@ -20,6 +20,55 @@ const {
   computeCompletionStats,
 } = require("./weakness");
 
+/**
+ * Converts raw weakness data into directive sentences a student can act on.
+ * @param {Array} weakestTopics
+ * @param {number} overallAccuracy  0–1
+ * @returns {string[]} Up to 3 action-oriented directives.
+ */
+function buildDiagnosticDirectives(weakestTopics, overallAccuracy) {
+  const directives = [];
+
+  if (weakestTopics.length === 0) {
+    if (overallAccuracy >= 0.8) {
+      directives.push("Great work — your overall accuracy is strong. Keep reinforcing with mixed-mode quizzes.");
+    } else {
+      directives.push("Complete more practice questions so we can identify your focus areas.");
+    }
+    return directives;
+  }
+
+  const [top] = weakestTopics;
+  const pct = Math.round(top.accuracy * 100);
+
+  if (top.accuracy < 0.4) {
+    directives.push(
+      `Critical gap in ${top.tag} (${pct}% accuracy). We've added a focused 20-minute review block to today's plan.`
+    );
+  } else if (top.accuracy < 0.6) {
+    directives.push(
+      `Your ${top.tag} retention is dropping (${pct}%). A 15-minute targeted session has been scheduled.`
+    );
+  } else {
+    directives.push(
+      `${top.tag} needs attention (${pct}% accuracy). A 10-minute reinforcement block is recommended.`
+    );
+  }
+
+  if (weakestTopics.length >= 2) {
+    const second = weakestTopics[1];
+    directives.push(
+      `Also review ${second.tag} (${Math.round(second.accuracy * 100)}% accuracy) before your next full quiz session.`
+    );
+  }
+
+  if (overallAccuracy < 0.65) {
+    directives.push("Overall accuracy below 65% — prioritise your weakest topics before attempting mixed practice.");
+  }
+
+  return directives;
+}
+
 exports.computeWeakness = functions
   .runWith({ timeoutSeconds: 60 })
   .firestore.document("users/{uid}/attempts/{attemptId}")
@@ -80,6 +129,9 @@ exports.computeWeakness = functions
       const taskData = tasksSnap.docs.map((d) => d.data());
       const { totalStudyMinutes, completionPercent } = computeCompletionStats(taskData);
 
+      // ── Build plain-English diagnostic directives ───────────────────────
+      const diagnosticDirectives = buildDiagnosticDirectives(weakestTopics, overallAccuracy);
+
       // ── Persist ────────────────────────────────────────────────────────
       await db.doc(`users/${uid}/stats/${courseId}`).set(
         {
@@ -88,6 +140,7 @@ exports.computeWeakness = functions
           overallAccuracy: Math.round(overallAccuracy * 1000) / 1000,
           completionPercent: Math.round(completionPercent * 1000) / 1000,
           weakestTopics,
+          diagnosticDirectives,
           lastStudiedAt: admin.firestore.FieldValue.serverTimestamp(),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         },

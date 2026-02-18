@@ -15,38 +15,69 @@ import {
   GraduationCap,
   CalendarDays,
   Clock,
-  Upload,
-  CheckCircle2,
   Sparkles,
+  CheckCircle2,
+  Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import * as fn from "@/lib/firebase/functions";
 import { toast } from "sonner";
+import { EXAM_TARGETS } from "@/lib/types/user";
 
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const EXAM_TYPES = ["SBA", "OSCE", "Mixed"];
+
+// ── Step 1: Course + Exam Target (only 2 required questions) ─────────────────
 
 function StepCourse() {
   const { courseTitle, setCourseTitle, examType, setExamType } = useOnboardingStore();
+  const [examTarget, setExamTargetLocal] = useState<string>("");
 
   return (
     <div className="space-y-5">
       <div className="space-y-2">
-        <Label htmlFor="courseTitle" className="text-sm font-medium">Course Name</Label>
+        <Label htmlFor="courseTitle" className="text-sm font-medium">
+          Course or Module Name
+        </Label>
         <Input
           id="courseTitle"
           value={courseTitle}
           onChange={(e) => setCourseTitle(e.target.value)}
-          placeholder="e.g. Year 3 Medicine"
+          placeholder="e.g. Year 3 Medicine, Cardiology Block"
           className="h-11 rounded-xl"
           autoFocus
         />
       </div>
+
+      {/* Exam target — the key progressive-profiling question */}
       <div className="space-y-2">
-        <Label className="text-sm font-medium">Exam Type</Label>
+        <Label className="text-sm font-medium flex items-center gap-1.5">
+          <Target className="h-3.5 w-3.5 text-primary" />
+          What are you studying for?
+        </Label>
+        <div className="grid grid-cols-3 gap-2">
+          {EXAM_TARGETS.map((target) => (
+            <button
+              key={target}
+              type="button"
+              onClick={() => setExamTargetLocal(target)}
+              className={cn(
+                "rounded-xl border px-3 py-2.5 text-sm font-medium transition-all",
+                examTarget === target
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border/70 text-muted-foreground hover:border-primary/30 hover:text-foreground"
+              )}
+            >
+              {target}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Exam Format</Label>
         <div className="flex gap-2">
-          {EXAM_TYPES.map((type) => (
+          {["SBA", "OSCE", "Mixed"].map((type) => (
             <button
               key={type}
               type="button"
@@ -67,13 +98,17 @@ function StepCourse() {
   );
 }
 
-function StepExamDate() {
-  const { examDate, setExamDate } = useOnboardingStore();
+// ── Step 2: Exam Date + Availability ────────────────────────────────────────
+
+function StepSchedule() {
+  const { examDate, setExamDate, availability, setDayMinutes } = useOnboardingStore();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="space-y-2">
-        <Label htmlFor="examDate" className="text-sm font-medium">Exam Date</Label>
+        <Label htmlFor="examDate" className="text-sm font-medium">
+          Exam Date <span className="text-muted-foreground font-normal">(optional)</span>
+        </Label>
         <Input
           id="examDate"
           type="date"
@@ -82,77 +117,55 @@ function StepExamDate() {
           className="h-11 rounded-xl"
         />
         <p className="text-xs text-muted-foreground">
-          This helps create an optimal study schedule.
+          Used to build your adaptive study schedule. You can set this later.
         </p>
       </div>
-    </div>
-  );
-}
 
-function StepAvailability() {
-  const { availability, setDayMinutes } = useOnboardingStore();
-
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-center text-muted-foreground">
-        How many minutes can you study each day?
-      </p>
-      <div className="grid gap-2">
-        {DAYS.map((day, i) => {
-          const minutes = availability[day] ?? 120;
-          const isActive = minutes > 0;
-          return (
-            <div
-              key={day}
-              className={cn(
-                "flex items-center gap-3 rounded-xl border px-4 py-2.5 transition-all",
-                isActive
-                  ? "border-primary/25 bg-primary/5"
-                  : "border-border/60"
-              )}
-            >
-              <span className="w-10 text-sm font-medium">{DAY_LABELS[i]}</span>
-              <Input
-                type="number"
-                min={0}
-                max={480}
-                step={15}
-                value={minutes}
-                onChange={(e) => setDayMinutes(day, parseInt(e.target.value) || 0)}
-                className="h-9 w-24 rounded-lg text-center"
-              />
-              <span className="text-xs text-muted-foreground">min</span>
-              {isActive && (
-                <div className="ml-auto h-2 w-2 rounded-full bg-primary" />
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function StepUpload() {
-  return (
-    <div className="space-y-4">
-      <p className="text-sm text-center text-muted-foreground">
-        You can upload study materials after setup. Head to the Library to upload
-        PDFs, PPTX, or DOCX files.
-      </p>
-      <div className="rounded-2xl border-2 border-dashed border-primary/25 bg-primary/5 p-8 text-center">
-        <Upload className="mx-auto h-8 w-8 text-primary/60" />
-        <p className="mt-3 text-sm text-muted-foreground">
-          Upload materials from the Library page once your course is created.
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Daily Study Time</Label>
+        <p className="text-xs text-muted-foreground">
+          Minutes per day — set to 0 for rest days.
         </p>
+        <div className="grid gap-1.5">
+          {DAYS.map((day, i) => {
+            const minutes = availability[day] ?? 120;
+            const isActive = minutes > 0;
+            return (
+              <div
+                key={day}
+                className={cn(
+                  "flex items-center gap-3 rounded-xl border px-4 py-2 transition-all",
+                  isActive ? "border-primary/25 bg-primary/5" : "border-border/60"
+                )}
+              >
+                <span className="w-10 text-sm font-medium">{DAY_LABELS[i]}</span>
+                <Input
+                  type="number"
+                  min={0}
+                  max={480}
+                  step={15}
+                  value={minutes}
+                  onChange={(e) => setDayMinutes(day, parseInt(e.target.value) || 0)}
+                  className="h-8 w-20 rounded-lg text-center text-sm"
+                />
+                <span className="text-xs text-muted-foreground">min</span>
+                {isActive && <div className="ml-auto h-2 w-2 rounded-full bg-primary" />}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 }
 
-const STEPS = [StepCourse, StepExamDate, StepAvailability, StepUpload];
-const STEP_TITLES = ["Create Course", "Exam Date", "Availability", "Upload Materials"];
-const STEP_ICONS = [GraduationCap, CalendarDays, Clock, Upload];
+const STEPS = [StepCourse, StepSchedule];
+const STEP_TITLES = ["Your Course", "Your Schedule"];
+const STEP_SUBTITLES = [
+  "Name your course and target exam — that's all we need to get started.",
+  "Set your exam date and how long you can study each day.",
+];
+const STEP_ICONS = [GraduationCap, CalendarDays];
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -167,9 +180,7 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("new") === "1") {
-      setShowCreateFlow(true);
-    }
+    if (params.get("new") === "1") setShowCreateFlow(true);
   }, []);
 
   function handleContinueWithCourse(courseId: string) {
@@ -189,6 +200,7 @@ export default function OnboardingPage() {
     );
   }
 
+  // Returning user with existing courses
   if (!coursesLoading && courses.length > 0 && !showCreateFlow) {
     const selectedCourse =
       courses.find((course) => course.id === activeCourseId) ?? courses[0];
@@ -198,7 +210,7 @@ export default function OnboardingPage() {
         <div className="glass-card w-full max-w-xl rounded-2xl p-1">
           <div className="rounded-[calc(1rem-2px)] bg-card p-6 sm:p-8">
             <div className="text-center space-y-2 animate-in-up stagger-1">
-              <h1 className="text-2xl font-semibold tracking-tight">You Already Have Courses</h1>
+              <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
               <p className="text-sm text-muted-foreground">
                 Continue with an existing course or create a new one.
               </p>
@@ -218,7 +230,9 @@ export default function OnboardingPage() {
                 >
                   <p className="font-medium">{course.title}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {course.examType || "General"} {course.examDate ? "| exam date set" : ""}
+                    {course.examType || "General"}{" "}
+                    {course.examDate ? "· exam date set" : ""}
+                    {course.isSampleDeck ? " · Sample Deck" : ""}
                   </p>
                 </button>
               ))}
@@ -230,14 +244,11 @@ export default function OnboardingPage() {
                 className="flex-1 h-11 rounded-xl"
                 onClick={() => handleContinueWithCourse(selectedCourse.id)}
               >
-                Continue Existing
+                Continue Studying
               </Button>
-              <Button
-                className="flex-1 h-11 rounded-xl"
-                onClick={() => setShowCreateFlow(true)}
-              >
+              <Button className="flex-1 h-11 rounded-xl" onClick={() => setShowCreateFlow(true)}>
                 <Sparkles className="mr-1.5 h-4 w-4" />
-                Create New Course
+                New Course
               </Button>
             </div>
           </div>
@@ -264,10 +275,9 @@ export default function OnboardingPage() {
         availability,
       });
       const courseId = (result as { courseId?: string }).courseId;
-      if (courseId) {
-        setActiveCourseId(courseId);
-      }
+      if (courseId) setActiveCourseId(courseId);
       reset();
+      // Redirect to library so they can upload immediately
       router.replace("/library");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to create course";
@@ -288,7 +298,7 @@ export default function OnboardingPage() {
 
       <div className="relative glass-card w-full max-w-lg rounded-2xl p-1">
         <div className="rounded-[calc(1rem-2px)] bg-card p-6 sm:p-8">
-          {/* Step indicator */}
+          {/* Step indicator — 2 steps only */}
           <div className="flex items-center justify-center gap-2 mb-8">
             {STEPS.map((_, i) => (
               <div key={i} className="flex items-center gap-2">
@@ -302,16 +312,12 @@ export default function OnboardingPage() {
                       : "bg-muted/60 text-muted-foreground"
                   )}
                 >
-                  {i < step ? (
-                    <CheckCircle2 className="h-4 w-4" />
-                  ) : (
-                    i + 1
-                  )}
+                  {i < step ? <CheckCircle2 className="h-4 w-4" /> : i + 1}
                 </div>
                 {i < STEPS.length - 1 && (
                   <div
                     className={cn(
-                      "h-0.5 w-8 rounded-full transition-colors duration-300",
+                      "h-0.5 w-12 rounded-full transition-colors duration-300",
                       i < step ? "bg-primary" : "bg-muted"
                     )}
                   />
@@ -328,8 +334,8 @@ export default function OnboardingPage() {
             <h1 className="animate-in-up stagger-1 text-xl font-semibold tracking-tight">
               {STEP_TITLES[step]}
             </h1>
-            <p className="animate-in-up stagger-2 mt-1 text-xs text-muted-foreground">
-              Step {step + 1} of {STEPS.length}
+            <p className="animate-in-up stagger-2 mt-1 text-xs text-muted-foreground max-w-xs mx-auto">
+              {STEP_SUBTITLES[step]}
             </p>
           </div>
 
@@ -347,11 +353,7 @@ export default function OnboardingPage() {
           {/* Navigation */}
           <div className="mt-8 flex gap-3">
             {!isFirst && (
-              <Button
-                variant="outline"
-                className="flex-1 h-11 rounded-xl"
-                onClick={prevStep}
-              >
+              <Button variant="outline" className="flex-1 h-11 rounded-xl" onClick={prevStep}>
                 <ChevronLeft className="mr-1 h-4 w-4" />
                 Back
               </Button>
@@ -363,10 +365,10 @@ export default function OnboardingPage() {
                 disabled={creating || !canProceed}
               >
                 {creating ? (
-                  <LoadingButtonLabel label="Creating..." />
+                  <LoadingButtonLabel label="Creating course…" />
                 ) : (
                   <>
-                    Finish Setup
+                    Get Started
                     <Sparkles className="ml-1.5 h-4 w-4" />
                   </>
                 )}
@@ -382,6 +384,13 @@ export default function OnboardingPage() {
               </Button>
             )}
           </div>
+
+          {/* Skip hint */}
+          {isLast && (
+            <p className="mt-3 text-center text-[0.7rem] text-muted-foreground">
+              You can adjust your schedule anytime from settings.
+            </p>
+          )}
         </div>
       </div>
     </div>

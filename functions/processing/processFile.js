@@ -19,7 +19,20 @@ const path = require("path");
 const fs = require("fs");
 
 const { db, batchSet } = require("../lib/firestore");
-const { SUPPORTED_MIME_TYPES } = require("../lib/constants");
+const { SUPPORTED_MIME_TYPES, INGESTION_STEP_LABELS } = require("../lib/constants");
+
+/** Emit a real-time progress update to the file document. */
+async function setProgress(fileRef, status, progress) {
+  await fileRef.set(
+    {
+      status,
+      progress,
+      stepLabel: INGESTION_STEP_LABELS[status] || status,
+      progressUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
 const log = require("../lib/logger");
 const { extractPdfSections } = require("./extractors/pdfExtractor");
 const { extractPptxSections } = require("./extractors/pptxExtractor");
@@ -83,8 +96,12 @@ exports.processUploadedFile = functions
       // Mark processing started & fetch courseId
       await fileRef.set(
         {
-          status: "PROCESSING",
+          status: "parsing",
           processingPhase: "EXTRACTING",
+          progress: 5,
+          stepLabel: INGESTION_STEP_LABELS["parsing"],
+          readyQuestionCount: 0,
+          totalQuestionTarget: 0,
           processingStartedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
         { merge: true }
@@ -97,6 +114,7 @@ exports.processUploadedFile = functions
       const sourceLabel = (fileMeta.originalName || fileName || "Document").replace(/\.[^/.]+$/, "");
 
       log.info("Starting document extraction", { uid, fileId, contentType });
+      await setProgress(fileRef, "chunking", 20);
 
       // Download to tmp
       await bucket.file(filePath).download({ destination: tempFilePath });
@@ -168,12 +186,7 @@ exports.processUploadedFile = functions
       }
 
       // Update phase: moving to AI analysis
-      await fileRef.set(
-        {
-          processingPhase: "ANALYZING",
-        },
-        { merge: true }
-      );
+      await setProgress(fileRef, "indexing", 55);
 
       // Batch-write section metadata (handles >500 docs automatically)
       const items = sections.map((sec, i) => ({
@@ -201,6 +214,18 @@ exports.processUploadedFile = functions
         { merge: true }
       );
 
+      // Transition to question generation phase
+      await fileRef.set(
+        {
+          status: "generating_questions",
+          processingPhase: "ANALYZING",
+          progress: 70,
+          stepLabel: INGESTION_STEP_LABELS["generating_questions"],
+          sectionCount: sections.length,
+          totalQuestionTarget: sections.length * 10,
+        },
+        { merge: true }
+      );
       log.info("File sections created, awaiting AI analysis", { uid, fileId, sectionCount: sections.length });
     } catch (error) {
       log.error("File processing failed", {

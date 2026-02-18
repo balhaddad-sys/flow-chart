@@ -15,6 +15,8 @@ import { StatsCards } from "@/components/home/stats-cards";
 import { TodayChecklist } from "@/components/home/today-checklist";
 import { ExamCountdown } from "@/components/home/exam-countdown";
 import { WeakTopicsBanner } from "@/components/home/weak-topics-banner";
+import { DiagnosticDirective } from "@/components/home/diagnostic-directive";
+import { StreakGraph } from "@/components/home/streak-graph";
 import { PipelineProgress } from "@/components/home/pipeline-progress";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,6 +31,8 @@ import {
   Sparkles,
   BarChart3,
   Wrench,
+  Zap,
+  BookOpen,
 } from "lucide-react";
 import * as fn from "@/lib/firebase/functions";
 import { toast } from "sonner";
@@ -40,34 +44,30 @@ export default function TodayPage() {
   const activeCourseId = useCourseStore((s) => s.activeCourseId);
   const setActiveCourseId = useCourseStore((s) => s.setActiveCourseId);
 
+  // Zero-state: sample deck seeding
+  const [seedingDeck, setSeedingDeck] = useState(false);
+  const [deckSeeded, setDeckSeeded] = useState(false);
+
   useEffect(() => {
     if (coursesLoading) return;
-
     if (courses.length === 0) {
       if (activeCourseId) setActiveCourseId(null);
       router.replace("/onboarding");
       return;
     }
-
     const activeStillExists = activeCourseId
-      ? courses.some((course) => course.id === activeCourseId)
+      ? courses.some((c) => c.id === activeCourseId)
       : false;
-
-    if (!activeStillExists) {
-      setActiveCourseId(courses[0].id);
-    }
+    if (!activeStillExists) setActiveCourseId(courses[0].id);
   }, [coursesLoading, courses, activeCourseId, setActiveCourseId, router]);
 
   const effectiveCourseId =
-    courses.find((course) => course.id === activeCourseId)?.id ??
-    courses[0]?.id ??
-    null;
-
+    courses.find((c) => c.id === activeCourseId)?.id ?? courses[0]?.id ?? null;
   const activeCourse = courses.find((c) => c.id === effectiveCourseId);
+
   const { files, loading: filesLoading } = useFiles(effectiveCourseId);
   const { sections, loading: sectionsLoading } = useSections(effectiveCourseId);
-  const { tasks: todayTasks, loading: tasksLoading } =
-    useTodayTasks(effectiveCourseId);
+  const { tasks: todayTasks, loading: tasksLoading } = useTodayTasks(effectiveCourseId);
   const { stats, loading: statsLoading } = useStats(effectiveCourseId);
 
   const sectionMap = useMemo(() => buildSectionMap(sections), [sections]);
@@ -78,11 +78,16 @@ export default function TodayPage() {
   const hasPlan = todayTasks.length > 0 || (stats?.completionPercent ?? 0) > 0;
   const hasQuizAttempts = (stats?.totalQuestionsAnswered ?? 0) > 0;
   const weakTopics = stats?.weakestTopics ?? [];
+  const diagnosticDirectives = stats?.diagnosticDirectives ?? [];
+
+  // Sample deck CTA: visible when no files exist and deck hasn't been seeded
+  const isSampleCourse = (activeCourse as { isSampleDeck?: boolean } | undefined)?.isSampleDeck === true;
+  const showSampleDeckCTA = !hasFiles && !deckSeeded && !isSampleCourse;
 
   const greeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 17) return "Good afternoon";
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 17) return "Good afternoon";
     return "Good evening";
   };
 
@@ -97,7 +102,7 @@ export default function TodayPage() {
     setFixPlanLoading(true);
     try {
       await fn.runFixPlan({ courseId: effectiveCourseId });
-      toast.success("Fix plan generated. Check your plan for updated tasks.");
+      toast.success("Remediation plan generated. Check your plan for updated tasks.");
     } catch {
       toast.error("Failed to generate fix plan.");
     } finally {
@@ -105,16 +110,28 @@ export default function TodayPage() {
     }
   }
 
+  async function handleSeedSampleDeck() {
+    setSeedingDeck(true);
+    try {
+      const result = await fn.seedSampleDeck();
+      if (result.alreadySeeded) {
+        toast.info("Sample deck is already in your account.");
+      } else {
+        toast.success(`Sample deck ready — ${result.questionCount} high-yield questions loaded!`);
+        setDeckSeeded(true);
+        if (result.courseId) setActiveCourseId(result.courseId);
+      }
+    } catch {
+      toast.error("Failed to load sample deck.");
+    } finally {
+      setSeedingDeck(false);
+    }
+  }
+
   const quickActions = [];
-  if (!hasFiles) {
-    quickActions.push({ label: "Upload Materials", href: "/library", icon: Upload });
-  }
-  if (hasFiles && !hasPlan) {
-    quickActions.push({ label: "Generate Plan", href: "/today/plan", icon: Calendar });
-  }
-  if (hasSections) {
-    quickActions.push({ label: "Start Quiz", href: "/practice", icon: CircleHelp });
-  }
+  if (!hasFiles) quickActions.push({ label: "Upload Materials", href: "/library", icon: Upload });
+  if (hasFiles && !hasPlan) quickActions.push({ label: "Generate Plan", href: "/today/plan", icon: Calendar });
+  if (hasSections) quickActions.push({ label: "Start Quiz", href: "/practice", icon: CircleHelp });
   quickActions.push({ label: "AI Chat", href: "/ai", icon: Sparkles });
 
   if (coursesLoading) {
@@ -130,20 +147,14 @@ export default function TodayPage() {
   return (
     <div className="page-wrap page-stack">
 
-      {/* ── Hero section ───────────────────────────────── */}
+      {/* ── Hero section ──────────────────────────────────────────────── */}
       <section className="glass-card overflow-hidden">
-        {/* Decorative top accent bar */}
         <div className="h-1 w-full bg-gradient-to-r from-primary/40 via-primary to-primary/40" />
-
         <div className="p-6 sm:p-8">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-
-            {/* Left: greeting + title */}
             <div className="min-w-0 space-y-3">
               <div className="flex items-center gap-2">
-                <span className="section-label animate-in-up stagger-1">
-                  Study Command Center
-                </span>
+                <span className="section-label animate-in-up stagger-1">Study Command Center</span>
                 <span className="section-label text-border animate-in-up stagger-1">·</span>
                 <span className="section-label animate-in-up stagger-1">{todayDate}</span>
               </div>
@@ -155,18 +166,18 @@ export default function TodayPage() {
                 </h1>
                 {activeCourse && (
                   <p className="page-subtitle animate-in-up stagger-3 mt-1.5">
-                    {activeCourse.title} — your personalised study plan is ready.
+                    {activeCourse.title}
+                    {isSampleCourse ? " — Sample High-Yield Deck" : " — your personalised study plan is ready."}
                   </p>
                 )}
               </div>
 
               {(filesLoading || sectionsLoading) && (
                 <div className="animate-in-up stagger-4">
-                  <InlineLoadingState label="Syncing course content..." />
+                  <InlineLoadingState label="Syncing course content…" />
                 </div>
               )}
 
-              {/* Quick Actions */}
               <div className="animate-in-up stagger-4 flex flex-wrap gap-2 pt-1">
                 {quickActions.slice(0, 4).map((action) => (
                   <Link key={action.href} href={action.href}>
@@ -183,18 +194,47 @@ export default function TodayPage() {
               </div>
             </div>
 
-            {/* Right: exam countdown */}
             <div className="animate-in-up stagger-3 shrink-0">
-              <ExamCountdown
-                examDate={activeCourse?.examDate}
-                courseTitle={activeCourse?.title}
-              />
+              <ExamCountdown examDate={activeCourse?.examDate} courseTitle={activeCourse?.title} />
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── Pipeline setup progress (only shown until complete) ── */}
+      {/* ── Zero-state: Sample Deck CTA ───────────────────────────────── */}
+      {showSampleDeckCTA && (
+        <section className="glass-card overflow-hidden border-primary/20">
+          <div className="h-1 w-full bg-gradient-to-r from-primary/20 via-primary/60 to-primary/20" />
+          <div className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/12">
+              <Zap className="h-6 w-6 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold">Try a Sample High-Yield Deck</h3>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Experience the full assessment engine instantly — 10 pre-authored Cardiology &
+                Pharmacology SBAs. No upload required.
+              </p>
+            </div>
+            <Button
+              onClick={handleSeedSampleDeck}
+              disabled={seedingDeck}
+              className="shrink-0 rounded-xl"
+            >
+              {seedingDeck ? (
+                <LoadingButtonLabel label="Loading…" />
+              ) : (
+                <>
+                  <BookOpen className="mr-1.5 h-4 w-4" />
+                  Try Sample Deck
+                </>
+              )}
+            </Button>
+          </div>
+        </section>
+      )}
+
+      {/* ── Pipeline setup progress ───────────────────────────────────── */}
       <PipelineProgress
         hasFiles={hasFiles}
         hasSections={hasSections}
@@ -202,11 +242,22 @@ export default function TodayPage() {
         hasQuizAttempts={hasQuizAttempts}
       />
 
-      {/* ── Performance metrics ────────────────────────── */}
+      {/* ── Diagnostic directive (actionable analytics) ───────────────── */}
+      {diagnosticDirectives.length > 0 && (
+        <DiagnosticDirective
+          directives={diagnosticDirectives}
+          overallAccuracy={stats?.overallAccuracy}
+        />
+      )}
+
+      {/* ── Performance metrics ───────────────────────────────────────── */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="section-label">Performance Overview</h2>
-          <Link href="/today/analytics" className="inline-flex items-center gap-1 text-[0.75rem] font-medium text-muted-foreground hover:text-foreground transition-colors">
+          <Link
+            href="/today/analytics"
+            className="inline-flex items-center gap-1 text-[0.75rem] font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
             <BarChart3 className="h-3.5 w-3.5" />
             Full Analytics
           </Link>
@@ -214,7 +265,7 @@ export default function TodayPage() {
         <StatsCards stats={stats} loading={statsLoading} />
       </section>
 
-      {/* ── Tasks + Weak Topics two-column ─────────────── */}
+      {/* ── Tasks + Weak Topics two-column ───────────────────────────── */}
       <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
         <TodayChecklist tasks={todayTasks} loading={tasksLoading} sectionMap={sectionMap} />
 
@@ -229,7 +280,7 @@ export default function TodayPage() {
               disabled={fixPlanLoading || !effectiveCourseId}
             >
               {fixPlanLoading ? (
-                <LoadingButtonLabel label="Generating..." />
+                <LoadingButtonLabel label="Generating…" />
               ) : (
                 <>
                   <Wrench className="mr-2 h-4 w-4" />
@@ -239,7 +290,6 @@ export default function TodayPage() {
             </Button>
           )}
 
-          {/* Sub-page navigation */}
           <div className="grid grid-cols-2 gap-2.5">
             <Link href="/today/plan" className="block">
               <Button variant="outline" size="sm" className="w-full rounded-xl">
@@ -256,6 +306,9 @@ export default function TodayPage() {
           </div>
         </div>
       </section>
+
+      {/* ── Streak graph (shown once user has answered questions) ─────── */}
+      {hasQuizAttempts && <StreakGraph />}
     </div>
   );
 }

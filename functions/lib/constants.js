@@ -116,7 +116,7 @@ const MAX_VISION_CONCURRENCY = 12;
 
 // ── GDPR / data deletion ────────────────────────────────────────────────────
 
-/** Firestore sub-collections under each user document. */
+/** Firestore sub-collections under each user document (used for GDPR deletion). */
 const USER_SUBCOLLECTIONS = [
   "files",
   "sections",
@@ -126,6 +126,8 @@ const USER_SUBCOLLECTIONS = [
   "stats",
   "jobs",
   "courses",
+  "flags",    // Consumer-ready: question flag reports
+  "activity", // Consumer-ready: daily activity for streak graph
 ];
 
 // ── AI / Anthropic ──────────────────────────────────────────────────────────
@@ -166,6 +168,56 @@ const TIMEOUT_DELETE_DATA = 300;
 
 const HEALTH_TIMEOUT_MS = 5_000;
 
+// ── Consumer-ready: Lifecycle states ────────────────────────────────────────
+
+/**
+ * Ordered ingestion lifecycle for `files/{fileId}.status`.
+ * The IngestionStepper component on the frontend reads these values.
+ */
+const INGESTION_LIFECYCLE = Object.freeze({
+  QUEUED:         "queued",
+  PARSING:        "parsing",
+  CHUNKING:       "chunking",
+  INDEXING:       "indexing",
+  GENERATING:     "generating_questions",
+  READY_PARTIAL:  "ready_partial",
+  READY_FULL:     "ready_full",
+  FAILED:         "failed",
+});
+
+/**
+ * Human-readable micro-copy shown in the IngestionStepper for each lifecycle step.
+ */
+const INGESTION_STEP_LABELS = Object.freeze({
+  queued:               "Queued for processing…",
+  parsing:              "Reading file…",
+  chunking:             "Structuring sections…",
+  indexing:             "Indexing content…",
+  generating_questions: "Generating initial high-yield questions…",
+  ready_partial:        "First questions ready — more loading in the background…",
+  ready_full:           "All questions ready!",
+  failed:               "Processing failed. Please re-upload.",
+});
+
+/** Minimum questions needed before "Quick Review" CTA is unlocked. */
+const QUICK_REVIEW_MIN_QUESTIONS = 5;
+
+/** Question quality states stored on each question document. */
+const QUESTION_QUALITY = Object.freeze({
+  DRAFT:    "draft",
+  NORMAL:   "normal",
+  VERIFIED: "verified",
+});
+
+/** AI confidence score below which a question is auto-labelled DRAFT. */
+const QUESTION_CONFIDENCE_THRESHOLD = 0.72;
+
+/** Valid reason codes for the flagQuestion callable. */
+const FLAG_REASONS = ["incorrect", "ambiguous", "bad_explanation", "source_mismatch", "duplicate", "other"];
+
+/** Days of activity history surfaced in the streak contribution graph (12 weeks). */
+const STREAK_HISTORY_DAYS = 84;
+
 module.exports = {
   FIRESTORE_BATCH_LIMIT,
   FIRESTORE_GET_ALL_LIMIT,
@@ -203,4 +255,11 @@ module.exports = {
   TIMEOUT_LIGHT,
   TIMEOUT_DELETE_DATA,
   HEALTH_TIMEOUT_MS,
+  INGESTION_LIFECYCLE,
+  INGESTION_STEP_LABELS,
+  QUICK_REVIEW_MIN_QUESTIONS,
+  QUESTION_QUALITY,
+  QUESTION_CONFIDENCE_THRESHOLD,
+  FLAG_REASONS,
+  STREAK_HISTORY_DAYS,
 };

@@ -89,3 +89,12 @@ exports.reprocessBlueprints = reprocessBlueprints;
 // ── Chat ─────────────────────────────────────────────────────────────────
 const { sendChatMessage } = require("./chat/sendChatMessage");
 exports.sendChatMessage = sendChatMessage;
+
+// ── Consumer-ready additions ──────────────────────────────────────────────
+const { flagQuestion } = require("./analytics/flagQuestion");
+const { trackActivity } = require("./analytics/trackActivity");
+const { seedSampleDeck } = require("./admin/seedSampleDeck");
+
+exports.flagQuestion = flagQuestion;
+exports.trackActivity = trackActivity;
+exports.seedSampleDeck = seedSampleDeck;

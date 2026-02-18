@@ -121,6 +121,20 @@ service cloud.firestore {
         allow read: if isOwner(userId);
       }
 
+      // Consumer-ready: Question flags (students report issues)
+      match /flags/{flagId} {
+        allow read: if isOwner(userId);
+        // Clients cannot create flags directly — must go via flagQuestion callable
+        allow create: if false;
+      }
+
+      // Consumer-ready: Daily activity tracking for streak graph
+      match /activity/{dateKey} {
+        allow read: if isOwner(userId);
+        // Only Cloud Functions (trackActivity trigger) can write activity docs
+        allow write: if false;
+      }
+
       // Chat threads and messages (AI Study Assistant)
       match /chatThreads/{threadId} {
         allow read: if isOwner(userId);
