@@ -12,9 +12,15 @@ interface FileCardProps {
 
 const statusConfig: Record<string, { icon: typeof FileText; color: string; label: string }> = {
   UPLOADED: { icon: Loader2, color: "text-blue-500", label: "Queued" },
-  PROCESSING: { icon: Loader2, color: "text-orange-500", label: "Processing" },
+  PROCESSING: { icon: Loader2, color: "text-orange-500", label: "Analysing" },
   READY: { icon: CheckCircle2, color: "text-green-500", label: "Ready" },
   FAILED: { icon: AlertCircle, color: "text-red-500", label: "Failed" },
+};
+
+const phaseLabels: Record<string, string> = {
+  EXTRACTING: "Reading your file...",
+  ANALYZING: "AI is studying the content...",
+  GENERATING_QUESTIONS: "Generating questions...",
 };
 
 function formatBytes(bytes: number): string {
@@ -23,10 +29,19 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function getSubtitle(file: FileModel): string | null {
+  if (file.status === "UPLOADED") return "Starting soon...";
+  if (file.status === "PROCESSING") {
+    return phaseLabels[file.processingPhase ?? ""] ?? "Hang tight, almost there...";
+  }
+  return null;
+}
+
 export function FileCard({ file }: FileCardProps) {
   const config = statusConfig[file.status] ?? statusConfig.UPLOADED;
   const StatusIcon = config.icon;
   const isAnimated = file.status === "UPLOADED" || file.status === "PROCESSING";
+  const subtitle = getSubtitle(file);
 
   return (
     <Link href={`/library/${file.id}`}>
@@ -48,14 +63,14 @@ export function FileCard({ file }: FileCardProps) {
                 </>
               )}
             </div>
+            {subtitle && (
+              <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
+            )}
           </div>
           <Badge variant="outline" className={`gap-1 ${config.color}`}>
             <StatusIcon className={`h-3 w-3 ${isAnimated ? "animate-spin" : ""}`} />
             {config.label}
           </Badge>
-          {file.processingPhase && file.status === "PROCESSING" && (
-            <span className="text-xs text-muted-foreground">{file.processingPhase}</span>
-          )}
         </CardContent>
       </Card>
     </Link>

@@ -71,7 +71,7 @@ export function FileUploadZone() {
             return next;
           });
 
-          toast.success(`${file.name} uploaded. Processing continues in the background.`);
+          toast.success(`${file.name} uploaded! AI analysis will begin shortly.`);
           // Remove completed upload after 3 seconds
           const timer = setTimeout(() => {
             cleanupTimers.current.delete(timer);

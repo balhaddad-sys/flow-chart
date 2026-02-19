@@ -64,25 +64,25 @@ export default function LibraryPage() {
               <div className="glass-card flex items-center gap-3 px-5 py-3.5 animate-in-up">
                 <div className="h-2 w-2 shrink-0 rounded-full bg-amber-500 animate-glow-pulse" />
                 <span className="text-sm text-muted-foreground">
-                  {backgroundProcessingCount} file{backgroundProcessingCount === 1 ? "" : "s"} processing in the background — you can continue using the app.
+                  Sit tight — AI is analysing {backgroundProcessingCount} file{backgroundProcessingCount === 1 ? "" : "s"}. This usually takes 1–3 minutes. You can keep using the app.
                 </span>
               </div>
             )}
 
-            {hasFiles && !hasPlan && (
+            {hasFiles && !hasPlan && backgroundProcessingCount === 0 && (
               <div className="glass-card flex items-center justify-between gap-4 border-primary/15 px-5 py-3.5 animate-in-up">
                 <p className="text-sm text-muted-foreground">
                   {tasksLoading ? (
                     <InlineLoadingState label="Checking your plan status..." />
                   ) : (
-                    "Files uploaded — head to Plan to generate your personalised study schedule."
+                    "All files analysed — your study plan will be generated automatically. Check your Today page soon!"
                   )}
                 </p>
                 <Link
-                  href="/today/plan"
+                  href="/today"
                   className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary/80 transition-colors"
                 >
-                  Go to Plan
+                  Go to Today
                   <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               </div>
