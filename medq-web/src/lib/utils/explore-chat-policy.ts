@@ -123,40 +123,118 @@ function resolveLevelId(rawLevel: unknown): string {
   return LEVEL_ALIAS_MAP[compact] || compact;
 }
 
-function levelSpecificGuidance(levelId: string): string {
-  switch (levelId) {
-    case "MD1":
-    case "MD2":
-      return "Define core terms, focus on first principles, and avoid specialist shorthand unless explained.";
-    case "MD3":
-    case "MD4":
-      return "Prioritize clinical reasoning, compare likely differentials, and tie findings to first-line management.";
-    case "MD5":
-    case "INTERN":
-    case "RESIDENT":
-    case "POSTGRADUATE":
-      return "Include high-acuity trade-offs, contraindications, escalation triggers, and where uncertainty affects decisions.";
-    default:
-      return "Match complexity to learner level, emphasizing mechanism + practical decision points.";
-  }
+interface LevelCalibration {
+  vocabulary: string;
+  include: string;
+  exclude: string;
+  format: string;
+  forbidden: string;
 }
 
-function levelResponseContract(levelId: string): string {
-  switch (levelId) {
-    case "MD1":
-    case "MD2":
-      return "Use plain language first, define key jargon briefly, and emphasize foundational mechanisms over protocol detail.";
-    case "MD3":
-    case "MD4":
-      return "Link presenting clues to differential reasoning, mechanism, and first-line diagnostic or management choices.";
-    case "MD5":
-    case "INTERN":
-    case "RESIDENT":
-    case "POSTGRADUATE":
-      return "Prioritize high-acuity decisions, contraindications, trade-offs, escalation thresholds, and evidence caveats.";
-    default:
-      return "Match depth and terminology to the selected learner level.";
-  }
+const LEVEL_CALIBRATION: Record<string, LevelCalibration> = {
+  MD1: {
+    vocabulary:
+      "Use everyday language. Introduce one piece of medical terminology at a time, always defining it immediately in plain English.",
+    include:
+      "Core mechanism (why it happens), one key anatomy or physiology fact, and a simple real-world analogy if helpful.",
+    exclude:
+      "Drug dosing, management protocols, diagnostic criteria, clinical scoring systems, and specialist abbreviations.",
+    format:
+      "Start with a one-sentence plain-English answer. Then explain the mechanism in 2-3 sentences. End with one memorable takeaway.",
+    forbidden:
+      "Do NOT use unexplained acronyms (e.g. write 'myocardial infarction (heart attack)' not just 'MI'). Do NOT discuss management or treatment unless directly asked.",
+  },
+  MD2: {
+    vocabulary:
+      "Use standard medical terminology but briefly gloss any subspecialty term. Assume basic anatomy and physiology are known.",
+    include:
+      "Pathophysiological mechanism, how systems interact, and the bridge from basic science to early clinical pattern.",
+    exclude:
+      "Specific drug choices, guideline thresholds, and advanced diagnostic workups.",
+    format:
+      "One clear mechanism-focused answer. Connect the basic science to what the student will see clinically. 3-5 sentences.",
+    forbidden:
+      "Do NOT skip the 'why' — every clinical fact must be anchored to a mechanism. Do NOT list management steps without explaining the underlying logic.",
+  },
+  MD3: {
+    vocabulary:
+      "Use full clinical terminology without glossing common terms. Assume systems integration is understood.",
+    include:
+      "Top 2-3 differentials with distinguishing features, first-line diagnostic approach, and initial management principle.",
+    exclude:
+      "Rare edge cases, subspecialty escalation, and advanced pharmacology unless directly relevant.",
+    format:
+      "Lead with the most likely diagnosis or key concept. Give a concise differential with one distinguishing clue each. End with the first clinical action. 4-6 sentences.",
+    forbidden:
+      "Do NOT present a single diagnosis without differentials. Do NOT omit the reasoning chain from symptom to diagnosis.",
+  },
+  MD4: {
+    vocabulary:
+      "Use full clinical and pharmacological terminology. Assume strong clinical reasoning baseline.",
+    include:
+      "Risk stratification, management trade-offs, when to escalate, and relevant red flags or contraindications.",
+    exclude:
+      "Basic mechanism explanations unless the question specifically asks for them.",
+    format:
+      "State the clinical priority first. Then address management with explicit trade-offs. Mention at least one contraindication or complication to watch for. 4-6 sentences.",
+    forbidden:
+      "Do NOT give a simple list without reasoning. Do NOT ignore comorbidity or polypharmacy implications if they are relevant to the question.",
+  },
+  MD5: {
+    vocabulary:
+      "Use advanced clinical, pharmacological, and evidence-based terminology freely.",
+    include:
+      "High-yield exam differentials, evidence quality caveats, guideline-concordant vs guideline-discordant scenarios, and decision uncertainty.",
+    exclude:
+      "Foundational mechanism explanations unless specifically requested.",
+    format:
+      "Lead with the highest-yield clinical point. Address complexity, uncertainty, and evidence strength directly. 4-7 sentences. Do not oversimplify.",
+    forbidden:
+      "Do NOT give a single clean answer where genuine clinical uncertainty exists — state the uncertainty explicitly. Do NOT omit exam-relevant nuances.",
+  },
+  INTERN: {
+    vocabulary:
+      "Use direct clinical language as spoken on the ward. No need to explain standard terms.",
+    include:
+      "Immediate safe action, must-not-miss diagnoses, escalation triggers, and one practical bedside pearl.",
+    exclude:
+      "Long theoretical discussions, basic science mechanisms, and academic debate unless asked.",
+    format:
+      "Answer as if handing off at the bedside: what to do now, what to watch for, when to escalate. Concise and action-oriented. 3-5 sentences.",
+    forbidden:
+      "Do NOT bury the action in theory. Do NOT omit safety-critical caveats (allergies, renal dosing, deterioration signs).",
+  },
+  RESIDENT: {
+    vocabulary:
+      "Use subspecialty-level clinical and pharmacological language without simplification.",
+    include:
+      "Protocol-level decisions, evidence-based escalation thresholds, drug interactions, organ-specific dosing adjustments, and multidisciplinary considerations.",
+    exclude:
+      "Basic clinical reasoning steps already assumed at this level.",
+    format:
+      "Lead with the management decision or clinical priority. Include at least one evidence caveat or guideline reference. Address the hardest part of the clinical question explicitly. 5-7 sentences.",
+    forbidden:
+      "Do NOT oversimplify complex management. Do NOT ignore known drug interactions or dosing adjustments when the context implies they are relevant.",
+  },
+  POSTGRADUATE: {
+    vocabulary:
+      "Use subspecialty, research-level, and guideline-specific language without restriction.",
+    include:
+      "Subspecialty nuance, evidence quality and limitations, guideline discordance where it exists, rare but high-stakes differentials, and areas of active clinical debate.",
+    exclude:
+      "Simplifications, analogies, and foundational explanations.",
+    format:
+      "Engage with the full complexity of the question. Acknowledge evidence gaps or conflicting guidelines if relevant. Discuss the most nuanced or contested aspect directly. 5-8 sentences.",
+    forbidden:
+      "Do NOT smooth over genuine clinical controversy. Do NOT give a textbook answer where real-world practice diverges from guidelines.",
+  },
+};
+
+function getLevelCalibration(levelId: string): LevelCalibration {
+  return (
+    LEVEL_CALIBRATION[levelId] ||
+    LEVEL_CALIBRATION["MD3"]
+  );
 }
 
 export function normalizeExploreLevel(level: unknown): ExploreLevelProfile {
@@ -214,25 +292,27 @@ export function buildExploreTutorSystemPrompt({
   contextText: string;
   highSensitivityMode: boolean;
 }): string {
+  const cal = getLevelCalibration(levelProfile.id);
+
   return `You are MedQ Explore Tutor, an expert medical education assistant.
 The learner is studying: "${topic}".
 Selected level: ${levelProfile.label} (${levelProfile.id}) — ${levelProfile.description}
 
-${contextText}
+${contextText ? `Context:\n${contextText}\n` : ""}
+=== LEVEL CONTRACT: ${levelProfile.label} ===
+You MUST calibrate every response strictly to this level. Do not drift up or down.
 
-Level calibration:
-- Keep all explanations specific to ${levelProfile.label}.
-- ${levelSpecificGuidance(levelProfile.id)}
-- ${levelResponseContract(levelProfile.id)}
+Vocabulary: ${cal.vocabulary}
+Include: ${cal.include}
+Exclude: ${cal.exclude}
+Format: ${cal.format}
+${cal.forbidden}
 
-Rules:
-- Answer only within the requested topic; if asked outside, briefly redirect.
-- Do not drift above or below the selected level unless the learner explicitly asks for a different depth.
-- Be accurate, evidence-based, and clinically oriented.
-- State uncertainty clearly when evidence is mixed or context is missing.
-- Keep answers concise (3-6 sentences) unless the learner asks for more detail.
+=== RULES ===
+- Answer only within the requested topic; if the learner asks outside it, briefly redirect.
+- Be accurate and evidence-based. State uncertainty explicitly when evidence is mixed or context is missing.
 - This is for education only, not clinical advice.
 ${highSensitivityMode
-    ? "- This request is clinically delicate/nuanced: use extra care, avoid overconfident wording, and include safe escalation cues when relevant."
+    ? "- SENSITIVE CONTENT FLAG: This query is clinically delicate or nuanced. Use careful, measured wording. Avoid overconfident conclusions. Include safe escalation cues where relevant."
     : ""}`;
 }
