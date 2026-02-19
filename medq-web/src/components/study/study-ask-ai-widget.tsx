@@ -146,7 +146,7 @@ export function StudyAskAiWidget({
 
   // Expanded chat panel
   return (
-    <div className="fixed bottom-20 right-4 z-40 flex h-[520px] w-[min(92vw,430px)] max-h-[72vh] flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/95 shadow-[0_24px_60px_-34px_rgba(15,23,42,0.9)] backdrop-blur-xl md:bottom-6 md:right-6">
+    <div className="fixed bottom-20 right-4 z-40 flex h-[520px] w-[min(92vw,430px)] max-h-[calc(100dvh-6rem)] flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/95 shadow-[0_24px_60px_-34px_rgba(15,23,42,0.9)] backdrop-blur-xl md:bottom-6 md:right-6 md:max-h-[72vh]">
       {/* Header */}
       <div className="border-b border-border/60 bg-gradient-to-r from-primary/14 via-primary/6 to-transparent px-4 py-3">
         <div className="flex items-center justify-between gap-2">
@@ -164,7 +164,7 @@ export function StudyAskAiWidget({
               size="icon"
               className="h-7 w-7"
               onClick={handleClearChat}
-              title="Clear chat"
+              aria-label="Clear chat"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
@@ -173,6 +173,7 @@ export function StudyAskAiWidget({
               size="icon"
               className="h-7 w-7"
               onClick={() => setIsOpen(false)}
+              aria-label="Close chat"
             >
               <X className="h-4 w-4" />
             </Button>

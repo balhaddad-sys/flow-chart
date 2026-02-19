@@ -41,6 +41,8 @@ export default function ProfilePage() {
   const { user } = useAuth();
   const { mode, setMode } = useThemeStore();
   const [deleting, setDeleting] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [reprocessing, setReprocessing] = useState(false);
 
   async function handleSignOut() {
@@ -62,12 +64,11 @@ export default function ProfilePage() {
   }
 
   async function handleDeleteAccount() {
-    if (!confirm("This will permanently delete all your data. Are you sure?")) return;
-    if (!confirm("This action cannot be undone. Type DELETE to confirm.")) return;
-
+    if (deleteConfirmText !== "DELETE") return;
     setDeleting(true);
     try {
       await fn.deleteUserData();
+      localStorage.clear();
       await signOut();
       toast.success("Account deleted.");
       router.replace("/login");
@@ -75,6 +76,8 @@ export default function ProfilePage() {
       toast.error(err instanceof Error ? err.message : "Failed to delete account");
     } finally {
       setDeleting(false);
+      setDeleteConfirmOpen(false);
+      setDeleteConfirmText("");
     }
   }
 
@@ -203,16 +206,52 @@ export default function ProfilePage() {
           Permanently delete your account and all associated data.
         </p>
         <div className="mt-4">
-          <Button variant="destructive" onClick={handleDeleteAccount} disabled={deleting} className="rounded-xl">
-            {deleting ? (
-              <LoadingButtonLabel label="Deleting..." />
-            ) : (
-              <>
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete Account
-              </>
-            )}
-          </Button>
+          {!deleteConfirmOpen ? (
+            <Button variant="destructive" onClick={() => setDeleteConfirmOpen(true)} className="rounded-xl">
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Account
+            </Button>
+          ) : (
+            <div className="space-y-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+              <p className="text-sm font-medium text-destructive">
+                This will permanently delete all your data.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Type <span className="font-mono font-semibold text-destructive">DELETE</span> to confirm.
+              </p>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="Type DELETE"
+                className="w-full rounded-lg border border-destructive/30 bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-destructive/40"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleDeleteAccount}
+                  disabled={deleting || deleteConfirmText !== "DELETE"}
+                  className="rounded-lg"
+                >
+                  {deleting ? (
+                    <LoadingButtonLabel label="Deleting..." />
+                  ) : (
+                    "Confirm Delete"
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setDeleteConfirmOpen(false); setDeleteConfirmText(""); }}
+                  className="rounded-lg"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

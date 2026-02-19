@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signInWithEmail, signInWithGoogle } from "@/lib/firebase/auth";
+import { humanizeAuthError } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,7 +26,7 @@ export default function LoginPage() {
       await signInWithEmail(email, password);
       router.replace("/today");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Sign in failed");
+      setError(humanizeAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -39,7 +40,7 @@ export default function LoginPage() {
       router.replace("/today");
     } catch (err: unknown) {
       if (err && typeof err === "object" && "code" in err && err.code === "auth/popup-blocked") return;
-      setError(err instanceof Error ? err.message : "Google sign in failed");
+      setError(humanizeAuthError(err));
     } finally {
       setLoading(false);
     }

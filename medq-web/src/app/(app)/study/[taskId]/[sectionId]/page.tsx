@@ -94,6 +94,7 @@ export default function StudySessionPage({
   const { seconds, isRunning, start, pause, reset, getFormatted } = useTimerStore();
   const [task, setTask] = useState<TaskModel | null>(null);
   const [section, setSection] = useState<SectionModel | null>(null);
+  const [sectionNotFound, setSectionNotFound] = useState(false);
   const [sectionText, setSectionText] = useState<string | null>(null);
   const [textLoading, setTextLoading] = useState(false);
   const [textError, setTextError] = useState<string | null>(null);
@@ -120,6 +121,9 @@ export default function StudySessionPage({
     const unsub = onSnapshot(doc(db, "users", uid, "sections", sectionId), (snap) => {
       if (snap.exists()) {
         setSection({ ...snap.data(), id: snap.id } as SectionModel);
+        setSectionNotFound(false);
+      } else {
+        setSectionNotFound(true);
       }
     });
     return unsub;
@@ -229,16 +233,30 @@ export default function StudySessionPage({
       } catch { /* fall through */ }
 
       if (controller.signal.aborted) return;
-      const idToken = await user?.getIdToken();
-      const res = await fetch("/api/summary", {
+      const summaryBody = JSON.stringify(input);
+      let idToken = await user?.getIdToken();
+      let res = await fetch("/api/summary", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
         },
-        body: JSON.stringify(input),
+        body: summaryBody,
         signal: controller.signal,
       });
+      // Retry with forced token refresh on 401
+      if (res.status === 401 && user) {
+        idToken = await user.getIdToken(true);
+        res = await fetch("/api/summary", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+          },
+          body: summaryBody,
+          signal: controller.signal,
+        });
+      }
       const json = await res.json();
       if (!res.ok || !json?.success || !json?.data) {
         throw new Error(json?.error || "Failed to generate summary.");
@@ -304,12 +322,30 @@ export default function StudySessionPage({
   const stageMeta = STAGE_META[stage];
   const StageIcon = stageMeta.icon;
 
+  if (sectionNotFound) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 px-4 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted mb-4">
+          <AlertTriangle className="h-6 w-6 text-muted-foreground" />
+        </div>
+        <p className="text-sm font-medium">Section not found</p>
+        <p className="mt-1.5 text-xs text-muted-foreground max-w-[280px] leading-relaxed">
+          This section may have been deleted or the link is invalid.
+        </p>
+        <Button variant="outline" size="sm" className="mt-4 rounded-xl" onClick={() => router.push("/today/plan")}>
+          <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
+          Back to Plan
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col">
       {/* ── Sticky header ── sits below the CourseSwitcherBar (min-h-12) */}
       <div className="sticky top-12 z-10 border-b border-border/50 bg-background/80 backdrop-blur-2xl">
         {/* Row 1: back + title + timer */}
-        <div className="flex items-center gap-2 px-4 pt-3 pb-2">
+        <div className="flex items-center gap-1.5 px-4 pt-3 pb-2">
           <button
             onClick={() => router.back()}
             className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors shrink-0"
@@ -331,30 +367,30 @@ export default function StudySessionPage({
               seconds > 1800 ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" :
               "bg-muted/80"
             }`}>
-              <Clock className="h-3 w-3" />
+              <Clock className="h-3 w-3 hidden sm:block" />
               <span className="font-mono text-xs tabular-nums font-medium min-w-[2.5rem] text-center">
                 {formatted}
               </span>
               {isRunning ? (
-                <button onClick={pause} className="rounded-full p-1 hover:bg-background/60 transition-colors">
+                <button onClick={pause} aria-label="Pause timer" className="rounded-full p-1 hover:bg-background/60 transition-colors">
                   <Pause className="h-3 w-3" />
                 </button>
               ) : (
-                <button onClick={start} className="rounded-full p-1 hover:bg-background/60 transition-colors">
+                <button onClick={start} aria-label="Start timer" className="rounded-full p-1 hover:bg-background/60 transition-colors">
                   <Play className="h-3 w-3" />
                 </button>
               )}
             </div>
-            <Button size="sm" className="h-7 rounded-full text-xs px-3 ml-1" onClick={handleComplete}>
-              <CheckCircle2 className="mr-1 h-3 w-3" />
-              Done
+            <Button size="sm" className="h-7 rounded-full text-xs px-2 sm:px-3 ml-1" onClick={handleComplete}>
+              <CheckCircle2 className="h-3 w-3 sm:mr-1" />
+              <span className="hidden sm:inline">Done</span>
             </Button>
           </div>
         </div>
 
         {/* Row 2: topic tags */}
         {section && (section.estMinutes || (section.topicTags && section.topicTags.length > 0)) && (
-          <div className="flex items-center gap-1.5 px-4 pb-2.5 overflow-x-auto scrollbar-none">
+          <div className="flex items-center gap-1 px-4 pb-1.5 overflow-x-auto scrollbar-none">
             <Badge
               variant="secondary"
               className={`text-[10px] shrink-0 rounded-full border-transparent ${stageMeta.bg} ${stageMeta.color}`}
@@ -377,7 +413,7 @@ export default function StudySessionPage({
       </div>
 
       {/* ── Content ── */}
-      <div className="mx-auto w-full max-w-2xl flex-1 px-4 pt-5 pb-8 sm:px-6">
+      <div className="mx-auto w-full max-w-2xl flex-1 px-4 pt-4 pb-24 sm:px-6">
         <Tabs defaultValue={defaultTab} className="space-y-5">
           {/* Tab selector */}
           <TabsList className="grid w-full grid-cols-2 h-10 rounded-xl p-1">
@@ -392,24 +428,7 @@ export default function StudySessionPage({
           </TabsList>
 
           {/* ─── Guide Tab ─── */}
-          <TabsContent value="guide" className="space-y-4 mt-0">
-            {/* Stage banner */}
-            {(() => {
-              const meta = STAGE_META[stage];
-              const StageIcon = meta.icon;
-              return (
-                <div className="flex items-center gap-3 rounded-2xl border bg-card p-3 sm:p-4">
-                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${meta.bg}`}>
-                    <StageIcon className={`h-4.5 w-4.5 ${meta.color}`} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{meta.label}</p>
-                    <p className="text-[13px] leading-snug text-foreground/70">{meta.description}</p>
-                  </div>
-                </div>
-              );
-            })()}
-
+          <TabsContent value="guide" className="space-y-3 mt-0">
             {hasBlueprintGuide ? (
               <>
                 {/* ── STUDY: Objectives → Concepts → Terms → High-Yield → Synthesis ── */}
@@ -423,7 +442,7 @@ export default function StudySessionPage({
                           </div>
                           <h3 className="text-sm font-semibold">Learning Objectives</h3>
                         </div>
-                        <ul className="space-y-3">
+                        <ul className="space-y-2">
                           {bp.learningObjectives.map((obj, i) => (
                             <li key={i} className="flex gap-3 text-[13px] sm:text-sm leading-relaxed">
                               <span className="mt-1.5 shrink-0 h-2 w-2 rounded-full bg-blue-500/60" />
@@ -461,7 +480,7 @@ export default function StudySessionPage({
                           </div>
                           <h3 className="text-sm font-semibold">High-Yield Points</h3>
                         </div>
-                        <ul className="space-y-3">
+                        <ul className="space-y-2">
                           {bp.highYieldPoints.map((point, i) => (
                             <li key={i} className="flex gap-3 text-[13px] sm:text-sm leading-relaxed">
                               <span className="mt-1.5 shrink-0 h-2 w-2 rounded-full bg-green-500/60" />
@@ -496,7 +515,7 @@ export default function StudySessionPage({
                           </div>
                           <h3 className="text-sm font-semibold">High-Yield Points</h3>
                         </div>
-                        <ul className="space-y-3">
+                        <ul className="space-y-2">
                           {bp.highYieldPoints.map((point, i) => (
                             <li key={i} className="flex gap-3 text-[13px] sm:text-sm leading-relaxed">
                               <span className="mt-1.5 shrink-0 h-2 w-2 rounded-full bg-green-500/60" />
@@ -514,7 +533,7 @@ export default function StudySessionPage({
                           </div>
                           <h3 className="text-sm font-semibold">Common Traps</h3>
                         </div>
-                        <ul className="space-y-3">
+                        <ul className="space-y-2">
                           {bp.commonTraps.map((trap, i) => (
                             <li key={i} className="flex gap-3 text-[13px] sm:text-sm leading-relaxed">
                               <span className="mt-1.5 shrink-0 h-2 w-2 rounded-full bg-orange-500/60" />
@@ -595,7 +614,7 @@ export default function StudySessionPage({
                           </div>
                           <h3 className="text-sm font-semibold">Quick Refresh</h3>
                         </div>
-                        <ul className="space-y-3">
+                        <ul className="space-y-2">
                           {bp.highYieldPoints.map((point, i) => (
                             <li key={i} className="flex gap-3 text-[13px] sm:text-sm leading-relaxed">
                               <span className="mt-1.5 shrink-0 h-2 w-2 rounded-full bg-green-500/60" />
@@ -613,7 +632,7 @@ export default function StudySessionPage({
                           </div>
                           <h3 className="text-sm font-semibold">Watch Out For</h3>
                         </div>
-                        <ul className="space-y-3">
+                        <ul className="space-y-2">
                           {bp.commonTraps.map((trap, i) => (
                             <li key={i} className="flex gap-3 text-[13px] sm:text-sm leading-relaxed">
                               <span className="mt-1.5 shrink-0 h-2 w-2 rounded-full bg-orange-500/60" />
@@ -715,7 +734,7 @@ export default function StudySessionPage({
           </TabsContent>
 
           {/* ─── Notes Tab (AI-generated study notes) ─── */}
-          <TabsContent value="notes" className="space-y-4 mt-0">
+          <TabsContent value="notes" className="space-y-3 mt-0">
             {summaryLoading ? (
               <SectionLoadingState
                 title="Generating study notes"

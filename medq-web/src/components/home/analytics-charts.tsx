@@ -44,8 +44,9 @@ interface AnalyticsChartsProps {
 }
 
 export function AnalyticsCharts({ courseId }: AnalyticsChartsProps) {
-  const { stats } = useStats(courseId);
-  const { tasks } = useTasks(courseId);
+  const { stats, loading: statsLoading } = useStats(courseId);
+  const { tasks, loading: tasksLoading } = useTasks(courseId);
+  const dataLoading = statsLoading || tasksLoading;
 
   const taskBreakdown = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -88,6 +89,24 @@ export function AnalyticsCharts({ courseId }: AnalyticsChartsProps) {
       accuracy: Math.round(topic.accuracy * 100),
     }));
   }, [stats]);
+
+  if (dataLoading) {
+    return (
+      <div className="grid gap-4 sm:gap-5 md:grid-cols-2">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="glass-card overflow-hidden rounded-2xl">
+            <div className="border-b border-border/50 px-5 py-4">
+              <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+              <div className="mt-1.5 h-3 w-48 animate-pulse rounded bg-muted/60" />
+            </div>
+            <div className="flex items-center justify-center p-5" style={{ height: 220 }}>
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-primary" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-4 sm:gap-5 md:grid-cols-2">

@@ -50,6 +50,19 @@ export async function signInWithGoogle(): Promise<UserCredential> {
 }
 
 export async function signOut(): Promise<void> {
+  // Clear persisted chat messages and preferences from localStorage
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith("medq_explore_chat") || key === "medq-active-course")) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((key) => localStorage.removeItem(key));
+  } catch {
+    // Ignore localStorage errors (e.g., private browsing)
+  }
   return firebaseSignOut(auth);
 }
 

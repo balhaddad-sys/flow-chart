@@ -114,7 +114,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
         }
         if (result.tutorResponse) setTutorResponse(result.tutorResponse);
       }).catch(() => {
-        // Silently ignore — optimistic result stands
+        toast.error("Answer couldn\u2019t sync. Your progress may not be saved.");
       });
     } finally {
       setSubmitting(false);

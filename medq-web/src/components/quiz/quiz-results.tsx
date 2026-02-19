@@ -88,7 +88,7 @@ export function QuizResults() {
             className="flex-1 rounded-xl"
             onClick={() => {
               reset();
-              router.refresh();
+              window.location.reload();
             }}
           >
             <RotateCcw className="mr-2 h-4 w-4" />

@@ -27,6 +27,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   const { uid } = useAuth();
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const courseId = useCourseStore((s) => s.activeCourseId);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -47,8 +48,9 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
         );
         setLoading(false);
       },
-      () => {
+      (err) => {
         setLoading(false);
+        setLoadError(err?.message || "Failed to load conversation. Check your connection.");
       }
     );
     return unsub;
@@ -81,7 +83,7 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
   return (
     <div className="page-wrap flex h-full max-w-5xl flex-col gap-4">
       <div className="glass-card flex items-center gap-3 px-4 py-3">
-        <Button variant="ghost" size="icon" onClick={() => router.push("/ai")}>
+        <Button variant="ghost" size="icon" aria-label="Back to AI chats" onClick={() => router.push("/ai")}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="text-lg font-semibold">AI Chat</h1>
@@ -95,6 +97,18 @@ export default function ChatThreadPage({ params }: { params: Promise<{ threadId:
             rows={3}
             className="border-0 bg-transparent p-0 shadow-none"
           />
+        ) : loadError ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <p className="text-sm text-destructive">{loadError}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => window.location.reload()}
+            >
+              Retry
+            </Button>
+          </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <p className="text-sm text-muted-foreground">

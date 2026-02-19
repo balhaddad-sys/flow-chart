@@ -24,6 +24,8 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
   const { sections, loading } = useSectionsByFile(fileId);
 
   const [retrying, setRetrying] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const file = files.find((f) => f.id === fileId);
   const isFileLoading = !file && loading;
@@ -43,13 +45,16 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
 
   async function handleDelete() {
     if (!uid || !file) return;
-    if (!confirm("Delete this file and all its sections and questions?")) return;
+    setDeleting(true);
     try {
       const result = await fn.deleteFile({ fileId: file.id });
       toast.success(`File deleted (${result.deletedSections} sections, ${result.deletedQuestions} questions removed).`);
       router.replace("/library");
     } catch {
       toast.error("Failed to delete file.");
+    } finally {
+      setDeleting(false);
+      setDeleteConfirmOpen(false);
     }
   }
 
@@ -95,13 +100,30 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
               )}
             </Button>
           )}
-          {file && (
-            <Button variant="ghost" size="icon" onClick={handleDelete} className="text-destructive">
+          {file && !deleteConfirmOpen && (
+            <Button variant="ghost" size="icon" onClick={() => setDeleteConfirmOpen(true)} className="text-destructive" aria-label="Delete file">
               <Trash2 className="h-4 w-4" />
             </Button>
           )}
         </div>
       </div>
+
+      {deleteConfirmOpen && (
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">
+          <p className="text-sm font-medium text-destructive">
+            Delete this file and all its sections and questions?
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">This action cannot be undone.</p>
+          <div className="mt-3 flex gap-2">
+            <Button variant="destructive" size="sm" onClick={handleDelete} disabled={deleting} className="rounded-lg">
+              {deleting ? <LoadingButtonLabel label="Deleting..." /> : "Delete"}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setDeleteConfirmOpen(false)} className="rounded-lg">
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Sections</h2>

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { LoadingButtonLabel } from "@/components/ui/loading-state";
-import { cn } from "@/lib/utils";
+import { cn, humanizeAuthError } from "@/lib/utils";
 
 function getPasswordStrength(password: string): { score: number; label: string; color: string } {
   let score = 0;
@@ -39,16 +39,20 @@ export default function SignupPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!name.trim()) {
+      setError("Please enter your name");
+      return;
+    }
     if (password.length < 6) {
       setError("Password must be at least 6 characters");
       return;
     }
     setLoading(true);
     try {
-      await signUpWithEmail(email, password, name);
+      await signUpWithEmail(email, password, name.trim());
       router.replace("/onboarding");
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Sign up failed");
+      setError(humanizeAuthError(err));
     } finally {
       setLoading(false);
     }
@@ -62,7 +66,7 @@ export default function SignupPage() {
       router.replace("/today");
     } catch (err: unknown) {
       if (err && typeof err === "object" && "code" in err && err.code === "auth/popup-blocked") return;
-      setError(err instanceof Error ? err.message : "Google sign in failed");
+      setError(humanizeAuthError(err));
     } finally {
       setLoading(false);
     }

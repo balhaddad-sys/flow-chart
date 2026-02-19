@@ -458,6 +458,7 @@ export default function ExplorePage() {
           <button
             type="button"
             onClick={() => setInputIntent("learn")}
+            aria-pressed={inputIntent === "learn"}
             className={`surface-interactive flex flex-col items-center gap-2 p-4 text-center transition-all ${
               inputIntent === "learn"
                 ? "border-blue-500/60 ring-2 ring-blue-500/20"
@@ -482,6 +483,7 @@ export default function ExplorePage() {
           <button
             type="button"
             onClick={() => setInputIntent("quiz")}
+            aria-pressed={inputIntent === "quiz"}
             className={`surface-interactive flex flex-col items-center gap-2 p-4 text-center transition-all ${
               inputIntent === "quiz"
                 ? "border-emerald-500/60 ring-2 ring-emerald-500/20"

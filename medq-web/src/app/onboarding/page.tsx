@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/hooks/useAuth";
 import { useOnboardingStore } from "@/lib/stores/onboarding-store";
 import { useCourseStore } from "@/lib/stores/course-store";
 import { useCourses } from "@/lib/hooks/useCourses";
@@ -54,7 +55,7 @@ function StepCourse() {
           <Target className="h-3.5 w-3.5 text-primary" />
           What are you studying for?
         </Label>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {EXAM_TARGETS.map((target) => (
             <button
               key={target}
@@ -168,6 +169,7 @@ const STEP_ICONS = [GraduationCap, CalendarDays];
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const { step, nextStep, prevStep, courseTitle, examDate, examType, availability, reset } =
     useOnboardingStore();
   const { courses, loading: coursesLoading } = useCourses();
@@ -186,6 +188,24 @@ export default function OnboardingPage() {
     setActiveCourseId(courseId);
     reset();
     router.replace("/today");
+  }
+
+  // Redirect unauthenticated users to login
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace("/login");
+    }
+  }, [authLoading, user, router]);
+
+  if (authLoading || (!user && !authLoading)) {
+    return (
+      <PageLoadingState
+        title="Checking your session"
+        description="Verifying authentication..."
+        minHeightClassName="min-h-[100dvh]"
+        className="p-4"
+      />
+    );
   }
 
   if (coursesLoading && !showCreateFlow) {

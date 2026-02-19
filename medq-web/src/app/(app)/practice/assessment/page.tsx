@@ -156,11 +156,11 @@ export default function AssessmentPage() {
   const currentAnswer = currentQuestion ? answers[currentQuestion.id] : undefined;
   const answeredCount = useMemo(() => Object.keys(answers).length, [answers]);
   const progress = questions.length > 0 ? (answeredCount / questions.length) * 100 : 0;
-  const canStart = !!courseId && !!selectedTopic && !!selectedLevel && !starting;
   const topWeakTopic = report?.recommendations?.priorityTopics?.[0];
   const selectedTopicMeta = topics.find((topic) => topic.id === selectedTopic);
   const selectedTopicLabel = selectedTopicMeta?.label || formatTopicTag(selectedTopic);
   const selectedTopicAvailableCount = selectedTopicMeta?.availableQuestions ?? 0;
+  const canStart = !!courseId && !!selectedTopic && !!selectedLevel && !starting && selectedTopicAvailableCount > 0;
 
   async function handleStartAssessment() {
     if (!canStart || !courseId) return;
@@ -437,6 +437,8 @@ export default function AssessmentPage() {
                     key={value}
                     onClick={() => !currentAnswer && setCurrentConfidence(value)}
                     disabled={!!currentAnswer}
+                    aria-pressed={currentConfidence === value}
+                    aria-label={`Confidence ${value}`}
                     className={`rounded-lg border px-2 py-1 text-xs ${
                       currentConfidence === value
                         ? "border-primary bg-primary/15 text-primary"
