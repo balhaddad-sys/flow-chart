@@ -18,6 +18,17 @@ const { PAGES_PER_SECTION, MIN_CHARS_PER_SECTION } = require("../../lib/constant
  * @param {string} fullText
  * @returns {Array<{ text: string, charOffset: number }>}
  */
+/**
+ * Clean common pdf-parse artifacts from heading text:
+ * - Trailing page numbers glued to text (e.g. "Anatomy of the Heart12" → "Anatomy of the Heart")
+ * - Leading/trailing whitespace and punctuation
+ */
+function cleanHeadingText(text) {
+  return text
+    .replace(/(?<=[a-zA-Z])\d{1,4}$/, "") // strip trailing digits concatenated to letters
+    .replace(/^\s+|\s+$/g, "");
+}
+
 function detectHeadings(fullText) {
   const headings = [];
   const lines = fullText.split("\n");
@@ -39,7 +50,10 @@ function detectHeadings(fullText) {
       !/^figure\s+\d/i.test(line) &&    // not a figure caption
       !/^table\s+\d/i.test(line)         // not a table caption
     ) {
-      headings.push({ text: line, charOffset });
+      const cleaned = cleanHeadingText(line);
+      if (cleaned.length >= 3) {
+        headings.push({ text: cleaned, charOffset });
+      }
     }
 
     charOffset += lines[i].length + 1; // +1 for the \n
