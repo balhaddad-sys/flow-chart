@@ -53,6 +53,9 @@ pubspec.lock
 android/key.properties
 android/app/upload-keystore.jks
 android/app/google-services.json
+android/local.properties
+android/.gradle/
+android/build/
 
 # Node
 medq-web/node_modules/
