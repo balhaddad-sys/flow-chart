@@ -67,3 +67,65 @@ export function clearExploreHistory(): void {
     // silently ignore
   }
 }
+
+// ── Pending session (survives navigation) ─────────────────────────────
+
+const SESSION_KEY = "medq_explore_session_v1";
+const SESSION_MAX_AGE_MS = 10 * 60 * 1000; // 10 minutes
+
+export interface ExplorePendingSession {
+  topic: string;
+  level: string;
+  path: "learn" | "quiz";
+  backgroundJobId?: string;
+  count?: number;
+  startedAt: number;
+}
+
+export function savePendingSession(session: Omit<ExplorePendingSession, "startedAt">): void {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ ...session, startedAt: Date.now() }));
+  } catch {
+    // silently ignore
+  }
+}
+
+export function updatePendingSession(updates: Partial<ExplorePendingSession>): void {
+  try {
+    const existing = getPendingSession();
+    if (!existing) return;
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ ...existing, ...updates }));
+  } catch {
+    // silently ignore
+  }
+}
+
+export function getPendingSession(): ExplorePendingSession | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as ExplorePendingSession;
+    if (
+      typeof parsed.topic !== "string" ||
+      typeof parsed.level !== "string" ||
+      typeof parsed.startedAt !== "number"
+    ) {
+      return null;
+    }
+    if (Date.now() - parsed.startedAt > SESSION_MAX_AGE_MS) {
+      localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export function clearPendingSession(): void {
+  try {
+    localStorage.removeItem(SESSION_KEY);
+  } catch {
+    // silently ignore
+  }
+}

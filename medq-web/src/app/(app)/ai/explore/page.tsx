@@ -26,6 +26,10 @@ import {
   getExploreHistory,
   addExploreHistoryEntry,
   removeExploreHistoryEntry,
+  savePendingSession,
+  updatePendingSession,
+  getPendingSession,
+  clearPendingSession,
   type ExploreHistoryEntry,
 } from "@/lib/utils/explore-history";
 
@@ -201,6 +205,30 @@ export default function ExplorePage() {
     }
   }, [inputTopic, inputLevel, inputCount, inputIntent]);
 
+  // ── Auto-resume pending session if user navigated away mid-generation ──
+  const resumedRef = useRef(false);
+  useEffect(() => {
+    if (resumedRef.current || phase !== "setup") return;
+    const pending = getPendingSession();
+    if (!pending) return;
+    resumedRef.current = true;
+    toast("Resuming your last session...", { duration: 3000 });
+    setInputTopic(pending.topic);
+    setInputLevel(pending.level);
+    setInputIntent(pending.path);
+    if (pending.count) setInputCount(pending.count);
+
+    // Use setTimeout to let state settle before triggering
+    setTimeout(() => {
+      if (pending.path === "learn") {
+        handleLearnTopic(pending.topic, pending.level);
+      } else {
+        handleStartQuiz(pending.topic, pending.level, pending.count);
+      }
+    }, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
   const currentQuestion = questions[currentIndex] ?? null;
   const currentAnswer =
     currentQuestion != null ? answers.get(currentQuestion.id) : undefined;
@@ -272,6 +300,7 @@ export default function ExplorePage() {
         if (status === "COMPLETED" && terminalStatusRef.current !== "COMPLETED") {
           terminalStatusRef.current = "COMPLETED";
           setBackfillStatus("completed", null);
+          clearPendingSession();
           const remaining = Number(data.remainingCount || 0);
           if (remaining > 0) {
             toast.message(
@@ -282,6 +311,7 @@ export default function ExplorePage() {
           }
         } else if (status === "FAILED" && terminalStatusRef.current !== "FAILED") {
           terminalStatusRef.current = "FAILED";
+          clearPendingSession();
           const message = String(
             data.error || "Background generation failed. You can still continue with ready questions."
           );
@@ -307,53 +337,60 @@ export default function ExplorePage() {
     targetCount,
   ]);
 
-  async function handleLearnTopic() {
-    const trimmed = inputTopic.trim();
+  async function handleLearnTopic(overrideTopic?: string, overrideLevel?: string) {
+    const trimmed = (overrideTopic ?? inputTopic).trim();
+    const level = overrideLevel ?? inputLevel;
     if (!trimmed) {
       toast.error("Please enter a medical topic.");
       return;
     }
     store.setUserPath("learn");
-    store.startLoading(trimmed, inputLevel);
+    store.startLoading(trimmed, level);
+    savePendingSession({ topic: trimmed, level, path: "learn" });
     try {
       const insight = await fn.exploreTopicInsight({
         topic: trimmed,
-        level: inputLevel,
+        level,
       });
       store.setTopicInsight(insight);
       store.startTeaching(insight);
-      const lvl = EXPLORE_LEVELS.find((l) => l.id === inputLevel);
+      clearPendingSession();
+      const lvl = EXPLORE_LEVELS.find((l) => l.id === level);
       addExploreHistoryEntry({
         topic: trimmed,
-        level: inputLevel,
-        levelLabel: lvl?.label ?? inputLevel,
+        level,
+        levelLabel: lvl?.label ?? level,
         path: "learn",
       });
       refreshHistory();
     } catch (err) {
+      clearPendingSession();
       store.setLoadingError(
         err instanceof Error ? err.message : "Failed to generate teaching content."
       );
     }
   }
 
-  async function handleStartQuiz() {
-    const trimmed = inputTopic.trim();
+  async function handleStartQuiz(overrideTopic?: string, overrideLevel?: string, overrideCount?: number) {
+    const trimmed = (overrideTopic ?? inputTopic).trim();
+    const level = overrideLevel ?? inputLevel;
+    const count = overrideCount ?? inputCount;
     if (!trimmed) {
       toast.error("Please enter a medical topic.");
       return;
     }
     store.setUserPath("quiz");
-    store.startLoading(trimmed, inputLevel);
+    store.startLoading(trimmed, level);
+    savePendingSession({ topic: trimmed, level, path: "quiz", count });
     // Fetch insight silently in background for "Learn more" links
-    fn.exploreTopicInsight({ topic: trimmed, level: inputLevel })
+    fn.exploreTopicInsight({ topic: trimmed, level })
       .then((insight) => store.setTopicInsight(insight))
       .catch(() => {});
     try {
       const result = await fn.exploreQuiz({
         topic: trimmed,
-        level: inputLevel,
-        count: inputCount,
+        level,
+        count,
       });
       store.startQuiz(
         result.questions,
@@ -369,11 +406,17 @@ export default function ExplorePage() {
           qualityScore: result.qualityScore,
         }
       );
-      const lvl = EXPLORE_LEVELS.find((l) => l.id === inputLevel);
+      // Keep session alive if background job is running, otherwise clear
+      if (result.backgroundQueued && result.backgroundJobId) {
+        updatePendingSession({ backgroundJobId: result.backgroundJobId });
+      } else {
+        clearPendingSession();
+      }
+      const lvl = EXPLORE_LEVELS.find((l) => l.id === level);
       addExploreHistoryEntry({
         topic: trimmed,
-        level: inputLevel,
-        levelLabel: lvl?.label ?? inputLevel,
+        level,
+        levelLabel: lvl?.label ?? level,
         path: "quiz",
       });
       refreshHistory();
@@ -383,18 +426,24 @@ export default function ExplorePage() {
         );
       }
     } catch (err) {
+      clearPendingSession();
       store.setLoadingError(
         err instanceof Error ? err.message : "Failed to generate questions."
       );
     }
   }
 
+  function handleReset() {
+    clearPendingSession();
+    store.reset();
+  }
+
   function handleRetry() {
     store.setLoadingError(null);
     if (store.userPath === "learn") {
-      handleLearnTopic();
+      handleLearnTopic(store.topic, store.level);
     } else {
-      handleStartQuiz();
+      handleStartQuiz(store.topic, store.level);
     }
   }
 
@@ -710,7 +759,7 @@ export default function ExplorePage() {
             {store.loadingError}
           </p>
           <div className="mt-5 flex gap-3">
-            <Button variant="outline" onClick={() => store.reset()}>
+            <Button variant="outline" onClick={handleReset}>
               Back to Setup
             </Button>
             <Button onClick={handleRetry}>
@@ -742,7 +791,7 @@ export default function ExplorePage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => store.reset()}
+            onClick={handleReset}
           >
             Cancel
           </Button>
@@ -757,7 +806,7 @@ export default function ExplorePage() {
       <div className="page-wrap page-stack">
         <ExploreTeaching
           onStartQuiz={handleQuizFromTeaching}
-          onNewTopic={() => store.reset()}
+          onNewTopic={handleReset}
         />
         <ExploreAskAiWidget />
       </div>
