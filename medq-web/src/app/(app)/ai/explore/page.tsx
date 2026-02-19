@@ -440,6 +440,44 @@ export default function ExplorePage() {
     }
   }
 
+  /**
+   * Instantly restore a previous session if the store already holds matching
+   * data for this topic+level. Falls back to a fresh API fetch otherwise.
+   */
+  function handleResumeSession(entry: ExploreHistoryEntry) {
+    const storeTopic = store.topic.trim().toLowerCase();
+    const entryTopic = entry.topic.trim().toLowerCase();
+    const storeLevel = store.level.trim().toLowerCase();
+    const entryLevel = entry.level.trim().toLowerCase();
+    const matches = storeTopic === entryTopic && storeLevel === entryLevel;
+
+    if (matches) {
+      // Teaching content available → go straight to teaching
+      if (entry.path === "learn" && store.topicInsight) {
+        store.setUserPath("learn");
+        store.startTeaching(store.topicInsight);
+        return;
+      }
+      // Quiz questions available → resume quiz where they left off
+      if (entry.path === "quiz" && store.questions.length > 0) {
+        store.setUserPath("quiz");
+        if (store.answers.size >= store.questions.length) {
+          store.finishQuiz();
+        } else {
+          store.resumeQuiz();
+        }
+        return;
+      }
+    }
+
+    // No matching cached data → fetch from API
+    if (entry.path === "learn") {
+      handleLearnTopic(entry.topic, entry.level);
+    } else {
+      handleStartQuiz(entry.topic, entry.level);
+    }
+  }
+
   function handleReset() {
     clearPendingSession();
     store.reset();
@@ -584,12 +622,7 @@ export default function ExplorePage() {
                     setInputTopic(entry.topic);
                     setInputLevel(entry.level);
                     setInputIntent(entry.path);
-                    // Auto-start the session immediately
-                    if (entry.path === "learn") {
-                      handleLearnTopic(entry.topic, entry.level);
-                    } else {
-                      handleStartQuiz(entry.topic, entry.level);
-                    }
+                    handleResumeSession(entry);
                   }}
                   role="button"
                   tabIndex={0}
@@ -599,11 +632,7 @@ export default function ExplorePage() {
                       setInputTopic(entry.topic);
                       setInputLevel(entry.level);
                       setInputIntent(entry.path);
-                      if (entry.path === "learn") {
-                        handleLearnTopic(entry.topic, entry.level);
-                      } else {
-                        handleStartQuiz(entry.topic, entry.level);
-                      }
+                      handleResumeSession(entry);
                     }
                   }}
                 >
