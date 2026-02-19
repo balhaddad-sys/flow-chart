@@ -6,6 +6,40 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/utils/validators.dart';
 import '../providers/onboarding_provider.dart';
 
+class _ExamOption {
+  final String key;
+  final String label;
+  final String badge;
+  const _ExamOption(this.key, this.label, this.badge);
+}
+
+class _ExamGroup {
+  final String group;
+  final List<_ExamOption> exams;
+  const _ExamGroup(this.group, this.exams);
+}
+
+const _examCatalog = [
+  _ExamGroup('UK Licensing', [
+    _ExamOption('PLAB1', 'PLAB 1',  '180 SBAs · GMC'),
+    _ExamOption('PLAB2', 'PLAB 2',  '18 stations · OSCE'),
+  ]),
+  _ExamGroup('UK Specialty', [
+    _ExamOption('MRCP_PART1', 'MRCP Part 1',  'Best of Five · RCP'),
+    _ExamOption('MRCP_PACES', 'MRCP PACES',   '5 stations · Clinical'),
+    _ExamOption('MRCGP_AKT',  'MRCGP AKT',   '200 MCQs · GP'),
+  ]),
+  _ExamGroup('International', [
+    _ExamOption('USMLE_STEP1', 'USMLE Step 1',    'Basic science · NBME'),
+    _ExamOption('USMLE_STEP2', 'USMLE Step 2 CK', 'Clinical knowledge'),
+  ]),
+  _ExamGroup('University', [
+    _ExamOption('FINALS', 'Medical Finals', 'SBA + OSCE · University'),
+    _ExamOption('SBA',    'SBA Practice',   'General SBA'),
+    _ExamOption('OSCE',   'OSCE Practice',  'General OSCE'),
+  ]),
+];
+
 class CourseSetupStep extends ConsumerWidget {
   const CourseSetupStep({super.key});
 
@@ -35,7 +69,7 @@ class CourseSetupStep extends ConsumerWidget {
           ),
           AppSpacing.gapXs,
           Text(
-            'Name your course or module so we can personalise your study plan',
+            'Name your course and select the exam you are preparing for.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -54,34 +88,82 @@ class CourseSetupStep extends ConsumerWidget {
           ),
           AppSpacing.gapXl,
           Text(
-            'Exam type',
+            'Preparing for',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
           ),
-          AppSpacing.gapSm,
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
-            children: ['SBA', 'OSCE', 'Mixed'].map((type) {
-              final selected = data.examType == type;
-              return ChoiceChip(
-                label: Text(type),
-                selected: selected,
-                onSelected: (_) =>
-                    ref.read(onboardingProvider.notifier).setExamType(type),
-                backgroundColor: AppColors.surface,
-                selectedColor: AppColors.primarySurface,
-                side: BorderSide(
-                  color: selected ? AppColors.primary : AppColors.border,
-                ),
-                labelStyle: TextStyle(
-                  color: selected ? AppColors.primary : AppColors.textSecondary,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                ),
-              );
-            }).toList(),
-          ),
+          AppSpacing.gapMd,
+          ..._examCatalog.map((group) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    group.group.toUpperCase(),
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.textSecondary,
+                          letterSpacing: 0.8,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  AppSpacing.gapXs,
+                  Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.sm,
+                    children: group.exams.map((exam) {
+                      final selected = data.examType == exam.key;
+                      return GestureDetector(
+                        onTap: () => ref
+                            .read(onboardingProvider.notifier)
+                            .setExamType(exam.key),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 150),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: selected
+                                ? AppColors.primarySurface
+                                : AppColors.surface,
+                            borderRadius:
+                                BorderRadius.circular(AppSpacing.radiusMd),
+                            border: Border.all(
+                              color:
+                                  selected ? AppColors.primary : AppColors.border,
+                              width: selected ? 1.5 : 1,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                exam.label,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: selected
+                                      ? FontWeight.w600
+                                      : FontWeight.w500,
+                                  color: selected
+                                      ? AppColors.primary
+                                      : AppColors.textPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                exam.badge,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                  AppSpacing.gapMd,
+                ],
+              )),
         ],
       ),
     );

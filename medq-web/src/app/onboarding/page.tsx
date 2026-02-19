@@ -22,7 +22,7 @@ import {
 import { cn } from "@/lib/utils";
 import * as fn from "@/lib/firebase/functions";
 import { toast } from "sonner";
-import { EXAM_TARGETS } from "@/lib/types/user";
+import { EXAM_CATALOG } from "@/lib/types/user";
 
 const DAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -31,7 +31,6 @@ const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 function StepCourse() {
   const { courseTitle, setCourseTitle, examType, setExamType } = useOnboardingStore();
-  const [examTarget, setExamTargetLocal] = useState<string>("");
 
   return (
     <div className="space-y-5">
@@ -49,48 +48,43 @@ function StepCourse() {
         />
       </div>
 
-      {/* Exam target — the key progressive-profiling question */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         <Label className="text-sm font-medium flex items-center gap-1.5">
           <Target className="h-3.5 w-3.5 text-primary" />
-          What are you studying for?
+          Preparing for
         </Label>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {EXAM_TARGETS.map((target) => (
-            <button
-              key={target}
-              type="button"
-              onClick={() => setExamTargetLocal(target)}
-              className={cn(
-                "rounded-xl border px-3 py-2.5 text-sm font-medium transition-all",
-                examTarget === target
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border/70 text-muted-foreground hover:border-primary/30 hover:text-foreground"
-              )}
-            >
-              {target}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Exam Format</Label>
-        <div className="flex gap-2">
-          {["SBA", "OSCE", "Mixed"].map((type) => (
-            <button
-              key={type}
-              type="button"
-              onClick={() => setExamType(type)}
-              className={cn(
-                "flex-1 rounded-xl border px-3 py-2.5 text-sm font-medium transition-all",
-                examType === type
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border/70 text-muted-foreground hover:border-primary/30 hover:text-foreground"
-              )}
-            >
-              {type}
-            </button>
+        <div className="space-y-3">
+          {EXAM_CATALOG.map((group) => (
+            <div key={group.group}>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5">
+                {group.group}
+              </p>
+              <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                {group.exams.map((exam) => (
+                  <button
+                    key={exam.key}
+                    type="button"
+                    onClick={() => setExamType(exam.key)}
+                    className={cn(
+                      "rounded-xl border px-3 py-2 text-left transition-all",
+                      examType === exam.key
+                        ? "border-primary bg-primary/10"
+                        : "border-border/70 hover:border-primary/30"
+                    )}
+                  >
+                    <span className={cn(
+                      "block text-sm font-medium",
+                      examType === exam.key ? "text-primary" : "text-foreground"
+                    )}>
+                      {exam.label}
+                    </span>
+                    <span className="block text-xs text-muted-foreground mt-0.5">
+                      {exam.badge}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       </div>

@@ -14,26 +14,98 @@
  */
 function examTypeInstructions(examType) {
   switch ((examType || "SBA").toUpperCase()) {
+
+    case "PLAB1":
+      return `Exam: PLAB 1 (GMC UK Medical Licensing — SBA format, 180 questions)
+Question style: UK NHS clinical vignettes with a single best answer from five options.
+- Set ALL clinical scenarios in a UK NHS context (GP surgery, A&E, ward, outpatient clinic)
+- Use UK drug names throughout: paracetamol (not acetaminophen), adrenaline (not epinephrine), salbutamol (not albuterol), metronidazole (not flagyl)
+- Reference UK guidelines: NICE, BNF, SIGN, PHE, RCOG, JRCALC
+- Include GMC ethics and professionalism scenarios: confidentiality, consent, capacity (Mental Capacity Act 2005), Gillick competence, duty of candour, safeguarding
+- High-yield topics: sepsis six, NEWS2 scoring, referral pathways, safe prescribing, infection control, common GP presentations
+- Question lead-ins: "What is the single best management?", "What is the most appropriate next step?", "Which is the most likely diagnosis?"`;
+
+    case "PLAB2":
+      return `Exam: PLAB 2 (GMC UK Clinical Assessment — 18 OSCE stations)
+Question style: UK NHS clinical station scenarios testing what the candidate DOES and SAYS.
+- Write stems as station scenarios: "You are the FY1 doctor in A&E. The patient in front of you…"
+- Test: structured history taking (SOCRATES, ICE — Ideas, Concerns, Expectations), clinical examination sequences, communication skills
+- Include: breaking bad news, obtaining informed consent, SBAR handover, prescribing safety, recognising the sick patient (ABCDE approach)
+- Options represent different approaches or communication choices, not diagnoses
+- UK clinical context: NHS settings, GMC Good Medical Practice, safeguarding referrals
+- Lead-ins: "What is the most appropriate opening?", "Which examination should be performed first?", "How should this be communicated?"`;
+
+    case "MRCP_PART1":
+      return `Exam: MRCP Part 1 (Royal Colleges of Physicians UK — Best of Five, 200 questions)
+Question style: Challenging Best-of-Five questions with strong basic science underpinning clinical practice.
+- Questions are harder than PLAB 1 — require mechanism-level understanding, not just recognition
+- High-yield specialties: cardiology (ECG interpretation, heart failure, arrhythmias), respiratory, endocrinology (thyroid, diabetes, adrenal), rheumatology, nephrology, neurology
+- Include: rare but high-yield conditions, abnormal investigation interpretation, pathophysiology-driven reasoning
+- Use UK drug names and reference UK/European guidelines (ESC, BTS, NICE, BSR)
+- Avoid straightforward recall; every question should require reasoning to distinguish the best answer
+- Lead-ins: "What is the most likely underlying mechanism?", "Which investigation would be most useful?", "What is the most appropriate management?"`;
+
+    case "MRCP_PACES":
+      return `Exam: MRCP PACES (Royal Colleges of Physicians — 5 clinical stations)
+Question style: Clinical examination and communication station scenarios.
+- Stations: respiratory examination, abdominal examination, cardiovascular examination, history taking, communication skills and ethics
+- Test: systematic examination technique, clinical sign recognition, structured history (presenting complaint → systems review → ICE), communication (breaking bad news, explaining diagnoses, handling uncertainty)
+- Options represent different examination approaches or communication strategies
+- Include: findings interpretation, differential construction from clinical signs, management discussion
+- Lead-ins: "What is the most appropriate initial examination step?", "Which finding is most consistent with the diagnosis?", "How should this information be shared with the patient?"`;
+
+    case "MRCGP_AKT":
+      return `Exam: MRCGP AKT (Applied Knowledge Test — 200 questions, GP specialty)
+Question style: Primary care-focused SBA questions covering clinical medicine, critical appraisal, and administrative/legal topics.
+- Set scenarios in GP surgery, out-of-hours, or community settings
+- High-yield: chronic disease management (hypertension, diabetes, COPD, asthma — all to NICE guidelines), mental health in primary care, prescribing (BNF), safeguarding, referral thresholds
+- Include: data interpretation (NNT, sensitivity/specificity, screening statistics), audit and research methods, GP administrative and medicolegal scenarios
+- Use UK primary care terminology: QOF, EMIS, MDT, GPSI, CQC
+- Lead-ins: "What is the most appropriate management in primary care?", "Which patient should be referred urgently?", "What does this data suggest?"`;
+
+    case "USMLE_STEP1":
+      return `Exam: USMLE Step 1 (NBME — Basic Science, SBA format)
+Question style: Mechanism-heavy vignettes requiring strong basic science reasoning.
+- Each question should test pathophysiology, biochemistry, pharmacology, microbiology, immunology, or anatomy underpinning a clinical scenario
+- US clinical context: American drug names (acetaminophen, epinephrine, albuterol), FDA-approved treatments, American nomenclature
+- Questions should require understanding the mechanism, not just recognising a pattern
+- High-yield: enzyme deficiencies, receptor pharmacology, cell biology, genetic disorders, microbial virulence factors, immunodeficiency syndromes
+- Distractors must be plausible at the mechanism level — wrong because of a specific mechanistic reason
+- Lead-ins: "Which of the following best explains the mechanism?", "What is the most likely cause of this finding?", "Which enzyme is deficient?"`;
+
+    case "USMLE_STEP2":
+      return `Exam: USMLE Step 2 CK (NBME — Clinical Knowledge, SBA format)
+Question style: Clinical management vignettes using American guidelines and evidence-based medicine.
+- US clinical context: American drug names, AHA/ACC guidelines, USPSTF screening recommendations, CDC vaccination schedules
+- Focus: diagnosis, next best step, first-line management, recognising complications, interpreting investigations
+- Include: clinical decision-making under uncertainty, management of comorbidities, high-acuity scenarios (ER and inpatient)
+- Questions should feel like real clinical decisions — "What do you do next for this patient?"
+- High-yield: acute MI management, sepsis bundles, psychiatric emergencies, obstetric complications, paediatric milestones
+- Lead-ins: "What is the most appropriate next step?", "Which management is most appropriate at this time?", "What is the most likely diagnosis?"`;
+
+    case "FINALS":
+      return `Exam: Medical Finals (University — Mixed SBA + OSCE)
+Question style: Blend of knowledge-based SBA vignettes and OSCE-style clinical skills questions.
+- SBA questions: diagnosis, mechanism, investigation, management — core medical and surgical conditions
+- OSCE questions: history taking, clinical examination, communication, procedural skills
+- Cover the core medical school curriculum: medicine, surgery, obstetrics, paediatrics, psychiatry, primary care
+- Appropriate difficulty for a graduating medical student — avoid subspecialty-only content
+- Mix question types across the set so no two consecutive questions use the same format`;
+
     case "OSCE":
       return `Exam type: OSCE (Objective Structured Clinical Examination)
-Question style: Focus on clinical skills, structured examinations, history taking, communication, consent, and procedural competencies. Do NOT write pure knowledge-recall questions.
-- Write stems as clinical station scenarios (e.g. "A medical student enters a station and is asked to…" or "You are the doctor seeing a patient who…")
-- Test: structured history taking, clinical examination sequences, communication skills (consent, breaking bad news, SBAR handover), safe prescribing, procedural steps and safety checks
-- Options should represent different clinical approaches or communication choices, not just diagnoses
-- Each question should test what the student DOES or SAYS, not only what they know
-- Preferred question lead-ins: "What is the most appropriate next step?", "Which examination finding should be assessed first?", "How should this be communicated to the patient?", "Which approach to this procedure is safest?"`;
-    case "MIXED":
-      return `Exam type: Mixed (SBA + OSCE blend)
-Question style: Generate a balanced mix — roughly half knowledge-based SBA vignettes and half OSCE-style clinical skills questions.
-- SBA questions: differential diagnosis, pathophysiology, pharmacology, next-best-step management
-- OSCE questions: clinical examination approach, structured history taking, communication tasks, procedural steps
-- Vary question styles across the set so no two consecutive questions use the same format`;
-    default:
+Question style: Clinical station scenarios testing what the student DOES and SAYS.
+- Write stems as station scenarios: "You are the doctor seeing a patient who…"
+- Test: structured history taking, clinical examination sequences, communication skills (consent, breaking bad news, SBAR), safe prescribing, procedural steps
+- Options represent clinical approaches or communication choices, not diagnoses
+- Lead-ins: "What is the most appropriate next step?", "How should this be communicated to the patient?", "Which approach is safest?"`;
+
+    default: // SBA and any unknown key
       return `Exam type: SBA (Single Best Answer)
-Question style: Classic clinical knowledge vignettes with exactly one best answer from five options.
-- Each stem must be a focused clinical scenario testing diagnosis, mechanism, pharmacology, investigation interpretation, or management
+Question style: Classic clinical knowledge vignettes with one best answer from five options.
+- Each stem must test diagnosis, mechanism, pharmacology, investigation interpretation, or management
 - Distractors must be plausible but clearly inferior on close reasoning
-- Preferred question lead-ins: "What is the most likely diagnosis?", "What is the most appropriate initial management?", "Which investigation should be ordered next?", "What is the underlying mechanism?"`;
+- Lead-ins: "What is the most likely diagnosis?", "What is the most appropriate initial management?", "Which investigation should be ordered next?"`;
   }
 }
 
