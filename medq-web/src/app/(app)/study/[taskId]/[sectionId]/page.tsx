@@ -35,6 +35,7 @@ import { toast } from "sonner";
 import { StudyAskAiWidget } from "@/components/study/study-ask-ai-widget";
 import {
   cleanOCR,
+  cleanSectionTitle,
   parseTextBlocks,
   buildNoteSections,
   deriveSourceSnippets,
@@ -356,7 +357,7 @@ export default function StudySessionPage({
 
           <div className="min-w-0 flex-1 text-center">
             <p className="text-xs font-medium truncate px-2">
-              {section?.title ?? "Loading section..."}
+              {section?.title ? cleanSectionTitle(section.title) : "Loading section..."}
             </p>
           </div>
 

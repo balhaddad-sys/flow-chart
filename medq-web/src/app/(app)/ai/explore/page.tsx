@@ -148,6 +148,13 @@ export default function ExplorePage() {
   const syncedCountRef = useRef(0);
   const terminalStatusRef = useRef<string | null>(null);
 
+  // Wait for Zustand persist to rehydrate from localStorage
+  const [hydrated, setHydrated] = useState(useExploreStore.persist.hasHydrated());
+  useEffect(() => {
+    const unsub = useExploreStore.persist.onFinishHydration(() => setHydrated(true));
+    return unsub;
+  }, []);
+
   const [inputTopic, setInputTopic] = useState("");
   const [inputLevel, setInputLevel] = useState("MD3");
   const [inputCount, setInputCount] = useState(10);
@@ -208,7 +215,7 @@ export default function ExplorePage() {
   // ── Auto-resume pending session if user navigated away mid-generation ──
   const resumedRef = useRef(false);
   useEffect(() => {
-    if (resumedRef.current || phase !== "setup") return;
+    if (!hydrated || resumedRef.current || phase !== "setup") return;
     const pending = getPendingSession();
     if (!pending) return;
     resumedRef.current = true;
@@ -227,7 +234,7 @@ export default function ExplorePage() {
       }
     }, 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase]);
+  }, [phase, hydrated]);
 
   const currentQuestion = questions[currentIndex] ?? null;
   const currentAnswer =
@@ -505,6 +512,19 @@ export default function ExplorePage() {
     }
   }
 
+  // ── Wait for store hydration ──
+  if (!hydrated) {
+    return (
+      <div className="page-wrap py-16">
+        <PageLoadingState
+          title="Restoring your session"
+          description="Loading your previous explore progress..."
+          minHeightClassName="min-h-[30dvh]"
+        />
+      </div>
+    );
+  }
+
   // ── SETUP ──────────────────────────────────────────────────────────────
   if (phase === "setup") {
     return (
@@ -564,6 +584,12 @@ export default function ExplorePage() {
                     setInputTopic(entry.topic);
                     setInputLevel(entry.level);
                     setInputIntent(entry.path);
+                    // Auto-start the session immediately
+                    if (entry.path === "learn") {
+                      handleLearnTopic(entry.topic, entry.level);
+                    } else {
+                      handleStartQuiz(entry.topic, entry.level);
+                    }
                   }}
                   role="button"
                   tabIndex={0}
@@ -573,6 +599,11 @@ export default function ExplorePage() {
                       setInputTopic(entry.topic);
                       setInputLevel(entry.level);
                       setInputIntent(entry.path);
+                      if (entry.path === "learn") {
+                        handleLearnTopic(entry.topic, entry.level);
+                      } else {
+                        handleStartQuiz(entry.topic, entry.level);
+                      }
                     }
                   }}
                 >

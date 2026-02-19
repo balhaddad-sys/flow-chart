@@ -18,7 +18,6 @@ import {
   GraduationCap,
   ShieldCheck,
   FileText,
-  RefreshCw,
   Users,
   ChevronRight,
 } from "lucide-react";
@@ -43,24 +42,10 @@ export default function ProfilePage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
-  const [reprocessing, setReprocessing] = useState(false);
-
   async function handleSignOut() {
     await signOut();
     toast.success("Signed out.");
     router.replace("/login");
-  }
-
-  async function handleReprocessBlueprints() {
-    setReprocessing(true);
-    try {
-      const result = await fn.reprocessBlueprints({});
-      toast.success(result.message || `Updated ${result.updated} section titles.`);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to reprocess.");
-    } finally {
-      setReprocessing(false);
-    }
   }
 
   async function handleDeleteAccount() {
@@ -127,28 +112,13 @@ export default function ProfilePage() {
       <div className="glass-card rounded-2xl p-5 animate-in-up stagger-2">
         <h2 className="text-[0.8125rem] font-semibold tracking-tight">Courses</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">Manage your courses and create new ones</p>
-        <div className="mt-4 space-y-3">
+        <div className="mt-4">
           <Link href="/onboarding?new=1">
             <Button variant="outline" className="rounded-xl">
               <GraduationCap className="mr-2 h-4 w-4" />
               Manage Courses
             </Button>
           </Link>
-          <div>
-            <Button variant="outline" className="rounded-xl" onClick={handleReprocessBlueprints} disabled={reprocessing}>
-              {reprocessing ? (
-                <LoadingButtonLabel label="Refreshing..." />
-              ) : (
-                <>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Refresh Section Titles
-                </>
-              )}
-            </Button>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Re-analyzes sections with generic titles like &quot;Pages 1-10&quot;
-            </p>
-          </div>
         </div>
       </div>
 

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import type { ExploreQuestion, ExploreTopicInsightResult } from "../firebase/functions";
 
 type Phase = "setup" | "loading" | "teaching" | "quiz" | "results";
@@ -70,195 +71,20 @@ function stemKey(stem: string) {
   return String(stem || "").replace(/\s+/g, " ").trim().toLowerCase();
 }
 
-export const useExploreStore = create<ExploreStore>((set, get) => ({
-  phase: "setup",
-  userPath: null,
-  topic: "",
-  level: "MD3",
-  levelLabel: "",
-  targetCount: 0,
-  questions: [],
-  currentIndex: 0,
-  answers: new Map(),
-  confidence: new Map(),
-  results: new Map(),
-  modelUsed: "",
-  qualityGatePassed: undefined,
-  qualityScore: undefined,
-  backgroundJobId: null,
-  backfillStatus: "idle",
-  backfillError: null,
-  error: null,
-  loadingError: null,
+/** Convert a Map to a serializable array of [key, value] pairs */
+function mapToEntries<K, V>(map: Map<K, V>): [K, V][] {
+  return Array.from(map.entries());
+}
 
-  topicInsight: null,
-  insightLoading: false,
-  insightError: null,
+/** Restore a Map from serialized [key, value] entries */
+function entriesToMap<K, V>(entries: [K, V][] | undefined): Map<K, V> {
+  if (!Array.isArray(entries)) return new Map();
+  return new Map(entries);
+}
 
-  setUserPath: (path) => set({ userPath: path }),
-
-  startLoading: (topic, level) =>
-    set({
-      phase: "loading",
-      topic,
-      level,
-      error: null,
-      loadingError: null,
-      backfillError: null,
-    }),
-
-  startTeaching: (insight) =>
-    set({
-      phase: "teaching",
-      topicInsight: insight,
-      insightLoading: false,
-      insightError: null,
-      error: null,
-    }),
-
-  setTopicInsight: (insight) => set({ topicInsight: insight }),
-  setInsightLoading: (loading) => set({ insightLoading: loading }),
-  setInsightError: (error) => set({ insightError: error }),
-
-  goToQuizFromTeaching: () => {
-    const { questions } = get();
-    if (questions.length > 0) {
-      set({ phase: "quiz" });
-    } else {
-      set({ phase: "loading" });
-    }
-  },
-
-  goToTeachingFromQuiz: () => {
-    const { topicInsight } = get();
-    if (topicInsight) {
-      set({ phase: "teaching" });
-    }
-  },
-
-  startQuiz: (questions, topic, level, levelLabel, meta) =>
-    set({
-      phase: "quiz",
-      questions,
-      topic,
-      level,
-      levelLabel,
-      targetCount: Math.max(questions.length, meta?.targetCount ?? questions.length),
-      currentIndex: 0,
-      answers: new Map(),
-      confidence: new Map(),
-      results: new Map(),
-      modelUsed: meta?.modelUsed || "",
-      qualityGatePassed: meta?.qualityGatePassed,
-      qualityScore: meta?.qualityScore,
-      backgroundJobId: meta?.backgroundJobId || null,
-      backfillStatus: meta?.backfillStatus || "idle",
-      backfillError: null,
-      error: null,
-    }),
-
-  syncBackgroundQuestions: (incoming, meta) => {
-    if (!Array.isArray(incoming) || incoming.length === 0) {
-      if (meta) {
-        set((state) => ({
-          targetCount: Math.max(
-            state.targetCount,
-            meta.targetCount ?? state.targetCount
-          ),
-          modelUsed: meta.modelUsed || state.modelUsed,
-          qualityGatePassed:
-            meta.qualityGatePassed ?? state.qualityGatePassed,
-          qualityScore: meta.qualityScore ?? state.qualityScore,
-        }));
-      }
-      return;
-    }
-
-    set((state) => {
-      const existingStemKeys = new Set(
-        state.questions.map((q) => stemKey(q.stem)).filter(Boolean)
-      );
-      const appended = incoming.filter((q) => {
-        const key = stemKey(q.stem);
-        if (!key || existingStemKeys.has(key)) return false;
-        existingStemKeys.add(key);
-        return true;
-      });
-      const merged = [...state.questions, ...appended];
-      return {
-        questions: merged,
-        targetCount: Math.max(merged.length, meta?.targetCount ?? state.targetCount),
-        modelUsed: meta?.modelUsed || state.modelUsed,
-        qualityGatePassed: meta?.qualityGatePassed ?? state.qualityGatePassed,
-        qualityScore: meta?.qualityScore ?? state.qualityScore,
-      };
-    });
-  },
-
-  setConfidence: (questionId, confidenceValue) => {
-    const normalized = Math.min(5, Math.max(1, Math.floor(Number(confidenceValue) || 0)));
-    if (!questionId || !normalized) return;
-    set((state) => {
-      const nextConfidence = new Map(state.confidence);
-      nextConfidence.set(questionId, normalized);
-      return { confidence: nextConfidence };
-    });
-  },
-
-  answerQuestion: (questionId, answerIndex, confidenceValue) => {
-    const { questions, answers, results, confidence } = get();
-    const q = questions.find((item) => item.id === questionId);
-    if (!q) return;
-    const nextAnswers = new Map(answers);
-    const nextResults = new Map(results);
-    const nextConfidence = new Map(confidence);
-    const resolvedConfidence = Math.min(
-      5,
-      Math.max(1, Math.floor(Number(confidenceValue ?? nextConfidence.get(questionId) ?? 0) || 0))
-    );
-
-    nextAnswers.set(questionId, answerIndex);
-    nextResults.set(questionId, answerIndex === q.correctIndex);
-    if (resolvedConfidence) {
-      nextConfidence.set(questionId, resolvedConfidence);
-    }
-    set({ answers: nextAnswers, results: nextResults, confidence: nextConfidence });
-  },
-
-  nextQuestion: () =>
-    set((state) => ({
-      currentIndex: Math.min(
-        state.currentIndex + 1,
-        state.questions.length - 1
-      ),
-    })),
-
-  finishQuiz: () => set({ phase: "results" }),
-
-  resumeQuiz: () =>
-    set((state) => {
-      const nextIndex = state.questions.findIndex((q) => !state.answers.has(q.id));
-      return {
-        phase: "quiz",
-        currentIndex:
-          nextIndex >= 0
-            ? nextIndex
-            : Math.max(0, Math.min(state.currentIndex, state.questions.length - 1)),
-      };
-    }),
-
-  setBackfillStatus: (status, error = null) =>
-    set({
-      backfillStatus: status,
-      backfillError: error,
-    }),
-
-  setError: (msg) => set({ phase: "setup", error: msg, backfillError: null }),
-
-  setLoadingError: (msg) => set({ loadingError: msg }),
-
-  reset: () =>
-    set({
+export const useExploreStore = create<ExploreStore>()(
+  persist(
+    (set, get) => ({
       phase: "setup",
       userPath: null,
       topic: "",
@@ -278,8 +104,259 @@ export const useExploreStore = create<ExploreStore>((set, get) => ({
       backfillError: null,
       error: null,
       loadingError: null,
+
       topicInsight: null,
       insightLoading: false,
       insightError: null,
+
+      setUserPath: (path) => set({ userPath: path }),
+
+      startLoading: (topic, level) =>
+        set({
+          phase: "loading",
+          topic,
+          level,
+          error: null,
+          loadingError: null,
+          backfillError: null,
+        }),
+
+      startTeaching: (insight) =>
+        set({
+          phase: "teaching",
+          topicInsight: insight,
+          insightLoading: false,
+          insightError: null,
+          error: null,
+        }),
+
+      setTopicInsight: (insight) => set({ topicInsight: insight }),
+      setInsightLoading: (loading) => set({ insightLoading: loading }),
+      setInsightError: (error) => set({ insightError: error }),
+
+      goToQuizFromTeaching: () => {
+        const { questions } = get();
+        if (questions.length > 0) {
+          set({ phase: "quiz" });
+        } else {
+          set({ phase: "loading" });
+        }
+      },
+
+      goToTeachingFromQuiz: () => {
+        const { topicInsight } = get();
+        if (topicInsight) {
+          set({ phase: "teaching" });
+        }
+      },
+
+      startQuiz: (questions, topic, level, levelLabel, meta) =>
+        set({
+          phase: "quiz",
+          questions,
+          topic,
+          level,
+          levelLabel,
+          targetCount: Math.max(questions.length, meta?.targetCount ?? questions.length),
+          currentIndex: 0,
+          answers: new Map(),
+          confidence: new Map(),
+          results: new Map(),
+          modelUsed: meta?.modelUsed || "",
+          qualityGatePassed: meta?.qualityGatePassed,
+          qualityScore: meta?.qualityScore,
+          backgroundJobId: meta?.backgroundJobId || null,
+          backfillStatus: meta?.backfillStatus || "idle",
+          backfillError: null,
+          error: null,
+        }),
+
+      syncBackgroundQuestions: (incoming, meta) => {
+        if (!Array.isArray(incoming) || incoming.length === 0) {
+          if (meta) {
+            set((state) => ({
+              targetCount: Math.max(
+                state.targetCount,
+                meta.targetCount ?? state.targetCount
+              ),
+              modelUsed: meta.modelUsed || state.modelUsed,
+              qualityGatePassed:
+                meta.qualityGatePassed ?? state.qualityGatePassed,
+              qualityScore: meta.qualityScore ?? state.qualityScore,
+            }));
+          }
+          return;
+        }
+
+        set((state) => {
+          const existingStemKeys = new Set(
+            state.questions.map((q) => stemKey(q.stem)).filter(Boolean)
+          );
+          const appended = incoming.filter((q) => {
+            const key = stemKey(q.stem);
+            if (!key || existingStemKeys.has(key)) return false;
+            existingStemKeys.add(key);
+            return true;
+          });
+          const merged = [...state.questions, ...appended];
+          return {
+            questions: merged,
+            targetCount: Math.max(merged.length, meta?.targetCount ?? state.targetCount),
+            modelUsed: meta?.modelUsed || state.modelUsed,
+            qualityGatePassed: meta?.qualityGatePassed ?? state.qualityGatePassed,
+            qualityScore: meta?.qualityScore ?? state.qualityScore,
+          };
+        });
+      },
+
+      setConfidence: (questionId, confidenceValue) => {
+        const normalized = Math.min(5, Math.max(1, Math.floor(Number(confidenceValue) || 0)));
+        if (!questionId || !normalized) return;
+        set((state) => {
+          const nextConfidence = new Map(state.confidence);
+          nextConfidence.set(questionId, normalized);
+          return { confidence: nextConfidence };
+        });
+      },
+
+      answerQuestion: (questionId, answerIndex, confidenceValue) => {
+        const { questions, answers, results, confidence } = get();
+        const q = questions.find((item) => item.id === questionId);
+        if (!q) return;
+        const nextAnswers = new Map(answers);
+        const nextResults = new Map(results);
+        const nextConfidence = new Map(confidence);
+        const resolvedConfidence = Math.min(
+          5,
+          Math.max(1, Math.floor(Number(confidenceValue ?? nextConfidence.get(questionId) ?? 0) || 0))
+        );
+
+        nextAnswers.set(questionId, answerIndex);
+        nextResults.set(questionId, answerIndex === q.correctIndex);
+        if (resolvedConfidence) {
+          nextConfidence.set(questionId, resolvedConfidence);
+        }
+        set({ answers: nextAnswers, results: nextResults, confidence: nextConfidence });
+      },
+
+      nextQuestion: () =>
+        set((state) => ({
+          currentIndex: Math.min(
+            state.currentIndex + 1,
+            state.questions.length - 1
+          ),
+        })),
+
+      finishQuiz: () => set({ phase: "results" }),
+
+      resumeQuiz: () =>
+        set((state) => {
+          const nextIndex = state.questions.findIndex((q) => !state.answers.has(q.id));
+          return {
+            phase: "quiz",
+            currentIndex:
+              nextIndex >= 0
+                ? nextIndex
+                : Math.max(0, Math.min(state.currentIndex, state.questions.length - 1)),
+          };
+        }),
+
+      setBackfillStatus: (status, error = null) =>
+        set({
+          backfillStatus: status,
+          backfillError: error,
+        }),
+
+      setError: (msg) => set({ phase: "setup", error: msg, backfillError: null }),
+
+      setLoadingError: (msg) => set({ loadingError: msg }),
+
+      reset: () =>
+        set({
+          phase: "setup",
+          userPath: null,
+          topic: "",
+          level: "MD3",
+          levelLabel: "",
+          targetCount: 0,
+          questions: [],
+          currentIndex: 0,
+          answers: new Map(),
+          confidence: new Map(),
+          results: new Map(),
+          modelUsed: "",
+          qualityGatePassed: undefined,
+          qualityScore: undefined,
+          backgroundJobId: null,
+          backfillStatus: "idle",
+          backfillError: null,
+          error: null,
+          loadingError: null,
+          topicInsight: null,
+          insightLoading: false,
+          insightError: null,
+        }),
     }),
-}));
+    {
+      name: "medq_explore_store_v1",
+      // Only persist the data fields, not transient loading/error states
+      partialize: (state) => ({
+        phase: state.phase,
+        userPath: state.userPath,
+        topic: state.topic,
+        level: state.level,
+        levelLabel: state.levelLabel,
+        targetCount: state.targetCount,
+        questions: state.questions,
+        currentIndex: state.currentIndex,
+        answers: state.answers,
+        confidence: state.confidence,
+        results: state.results,
+        topicInsight: state.topicInsight,
+        backgroundJobId: state.backgroundJobId,
+        backfillStatus: state.backfillStatus,
+      }),
+      storage: {
+        getItem: (name) => {
+          try {
+            const raw = localStorage.getItem(name);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            if (!parsed?.state) return parsed;
+            // Rehydrate Maps from serialized [key, value] entries
+            const s = parsed.state;
+            if (s.answers) s.answers = entriesToMap(s.answers);
+            if (s.confidence) s.confidence = entriesToMap(s.confidence);
+            if (s.results) s.results = entriesToMap(s.results);
+            // If the stored phase was "loading", reset to setup (don't get stuck)
+            if (s.phase === "loading") s.phase = "setup";
+            return parsed;
+          } catch {
+            return null;
+          }
+        },
+        setItem: (name, value) => {
+          try {
+            // Serialize Maps to [key, value] arrays for JSON compatibility
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const v = { ...value, state: { ...value.state } } as any;
+            const s = v.state;
+            if (s.answers instanceof Map) s.answers = mapToEntries(s.answers);
+            if (s.confidence instanceof Map) s.confidence = mapToEntries(s.confidence);
+            if (s.results instanceof Map) s.results = mapToEntries(s.results);
+            localStorage.setItem(name, JSON.stringify(v));
+          } catch {
+            // localStorage full — silently ignore
+          }
+        },
+        removeItem: (name) => {
+          try {
+            localStorage.removeItem(name);
+          } catch {
+            // silently ignore
+          }
+        },
+      },
+    }
+  )
+);

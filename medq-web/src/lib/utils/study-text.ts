@@ -264,10 +264,40 @@ export interface FallbackGuide {
   recallPrompts: string[];
 }
 
+/** Detect strings that look like raw filenames (underscores, extensions, etc.) */
+function looksLikeFilename(s: string): boolean {
+  const t = s.trim();
+  // Contains file extension
+  if (/\.(pdf|docx?|pptx?|txt|csv|xlsx?)(\b|$)/i.test(t)) return true;
+  // Multiple underscores (e.g. Brain_MRI_Comprehensive_Guide)
+  if ((t.match(/_/g) ?? []).length >= 2) return true;
+  // CamelCase joined with underscores
+  if (/[A-Z][a-z]+_[A-Z][a-z]+/.test(t)) return true;
+  return false;
+}
+
+/**
+ * Clean a section title that may be a raw filename:
+ * - Strip file extensions
+ * - Replace underscores with spaces
+ * - Collapse whitespace
+ */
+export function cleanSectionTitle(title: string): string {
+  let t = title.trim();
+  // Strip trailing file extensions
+  t = t.replace(/\.(pdf|docx?|pptx?|txt|csv|xlsx?)\s*/gi, " ");
+  // Replace underscores with spaces
+  t = t.replace(/_/g, " ");
+  // Collapse whitespace
+  t = t.replace(/\s{2,}/g, " ").trim();
+  return t;
+}
+
 function isUsefulTopic(topic: string): boolean {
   const t = topic.trim();
   if (!t || t.length < 4 || t.length > 100) return false;
   if (isOCRNoise(t)) return false;
+  if (looksLikeFilename(t)) return false;
   if (/^(chapter|edited|edition|third|fourth|fifth|sixth)\b/i.test(t)) return false;
   if (/^[A-Z]+$/.test(t) && t.length < 15) return false;
   if (/\b(?:pages?|slides?|section)\s*\d+(?:\s*[-–—]\s*\d+)?\s*$/i.test(t)) return false;
@@ -280,6 +310,9 @@ export function deriveFallbackGuide(
   blocks: TextBlock[],
   blueprint?: SectionBlueprint | null,
 ): FallbackGuide {
+  // Clean the section title in case it's a raw filename
+  const cleanedTitle = sectionTitle ? cleanSectionTitle(sectionTitle) : undefined;
+
   if (blueprint) {
     const bpObjectives = Array.isArray(blueprint.learningObjectives) ? blueprint.learningObjectives.filter(Boolean).map(cleanOCR) : [];
     const bpHighYield = Array.isArray(blueprint.highYieldPoints) ? blueprint.highYieldPoints.filter(Boolean).map(cleanOCR) : [];
@@ -289,7 +322,7 @@ export function deriveFallbackGuide(
       const objKeys = new Set(bpObjectives.map((s) => s.toLowerCase()));
       const uniqueHighYield = bpHighYield.filter((s) => !objKeys.has(s.toLowerCase()));
       return {
-        roadmap: bpConcepts.length > 0 ? bpConcepts.slice(0, 5) : dedupe([sectionTitle ?? "Section overview"], 3),
+        roadmap: bpConcepts.length > 0 ? bpConcepts.slice(0, 5) : dedupe([cleanedTitle ?? "Section overview"], 3),
         objectives: bpObjectives.slice(0, 6),
         highYield: uniqueHighYield.slice(0, 5),
         examAngles: [],
@@ -312,7 +345,7 @@ export function deriveFallbackGuide(
   const keySentences = dedupe(splitSentences(paragraphText), 8);
   const focusTopics = dedupe(
     [
-      ...(sectionTitle && isUsefulTopic(sectionTitle) ? [sectionTitle] : []),
+      ...(cleanedTitle && isUsefulTopic(cleanedTitle) ? [cleanedTitle] : []),
       ...roadmap,
     ],
     5
