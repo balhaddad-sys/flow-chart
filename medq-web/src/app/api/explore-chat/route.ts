@@ -1,13 +1,23 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 import { verifyFirebaseToken } from "@/lib/server/firebase-token";
+import {
+  buildExploreTutorSystemPrompt,
+  chooseExploreChatProvider,
+  normalizeExploreLevel,
+  type ExploreChatProvider,
+} from "@/lib/utils/explore-chat-policy";
 
-const MODEL_ID = "gemini-2.0-flash";
+const GEMINI_MODEL_ID = "gemini-2.0-flash";
+const CLAUDE_HAIKU_MODEL_ID = "claude-haiku-4-5-20251001";
+const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
+
 const MAX_CONTEXT_CHARS = 2_000;
 const MAX_HISTORY = 6;
 const MAX_TOPIC_CHARS = 120;
 const MAX_MESSAGE_CHARS = 2_000;
-const MODEL_TIMEOUT_MS = 20_000;
+const GEMINI_TIMEOUT_MS = 20_000;
+const CLAUDE_TIMEOUT_MS = 22_000;
 
 const RATE_LIMIT_MAX = 15;
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -25,9 +35,21 @@ interface ResponseCacheEntry {
   expiresAt: number;
 }
 
+interface ModelResponse {
+  response: string;
+  provider: ExploreChatProvider;
+  modelUsed: string;
+}
+
+interface ProviderResolution {
+  provider: ExploreChatProvider;
+  modelUsed: string;
+  fallbackReason: string | null;
+}
+
 const rateLimitMap = new Map<string, number[]>();
 const responseCache = new Map<string, ResponseCacheEntry>();
-const inFlightResponses = new Map<string, Promise<string>>();
+const inFlightResponses = new Map<string, Promise<ModelResponse>>();
 
 function checkRateLimit(uid: string): boolean {
   const now = Date.now();
@@ -131,58 +153,7 @@ function quickHash(input: string): string {
   return (hash >>> 0).toString(16);
 }
 
-export async function POST(req: NextRequest) {
-  const user = await verifyFirebaseToken(req.headers.get("authorization"));
-  if (!user) {
-    return NextResponse.json(
-      { success: false, error: "Unauthorized" },
-      { status: 401 }
-    );
-  }
-
-  if (!checkRateLimit(user.uid)) {
-    return NextResponse.json(
-      { success: false, error: "Too many requests. Please wait a moment." },
-      { status: 429 }
-    );
-  }
-
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json(
-      { success: false, error: "Chat API key is not configured." },
-      { status: 503 }
-    );
-  }
-
-  let body: Record<string, unknown>;
-  try {
-    const parsed = await req.json();
-    body = parsed as Record<string, unknown>;
-  } catch {
-    return NextResponse.json(
-      { success: false, error: "Invalid JSON payload." },
-      { status: 400 }
-    );
-  }
-
-  const topicRaw = typeof body.topic === "string" ? body.topic.trim() : "";
-  const messageRaw =
-    typeof body.message === "string" ? body.message.trim() : "";
-
-  if (!topicRaw || !messageRaw) {
-    return NextResponse.json(
-      { success: false, error: "message and topic are required" },
-      { status: 400 }
-    );
-  }
-
-  const topic = topicRaw.slice(0, MAX_TOPIC_CHARS);
-  const message = messageRaw.slice(0, MAX_MESSAGE_CHARS);
-  const level =
-    typeof body.level === "string" ? body.level.trim().slice(0, 48) : "general";
-
-  const context = (body.context ?? {}) as Record<string, unknown>;
+function buildContextString(context: Record<string, unknown>): string {
   const contextParts: string[] = [];
 
   if (typeof context.summary === "string" && context.summary.trim()) {
@@ -199,37 +170,71 @@ export async function POST(req: NextRequest) {
     contextParts.push(`Sections covered: ${sectionTitles.join(", ")}`);
   }
 
-  const contextStr = contextParts.join("\n").slice(0, MAX_CONTEXT_CHARS);
-  const historyMessages = normalizeHistory(body.history);
+  return contextParts.join("\n").slice(0, MAX_CONTEXT_CHARS);
+}
 
-  const cacheSource = JSON.stringify({
-    uid: user.uid,
-    topic,
-    level,
-    message,
-    context: contextStr,
-    history: historyMessages,
-  });
-  const cacheKey = `${user.uid}:${quickHash(cacheSource)}`;
-  const cachedResponse = readResponseCache(cacheKey);
-  if (cachedResponse) {
-    return NextResponse.json({
-      success: true,
-      data: { response: cachedResponse, cached: true },
-    });
+function resolveProvider({
+  preferredProvider,
+  hasGeminiKey,
+  hasAnthropicKey,
+}: {
+  preferredProvider: ExploreChatProvider;
+  hasGeminiKey: boolean;
+  hasAnthropicKey: boolean;
+}): ProviderResolution | null {
+  if (preferredProvider === "claude-haiku") {
+    if (hasAnthropicKey) {
+      return {
+        provider: "claude-haiku",
+        modelUsed: CLAUDE_HAIKU_MODEL_ID,
+        fallbackReason: null,
+      };
+    }
+    if (hasGeminiKey) {
+      return {
+        provider: "gemini",
+        modelUsed: GEMINI_MODEL_ID,
+        fallbackReason: "ANTHROPIC_API_KEY missing; used Gemini fallback.",
+      };
+    }
+    return null;
   }
 
-  const systemPrompt = `You are MedQ Explore Tutor, an expert medical education assistant.
-The student is studying: "${topic}" at level ${level || "general"}.
+  if (hasGeminiKey) {
+    return {
+      provider: "gemini",
+      modelUsed: GEMINI_MODEL_ID,
+      fallbackReason: null,
+    };
+  }
 
-${contextStr}
+  if (hasAnthropicKey) {
+    return {
+      provider: "claude-haiku",
+      modelUsed: CLAUDE_HAIKU_MODEL_ID,
+      fallbackReason: "GEMINI_API_KEY missing; used Claude Haiku fallback.",
+    };
+  }
 
-Rules:
-- Answer questions specifically about this medical topic.
-- Be accurate, evidence-based, and clinically oriented.
-- If the student asks something outside this topic, briefly redirect.
-- Keep answers concise (3-6 sentences) unless the student asks for more detail.
-- This is for education only, not clinical advice.`;
+  return null;
+}
+
+async function callGemini({
+  apiKey,
+  systemPrompt,
+  historyMessages,
+  message,
+}: {
+  apiKey: string;
+  systemPrompt: string;
+  historyMessages: NormalizedHistoryItem[];
+  message: string;
+}): Promise<string> {
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({
+    model: GEMINI_MODEL_ID,
+    generationConfig: { maxOutputTokens: 1024, temperature: 0.3 },
+  });
 
   const contents = [
     ...historyMessages.map((item) => ({
@@ -239,29 +244,244 @@ Rules:
     { role: "user", parts: [{ text: message }] },
   ];
 
-  let responsePromise = inFlightResponses.get(cacheKey);
-  if (!responsePromise) {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({
-      model: MODEL_ID,
-      generationConfig: { maxOutputTokens: 1024, temperature: 0.3 },
+  return withTimeout(
+    model
+      .generateContent({
+        systemInstruction: systemPrompt,
+        contents,
+      })
+      .then((result) => result.response.text().trim()),
+    GEMINI_TIMEOUT_MS,
+    "AI response timed out. Please retry."
+  );
+}
+
+function isAbortError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  return (error as { name?: unknown }).name === "AbortError";
+}
+
+async function callClaudeHaiku({
+  apiKey,
+  systemPrompt,
+  historyMessages,
+  message,
+}: {
+  apiKey: string;
+  systemPrompt: string;
+  historyMessages: NormalizedHistoryItem[];
+  message: string;
+}): Promise<string> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), CLAUDE_TIMEOUT_MS);
+
+  try {
+    const messages = [
+      ...historyMessages.map((item) => ({
+        role: item.role === "user" ? "user" : "assistant",
+        content: item.text,
+      })),
+      {
+        role: "user",
+        content: message,
+      },
+    ];
+
+    const res = await fetch(ANTHROPIC_API_URL, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "anthropic-version": "2023-06-01",
+        "x-api-key": apiKey,
+      },
+      body: JSON.stringify({
+        model: CLAUDE_HAIKU_MODEL_ID,
+        system: systemPrompt,
+        max_tokens: 1024,
+        temperature: 0.3,
+        messages,
+      }),
+      signal: controller.signal,
     });
 
-    responsePromise = withTimeout(
-      model
-        .generateContent({
-          systemInstruction: systemPrompt,
-          contents,
-        })
-        .then((result) => result.response.text().trim()),
-      MODEL_TIMEOUT_MS,
-      "AI response timed out. Please retry."
+    const payload = (await res.json().catch(() => null)) as {
+      content?: Array<{ type?: string; text?: string }>;
+      error?: { message?: string };
+    } | null;
+
+    if (!res.ok) {
+      throw new Error(
+        payload?.error?.message || `Anthropic API request failed (${res.status}).`
+      );
+    }
+
+    const responseText = Array.isArray(payload?.content)
+      ? payload.content
+          .filter((block) => block?.type === "text" && typeof block.text === "string")
+          .map((block) => block.text as string)
+          .join("")
+          .trim()
+      : "";
+
+    return responseText;
+  } catch (error) {
+    if (isAbortError(error)) {
+      throw new Error("AI response timed out. Please retry.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+export async function POST(req: NextRequest) {
+  const user = await verifyFirebaseToken(req.headers.get("authorization"));
+  if (!user) {
+    return NextResponse.json(
+      { success: false, error: "Unauthorized" },
+      { status: 401 }
     );
+  }
+
+  if (!checkRateLimit(user.uid)) {
+    return NextResponse.json(
+      { success: false, error: "Too many requests. Please wait a moment." },
+      { status: 429 }
+    );
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    const parsed = await req.json();
+    body = parsed as Record<string, unknown>;
+  } catch {
+    return NextResponse.json(
+      { success: false, error: "Invalid JSON payload." },
+      { status: 400 }
+    );
+  }
+
+  const topicRaw = typeof body.topic === "string" ? body.topic.trim() : "";
+  const messageRaw = typeof body.message === "string" ? body.message.trim() : "";
+
+  if (!topicRaw || !messageRaw) {
+    return NextResponse.json(
+      { success: false, error: "message and topic are required" },
+      { status: 400 }
+    );
+  }
+
+  const topic = topicRaw.slice(0, MAX_TOPIC_CHARS);
+  const message = messageRaw.slice(0, MAX_MESSAGE_CHARS);
+  const levelProfile = normalizeExploreLevel(body.level);
+  const context = (body.context ?? {}) as Record<string, unknown>;
+  const contextStr = buildContextString(context);
+  const historyMessages = normalizeHistory(body.history);
+
+  const routingDecision = chooseExploreChatProvider({ topic, message });
+  const highSensitivityMode = routingDecision.provider === "claude-haiku";
+
+  const geminiApiKey = process.env.GEMINI_API_KEY;
+  const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+  const providerResolution = resolveProvider({
+    preferredProvider: routingDecision.provider,
+    hasGeminiKey: Boolean(geminiApiKey),
+    hasAnthropicKey: Boolean(anthropicApiKey),
+  });
+
+  if (!providerResolution) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: "No AI provider key configured. Set GEMINI_API_KEY and/or ANTHROPIC_API_KEY.",
+      },
+      { status: 503 }
+    );
+  }
+
+  const systemPrompt = buildExploreTutorSystemPrompt({
+    topic,
+    levelProfile,
+    contextText: contextStr,
+    highSensitivityMode,
+  });
+
+  const cacheSource = JSON.stringify({
+    uid: user.uid,
+    topic,
+    level: levelProfile.id,
+    message,
+    context: contextStr,
+    history: historyMessages,
+    provider: providerResolution.provider,
+    model: providerResolution.modelUsed,
+    policyVersion: "v2",
+  });
+
+  const cacheKey = `${user.uid}:${quickHash(cacheSource)}`;
+  const cachedResponse = readResponseCache(cacheKey);
+  if (cachedResponse) {
+    return NextResponse.json({
+      success: true,
+      data: {
+        response: cachedResponse,
+        cached: true,
+        provider: providerResolution.provider,
+        modelUsed: providerResolution.modelUsed,
+        level: levelProfile.id,
+        levelLabel: levelProfile.label,
+        routingReason: routingDecision.reason,
+        providerFallback: providerResolution.fallbackReason,
+      },
+    });
+  }
+
+  let responsePromise = inFlightResponses.get(cacheKey);
+  if (!responsePromise) {
+    if (providerResolution.provider === "claude-haiku") {
+      if (!anthropicApiKey) {
+        return NextResponse.json(
+          { success: false, error: "Anthropic API key is not configured." },
+          { status: 503 }
+        );
+      }
+
+      responsePromise = callClaudeHaiku({
+        apiKey: anthropicApiKey,
+        systemPrompt,
+        historyMessages,
+        message,
+      }).then((response) => ({
+        response,
+        provider: providerResolution.provider,
+        modelUsed: providerResolution.modelUsed,
+      }));
+    } else {
+      if (!geminiApiKey) {
+        return NextResponse.json(
+          { success: false, error: "Gemini API key is not configured." },
+          { status: 503 }
+        );
+      }
+
+      responsePromise = callGemini({
+        apiKey: geminiApiKey,
+        systemPrompt,
+        historyMessages,
+        message,
+      }).then((response) => ({
+        response,
+        provider: providerResolution.provider,
+        modelUsed: providerResolution.modelUsed,
+      }));
+    }
+
     inFlightResponses.set(cacheKey, responsePromise);
   }
 
   try {
-    const response = await responsePromise;
+    const modelResponse = await responsePromise;
+    const response = modelResponse.response.trim();
     if (!response) {
       throw new Error("AI returned an empty response.");
     }
@@ -269,16 +489,26 @@ Rules:
     writeResponseCache(cacheKey, response);
     return NextResponse.json({
       success: true,
-      data: { response, cached: false },
+      data: {
+        response,
+        cached: false,
+        provider: modelResponse.provider,
+        modelUsed: modelResponse.modelUsed,
+        level: levelProfile.id,
+        levelLabel: levelProfile.label,
+        routingReason: routingDecision.reason,
+        providerFallback: providerResolution.fallbackReason,
+      },
     });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to generate response";
-    const status = message.toLowerCase().includes("timed out") ? 504 : 500;
-    return NextResponse.json(
-      { success: false, error: message },
-      { status }
-    );
+    const normalized = message.toLowerCase();
+    const status =
+      normalized.includes("timed out") || normalized.includes("timeout")
+        ? 504
+        : 500;
+    return NextResponse.json({ success: false, error: message }, { status });
   } finally {
     inFlightResponses.delete(cacheKey);
   }
