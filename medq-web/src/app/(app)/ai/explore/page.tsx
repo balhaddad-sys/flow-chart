@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   BookOpen,
   CheckCircle2,
   XCircle,
   ExternalLink,
+  X,
   Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,12 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { db } from "@/lib/firebase/client";
 import { doc, onSnapshot } from "firebase/firestore";
 import { toast } from "sonner";
+import {
+  getExploreHistory,
+  addExploreHistoryEntry,
+  removeExploreHistoryEntry,
+  type ExploreHistoryEntry,
+} from "@/lib/utils/explore-history";
 
 const EXPLORE_LEVELS = [
   { id: "MD1", label: "MD1 (Foundations)" },
@@ -93,6 +100,27 @@ function evidenceBadgeVariant(evidenceQuality: string | undefined) {
   return "outline" as const;
 }
 
+function relativeTime(timestamp: number): string {
+  const diff = Date.now() - timestamp;
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days}d ago`;
+  const weeks = Math.floor(days / 7);
+  return `${weeks}w ago`;
+}
+
+function levelShortLabel(level: string): string {
+  const found = EXPLORE_LEVELS.find((l) => l.id === level);
+  if (!found) return level;
+  if (level.startsWith("MD")) return level;
+  return level.slice(0, 3).toUpperCase();
+}
+
 export default function ExplorePage() {
   const { uid } = useAuth();
   const store = useExploreStore();
@@ -120,8 +148,13 @@ export default function ExplorePage() {
   const [inputLevel, setInputLevel] = useState("MD3");
   const [inputCount, setInputCount] = useState(10);
   const [inputIntent, setInputIntent] = useState<"quiz" | "learn">("quiz");
+  const [history, setHistory] = useState<ExploreHistoryEntry[]>([]);
+  const [showAllHistory, setShowAllHistory] = useState(false);
+
+  const refreshHistory = useCallback(() => setHistory(getExploreHistory()), []);
 
   useEffect(() => {
+    refreshHistory();
     try {
       const raw = window.localStorage.getItem(EXPLORE_SETUP_KEY);
       if (!raw) return;
@@ -150,7 +183,7 @@ export default function ExplorePage() {
     } catch {
       // Ignore localStorage parse errors.
     }
-  }, []);
+  }, [refreshHistory]);
 
   useEffect(() => {
     try {
@@ -289,6 +322,14 @@ export default function ExplorePage() {
       });
       store.setTopicInsight(insight);
       store.startTeaching(insight);
+      const lvl = EXPLORE_LEVELS.find((l) => l.id === inputLevel);
+      addExploreHistoryEntry({
+        topic: trimmed,
+        level: inputLevel,
+        levelLabel: lvl?.label ?? inputLevel,
+        path: "learn",
+      });
+      refreshHistory();
     } catch (err) {
       store.setLoadingError(
         err instanceof Error ? err.message : "Failed to generate teaching content."
@@ -328,6 +369,14 @@ export default function ExplorePage() {
           qualityScore: result.qualityScore,
         }
       );
+      const lvl = EXPLORE_LEVELS.find((l) => l.id === inputLevel);
+      addExploreHistoryEntry({
+        topic: trimmed,
+        level: inputLevel,
+        levelLabel: lvl?.label ?? inputLevel,
+        path: "quiz",
+      });
+      refreshHistory();
       if (result.backgroundQueued && (result.remainingCount ?? 0) > 0) {
         toast.message(
           `${result.questions.length} question${result.questions.length === 1 ? "" : "s"} ready now. Generating ${result.remainingCount} more in background.`
@@ -453,8 +502,72 @@ export default function ExplorePage() {
           </div>
         </div>
 
+        {/* Recent topics */}
+        {history.length > 0 && (
+          <div className="glass-card p-4 sm:p-5 animate-in-up stagger-2">
+            <p className="text-xs font-medium text-muted-foreground mb-2.5">Recent topics</p>
+            <div className="space-y-1">
+              {(showAllHistory ? history : history.slice(0, 6)).map((entry) => (
+                <div
+                  key={`${entry.topic}::${entry.level}`}
+                  className="group flex items-center gap-2.5 rounded-lg px-2.5 py-2 -mx-1 transition-colors hover:bg-accent/50 cursor-pointer"
+                  onClick={() => {
+                    setInputTopic(entry.topic);
+                    setInputLevel(entry.level);
+                    setInputIntent(entry.path);
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      setInputTopic(entry.topic);
+                      setInputLevel(entry.level);
+                      setInputIntent(entry.path);
+                    }
+                  }}
+                >
+                  {entry.path === "learn" ? (
+                    <BookOpen className="h-3.5 w-3.5 shrink-0 text-blue-500" />
+                  ) : (
+                    <Zap className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                  )}
+                  <span className="flex-1 min-w-0 truncate text-sm">{entry.topic}</span>
+                  <Badge variant="outline" className="shrink-0 text-[10px] px-1.5 py-0">
+                    {levelShortLabel(entry.level)}
+                  </Badge>
+                  <span className="shrink-0 text-[10px] text-muted-foreground/70 w-14 text-right">
+                    {relativeTime(entry.timestamp)}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${entry.topic}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeExploreHistoryEntry(entry.topic, entry.level);
+                      refreshHistory();
+                    }}
+                    className="shrink-0 rounded p-0.5 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-destructive/10"
+                  >
+                    <X className="h-3 w-3 text-muted-foreground" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            {history.length > 6 && (
+              <button
+                type="button"
+                onClick={() => setShowAllHistory((v) => !v)}
+                className="mt-2 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+              >
+                {showAllHistory ? "Show less" : `Show all (${history.length})`}
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Mode selection */}
-        <div className="grid grid-cols-2 gap-3 animate-in-up stagger-2">
+        <div className={`grid grid-cols-2 gap-3 animate-in-up ${history.length > 0 ? "stagger-3" : "stagger-2"}`}>
           <button
             type="button"
             onClick={() => setInputIntent("learn")}
@@ -507,7 +620,7 @@ export default function ExplorePage() {
         </div>
 
         {/* Settings */}
-        <div className="glass-card p-4 sm:p-5 animate-in-up stagger-3">
+        <div className={`glass-card p-4 sm:p-5 animate-in-up ${history.length > 0 ? "stagger-4" : "stagger-3"}`}>
           <div className={`grid gap-4 ${inputIntent === "quiz" ? "grid-cols-2" : ""}`}>
             <label className="space-y-1.5">
               <span className="text-xs font-medium text-muted-foreground">Level</span>
@@ -560,7 +673,7 @@ export default function ExplorePage() {
         </div>
 
         {/* CTA */}
-        <div className="animate-in-up stagger-4">
+        <div className={`animate-in-up ${history.length > 0 ? "stagger-5" : "stagger-4"}`}>
           <Button
             onClick={handlePrimarySetupAction}
             disabled={!inputTopic.trim()}
