@@ -81,12 +81,11 @@ export default function ProfilePage() {
   return (
     <div className="page-wrap page-stack max-w-2xl">
       {/* Avatar header */}
-      <div className="glass-card overflow-hidden">
-        <div className="h-1 w-full bg-gradient-to-r from-primary/40 via-primary to-primary/40" />
-        <div className="h-20 bg-gradient-to-r from-primary/18 via-primary/8 to-transparent" />
-        <div className="px-6 pb-6">
+      <div className="glass-card overflow-hidden animate-in-up">
+        <div className="h-20 bg-gradient-to-r from-primary/15 via-primary/8 to-transparent" />
+        <div className="px-5 pb-5">
           <div className="-mt-8 flex items-end gap-4">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border-4 border-card bg-primary/15 text-xl font-bold text-primary shadow-sm">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border-4 border-card bg-primary/10 text-xl font-bold text-primary shadow-sm">
               {getInitials(user?.displayName)}
             </div>
             <div className="pb-1 min-w-0">
@@ -98,10 +97,10 @@ export default function ProfilePage() {
       </div>
 
       {/* Appearance */}
-      <div className="glass-card rounded-2xl p-5 animate-in-up stagger-1">
-        <h2 className="text-[0.8125rem] font-semibold tracking-tight">Appearance</h2>
+      <div className="glass-card p-5 animate-in-up stagger-1">
+        <h2 className="text-sm font-semibold">Appearance</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">Customize how MedQ looks</p>
-        <div className="mt-4 flex gap-2">
+        <div className="mt-3 flex gap-2">
           {themeOptions.map((opt) => (
             <button
               key={opt.value}
@@ -110,7 +109,7 @@ export default function ProfilePage() {
                 "flex flex-1 flex-col items-center gap-2 rounded-xl border p-3 transition-all",
                 mode === opt.value
                   ? "border-primary/40 bg-primary/8 text-primary"
-                  : "border-border/60 text-muted-foreground hover:border-primary/25 hover:text-foreground"
+                  : "border-border text-muted-foreground hover:border-primary/25 hover:text-foreground"
               )}
             >
               <opt.icon className="h-5 w-5" />
@@ -121,18 +120,18 @@ export default function ProfilePage() {
       </div>
 
       {/* Courses */}
-      <div className="glass-card rounded-2xl p-5 animate-in-up stagger-2">
-        <h2 className="text-[0.8125rem] font-semibold tracking-tight">Courses</h2>
+      <div className="glass-card p-5 animate-in-up stagger-2">
+        <h2 className="text-sm font-semibold">Courses</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">Manage your courses and create new ones</p>
-        <div className="mt-4 space-y-3">
+        <div className="mt-3 space-y-3">
           <Link href="/onboarding?new=1">
-            <Button variant="outline" className="rounded-xl">
+            <Button variant="outline" size="sm">
               <GraduationCap className="mr-2 h-4 w-4" />
               Manage Courses
             </Button>
           </Link>
           <div>
-            <Button variant="outline" className="rounded-xl" onClick={handleReprocessBlueprints} disabled={reprocessing}>
+            <Button variant="outline" size="sm" onClick={handleReprocessBlueprints} disabled={reprocessing}>
               {reprocessing ? (
                 <LoadingButtonLabel label="Refreshing..." />
               ) : (
@@ -151,7 +150,7 @@ export default function ProfilePage() {
 
       {/* Study Groups */}
       <Link href="/profile/groups">
-        <div className="glass-card flex items-center gap-3 rounded-2xl p-4 transition-all hover:border-primary/25 cursor-pointer animate-in-up stagger-3">
+        <div className="glass-card flex items-center gap-3 p-4 transition-all hover:border-primary/25 cursor-pointer animate-in-up stagger-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
             <Users className="h-5 w-5 text-primary" />
           </div>
@@ -164,10 +163,10 @@ export default function ProfilePage() {
       </Link>
 
       {/* Account actions */}
-      <div className="glass-card rounded-2xl p-5 animate-in-up stagger-4">
-        <h2 className="text-[0.8125rem] font-semibold tracking-tight">Account</h2>
-        <div className="mt-4 space-y-3">
-          <Button variant="outline" onClick={handleSignOut} className="rounded-xl">
+      <div className="glass-card p-5 animate-in-up stagger-4">
+        <h2 className="text-sm font-semibold">Account</h2>
+        <div className="mt-3">
+          <Button variant="outline" size="sm" onClick={handleSignOut}>
             <LogOut className="mr-2 h-4 w-4" />
             Sign Out
           </Button>
@@ -175,20 +174,20 @@ export default function ProfilePage() {
       </div>
 
       {/* Legal */}
-      <div className="glass-card rounded-2xl p-5 animate-in-up stagger-5">
-        <h2 className="text-[0.8125rem] font-semibold tracking-tight">Legal & Safety</h2>
+      <div className="glass-card p-5 animate-in-up stagger-5">
+        <h2 className="text-sm font-semibold">Legal & Safety</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
           MedQ is an educational study platform and is not a clinical decision tool.
         </p>
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap gap-2">
           <Link href="/terms">
-            <Button variant="outline" size="sm" className="rounded-xl">
+            <Button variant="outline" size="sm">
               <FileText className="mr-2 h-4 w-4" />
               Terms
             </Button>
           </Link>
           <Link href="/privacy">
-            <Button variant="outline" size="sm" className="rounded-xl">
+            <Button variant="outline" size="sm">
               <ShieldCheck className="mr-2 h-4 w-4" />
               Privacy
             </Button>
@@ -197,13 +196,13 @@ export default function ProfilePage() {
       </div>
 
       {/* Danger Zone */}
-      <div className="glass-card rounded-2xl border-destructive/30 p-5 animate-in-up stagger-6">
-        <h2 className="text-[0.8125rem] font-semibold tracking-tight text-destructive">Danger Zone</h2>
+      <div className="glass-card border-destructive/30 p-5 animate-in-up stagger-6">
+        <h2 className="text-sm font-semibold text-destructive">Danger Zone</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">
           Permanently delete your account and all associated data.
         </p>
-        <div className="mt-4">
-          <Button variant="destructive" onClick={handleDeleteAccount} disabled={deleting} className="rounded-xl">
+        <div className="mt-3">
+          <Button variant="destructive" size="sm" onClick={handleDeleteAccount} disabled={deleting}>
             {deleting ? (
               <LoadingButtonLabel label="Deleting..." />
             ) : (

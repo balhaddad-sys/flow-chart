@@ -8,6 +8,12 @@ import {
   XCircle,
   ExternalLink,
   Zap,
+  GraduationCap,
+  Stethoscope,
+  FlaskConical,
+  Brain,
+  HeartPulse,
+  Pill,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,17 +27,84 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { db } from "@/lib/firebase/client";
 import { doc, onSnapshot } from "firebase/firestore";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
+/** Level definitions with metadata to tailor the UI per stage */
 const EXPLORE_LEVELS = [
-  { id: "MD1", label: "MD1 (Foundations)" },
-  { id: "MD2", label: "MD2 (Integrated Basics)" },
-  { id: "MD3", label: "MD3 (Clinical Core)" },
-  { id: "MD4", label: "MD4 (Advanced Clinical)" },
-  { id: "MD5", label: "MD5 (Senior Clinical)" },
-  { id: "INTERN", label: "Doctor Intern" },
-  { id: "RESIDENT", label: "Resident" },
-  { id: "POSTGRADUATE", label: "Doctor Postgraduate" },
+  {
+    id: "MD1",
+    label: "MD1",
+    fullLabel: "MD1 — Foundations",
+    description: "Pre-clinical basics: anatomy, physiology, biochemistry. Focus on recall and core principles.",
+    icon: FlaskConical,
+    color: "text-emerald-600 dark:text-emerald-400",
+    bg: "bg-emerald-500/10",
+  },
+  {
+    id: "MD2",
+    label: "MD2",
+    fullLabel: "MD2 — Integrated Basics",
+    description: "Organ systems integrated: pathology, pharmacology, microbiology linked to clinical concepts.",
+    icon: FlaskConical,
+    color: "text-teal-600 dark:text-teal-400",
+    bg: "bg-teal-500/10",
+  },
+  {
+    id: "MD3",
+    label: "MD3",
+    fullLabel: "MD3 — Clinical Core",
+    description: "Clinical rotations: history-taking, differential diagnoses, first-line management approaches.",
+    icon: Stethoscope,
+    color: "text-blue-600 dark:text-blue-400",
+    bg: "bg-blue-500/10",
+  },
+  {
+    id: "MD4",
+    label: "MD4",
+    fullLabel: "MD4 — Advanced Clinical",
+    description: "Advanced clinical reasoning: multi-step diagnosis, complex management, evidence-based practice.",
+    icon: Brain,
+    color: "text-violet-600 dark:text-violet-400",
+    bg: "bg-violet-500/10",
+  },
+  {
+    id: "MD5",
+    label: "MD5",
+    fullLabel: "MD5 — Senior Clinical",
+    description: "Senior electives: sub-specialty depth, ethics, medico-legal, advanced procedures.",
+    icon: Brain,
+    color: "text-purple-600 dark:text-purple-400",
+    bg: "bg-purple-500/10",
+  },
+  {
+    id: "INTERN",
+    label: "Intern",
+    fullLabel: "Doctor Intern",
+    description: "First postgrad year: acute management, prescribing, handover, escalation protocols.",
+    icon: HeartPulse,
+    color: "text-rose-600 dark:text-rose-400",
+    bg: "bg-rose-500/10",
+  },
+  {
+    id: "RESIDENT",
+    label: "Resident",
+    fullLabel: "Resident / Registrar",
+    description: "Specialty training: guideline-driven care, audit, evidence appraisal, complex scenarios.",
+    icon: Pill,
+    color: "text-amber-600 dark:text-amber-400",
+    bg: "bg-amber-500/10",
+  },
+  {
+    id: "POSTGRADUATE",
+    label: "Postgrad",
+    fullLabel: "Doctor Postgraduate",
+    description: "Fellowship level: latest trials, expert consensus, rare presentations, research methodology.",
+    icon: GraduationCap,
+    color: "text-red-600 dark:text-red-400",
+    bg: "bg-red-500/10",
+  },
 ];
+
 const ADVANCED_LEVEL_IDS = new Set(["MD4", "MD5", "INTERN", "RESIDENT", "POSTGRADUATE"]);
 const EXPLORE_SETUP_KEY = "medq_explore_setup_v2";
 const TOPIC_SUGGESTIONS = [
@@ -121,6 +194,7 @@ export default function ExplorePage() {
   const [inputCount, setInputCount] = useState(10);
   const [inputIntent, setInputIntent] = useState<"quiz" | "learn">("quiz");
 
+  // Persist/restore setup from localStorage
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(EXPLORE_SETUP_KEY);
@@ -194,6 +268,11 @@ export default function ExplorePage() {
     confidence: currentConfidence,
     isCorrect: isCurrentCorrect,
   });
+
+  // Get level config for current selection
+  const currentLevelConfig = EXPLORE_LEVELS.find((l) => l.id === inputLevel) ?? EXPLORE_LEVELS[2];
+  const activeLevelConfig = EXPLORE_LEVELS.find((l) => l.id === (store.level || inputLevel)) ?? currentLevelConfig;
+
   useEffect(() => {
     syncedCountRef.current = questions.length;
   }, [questions.length]);
@@ -202,6 +281,7 @@ export default function ExplorePage() {
     terminalStatusRef.current = null;
   }, [backgroundJobId]);
 
+  // Background job listener
   useEffect(() => {
     if (!uid || !backgroundJobId || backfillStatus !== "running") return;
 
@@ -413,9 +493,9 @@ export default function ExplorePage() {
       <div className="page-wrap page-stack">
         {/* Hero */}
         <div className="glass-card p-5 sm:p-6 animate-in-up">
-          <h1 className="page-title text-balance">Explore any topic</h1>
+          <h1 className="page-title text-balance">Explore Any Medical Topic</h1>
           <p className="mt-1.5 page-subtitle max-w-md">
-            Learn with structured teaching or test yourself with adaptive questions.
+            Choose your training level, enter a topic, and get AI-generated teaching or adaptive questions matched to your stage.
           </p>
         </div>
 
@@ -425,8 +505,48 @@ export default function ExplorePage() {
           </div>
         )}
 
+        {/* Level selection — visual cards for each stage */}
+        <div className="space-y-2 animate-in-up stagger-1">
+          <h2 className="section-label">Select Your Training Level</h2>
+          <p className="text-xs text-muted-foreground mb-2">
+            Content complexity, question difficulty, and clinical depth are tailored to your selected level.
+          </p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {EXPLORE_LEVELS.map((lvl) => {
+              const selected = inputLevel === lvl.id;
+              const LevelIcon = lvl.icon;
+              return (
+                <button
+                  key={lvl.id}
+                  type="button"
+                  onClick={() => setInputLevel(lvl.id)}
+                  className={cn(
+                    "relative flex flex-col items-center gap-1.5 rounded-xl border p-3 text-center transition-all",
+                    selected
+                      ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                      : "border-border bg-card hover:border-primary/30"
+                  )}
+                >
+                  <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg", lvl.bg)}>
+                    <LevelIcon className={cn("h-4 w-4", lvl.color)} />
+                  </div>
+                  <span className="text-xs font-semibold">{lvl.label}</span>
+                  {selected && (
+                    <div className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-card" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {/* Selected level description */}
+          <div className="rounded-lg border border-border bg-muted/40 px-3 py-2.5 mt-1">
+            <p className="text-xs font-semibold">{currentLevelConfig.fullLabel}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{currentLevelConfig.description}</p>
+          </div>
+        </div>
+
         {/* Topic input */}
-        <div className="glass-card p-4 sm:p-5 animate-in-up stagger-1">
+        <div className="glass-card p-4 sm:p-5 animate-in-up stagger-2">
           <label className="block">
             <span className="text-sm font-medium">What do you want to study?</span>
             <input
@@ -435,7 +555,7 @@ export default function ExplorePage() {
               onChange={(e) => setInputTopic(e.target.value)}
               placeholder="e.g. Cardiac arrhythmias, renal physiology..."
               maxLength={200}
-              className="mt-2 w-full rounded-xl border border-border/70 bg-background/80 px-3 py-2.5 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-primary/35"
+              className="mt-2 w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-primary/35"
               onKeyDown={(e) => e.key === "Enter" && handlePrimarySetupAction()}
             />
           </label>
@@ -445,7 +565,7 @@ export default function ExplorePage() {
                 key={suggestion}
                 type="button"
                 onClick={() => setInputTopic(suggestion)}
-                className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+                className="rounded-full border border-border bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 {suggestion}
               </button>
@@ -454,22 +574,23 @@ export default function ExplorePage() {
         </div>
 
         {/* Mode selection */}
-        <div className="grid grid-cols-2 gap-3 animate-in-up stagger-2">
+        <div className="grid grid-cols-2 gap-3 animate-in-up stagger-3">
           <button
             type="button"
             onClick={() => setInputIntent("learn")}
-            className={`surface-interactive flex flex-col items-center gap-2 p-4 text-center transition-all ${
+            className={cn(
+              "surface-interactive flex flex-col items-center gap-2 p-4 text-center",
               inputIntent === "learn"
-                ? "border-blue-500/60 ring-2 ring-blue-500/20"
+                ? "!border-blue-500/60 ring-2 ring-blue-500/20"
                 : ""
-            }`}
+            )}
           >
-            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${
+            <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl",
               inputIntent === "learn" ? "bg-blue-500/15" : "bg-muted"
-            }`}>
-              <BookOpen className={`h-5 w-5 ${
+            )}>
+              <BookOpen className={cn("h-5 w-5",
                 inputIntent === "learn" ? "text-blue-500" : "text-muted-foreground"
-              }`} />
+              )} />
             </div>
             <div>
               <p className="text-sm font-semibold">Learn</p>
@@ -482,18 +603,19 @@ export default function ExplorePage() {
           <button
             type="button"
             onClick={() => setInputIntent("quiz")}
-            className={`surface-interactive flex flex-col items-center gap-2 p-4 text-center transition-all ${
+            className={cn(
+              "surface-interactive flex flex-col items-center gap-2 p-4 text-center",
               inputIntent === "quiz"
-                ? "border-emerald-500/60 ring-2 ring-emerald-500/20"
+                ? "!border-emerald-500/60 ring-2 ring-emerald-500/20"
                 : ""
-            }`}
+            )}
           >
-            <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${
+            <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl",
               inputIntent === "quiz" ? "bg-emerald-500/15" : "bg-muted"
-            }`}>
-              <Zap className={`h-5 w-5 ${
+            )}>
+              <Zap className={cn("h-5 w-5",
                 inputIntent === "quiz" ? "text-emerald-500" : "text-muted-foreground"
-              }`} />
+              )} />
             </div>
             <div>
               <p className="text-sm font-semibold">Quiz</p>
@@ -504,61 +626,45 @@ export default function ExplorePage() {
           </button>
         </div>
 
-        {/* Settings */}
-        <div className="glass-card p-4 sm:p-5 animate-in-up stagger-3">
-          <div className={`grid gap-4 ${inputIntent === "quiz" ? "grid-cols-2" : ""}`}>
+        {/* Question count (quiz only) */}
+        {inputIntent === "quiz" && (
+          <div className="glass-card p-4 sm:p-5 animate-in-up stagger-4">
             <label className="space-y-1.5">
-              <span className="text-xs font-medium text-muted-foreground">Level</span>
-              <select
-                value={inputLevel}
-                onChange={(e) => setInputLevel(e.target.value)}
-                className="w-full rounded-xl border border-border/70 bg-background/80 px-3 py-2 text-sm outline-none ring-offset-background focus:ring-2 focus:ring-primary/35"
-              >
-                {EXPLORE_LEVELS.map((lvl) => (
-                  <option key={lvl.id} value={lvl.id}>
-                    {lvl.label}
-                  </option>
+              <span className="text-xs font-medium text-muted-foreground">
+                Questions ({inputCount})
+              </span>
+              <input
+                type="range"
+                min={3}
+                max={20}
+                step={1}
+                value={inputCount}
+                onChange={(e) => setInputCount(Number(e.target.value))}
+                className="w-full accent-primary"
+              />
+              <div className="flex flex-wrap gap-1">
+                {[5, 10, 15, 20].map((countPreset) => (
+                  <button
+                    key={countPreset}
+                    type="button"
+                    onClick={() => setInputCount(countPreset)}
+                    className={cn(
+                      "rounded-lg px-2 py-0.5 text-xs font-medium transition-colors",
+                      inputCount === countPreset
+                        ? "bg-primary/15 text-primary"
+                        : "text-muted-foreground hover:bg-accent"
+                    )}
+                  >
+                    {countPreset}
+                  </button>
                 ))}
-              </select>
+              </div>
             </label>
-
-            {inputIntent === "quiz" && (
-              <label className="space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Questions ({inputCount})
-                </span>
-                <input
-                  type="range"
-                  min={3}
-                  max={20}
-                  step={1}
-                  value={inputCount}
-                  onChange={(e) => setInputCount(Number(e.target.value))}
-                  className="w-full accent-primary"
-                />
-                <div className="flex flex-wrap gap-1">
-                  {[5, 10, 15, 20].map((countPreset) => (
-                    <button
-                      key={countPreset}
-                      type="button"
-                      onClick={() => setInputCount(countPreset)}
-                      className={`rounded-lg px-2 py-0.5 text-xs font-medium transition-colors ${
-                        inputCount === countPreset
-                          ? "bg-primary/15 text-primary"
-                          : "text-muted-foreground hover:bg-accent/50"
-                      }`}
-                    >
-                      {countPreset}
-                    </button>
-                  ))}
-                </div>
-              </label>
-            )}
           </div>
-        </div>
+        )}
 
         {/* CTA */}
-        <div className="animate-in-up stagger-4">
+        <div className="animate-in-up stagger-5">
           <Button
             onClick={handlePrimarySetupAction}
             disabled={!inputTopic.trim()}
@@ -568,11 +674,11 @@ export default function ExplorePage() {
             {inputIntent === "learn" ? (
               <>
                 <BookOpen className="mr-2 h-4 w-4" />
-                Start Learning
+                Start Learning ({currentLevelConfig.label})
               </>
             ) : (
               <>
-                Start Quiz
+                Start Quiz ({currentLevelConfig.label})
                 <ArrowRight className="ml-2 h-4 w-4" />
               </>
             )}
@@ -611,15 +717,15 @@ export default function ExplorePage() {
         <PageLoadingState
           title={
             store.userPath === "learn"
-              ? `Generating teaching content for "${store.topic || inputTopic}"`
-              : `Preparing quiz questions for "${store.topic || inputTopic}"`
+              ? `Generating ${activeLevelConfig.label}-level teaching for "${store.topic || inputTopic}"`
+              : `Preparing ${activeLevelConfig.label}-level quiz on "${store.topic || inputTopic}"`
           }
           description={
             store.userPath === "learn"
-              ? "Building structured teaching notes with clinical context and exam focus."
+              ? `Building structured teaching notes with clinical context matched to ${activeLevelConfig.fullLabel} complexity.`
               : isAdvancedLevel
-                ? "Advanced levels load in phases. Extra questions continue in the background."
-                : "Initial questions usually load in under 20 seconds."
+                ? `Advanced levels generate harder, multi-step questions. Extra questions continue in the background.`
+                : `Generating questions calibrated for ${activeLevelConfig.fullLabel}. Usually ready in under 20 seconds.`
           }
           minHeightClassName="min-h-[45dvh]"
         />
@@ -640,6 +746,12 @@ export default function ExplorePage() {
   if (phase === "teaching") {
     return (
       <div className="page-wrap page-stack">
+        {/* Level indicator */}
+        <div className="glass-card px-4 py-2.5 flex items-center gap-2 animate-in-up">
+          <activeLevelConfig.icon className={cn("h-4 w-4", activeLevelConfig.color)} />
+          <span className="text-xs font-semibold">{activeLevelConfig.fullLabel}</span>
+          <span className="text-xs text-muted-foreground">· {store.topic}</span>
+        </div>
         <ExploreTeaching
           onStartQuiz={handleQuizFromTeaching}
           onNewTopic={() => store.reset()}
@@ -666,10 +778,16 @@ export default function ExplorePage() {
       {/* Progress header */}
       <div className="glass-card p-4 animate-in-up">
         <div className="flex items-center justify-between gap-3">
-          <p className="min-w-0 truncate text-sm font-medium">{topic}</p>
-          <span className="shrink-0 text-xs text-muted-foreground">
-            {currentIndex + 1} of {questions.length}
-          </span>
+          <div className="flex items-center gap-2 min-w-0">
+            <activeLevelConfig.icon className={cn("h-4 w-4 shrink-0", activeLevelConfig.color)} />
+            <p className="min-w-0 truncate text-sm font-medium">{topic}</p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Badge variant="outline" className="text-[10px]">{activeLevelConfig.label}</Badge>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {currentIndex + 1}/{questions.length}
+            </span>
+          </div>
         </div>
         <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
           <div
@@ -703,11 +821,12 @@ export default function ExplorePage() {
                   key={item.value}
                   type="button"
                   onClick={() => setConfidence(currentQuestion.id, item.value)}
-                  className={`rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+                  className={cn(
+                    "rounded-lg px-2.5 py-1 text-xs font-medium transition-colors",
                     isActive
                       ? "bg-primary/15 text-primary ring-1 ring-primary/30"
-                      : "bg-muted text-muted-foreground hover:bg-accent/50"
-                  }`}
+                      : "bg-muted text-muted-foreground hover:bg-accent"
+                  )}
                 >
                   {item.label}
                 </button>
@@ -726,17 +845,17 @@ export default function ExplorePage() {
             Set confidence to unlock options
           </p>
         )}
-        <div className={`space-y-2 ${currentConfidence == null && !isAnswered ? "opacity-50 pointer-events-none" : ""}`}>
+        <div className={cn("space-y-2", currentConfidence == null && !isAnswered && "opacity-50 pointer-events-none")}>
           {currentQuestion.options.map((option, idx) => {
             const selected = currentAnswer === idx;
             const isCorrectOption = currentQuestion.correctIndex === idx;
-            let style = "border-border/70 bg-background/75 hover:bg-accent/45";
+            let style = "border-border bg-background hover:bg-accent/45";
 
             if (isAnswered) {
               if (isCorrectOption)
                 style = "border-green-500/60 bg-green-500/10";
               else if (selected) style = "border-red-500/60 bg-red-500/10";
-              else style = "border-border/70 opacity-70";
+              else style = "border-border opacity-70";
             }
 
             return (
@@ -744,7 +863,7 @@ export default function ExplorePage() {
                 key={idx}
                 onClick={() => handleSelectAnswer(idx)}
                 disabled={isAnswered}
-                className={`flex w-full items-start gap-3 rounded-xl border p-3 text-left text-sm transition ${style}`}
+                className={cn("flex w-full items-start gap-3 rounded-xl border p-3 text-left text-sm transition", style)}
               >
                 <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border bg-muted text-xs font-semibold">
                   {String.fromCharCode(65 + idx)}
@@ -766,11 +885,12 @@ export default function ExplorePage() {
           <div className="space-y-3 pt-1">
             {/* Result banner + Next button */}
             <div
-              className={`flex items-center justify-between gap-3 rounded-xl px-3 py-2 ${
+              className={cn(
+                "flex items-center justify-between gap-3 rounded-xl px-3 py-2",
                 results.get(currentQuestion.id)
                   ? "bg-green-500/10 text-green-700 dark:text-green-300"
                   : "bg-red-500/10 text-red-700 dark:text-red-300"
-              }`}
+              )}
             >
               <span className="text-sm font-medium">
                 {results.get(currentQuestion.id)
@@ -788,7 +908,7 @@ export default function ExplorePage() {
             </div>
 
             {/* Calibration — inline */}
-            <p className={`text-xs ${calibrationFeedback.toneClass}`}>
+            <p className={cn("text-xs", calibrationFeedback.toneClass)}>
               <span className="font-semibold">{calibrationFeedback.title}:</span>{" "}
               {calibrationFeedback.message}
             </p>
@@ -796,7 +916,7 @@ export default function ExplorePage() {
             {/* Key takeaway + Why correct — merged box */}
             {(currentQuestion.explanation?.keyTakeaway ||
               currentQuestion.explanation?.correctWhy) && (
-              <div className="rounded-xl border border-border/70 bg-background/70 p-3 space-y-2">
+              <div className="rounded-xl border border-border bg-background p-3 space-y-2">
                 {currentQuestion.explanation?.keyTakeaway && (
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-primary">
@@ -820,13 +940,13 @@ export default function ExplorePage() {
               </div>
             )}
 
-            {/* Deep review accordion — includes sources + more actions */}
+            {/* Deep review accordion */}
             {(selectedOptionReason ||
               optionReasoning.length > 0 ||
               (currentQuestion.citations?.length ?? 0) > 0 ||
               !isLastLoadedQuestion ||
               store.topicInsight) && (
-              <details className="rounded-xl border border-border/70 bg-background/70 p-3">
+              <details className="rounded-xl border border-border bg-background p-3">
                 <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   Deep review
                 </summary>
@@ -886,7 +1006,7 @@ export default function ExplorePage() {
                             href={citation.url}
                             target="_blank"
                             rel="noreferrer"
-                            className="group flex items-start gap-2 rounded-lg border border-border/60 bg-background/70 px-2.5 py-2 text-sm transition-colors hover:bg-accent/40"
+                            className="group flex items-start gap-2 rounded-lg border border-border bg-background px-2.5 py-2 text-sm transition-colors hover:bg-accent"
                           >
                             <span className="font-medium text-primary">{citation.source}</span>
                             <span className="flex-1 text-muted-foreground">{citation.title}</span>
@@ -897,9 +1017,8 @@ export default function ExplorePage() {
                     </div>
                   )}
 
-                  {/* Actions inside deep review */}
                   {(!isLastLoadedQuestion || store.topicInsight) && (
-                    <div className="flex flex-wrap gap-2 border-t border-border/50 pt-3">
+                    <div className="flex flex-wrap gap-2 border-t border-border pt-3">
                       {!isLastLoadedQuestion && (
                         <Button
                           variant="outline"

@@ -80,7 +80,7 @@ function SectionQuestionCard({
       section.questionsCount === 0);
 
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-border/70 bg-background/70 p-4 transition-all duration-200 hover:border-primary/15 hover:bg-accent/30">
+    <div className="flex flex-col gap-3 rounded-lg border border-border bg-background p-4 sm:flex-row sm:items-start">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <p className="truncate text-sm font-semibold">{section.title}</p>
@@ -90,10 +90,10 @@ function SectionQuestionCard({
           {section.estMinutes}m study time · Difficulty {section.difficulty}/5
         </p>
         {section.questionsErrorMessage && section.questionsStatus === "FAILED" && (
-          <p className="mt-2 text-xs text-destructive">{section.questionsErrorMessage}</p>
+          <p className="mt-1.5 text-xs text-destructive">{section.questionsErrorMessage}</p>
         )}
         {section.questionsCount > 0 && section.questionsStatus !== "GENERATING" && (
-          <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">
+          <p className="mt-1 text-xs text-muted-foreground tabular-nums">
             {section.questionsCount} questions available
           </p>
         )}
@@ -110,11 +110,11 @@ function SectionQuestionCard({
           </div>
         )}
       </div>
-      <div className="flex shrink-0 flex-col gap-2">
+      <div className="flex shrink-0 gap-2">
         {canStartQuiz ? (
           <Link href={`/practice/quiz?section=${section.id}`}>
-            <Button size="sm" className="rounded-xl">
-              <CircleHelp className="mr-2 h-4 w-4" />
+            <Button size="sm">
+              <CircleHelp className="mr-1.5 h-3.5 w-3.5" />
               Start Quiz
             </Button>
           </Link>
@@ -122,7 +122,6 @@ function SectionQuestionCard({
           <Button
             size="sm"
             variant="outline"
-            className="rounded-xl"
             onClick={() => onGenerate(section.id)}
             disabled={generating}
           >
@@ -132,18 +131,18 @@ function SectionQuestionCard({
               />
             ) : section.questionsStatus === "FAILED" ? (
               <>
-                <RefreshCw className="mr-2 h-4 w-4" />
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
                 Retry
               </>
             ) : (
               <>
-                <Sparkles className="mr-2 h-4 w-4" />
+                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
                 Generate
               </>
             )}
           </Button>
         ) : (
-          <Button size="sm" variant="ghost" disabled className="rounded-xl">
+          <Button size="sm" variant="ghost" disabled>
             {section.aiStatus !== "ANALYZED" ? "Waiting Analysis" : "In Progress"}
           </Button>
         )}
@@ -227,12 +226,12 @@ export default function PracticePage() {
       <div className="page-wrap page-stack">
         <h1 className="page-title">Practice</h1>
         <Card>
-          <CardContent className="flex items-center justify-between gap-4 p-6">
+          <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted-foreground">
               Select a course first to manage and practice questions.
             </p>
             <Link href="/onboarding">
-              <Button size="sm" className="rounded-xl">Create Course</Button>
+              <Button size="sm">Create Course</Button>
             </Link>
           </CardContent>
         </Card>
@@ -242,16 +241,15 @@ export default function PracticePage() {
 
   return (
     <div className="page-wrap page-stack">
-      <div className="glass-card overflow-hidden">
-        <div className="h-1 w-full bg-gradient-to-r from-primary/40 via-primary to-primary/40" />
-        <div className="flex items-start gap-4 p-6 sm:p-8">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/12">
-            <CircleHelp className="h-5 w-5 text-primary" />
+      {/* Header */}
+      <div className="glass-card p-5 sm:p-6 animate-in-up">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+            <CircleHelp className="h-4.5 w-4.5 text-primary" />
           </div>
-          <div className="space-y-1">
-            <p className="section-label animate-in-up stagger-1">Assessment</p>
-            <h1 className="page-title animate-in-up stagger-2">Practice</h1>
-            <p className="page-subtitle animate-in-up stagger-3">
+          <div>
+            <h1 className="page-title">Practice</h1>
+            <p className="page-subtitle">
               {activeCourse
                 ? `Test your knowledge of ${activeCourse.title} with AI-generated questions tailored to your weak areas.`
                 : "Select sections and start quizzing to reinforce your understanding."}
@@ -262,17 +260,17 @@ export default function PracticePage() {
 
       {/* Mode cards */}
       {!loading && categorized.ready.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-2 animate-in-up stagger-1">
           <h2 className="section-label">Quiz Modes</h2>
-          <div className="grid gap-3 sm:grid-cols-3 animate-in-up stagger-3">
+          <div className="grid gap-3 sm:grid-cols-3">
             {modeCards.map((mode) => (
               <Link key={mode.href} href={mode.href}>
-                <div className="surface-interactive p-5">
-                  <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", mode.bg)}>
-                    <mode.icon className={cn("h-5 w-5", mode.color)} />
+                <div className="surface-interactive p-4">
+                  <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg", mode.bg)}>
+                    <mode.icon className={cn("h-4 w-4", mode.color)} />
                   </div>
-                  <p className="mt-3.5 text-sm font-semibold tracking-tight">{mode.label}</p>
-                  <p className="mt-1 text-[0.75rem] leading-relaxed text-muted-foreground">{mode.description}</p>
+                  <p className="mt-3 text-sm font-semibold">{mode.label}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{mode.description}</p>
                 </div>
               </Link>
             ))}
@@ -280,6 +278,7 @@ export default function PracticePage() {
         </div>
       )}
 
+      {/* Section list */}
       {loading ? (
         <SectionLoadingState
           title="Loading practice sections"
@@ -294,20 +293,20 @@ export default function PracticePage() {
           action={{ label: "Go to Library", href: "/library" }}
         />
       ) : (
-        <Tabs defaultValue="ready" className="glass-card p-4 sm:p-5">
-          <TabsList className="w-full justify-start rounded-xl bg-muted/70 p-1">
-            <TabsTrigger value="ready" className="rounded-lg">Ready to Quiz ({categorized.ready.length})</TabsTrigger>
-            <TabsTrigger value="all" className="rounded-lg">All Sections ({sections.length})</TabsTrigger>
+        <Tabs defaultValue="ready" className="glass-card p-4 sm:p-5 animate-in-up stagger-2">
+          <TabsList className="w-full justify-start rounded-lg bg-muted p-1">
+            <TabsTrigger value="ready" className="rounded-md text-xs">Ready ({categorized.ready.length})</TabsTrigger>
+            <TabsTrigger value="all" className="rounded-md text-xs">All ({sections.length})</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="ready" className="space-y-3 mt-4">
+          <TabsContent value="ready" className="space-y-2 mt-3">
             {categorized.ready.length === 0 ? (
-              <p className="py-12 text-center text-sm text-muted-foreground">
-                No sections are ready to quiz yet. Generate questions from the All Sections tab.
+              <p className="py-10 text-center text-sm text-muted-foreground">
+                No sections are ready to quiz yet. Generate questions from the All tab.
               </p>
             ) : (
               categorized.ready.map((section, i) => (
-                <div key={section.id} style={{ animationDelay: `${i * 40}ms` }} className="animate-in-up">
+                <div key={section.id} style={{ animationDelay: `${i * 30}ms` }} className="animate-in-up">
                   <SectionQuestionCard
                     section={section}
                     generating={!!generatingIds[section.id]}
@@ -318,9 +317,9 @@ export default function PracticePage() {
             )}
           </TabsContent>
 
-          <TabsContent value="all" className="space-y-3 mt-4">
+          <TabsContent value="all" className="space-y-2 mt-3">
             {sections.map((section, i) => (
-              <div key={section.id} style={{ animationDelay: `${i * 40}ms` }} className="animate-in-up">
+              <div key={section.id} style={{ animationDelay: `${i * 30}ms` }} className="animate-in-up">
                 <SectionQuestionCard
                   section={section}
                   generating={!!generatingIds[section.id]}

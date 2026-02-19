@@ -21,26 +21,23 @@ export default function LibraryPage() {
 
   return (
     <div className="page-wrap page-stack">
-
       {/* Page header */}
-      <div className="glass-card overflow-hidden">
-        <div className="h-1 w-full bg-gradient-to-r from-primary/40 via-primary to-primary/40" />
-        <div className="flex items-start gap-4 p-6 sm:p-8">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/12">
-            <Library className="h-5 w-5 text-primary" />
+      <div className="glass-card p-5 sm:p-6 animate-in-up">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+            <Library className="h-4.5 w-4.5 text-primary" />
           </div>
-          <div className="space-y-1">
-            <p className="section-label animate-in-up stagger-1">Materials</p>
-            <h1 className="page-title animate-in-up stagger-2">Library</h1>
-            <p className="page-subtitle animate-in-up stagger-3">
-              Upload your study materials once and let AI extract, analyse, and organise them into structured sections ready for quizzing.
+          <div>
+            <h1 className="page-title">Library</h1>
+            <p className="page-subtitle">
+              Upload your study materials and let AI extract, analyse, and organise them into structured sections ready for quizzing.
             </p>
           </div>
         </div>
       </div>
 
       {/* Upload zone */}
-      <div className="animate-in-up stagger-3">
+      <div className="animate-in-up stagger-1">
         <FileUploadZone />
       </div>
 
@@ -49,11 +46,11 @@ export default function LibraryPage() {
         {loading ? (
           <ListLoadingState rows={4} />
         ) : files.length === 0 ? (
-          <div className="glass-card flex flex-col items-center justify-center rounded-2xl border-dashed py-20 text-center">
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-muted/70">
-              <Upload className="h-6 w-6 text-muted-foreground/50" />
+          <div className="glass-card flex flex-col items-center justify-center py-16 text-center">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
+              <Upload className="h-5 w-5 text-muted-foreground" />
             </div>
-            <p className="font-semibold">No materials uploaded yet</p>
+            <p className="font-medium">No materials uploaded yet</p>
             <p className="mt-1 text-sm text-muted-foreground max-w-xs">
               Drag a PDF, DOCX, or PPTX above to get started. AI will analyse and extract study sections automatically.
             </p>
@@ -61,7 +58,7 @@ export default function LibraryPage() {
         ) : (
           <>
             {backgroundProcessingCount > 0 && (
-              <div className="glass-card flex items-center gap-3 px-5 py-3.5 animate-in-up">
+              <div className="glass-card flex items-center gap-3 px-4 py-3 animate-in-up">
                 <div className="h-2 w-2 shrink-0 rounded-full bg-amber-500 animate-glow-pulse" />
                 <span className="text-sm text-muted-foreground">
                   {backgroundProcessingCount} file{backgroundProcessingCount === 1 ? "" : "s"} processing in the background — you can continue using the app.
@@ -70,7 +67,7 @@ export default function LibraryPage() {
             )}
 
             {hasFiles && !hasPlan && (
-              <div className="glass-card flex items-center justify-between gap-4 border-primary/15 px-5 py-3.5 animate-in-up">
+              <div className="glass-card flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between animate-in-up">
                 <p className="text-sm text-muted-foreground">
                   {tasksLoading ? (
                     <InlineLoadingState label="Checking your plan status..." />
@@ -88,9 +85,9 @@ export default function LibraryPage() {
               </div>
             )}
 
-            <div className="space-y-2.5">
+            <div className="space-y-2">
               {files.map((file, i) => (
-                <div key={file.id} style={{ animationDelay: `${i * 50}ms` }} className="animate-in-up">
+                <div key={file.id} style={{ animationDelay: `${i * 40}ms` }} className="animate-in-up">
                   <FileCard file={file} />
                 </div>
               ))}

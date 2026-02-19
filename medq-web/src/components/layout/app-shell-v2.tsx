@@ -10,25 +10,15 @@ export function AppShellV2({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="min-h-[100dvh] md:grid md:grid-cols-[17.5rem_minmax(0,1fr)]">
+    <div className="min-h-[100dvh] md:grid md:grid-cols-[16rem_minmax(0,1fr)]">
       <SidebarV2 />
-      <main id="main-content" className="relative overflow-y-auto pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+      <main
+        id="main-content"
+        className="relative min-h-[100dvh] overflow-y-auto bg-background pb-20 md:pb-0"
+      >
         <FileProcessingNotifier />
-
-        {/* Ambient gradient overlays */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-gradient-to-b from-primary/12 via-primary/5 to-transparent"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-20 top-12 h-48 w-48 rounded-full bg-primary/8 blur-3xl"
-        />
-
         <MedicalDisclaimer />
-
-        {/* Page content with entrance animation keyed on route */}
-        <div key={pathname} className="relative animate-in-up">
+        <div key={pathname} className="animate-in-fade">
           {children}
         </div>
       </main>

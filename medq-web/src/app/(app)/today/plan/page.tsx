@@ -21,9 +21,74 @@ import {
   HelpCircle,
   RotateCcw,
   ArrowLeft,
+  FileText,
+  Brain,
+  ClipboardList,
 } from "lucide-react";
 import * as fn from "@/lib/firebase/functions";
 import { toast } from "sonner";
+import type { TaskModel } from "@/lib/types/task";
+import type { SectionModel } from "@/lib/types/section";
+
+/** Map of task type to icon, color, and label for section headers */
+const TASK_TYPE_CONFIG = {
+  STUDY: { icon: BookOpen, color: "bg-blue-500/10 text-blue-600 dark:text-blue-400", label: "Study Session" },
+  QUESTIONS: { icon: Brain, color: "bg-violet-500/10 text-violet-600 dark:text-violet-400", label: "Practice Questions" },
+  REVIEW: { icon: RotateCcw, color: "bg-amber-500/10 text-amber-600 dark:text-amber-400", label: "Review Session" },
+} as const;
+
+function PlanSectionHeader({
+  task,
+  sectionMap,
+}: {
+  task: TaskModel;
+  sectionMap: Map<string, SectionModel>;
+}) {
+  const config = TASK_TYPE_CONFIG[task.type as keyof typeof TASK_TYPE_CONFIG] || TASK_TYPE_CONFIG.STUDY;
+  const Icon = config.icon;
+
+  // Get specific section details for context-rich headers
+  const primarySection = task.sectionIds?.[0] ? sectionMap.get(task.sectionIds[0]) : null;
+  const sectionTitle = primarySection?.title || task.title;
+  const topicTags = task.topicTags?.length ? task.topicTags : primarySection?.topicTags;
+  const difficulty = primarySection?.difficulty;
+  const estMinutes = task.estMinutes;
+
+  return (
+    <div className="section-header">
+      <div className={`section-header-icon ${config.color}`}>
+        <Icon className="h-4 w-4" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="section-header-title truncate">{sectionTitle}</p>
+        <div className="flex flex-wrap items-center gap-2 mt-0.5">
+          <span className="section-header-subtitle">{config.label}</span>
+          {estMinutes > 0 && (
+            <span className="section-header-subtitle">· {estMinutes}min</span>
+          )}
+          {difficulty != null && difficulty > 0 && (
+            <span className="section-header-subtitle">· Difficulty {difficulty}/5</span>
+          )}
+        </div>
+        {topicTags && topicTags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1.5">
+            {topicTags.slice(0, 3).map((tag) => (
+              <span
+                key={tag}
+                className="inline-block rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground"
+              >
+                {tag}
+              </span>
+            ))}
+            {topicTags.length > 3 && (
+              <span className="text-[10px] text-muted-foreground">+{topicTags.length - 3}</span>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function PlanPage() {
   const courseId = useCourseStore((s) => s.activeCourseId);
@@ -131,26 +196,28 @@ export default function PlanPage() {
 
   return (
     <div className="page-wrap page-stack">
+      {/* Back link */}
       <Link
         href="/today"
-        className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft className="h-4 w-4" /> Back to Today
       </Link>
 
-      <div className="glass-card p-5 sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* Header */}
+      <div className="glass-card p-5 sm:p-6 animate-in-up">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="page-title animate-in-up stagger-1">Study Plan</h1>
-            <p className="page-subtitle animate-in-up stagger-2">Generate and track a daily study roadmap.</p>
+            <h1 className="page-title">Study Plan</h1>
+            <p className="page-subtitle">Generate and track a daily study roadmap.</p>
           </div>
           {tasks.length === 0 ? (
-            <Button onClick={handleGenerate} disabled={generating || !courseId} size="sm" className="rounded-xl">
+            <Button onClick={handleGenerate} disabled={generating || !courseId} size="sm">
               <Plus className="mr-1.5 h-4 w-4" />
               {generating ? "Generating plan..." : "Generate Plan"}
             </Button>
           ) : (
-            <Button variant="outline" size="sm" className="rounded-xl" onClick={handleRegen} disabled={generating}>
+            <Button variant="outline" size="sm" onClick={handleRegen} disabled={generating}>
               {generating ? (
                 <LoadingButtonLabel label="Regenerating..." />
               ) : (
@@ -163,15 +230,16 @@ export default function PlanPage() {
           )}
         </div>
 
+        {/* Summary stats */}
         {tasks.length > 0 && (
-          <div className="mt-5 rounded-2xl border border-border/70 bg-background/70 p-4 sm:p-5 animate-in-up stagger-3">
-            <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="mt-4 rounded-lg border border-border bg-background p-4 animate-in-up stagger-1">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
                 <ProgressRing
                   value={pct}
-                  size={56}
-                  strokeWidth={5}
-                  color="oklch(0.65 0.24 260)"
+                  size={48}
+                  strokeWidth={4}
+                  color="oklch(0.52 0.12 220)"
                   label={`${pct}%`}
                 />
                 <div>
@@ -184,7 +252,7 @@ export default function PlanPage() {
                   </p>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
                   <BookOpen className="h-3.5 w-3.5 text-blue-500" /> {studyCount} study
                 </span>
@@ -200,12 +268,14 @@ export default function PlanPage() {
         )}
       </div>
 
+      {/* Error */}
       {(error || taskError) && (
-        <div className="break-words rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive animate-in-up">
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {error || taskError}
         </div>
       )}
 
+      {/* Task list */}
       {loading ? (
         <SectionLoadingState
           title="Loading study plan"
@@ -213,51 +283,61 @@ export default function PlanPage() {
           rows={4}
         />
       ) : tasks.length === 0 ? (
-        <div className="glass-card flex flex-col items-center justify-center rounded-2xl border border-dashed py-20 text-center">
+        <div className="glass-card flex flex-col items-center justify-center py-16 text-center">
           <CalendarDays className="mb-3 h-10 w-10 text-muted-foreground/40" />
           <p className="font-medium">No study plan yet</p>
           <p className="mt-1 text-sm text-muted-foreground">
             Upload materials first, then your plan generates automatically.
           </p>
           <Link href="/library">
-            <Button variant="outline" size="sm" className="mt-4 rounded-xl">
+            <Button variant="outline" size="sm" className="mt-4">
               Go to Library
             </Button>
           </Link>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
+          {/* Today's tasks */}
           {todayGroup && (
-            <div className="glass-card p-4 sm:p-5 border-primary/15 animate-in-up">
+            <div className="glass-card p-4 sm:p-5 animate-in-up">
               <div className="mb-3 flex items-center gap-2">
-                <h2 className="text-base font-semibold">Today</h2>
-                <span className="rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-medium text-primary-foreground">
+                <ClipboardList className="h-4 w-4 text-primary" />
+                <h2 className="text-sm font-bold">Today</h2>
+                <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-medium text-primary-foreground">
                   {todayGroup.tasks.length}
                 </span>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {todayGroup.tasks.map((task) => (
-                  <TaskRow key={task.id} task={task} sectionMap={sectionMap} />
+                  <div key={task.id} className="rounded-lg border border-border bg-background p-3">
+                    <PlanSectionHeader task={task} sectionMap={sectionMap} />
+                    <TaskRow task={task} sectionMap={sectionMap} />
+                  </div>
                 ))}
               </div>
             </div>
           )}
 
+          {/* Upcoming tasks grouped by day */}
           {upcomingGroups.map((group, gi) => (
             <div
               key={group.label}
-              className="glass-card p-4 sm:p-5"
-              style={{ animationDelay: `${gi * 60}ms` }}
+              className="glass-card p-4 sm:p-5 animate-in-up"
+              style={{ animationDelay: `${gi * 50}ms` }}
             >
               <div className="mb-3 flex items-center gap-2">
-                <h2 className="text-base font-semibold">{group.label}</h2>
+                <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                <h2 className="text-sm font-bold">{group.label}</h2>
                 <span className="text-xs text-muted-foreground tabular-nums">
-                  {group.tasks.length}
+                  {group.tasks.length} task{group.tasks.length !== 1 ? "s" : ""}
                 </span>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {group.tasks.map((task) => (
-                  <TaskRow key={task.id} task={task} sectionMap={sectionMap} />
+                  <div key={task.id} className="rounded-lg border border-border bg-background p-3">
+                    <PlanSectionHeader task={task} sectionMap={sectionMap} />
+                    <TaskRow task={task} sectionMap={sectionMap} />
+                  </div>
                 ))}
               </div>
             </div>

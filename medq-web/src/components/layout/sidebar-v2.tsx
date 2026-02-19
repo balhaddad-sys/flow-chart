@@ -26,11 +26,11 @@ import {
 import { useMemo } from "react";
 
 const navItems = [
-  { href: "/today", label: "Today", icon: Home, description: "Dashboard & tasks" },
-  { href: "/library", label: "Library", icon: Library, description: "Study materials" },
-  { href: "/practice", label: "Practice", icon: CircleHelp, description: "Quizzes & assessment" },
-  { href: "/ai", label: "AI", icon: Sparkles, description: "Clinical reasoning" },
-  { href: "/profile", label: "Profile", icon: User, description: "Account & settings" },
+  { href: "/today", label: "Today", icon: Home },
+  { href: "/library", label: "Library", icon: Library },
+  { href: "/practice", label: "Practice", icon: CircleHelp },
+  { href: "/ai", label: "AI", icon: Sparkles },
+  { href: "/profile", label: "Profile", icon: User },
 ];
 
 function isNavActive(pathname: string, href: string): boolean {
@@ -47,12 +47,11 @@ function getInitials(name?: string | null): string {
   return name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
 }
 
-/** Simple deterministic color from string */
 function courseColor(title: string): string {
   let hash = 0;
   for (let i = 0; i < title.length; i++) hash = title.charCodeAt(i) + ((hash << 5) - hash);
   const hue = Math.abs(hash) % 360;
-  return `oklch(0.65 0.14 ${hue})`;
+  return `oklch(0.6 0.12 ${hue})`;
 }
 
 export function SidebarV2() {
@@ -69,42 +68,36 @@ export function SidebarV2() {
   );
 
   return (
-    <aside className="sticky top-0 hidden h-[100dvh] flex-col border-r border-sidebar-border/50 bg-sidebar/95 backdrop-blur-2xl md:flex">
+    <aside className="sticky top-0 hidden h-[100dvh] flex-col border-r border-border bg-card md:flex">
       {/* Branding */}
-      <div className="px-5 py-5">
-        <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/15 via-primary/6 to-transparent p-4 shadow-[inset_0_1px_0_oklch(1_0_0/0.06)]">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/18 shadow-sm">
-              <GraduationCap className="h-[1.1rem] w-[1.1rem] text-primary" />
-            </div>
-            <div>
-              <span className="block text-[1.0625rem] font-bold tracking-tight text-sidebar-foreground">
-                MedQ
-              </span>
-              <p className="text-[0.6rem] font-semibold uppercase tracking-[0.18em] text-muted-foreground/80">
-                AI Study Cockpit
-              </p>
-            </div>
-          </div>
+      <div className="flex items-center gap-3 border-b border-border px-5 py-4">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+          <GraduationCap className="h-5 w-5" />
+        </div>
+        <div>
+          <span className="block text-base font-bold tracking-tight">MedQ</span>
+          <p className="text-[0.625rem] font-medium uppercase tracking-widest text-muted-foreground">
+            Study Platform
+          </p>
         </div>
       </div>
 
       {/* Course switcher */}
       {courses.length > 0 && (
-        <div className="px-4 pb-3">
-          <p className="mb-1.5 px-1 text-[0.6rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
+        <div className="border-b border-border px-4 py-3">
+          <p className="mb-1.5 px-1 text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground">
             Active Course
           </p>
           <DropdownMenu>
-            <DropdownMenuTrigger className="flex w-full items-center gap-2.5 rounded-xl border border-sidebar-border/80 bg-card/50 px-3 py-2.5 text-sm font-medium transition-all hover:bg-accent/60 hover:border-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <DropdownMenuTrigger className="flex w-full items-center gap-2.5 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
               <span
-                className="h-2 w-2 shrink-0 rounded-full ring-2 ring-white/20"
+                className="h-2 w-2 shrink-0 rounded-full"
                 style={{ backgroundColor: activeCourse ? courseColor(activeCourse.title) : "var(--muted-foreground)" }}
               />
               <span className="flex-1 truncate text-left text-[0.8125rem]">
                 {activeCourse?.title ?? "Select course"}
               </span>
-              <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+              <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
               {courses.map((course) => (
@@ -136,20 +129,8 @@ export function SidebarV2() {
       )}
 
       {/* Navigation */}
-      <nav aria-label="Main navigation" className="relative flex-1 px-3 py-2">
-        <p className="mb-2 px-2 text-[0.6rem] font-semibold uppercase tracking-[0.14em] text-muted-foreground/70">
-          Navigation
-        </p>
-
-        {/* Sliding active indicator */}
-        {activeIndex >= 0 && (
-          <div
-            className="absolute left-3 right-3 h-[46px] rounded-xl bg-primary/9 border border-primary/18 transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
-            style={{ transform: `translateY(calc(${activeIndex * 52}px + 1.5rem))` }}
-          />
-        )}
-
-        <div className="relative space-y-1">
+      <nav aria-label="Main navigation" className="flex-1 px-3 py-3">
+        <div className="space-y-0.5">
           {navItems.map((item) => {
             const active = isNavActive(pathname, item.href);
             return (
@@ -158,21 +139,14 @@ export function SidebarV2() {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "group flex items-center gap-3 rounded-xl px-3 py-[0.6875rem] text-[0.8125rem] font-medium transition-all duration-200",
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-[0.8125rem] font-medium transition-colors",
                   active
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
                 )}
               >
-                <item.icon
-                  className={cn(
-                    "h-[1.0625rem] w-[1.0625rem] shrink-0 transition-all duration-200",
-                    active
-                      ? "text-primary scale-110"
-                      : "text-muted-foreground/80 group-hover:text-foreground group-hover:scale-105"
-                  )}
-                />
-                <span className="flex-1">{item.label}</span>
+                <item.icon className={cn("h-4 w-4 shrink-0", active && "text-primary")} />
+                <span>{item.label}</span>
               </Link>
             );
           })}
@@ -180,17 +154,17 @@ export function SidebarV2() {
       </nav>
 
       {/* User footer */}
-      <div className="border-t border-sidebar-border/50 p-3">
+      <div className="border-t border-border p-3">
         <Link
           href="/profile"
-          className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-accent/60 group"
+          className="flex items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-accent"
         >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[0.6875rem] font-bold text-primary ring-2 ring-primary/10">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
             {getInitials(user?.displayName)}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[0.8125rem] font-semibold leading-tight">{user?.displayName || "Student"}</p>
-            <p className="truncate text-[0.6875rem] text-muted-foreground leading-tight mt-0.5">{user?.email}</p>
+            <p className="truncate text-sm font-medium leading-tight">{user?.displayName || "Student"}</p>
+            <p className="truncate text-xs text-muted-foreground leading-tight">{user?.email}</p>
           </div>
         </Link>
       </div>
