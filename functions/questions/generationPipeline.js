@@ -133,6 +133,15 @@ async function queueQuestionBackfillJob({
   return jobRef.id;
 }
 
+async function resolveExamType(uid, courseId) {
+  try {
+    const courseDoc = await db.doc(`users/${uid}/courses/${courseId}`).get();
+    return (courseDoc.exists ? courseDoc.data()?.examType : null) || "SBA";
+  } catch {
+    return "SBA";
+  }
+}
+
 async function generateAndPersistBatch({
   uid,
   courseId,
@@ -143,6 +152,7 @@ async function generateAndPersistBatch({
   existingStems,
   existingStemList,
   targetCount,
+  examType,
 }) {
   const target = clampInt(targetCount || 10, 1, 30);
   const safeExisting = clampInt(existingCount || 0, 0, 1000);
@@ -193,6 +203,7 @@ async function generateAndPersistBatch({
     plan.aiRequestCount,
     section.difficulty || 3
   );
+  const resolvedExamType = examType || await resolveExamType(uid, courseId);
   const t0 = Date.now();
   const result = await aiGenerateQuestions(
     QUESTIONS_SYSTEM,
@@ -204,6 +215,7 @@ async function generateAndPersistBatch({
       hardCount,
       sectionTitle: section.title || "Section",
       sourceFileName,
+      examType: resolvedExamType,
     }),
     {
       maxTokens: plan.tokenBudget,
@@ -286,6 +298,7 @@ module.exports = {
   computeMaxBackfillAttempts,
   fetchExistingQuestionState,
   resolveSourceFileName,
+  resolveExamType,
   queueQuestionBackfillJob,
   generateAndPersistBatch,
 };

@@ -8,6 +8,35 @@
  * the user message from runtime data.
  */
 
+/**
+ * Returns exam-type-specific question writing instructions.
+ * @param {'SBA'|'OSCE'|'Mixed'|string} examType
+ */
+function examTypeInstructions(examType) {
+  switch ((examType || "SBA").toUpperCase()) {
+    case "OSCE":
+      return `Exam type: OSCE (Objective Structured Clinical Examination)
+Question style: Focus on clinical skills, structured examinations, history taking, communication, consent, and procedural competencies. Do NOT write pure knowledge-recall questions.
+- Write stems as clinical station scenarios (e.g. "A medical student enters a station and is asked to…" or "You are the doctor seeing a patient who…")
+- Test: structured history taking, clinical examination sequences, communication skills (consent, breaking bad news, SBAR handover), safe prescribing, procedural steps and safety checks
+- Options should represent different clinical approaches or communication choices, not just diagnoses
+- Each question should test what the student DOES or SAYS, not only what they know
+- Preferred question lead-ins: "What is the most appropriate next step?", "Which examination finding should be assessed first?", "How should this be communicated to the patient?", "Which approach to this procedure is safest?"`;
+    case "MIXED":
+      return `Exam type: Mixed (SBA + OSCE blend)
+Question style: Generate a balanced mix — roughly half knowledge-based SBA vignettes and half OSCE-style clinical skills questions.
+- SBA questions: differential diagnosis, pathophysiology, pharmacology, next-best-step management
+- OSCE questions: clinical examination approach, structured history taking, communication tasks, procedural steps
+- Vary question styles across the set so no two consecutive questions use the same format`;
+    default:
+      return `Exam type: SBA (Single Best Answer)
+Question style: Classic clinical knowledge vignettes with exactly one best answer from five options.
+- Each stem must be a focused clinical scenario testing diagnosis, mechanism, pharmacology, investigation interpretation, or management
+- Distractors must be plausible but clearly inferior on close reasoning
+- Preferred question lead-ins: "What is the most likely diagnosis?", "What is the most appropriate initial management?", "Which investigation should be ordered next?", "What is the underlying mechanism?"`;
+  }
+}
+
 const BLUEPRINT_SYSTEM = `You are MedQ, a medical education content analyzer. Convert provided study
 material into a structured topic blueprint for medical students.
 
@@ -64,14 +93,16 @@ function questionsUserPrompt({
   hardCount,
   sectionTitle = "Unknown Section",
   sourceFileName = "Unknown File",
+  examType = "SBA",
 }) {
   return `Source file: "${sourceFileName}"
 Section: "${sectionTitle}"
+${examTypeInstructions(examType)}
 
 Topic blueprint (contains all learning objectives, key concepts, high-yield points, and terms):
 ${JSON.stringify(blueprintJSON)}
 
-Generate exactly ${count} SBA questions with this difficulty distribution:
+Generate exactly ${count} questions with this difficulty distribution:
 - ${easyCount} easy (difficulty 1-2)
 - ${mediumCount} medium (difficulty 3)
 - ${hardCount} hard (difficulty 4-5)
@@ -79,7 +110,7 @@ Generate exactly ${count} SBA questions with this difficulty distribution:
 Quality rules:
 - Every question must test a concrete concept from key_concepts, high_yield_points, or terms_to_define.
 - Do not write generic stems; each stem must be specific to this section.
-- Vary question style across the set: diagnosis, mechanism, interpretation, and next-best-step management.
+- Vary question style across the set in line with the exam type instructions above.
 - Do not paraphrase the same vignette pattern or repeat the same lead-in phrasing.
 - Vary demographics, context, and clinical clues while staying faithful to the blueprint.
 - Keep explanations concise and precise (1-2 sentences per field), but include the decisive clue and mechanism.
@@ -430,9 +461,11 @@ function questionsFromTextUserPrompt({
   hardCount,
   sectionTitle = "Unknown Section",
   sourceFileName = "Unknown File",
+  examType = "SBA",
 }) {
   return `Source file: "${sourceFileName}"
 Section: "${sectionTitle}"
+${examTypeInstructions(examType)}
 
 Study material:
 """
@@ -440,8 +473,8 @@ ${sectionText}
 """
 
 Analyze the text above. Identify the key medical concepts, high-yield exam facts,
-important terms, and common misconceptions. Then generate exactly ${count} SBA questions
-that test understanding of this material.
+important terms, and common misconceptions. Then generate exactly ${count} questions
+that test understanding of this material, strictly following the exam type instructions above.
 
 Difficulty distribution:
 - ${easyCount} easy (difficulty 1-2)
@@ -451,7 +484,7 @@ Difficulty distribution:
 Quality rules:
 - Every question must test a concrete concept from the provided text.
 - Do not write generic stems; each stem must be specific to this section's content.
-- Vary question style across the set: diagnosis, mechanism, interpretation, and next-best-step management.
+- Vary question style across the set in line with the exam type instructions above.
 - Do not paraphrase the same vignette pattern or repeat the same lead-in phrasing.
 - Vary demographics, context, and clinical clues while staying faithful to the source material.
 - Keep explanations concise and precise (1-2 sentences per field), but include the decisive clue and mechanism.
@@ -496,6 +529,7 @@ Return this exact JSON schema:
 }
 
 module.exports = {
+  examTypeInstructions,
   BLUEPRINT_SYSTEM,
   blueprintUserPrompt,
   QUESTIONS_SYSTEM,

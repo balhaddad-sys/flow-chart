@@ -81,15 +81,17 @@ exports.processSection = functions
         phase: "FETCHING_TEXT",
       });
 
-      // Fetch raw text and file metadata in parallel for speed
+      // Fetch raw text, file metadata, and course in parallel
       const bucket = admin.storage().bucket();
-      const [textResult, fileDoc] = await Promise.all([
+      const [textResult, fileDoc, courseDoc] = await Promise.all([
         bucket.file(sectionData.textBlobPath).download(),
         db.doc(`users/${uid}/files/${sectionData.fileId}`).get(),
+        db.doc(`users/${uid}/courses/${courseId}`).get(),
       ]);
       const rawText = textResult[0].toString("utf-8");
       const sectionText = stripOCRNoise(rawText);
       const fileData = fileDoc.exists ? fileDoc.data() : {};
+      const examType = (courseDoc.exists ? courseDoc.data()?.examType : null) || "SBA";
 
       const courseId = sectionData.courseId;
       const count = DEFAULT_QUESTION_COUNT;
@@ -132,6 +134,7 @@ exports.processSection = functions
             hardCount,
             sectionTitle: sectionData.title,
             sourceFileName: fileData.originalName || "Unknown",
+            examType,
           })
         ),
       ]);
