@@ -878,6 +878,7 @@ export default function ExplorePage() {
     return (
       <div className="page-wrap page-stack">
         <ExploreResults />
+        <ExploreAskAiWidget />
       </div>
     );
   }
@@ -887,6 +888,7 @@ export default function ExplorePage() {
 
   return (
     <div className="page-wrap page-stack">
+      <ExploreAskAiWidget />
       {/* Progress header */}
       <div className="glass-card p-4 animate-in-up">
         <div className="flex items-center justify-between gap-3">
