@@ -150,7 +150,7 @@ class CourseSetupStep extends ConsumerWidget {
                               const SizedBox(height: 2),
                               Text(
                                 exam.badge,
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 11,
                                   color: AppColors.textSecondary,
                                 ),
