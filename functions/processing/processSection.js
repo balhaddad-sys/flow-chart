@@ -17,6 +17,7 @@ const { normaliseBlueprint, normaliseQuestion } = require("../lib/serialize");
 const { stripOCRNoise } = require("../lib/sanitize");
 const { generateBlueprint, generateQuestions: aiGenerateQuestions } = require("../ai/geminiClient");
 const { BLUEPRINT_SYSTEM, blueprintUserPrompt, QUESTIONS_SYSTEM, questionsUserPrompt } = require("../ai/prompts");
+const { maybeAutoGenerateSchedule } = require("../scheduling/autoSchedule");
 
 const DEFAULT_QUESTION_COUNT = 8;
 
@@ -308,7 +309,8 @@ async function maybeMarkFileReady(uid, fileId) {
     });
 
     if (allDone && !siblingsSnap.empty) {
-      await db.doc(`users/${uid}/files/${fileId}`).set(
+      const fileRef = db.doc(`users/${uid}/files/${fileId}`);
+      await fileRef.set(
         {
           status: "READY",
           processingPhase: admin.firestore.FieldValue.delete(),
@@ -317,6 +319,12 @@ async function maybeMarkFileReady(uid, fileId) {
         { merge: true }
       );
       log.info("All sections done, file marked READY", { uid, fileId });
+
+      // Auto-generate study plan if all course files are done and no plan exists yet
+      const fileData = (await fileRef.get()).data();
+      if (fileData?.courseId) {
+        await maybeAutoGenerateSchedule(uid, fileData.courseId);
+      }
     }
   } catch (err) {
     log.warn("maybeMarkFileReady failed", { uid, fileId, error: err.message });
