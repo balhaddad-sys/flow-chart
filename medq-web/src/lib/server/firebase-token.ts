@@ -1,3 +1,5 @@
+import { createPublicKey } from "node:crypto";
+
 const FIREBASE_PROJECT_ID =
   process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "medq-a6cc6";
 
@@ -83,16 +85,17 @@ function base64urlDecodeToJson<T>(input: string): T {
   return JSON.parse(text) as T;
 }
 
-function pemToSpki(pem: string): ArrayBuffer {
-  const b64 = pem
-    .replace(/-----BEGIN CERTIFICATE-----/, "")
-    .replace(/-----END CERTIFICATE-----/, "")
-    .replace(/\s/g, "");
-
-  const der = Buffer.from(b64, "base64");
-  return der.buffer.slice(
-    der.byteOffset,
-    der.byteOffset + der.byteLength
+/**
+ * Extract the SPKI (SubjectPublicKeyInfo) DER from an X.509 certificate PEM.
+ * Google's certs endpoint returns full X.509 certificates, not raw SPKI keys.
+ * crypto.subtle.importKey("spki") needs the public key portion only.
+ */
+function certPemToSpkiDer(certPem: string): ArrayBuffer {
+  const pubKey = createPublicKey(certPem);
+  const spkiBuffer = pubKey.export({ type: "spki", format: "der" });
+  return spkiBuffer.buffer.slice(
+    spkiBuffer.byteOffset,
+    spkiBuffer.byteOffset + spkiBuffer.byteLength
   ) as ArrayBuffer;
 }
 
@@ -143,7 +146,7 @@ export async function verifyFirebaseToken(
 
     const key = await crypto.subtle.importKey(
       "spki",
-      pemToSpki(certPem),
+      certPemToSpkiDer(certPem),
       { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
       false,
       ["verify"]
