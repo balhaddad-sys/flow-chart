@@ -23,7 +23,8 @@ const MAX_TOKENS = {
 };
 
 const RETRY_DELAYS = [500, 1500, 4000];
-const RATE_LIMIT_RETRY_DELAY = 60000;
+const RATE_LIMIT_RETRY_DELAY = 20000;
+const RATE_LIMIT_JITTER_MS = 5000;
 const RATE_LIMIT_MAX_RETRIES = 3;
 
 let _client = null;
@@ -197,10 +198,12 @@ async function callGemini(systemPrompt, userPrompt, opts = {}) {
 
       if (isRateLimit && rateLimitRetries < rateLimitMaxRetries) {
         rateLimitRetries++;
+        const jitter = Math.floor(Math.random() * RATE_LIMIT_JITTER_MS);
+        const delay = rateLimitRetryDelayMs + jitter;
         console.warn(
-          `Gemini rate limited, waiting ${Math.round(rateLimitRetryDelayMs / 1000)}s before retry ${rateLimitRetries}/${rateLimitMaxRetries}`
+          `Gemini rate limited, waiting ${Math.round(delay / 1000)}s before retry ${rateLimitRetries}/${rateLimitMaxRetries}`
         );
-        await new Promise((r) => setTimeout(r, rateLimitRetryDelayMs));
+        await new Promise((r) => setTimeout(r, delay));
         continue;
       }
 
@@ -283,8 +286,10 @@ async function callGeminiVision({
 
       if (isRateLimit && rateLimitRetries < RATE_LIMIT_MAX_RETRIES) {
         rateLimitRetries++;
-        console.warn(`Gemini vision rate limited, waiting 60s before retry ${rateLimitRetries}/${RATE_LIMIT_MAX_RETRIES}`);
-        await new Promise((r) => setTimeout(r, RATE_LIMIT_RETRY_DELAY));
+        const jitter = Math.floor(Math.random() * RATE_LIMIT_JITTER_MS);
+        const delay = RATE_LIMIT_RETRY_DELAY + jitter;
+        console.warn(`Gemini vision rate limited, waiting ${Math.round(delay / 1000)}s before retry ${rateLimitRetries}/${RATE_LIMIT_MAX_RETRIES}`);
+        await new Promise((r) => setTimeout(r, delay));
         continue;
       }
 

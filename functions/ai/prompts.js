@@ -412,11 +412,96 @@ Important:
 - diagnostic_algorithm steps should form a valid flowchart (each step's next/yes_next/no_next must reference another step id or null for terminal).`;
 }
 
+const QUESTIONS_FROM_TEXT_SYSTEM = `You are MedQ Question Writer. Analyze the provided study material and
+generate exam-style single-best-answer (SBA) questions for medical students.
+First identify the key concepts, high-yield facts, and common pitfalls in the text,
+then write questions that test understanding of those concepts.
+Questions must be clinically relevant, non-repetitive, unambiguous, and have exactly one
+correct answer.
+Prioritize reasoning depth over trivial recall.
+Every explanation must cite trusted medical sources (PubMed, UpToDate, Medscape).
+Output STRICT JSON only.`;
+
+function questionsFromTextUserPrompt({
+  sectionText,
+  count,
+  easyCount,
+  mediumCount,
+  hardCount,
+  sectionTitle = "Unknown Section",
+  sourceFileName = "Unknown File",
+}) {
+  return `Source file: "${sourceFileName}"
+Section: "${sectionTitle}"
+
+Study material:
+"""
+${sectionText}
+"""
+
+Analyze the text above. Identify the key medical concepts, high-yield exam facts,
+important terms, and common misconceptions. Then generate exactly ${count} SBA questions
+that test understanding of this material.
+
+Difficulty distribution:
+- ${easyCount} easy (difficulty 1-2)
+- ${mediumCount} medium (difficulty 3)
+- ${hardCount} hard (difficulty 4-5)
+
+Quality rules:
+- Every question must test a concrete concept from the provided text.
+- Do not write generic stems; each stem must be specific to this section's content.
+- Vary question style across the set: diagnosis, mechanism, interpretation, and next-best-step management.
+- Do not paraphrase the same vignette pattern or repeat the same lead-in phrasing.
+- Vary demographics, context, and clinical clues while staying faithful to the source material.
+- Keep explanations concise and precise (1-2 sentences per field), but include the decisive clue and mechanism.
+- why_others_wrong must be specific to this vignette for each option; avoid generic filler.
+- Do not combine unrelated topics from different parts of the text into one vague question.
+- Each question must include 2-3 citations from trusted sources only: PubMed, UpToDate, Medscape.
+- For each citation, provide the source name and a specific topic/article title (do NOT generate URLs).
+
+Return this exact JSON schema:
+{
+  "questions": [
+    {
+      "stem": "string — clinical vignette or direct question",
+      "options": ["string", "string", "string", "string", "string"],
+      "correct_index": "integer 0-4",
+      "difficulty": "integer 1-5",
+      "tags": ["string — topic tags"],
+      "explanation": {
+        "correct_why": "string — why the correct answer is right",
+        "why_others_wrong": [
+          "string — why option A is wrong (or correct)",
+          "string — why option B is wrong (or correct)",
+          "string — why option C is wrong (or correct)",
+          "string — why option D is wrong (or correct)",
+          "string — why option E is wrong (or correct)"
+        ],
+        "key_takeaway": "string — the one thing to remember"
+      },
+      "source_ref": {
+        "fileName": "string",
+        "sectionLabel": "string — e.g., 'Slide 14' or 'Page 23'"
+      },
+      "citations": [
+        {
+          "source": "PUBMED | UPTODATE | MEDSCAPE",
+          "title": "string — specific topic or article title for searching"
+        }
+      ]
+    }
+  ]
+}`;
+}
+
 module.exports = {
   BLUEPRINT_SYSTEM,
   blueprintUserPrompt,
   QUESTIONS_SYSTEM,
   questionsUserPrompt,
+  QUESTIONS_FROM_TEXT_SYSTEM,
+  questionsFromTextUserPrompt,
   TUTOR_SYSTEM,
   tutorUserPrompt,
   FIX_PLAN_SYSTEM,

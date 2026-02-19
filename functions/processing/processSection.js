@@ -1,10 +1,15 @@
 /**
  * @module processing/processSection
- * @description Firestore trigger that generates an AI blueprint for newly
- * created section documents whose `aiStatus` is `"PENDING"`, then
- * automatically generates questions from the analyzed content.
+ * @description Firestore trigger that generates an AI blueprint and exam
+ * questions **in parallel** for newly created section documents whose
+ * `aiStatus` is `"PENDING"`.
  *
- * Uses the {@link module:lib/serialize} module to transform the AI response
+ * Both AI calls run concurrently via Promise.allSettled — the blueprint
+ * analyses the text structure while questions are generated directly from
+ * the raw text. Each can fail independently; a failed question generation
+ * does not block the blueprint from being saved (and can be retried later).
+ *
+ * Uses the {@link module:lib/serialize} module to transform AI responses
  * into the Firestore schema.
  */
 
@@ -12,23 +17,22 @@ const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { db, batchSet } = require("../lib/firestore");
 const log = require("../lib/logger");
+const { DEFAULT_QUESTION_COUNT } = require("../lib/constants");
 const { computeSectionQuestionDifficultyCounts } = require("../lib/difficulty");
 const { normaliseBlueprint, normaliseQuestion } = require("../lib/serialize");
 const { stripOCRNoise } = require("../lib/sanitize");
 const { generateBlueprint, generateQuestions: aiGenerateQuestions } = require("../ai/geminiClient");
-const { BLUEPRINT_SYSTEM, blueprintUserPrompt, QUESTIONS_SYSTEM, questionsUserPrompt } = require("../ai/prompts");
+const { BLUEPRINT_SYSTEM, blueprintUserPrompt, QUESTIONS_FROM_TEXT_SYSTEM, questionsFromTextUserPrompt } = require("../ai/prompts");
 const { maybeAutoGenerateSchedule } = require("../scheduling/autoSchedule");
-
-const DEFAULT_QUESTION_COUNT = 8;
 
 // Define the secret so the function can access it
 const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
 
 exports.processSection = functions
   .runWith({
-    timeoutSeconds: 540, // 9 minutes — accommodates 60s rate-limit retries for blueprint + questions
+    timeoutSeconds: 300, // 5 minutes — parallel AI calls finish faster; still covers rate-limit retries
     memory: "512MB",
-    maxInstances: 10, // Increased to avoid "no available instance" aborts (now using Gemini, not Anthropic)
+    maxInstances: 20, // Higher concurrency safe with parallel calls (each instance finishes faster)
     minInstances: 1, // Keep warm to eliminate cold start latency
     secrets: [geminiApiKey], // Grant access to the secret
   })
@@ -87,122 +91,101 @@ exports.processSection = functions
       const sectionText = stripOCRNoise(rawText);
       const fileData = fileDoc.exists ? fileDoc.data() : {};
 
-      log.info("Text fetched, starting blueprint generation", {
+      const courseId = sectionData.courseId;
+      const count = DEFAULT_QUESTION_COUNT;
+      // Use default difficulty (3) for distribution since blueprint hasn't run yet
+      const { easyCount, mediumCount, hardCount } = computeSectionQuestionDifficultyCounts(
+        count,
+        sectionData.difficulty || 3
+      );
+
+      log.info("Text fetched, starting parallel AI generation", {
         uid,
         sectionId,
         rawLength: rawText.length,
         cleanedLength: sectionText.length,
-        phase: "GENERATING_BLUEPRINT",
+        phase: "GENERATING_PARALLEL",
       });
 
       const t0 = Date.now();
 
-      const result = await generateBlueprint(
-        BLUEPRINT_SYSTEM,
-        blueprintUserPrompt({
-          fileName: fileData.originalName || "Unknown",
-          sectionLabel: sectionData.title,
-          contentType: fileData.mimeType || "pdf",
-          sectionText,
-        })
-      );
+      // ── Run blueprint + questions in PARALLEL ─────────────────────────
+      // Both calls work from the raw section text independently.
+      // Promise.allSettled lets each succeed or fail on its own.
+      const [blueprintResult, questionsResult] = await Promise.allSettled([
+        generateBlueprint(
+          BLUEPRINT_SYSTEM,
+          blueprintUserPrompt({
+            fileName: fileData.originalName || "Unknown",
+            sectionLabel: sectionData.title,
+            contentType: fileData.mimeType || "pdf",
+            sectionText,
+          })
+        ),
+        aiGenerateQuestions(
+          QUESTIONS_FROM_TEXT_SYSTEM,
+          questionsFromTextUserPrompt({
+            sectionText,
+            count,
+            easyCount,
+            mediumCount,
+            hardCount,
+            sectionTitle: sectionData.title,
+            sourceFileName: fileData.originalName || "Unknown",
+          })
+        ),
+      ]);
 
-      if (!result.success) {
-        log.error("Blueprint generation failed", {
+      // ── Process blueprint result ──────────────────────────────────────
+      const bpOk = blueprintResult.status === "fulfilled" && blueprintResult.value.success;
+      let normalised = null;
+
+      if (bpOk) {
+        normalised = normaliseBlueprint(blueprintResult.value.data);
+        await snap.ref.update({
+          aiStatus: "ANALYZED",
+          title: normalised.title || sectionData.title,
+          difficulty: normalised.difficulty || sectionData.difficulty,
+          estMinutes: normalised.estMinutes || sectionData.estMinutes,
+          topicTags: normalised.topicTags,
+          blueprint: normalised.blueprint,
+        });
+        log.info("Blueprint generated", {
           uid,
           sectionId,
-          error: result.error,
           durationMs: Date.now() - t0,
+          model: blueprintResult.value.model,
+          tokens: blueprintResult.value.tokensUsed || null,
         });
+      } else {
+        const bpError = blueprintResult.status === "fulfilled"
+          ? blueprintResult.value.error
+          : blueprintResult.reason?.message;
+        log.error("Blueprint generation failed", { uid, sectionId, error: bpError, durationMs: Date.now() - t0 });
         await snap.ref.update({
           aiStatus: "FAILED",
           questionsStatus: "FAILED",
-          questionsErrorMessage: result.error || "Blueprint generation failed",
+          questionsErrorMessage: bpError || "Blueprint generation failed",
           lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
         });
         await maybeMarkFileReady(uid, sectionData.fileId);
         return null;
       }
 
-      log.info("Blueprint generated", {
-        uid,
-        sectionId,
-        durationMs: Date.now() - t0,
-        model: result.model,
-        tokens: result.tokensUsed || null,
-      });
+      // ── Process questions result ──────────────────────────────────────
+      const qResult = questionsResult.status === "fulfilled" ? questionsResult.value : null;
+      const qOk = qResult?.success && qResult?.data?.questions;
 
-      // Normalise via serialize module
-      const normalised = normaliseBlueprint(result.data);
-
-      await snap.ref.update({
-        aiStatus: "ANALYZED",
-        questionsStatus: "PENDING", // Initialize questions status
-        title: normalised.title || sectionData.title,
-        difficulty: normalised.difficulty || sectionData.difficulty,
-        estMinutes: normalised.estMinutes || sectionData.estMinutes,
-        topicTags: normalised.topicTags,
-        blueprint: normalised.blueprint,
-      });
-
-      log.info("Section blueprint generated", {
-        uid,
-        sectionId,
-        title: normalised.title,
-        phase: "BLUEPRINT_COMPLETE",
-      });
-
-      // ── Auto-generate questions from the analyzed section ───────────────
-      const courseId = sectionData.courseId;
-      const count = DEFAULT_QUESTION_COUNT;
-      const { easyCount, mediumCount, hardCount } = computeSectionQuestionDifficultyCounts(
-        count,
-        normalised.difficulty || sectionData.difficulty || 3
-      );
-
-      log.info("Starting question generation", {
-        uid,
-        sectionId,
-        count,
-        phase: "GENERATING_QUESTIONS",
-        distribution: { easy: easyCount, medium: mediumCount, hard: hardCount },
-      });
-
-      // Mark question generation as in progress
-      await snap.ref.update({
-        questionsStatus: "GENERATING",
-      });
-
-      const qT0 = Date.now();
-
-      const qResult = await aiGenerateQuestions(
-        QUESTIONS_SYSTEM,
-        questionsUserPrompt({
-          blueprintJSON: normalised.blueprint,
-          count,
-          easyCount,
-          mediumCount,
-          hardCount,
-          sectionTitle: normalised.title || sectionData.title,
-          sourceFileName: fileData.originalName || "Unknown",
-        })
-      );
-
-      if (!qResult.success || !qResult.data.questions) {
-        log.warn("Auto question generation failed", {
-          uid,
-          sectionId,
-          error: qResult.error,
-          durationMs: Date.now() - qT0,
-        });
-
-        // Mark question generation as failed (blueprint is still valid)
+      if (!qOk) {
+        const qError = questionsResult.status === "fulfilled"
+          ? qResult?.error
+          : questionsResult.reason?.message;
+        log.warn("Question generation failed", { uid, sectionId, error: qError, durationMs: Date.now() - t0 });
         await snap.ref.update({
           questionsStatus: "FAILED",
-          questionsErrorMessage: qResult.error || "Question generation failed",
+          questionsErrorMessage: qError || "Question generation failed",
           lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-
         await maybeMarkFileReady(uid, sectionData.fileId);
         return null; // Blueprint saved; questions can be retried manually
       }
@@ -211,7 +194,7 @@ exports.processSection = functions
         uid,
         sectionId,
         count: qResult.data.questions.length,
-        durationMs: Date.now() - qT0,
+        durationMs: Date.now() - t0,
         model: qResult.model,
       });
 

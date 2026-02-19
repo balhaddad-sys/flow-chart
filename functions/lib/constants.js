@@ -30,14 +30,14 @@ const SUPPORTED_MIME_TYPES = [
 
 // ── Document extractors ─────────────────────────────────────────────────────
 
-/** Number of PDF pages per extracted section. */
-const PAGES_PER_SECTION = 10;
+/** Number of PDF pages per extracted section (larger chunks = fewer AI calls). */
+const PAGES_PER_SECTION = 15;
 
-/** Number of PPTX slides per extracted section. */
-const SLIDES_PER_SECTION = 20;
+/** Number of PPTX slides per extracted section (larger chunks = fewer AI calls). */
+const SLIDES_PER_SECTION = 30;
 
-/** Number of DOCX words per extracted section. */
-const WORDS_PER_SECTION = 1200;
+/** Number of DOCX words per extracted section (larger chunks = fewer AI calls). */
+const WORDS_PER_SECTION = 1800;
 
 /** Minimum characters for a section to be kept (filters empty chunks). */
 const MIN_CHARS_PER_SECTION = 100;
