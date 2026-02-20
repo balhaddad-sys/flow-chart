@@ -75,25 +75,31 @@ jobs:
       - name: Install Cloud Functions dependencies
         run: cd functions && npm ci
 
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-
       - name: Deploy Cloud Functions, Firestore rules/indexes, and Storage rules
         shell: bash
+        env:
+          SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
+          # Write credentials to a temp file so firebase-tools picks them up reliably.
+          # firebase-tools v13 doesn't always honour GOOGLE_APPLICATION_CREDENTIALS
+          # set by the auth action; writing the key explicitly avoids that issue.
+          SA_FILE="$(mktemp -t sa-XXXXXX.json)"
+          printf '%s' "$SA_JSON" > "$SA_FILE"
+          export GOOGLE_APPLICATION_CREDENTIALS="$SA_FILE"
+
           set -euo pipefail
           max_attempts=3
           attempt=1
 
-          until firebase deploy --only functions,firestore,storage --project "${FIREBASE_PROJECT_ID}" --force --debug; do
+          until firebase deploy --only functions,firestore,storage --project "${FIREBASE_PROJECT_ID}" --force; do
             if [ "${attempt}" -ge "${max_attempts}" ]; then
               echo "Firebase deploy failed after ${max_attempts} attempts."
+              rm -f "$SA_FILE"
               exit 1
             fi
             attempt=$((attempt + 1))
-            wait_seconds=$((attempt * 20))
+            wait_seconds=$((attempt * 30))
             echo "Retrying deploy in ${wait_seconds}s (attempt ${attempt}/${max_attempts})..."
             sleep "${wait_seconds}"
           done
+          rm -f "$SA_FILE"
