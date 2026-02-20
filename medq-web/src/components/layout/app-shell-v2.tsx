@@ -10,7 +10,7 @@ export function AppShellV2({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <div className="min-h-[100dvh] md:grid md:grid-cols-[16rem_minmax(0,1fr)]">
+    <div className="min-h-[100dvh] md:grid md:grid-cols-[15rem_minmax(0,1fr)]">
       <SidebarV2 />
       <main id="main-content" className="relative overflow-y-auto pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0">
         <FileProcessingNotifier />

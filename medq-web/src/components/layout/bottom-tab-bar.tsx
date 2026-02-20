@@ -25,7 +25,7 @@ export function BottomTabBar() {
   const pathname = usePathname();
 
   return (
-    <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-card pb-[max(env(safe-area-inset-bottom),0.25rem)] md:hidden">
+    <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-50 border-t border-border/60 bg-card/95 backdrop-blur-lg pb-[max(env(safe-area-inset-bottom),0.25rem)] md:hidden">
       <div className="flex">
         {tabs.map((tab) => {
           const active = isTabActive(pathname, tab.href);
@@ -36,13 +36,16 @@ export function BottomTabBar() {
               aria-current={active ? "page" : undefined}
               aria-label={tab.label}
               className={cn(
-                "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-2.5 text-[10px] font-medium transition-colors min-h-[44px]",
+                "relative flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 pt-2 pb-1.5 text-[10px] font-medium transition-colors min-h-[44px]",
                 active
                   ? "text-primary"
-                  : "text-muted-foreground"
+                  : "text-muted-foreground active:text-foreground"
               )}
             >
-              <tab.icon className="h-5 w-5" />
+              {active && (
+                <span className="absolute top-0 left-1/2 -translate-x-1/2 h-[2px] w-6 rounded-full bg-primary" />
+              )}
+              <tab.icon className={cn("h-5 w-5", active && "drop-shadow-sm")} strokeWidth={active ? 2.2 : 1.6} />
               <span className="truncate">{tab.label}</span>
             </Link>
           );

@@ -34,47 +34,42 @@ export function WeakTopicsBanner({ topics }: WeakTopicsBannerProps) {
   const top3 = topics.slice(0, 3);
 
   return (
-    <div className="rounded-xl border border-border bg-card">
+    <div className="rounded-xl border border-border bg-card shadow-sm">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
+      <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
         <div className="flex items-center gap-2">
-          <TrendingDown className="h-4 w-4 text-muted-foreground" />
-          <h3 className="text-sm font-medium">Areas to Improve</h3>
+          <TrendingDown className="h-3.5 w-3.5 text-red-500/70" />
+          <h3 className="text-[13px] font-bold tracking-tight">Weak Areas</h3>
         </div>
         <Link
           href="/today/analytics"
-          className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+          className="text-[11px] font-medium text-primary hover:text-primary/80 transition-colors"
         >
           View all
         </Link>
       </div>
 
       {/* Topics */}
-      <div className="divide-y divide-border">
+      <div className="divide-y divide-border/50">
         {top3.map((topic) => {
           const severity    = getSeverity(topic.accuracy);
           const accuracyPct = Math.round(topic.accuracy * 100);
 
           return (
-            <div key={topic.tag} className="px-5 py-3">
-              <div className="flex items-center justify-between gap-3">
+            <div key={topic.tag} className="px-4 py-2.5">
+              <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate text-sm font-medium">{topic.tag}</p>
-                    <span className={cn("text-xs font-medium", severity.color)}>
-                      {severity.label}
-                    </span>
-                  </div>
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className={cn("h-full rounded-full transition-all duration-500", severity.barColor)}
-                        style={{ width: `${accuracyPct}%` }}
-                      />
-                    </div>
-                    <span className={cn("text-xs font-medium tabular-nums", severity.color)}>
+                  <div className="flex items-center gap-1.5">
+                    <p className="truncate text-[13px] font-medium">{topic.tag}</p>
+                    <span className={cn("text-[10px] font-semibold", severity.color)}>
                       {accuracyPct}%
                     </span>
+                  </div>
+                  <div className="mt-1.5 h-1 flex-1 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className={cn("h-full rounded-full transition-all duration-700", severity.barColor)}
+                      style={{ width: `${accuracyPct}%` }}
+                    />
                   </div>
                 </div>
 
@@ -82,9 +77,9 @@ export function WeakTopicsBanner({ topics }: WeakTopicsBannerProps) {
                   href={`/practice/quiz?mode=topic&topic=${encodeURIComponent(topic.tag)}`}
                   className="shrink-0"
                 >
-                  <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs">
+                  <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[11px] text-primary">
                     <Play className="h-3 w-3" />
-                    Practice
+                    Drill
                   </Button>
                 </Link>
               </div>

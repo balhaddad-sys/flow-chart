@@ -22,22 +22,22 @@ export function PageLoadingState({
 }: PageLoadingStateProps) {
   return (
     <div className={cn("flex items-center justify-center", minHeightClassName, className)}>
-      <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6">
-        <div className="mx-auto mb-4 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-sm text-center">
+        <div className="mx-auto mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10">
           <Icon className="h-5 w-5 text-primary" />
         </div>
-        <p className="text-center text-sm font-semibold">{title}</p>
-        <p className="mx-auto mt-1 max-w-sm text-center text-sm text-muted-foreground">
+        <p className="text-[14px] font-bold tracking-tight">{title}</p>
+        <p className="mx-auto mt-1 max-w-sm text-[13px] text-muted-foreground">
           {description}
         </p>
-        <div className="mt-4 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        <div className="mt-5 flex items-center justify-center gap-2 text-[12px] text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
           Working...
         </div>
         <div className="mt-4 space-y-2">
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-[88%]" />
-          <Skeleton className="h-3 w-[75%]" />
+          <Skeleton className="h-2.5 w-full rounded-full" />
+          <Skeleton className="h-2.5 w-[88%] rounded-full" />
+          <Skeleton className="h-2.5 w-[72%] rounded-full" />
         </div>
       </div>
     </div>

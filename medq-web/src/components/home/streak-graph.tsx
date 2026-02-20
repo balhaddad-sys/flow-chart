@@ -101,31 +101,31 @@ export function StreakGraph({ className }: StreakGraphProps) {
   }
 
   return (
-    <div className={cn("rounded-xl border border-border bg-card", className)}>
+    <div className={cn("rounded-xl border border-border bg-card shadow-sm", className)}>
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
+      <div className="flex items-center justify-between border-b border-border/60 px-4 py-3">
         <div className="flex items-center gap-2">
-          <Flame className="h-4 w-4 text-orange-500" />
+          <Flame className={cn("h-4 w-4", streak > 0 ? "text-orange-500 animate-streak-glow" : "text-muted-foreground")} />
           <div>
-            <h3 className="text-sm font-medium">Study Streak</h3>
-            <p className="text-xs text-muted-foreground">Last 12 weeks</p>
+            <h3 className="text-[13px] font-bold tracking-tight">Activity</h3>
+            <p className="text-[11px] text-muted-foreground">Last 12 weeks</p>
           </div>
         </div>
 
         <div className="flex items-center gap-4 text-right">
           <div>
-            <p className="text-lg font-semibold tabular-nums leading-none">{streak}</p>
-            <p className="text-xs text-muted-foreground">day streak</p>
+            <p className="text-base font-bold tabular-nums leading-none">{streak}</p>
+            <p className="text-[10px] text-muted-foreground">streak</p>
           </div>
           <div>
-            <p className="text-lg font-semibold tabular-nums leading-none">{totalQuestions}</p>
-            <p className="text-xs text-muted-foreground">answered</p>
+            <p className="text-base font-bold tabular-nums leading-none">{totalQuestions}</p>
+            <p className="text-[10px] text-muted-foreground">total Qs</p>
           </div>
         </div>
       </div>
 
       {/* Grid */}
-      <div className="p-5">
+      <div className="p-4">
         <div className="mb-1.5 flex gap-1">
           {weeks.map((week, wi) => {
             const firstDay = new Date(week[0].date);

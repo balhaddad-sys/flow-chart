@@ -80,7 +80,7 @@ function SectionQuestionCard({
       section.questionsCount === 0);
 
   return (
-    <div className="flex items-start gap-3 rounded-lg border border-border p-4 transition-colors hover:bg-accent/50">
+    <div className="flex items-start gap-3 rounded-lg border border-border p-3.5 transition-all hover:bg-accent/40 hover:border-primary/20">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <p className="truncate text-sm font-medium">{section.title}</p>
@@ -243,7 +243,7 @@ export default function PracticePage() {
     <div className="page-wrap page-stack">
 
       {/* Header */}
-      <div>
+      <div className="animate-in-up">
         <h1 className="page-title">Practice</h1>
         <p className="page-subtitle">
           {activeCourse
@@ -254,15 +254,15 @@ export default function PracticePage() {
 
       {/* Mode cards */}
       {!loading && categorized.ready.length > 0 && (
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-2.5 sm:grid-cols-3 animate-in-up stagger-1">
           {modeCards.map((mode) => (
             <Link key={mode.href} href={mode.href}>
-              <div className="surface-interactive p-5">
-                <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg", mode.bg)}>
+              <div className="surface-interactive p-4">
+                <div className={cn("flex h-9 w-9 items-center justify-center rounded-xl", mode.bg)}>
                   <mode.icon className={cn("h-4.5 w-4.5", mode.color)} />
                 </div>
-                <p className="mt-3 text-sm font-medium">{mode.label}</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">{mode.description}</p>
+                <p className="mt-2.5 text-[13px] font-semibold">{mode.label}</p>
+                <p className="mt-0.5 text-[11px] text-muted-foreground leading-relaxed">{mode.description}</p>
               </div>
             </Link>
           ))}
@@ -283,7 +283,7 @@ export default function PracticePage() {
           action={{ label: "Go to Library", href: "/library" }}
         />
       ) : (
-        <div className="rounded-xl border border-border bg-card p-4">
+        <div className="rounded-xl border border-border bg-card shadow-sm p-4 animate-in-up stagger-2">
           <Tabs defaultValue="ready">
             <TabsList className="w-full justify-start">
               <TabsTrigger value="ready">Ready ({categorized.ready.length})</TabsTrigger>

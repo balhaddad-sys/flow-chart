@@ -50,39 +50,35 @@ export function StreakDisplay({ days, lastStudied, className }: StreakDisplayPro
 
   return (
     <div className={cn("metric-card", className)}>
-      <div className="flex items-center gap-3">
+      <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Streak</p>
+      <div className="mt-2 flex items-center gap-2">
         <Flame
           className={cn(
             "h-5 w-5",
-            isActive ? "text-orange-500" : "text-muted-foreground"
+            isActive ? "text-orange-500 animate-streak-glow" : "text-muted-foreground/40"
           )}
         />
-        <div>
-          <div className="flex items-baseline gap-1">
-            <NumberTicker value={days} className="text-2xl font-semibold tracking-tight" />
-            <span className="text-sm text-muted-foreground">day streak</span>
-          </div>
-          {atRisk && (
-            <p className="text-xs text-orange-500">Study today to keep your streak</p>
-          )}
+        <div className="flex items-baseline gap-0.5">
+          <NumberTicker value={days} className="text-xl font-bold tracking-tight" />
+          <span className="text-xs text-muted-foreground">days</span>
         </div>
       </div>
 
-      <div className="mt-3 flex items-center gap-1.5">
+      <div className="mt-2.5 flex items-center gap-1">
         {dots.map((active, i) => {
           const isToday = i === 6;
           return (
-            <div key={i} className="flex flex-col items-center gap-1">
-              <span className="text-[9px] text-muted-foreground font-medium">
+            <div key={i} className="flex flex-col items-center gap-0.5 flex-1">
+              <span className="text-[8px] text-muted-foreground/60 font-medium">
                 {DAY_LABELS[i]}
               </span>
               <div
                 className={cn(
-                  "h-2.5 w-2.5 rounded-full transition-colors",
+                  "h-2 w-full rounded-sm transition-colors",
                   active
                     ? "bg-orange-500"
                     : isToday && atRisk
-                    ? "border-2 border-orange-400/60 bg-transparent"
+                    ? "bg-orange-200 dark:bg-orange-500/30"
                     : "bg-muted"
                 )}
               />
@@ -90,6 +86,10 @@ export function StreakDisplay({ days, lastStudied, className }: StreakDisplayPro
           );
         })}
       </div>
+
+      {atRisk && (
+        <p className="mt-1.5 text-[10px] font-medium text-orange-500">Study today to keep it</p>
+      )}
     </div>
   );
 }

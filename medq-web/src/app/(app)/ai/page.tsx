@@ -68,7 +68,7 @@ export default function AiPage() {
     <div className="page-wrap page-stack">
 
       {/* Header */}
-      <div>
+      <div className="animate-in-up">
         <h1 className="page-title">AI Chat</h1>
         <p className="page-subtitle">
           Explore medical topics, ask questions, and get guidance grounded in your study materials.
@@ -105,8 +105,8 @@ export default function AiPage() {
       </div>
 
       {/* Search */}
-      <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5">
-        <Search className="h-4 w-4 text-muted-foreground" />
+      <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-1.5 shadow-sm animate-in-up stagger-1">
+        <Search className="h-4 w-4 text-muted-foreground/60" />
         <Input
           value={search}
           onChange={(event) => setSearch(event.target.value)}
@@ -130,19 +130,21 @@ export default function AiPage() {
           {filteredThreads.map((thread) => (
             <Card
               key={thread.id}
-              className="cursor-pointer transition-colors hover:bg-accent/50"
+              className="cursor-pointer transition-all hover:bg-accent/40 hover:border-primary/20"
               onClick={() => router.push(`/ai/${thread.id}`)}
             >
-              <CardContent className="flex items-start gap-3 p-4">
-                <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+              <CardContent className="flex items-start gap-3 p-3.5">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 mt-0.5">
+                  <MessageSquare className="h-3.5 w-3.5 text-primary" />
+                </div>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{thread.title}</p>
-                  <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+                  <p className="truncate text-[13px] font-semibold">{thread.title}</p>
+                  <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">
                     {thread.lastMessage || "No messages yet"}
                   </p>
                 </div>
-                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock3 className="h-3 w-3" />
+                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/60">
+                  <Clock3 className="h-2.5 w-2.5" />
                   {thread.messageCount}
                 </span>
               </CardContent>
@@ -152,30 +154,36 @@ export default function AiPage() {
       )}
 
       {/* Feature cards */}
-      <div className="grid gap-3 md:grid-cols-2">
-        <div className="rounded-xl border border-border bg-card p-5">
-          <p className="text-sm font-medium">Explore AI Tutor</p>
-          <p className="mt-1 text-xs text-muted-foreground">
+      <div className="grid gap-2.5 md:grid-cols-2 animate-in-up stagger-3">
+        <div className="surface-interactive p-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 mb-2.5">
+            <Compass className="h-4 w-4 text-primary" />
+          </div>
+          <p className="text-[13px] font-semibold">Explore AI Tutor</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground leading-relaxed">
             Generate adaptive quizzes and teaching outlines for any medical topic.
           </p>
           <Button
             variant="outline"
             size="sm"
-            className="mt-3"
+            className="mt-3 text-[12px]"
             onClick={() => router.push("/ai/explore")}
           >
             Open Explore
           </Button>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
-          <p className="text-sm font-medium">Course Chat</p>
-          <p className="mt-1 text-xs text-muted-foreground">
+        <div className="surface-interactive p-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/10 mb-2.5">
+            <MessageSquare className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+          </div>
+          <p className="text-[13px] font-semibold">Course Chat</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground leading-relaxed">
             Keep persistent conversations tied to your active course.
           </p>
           <Button
             size="sm"
             variant="outline"
-            className="mt-3"
+            className="mt-3 text-[12px]"
             onClick={handleNewThread}
             disabled={creating || !courseId}
           >

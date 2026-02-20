@@ -150,30 +150,29 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
       : "text-yellow-600 dark:text-yellow-400";
 
   return (
-    <Card className="glass-card mx-auto max-w-3xl overflow-hidden rounded-2xl">
-      <CardHeader className="pb-4">
-        {/* Top meta row */}
-        <div className="flex items-center justify-between gap-2 flex-wrap">
+    <Card className="mx-auto max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-sm animate-in-up">
+      <CardHeader className="pb-3">
+        {/* Top meta row — minimal, out of the way */}
+        <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="border-border/70 bg-background/70 font-mono text-xs">
-              {index + 1} / {total}
+            <span className="text-[12px] font-bold tabular-nums text-muted-foreground">
+              {index + 1}<span className="text-muted-foreground/40">/{total}</span>
+            </span>
+            <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${difficultyColor}`}>
+              {difficultyLabel}
             </Badge>
             {isDraft && (
               <Badge
                 variant="outline"
-                className="border-amber-500/40 bg-amber-500/8 text-amber-600 dark:text-amber-400 text-xs gap-1"
+                className="border-amber-500/40 bg-amber-500/8 text-amber-600 dark:text-amber-400 text-[10px] gap-1"
               >
-                <ShieldAlert className="h-3 w-3" />
-                Draft — verify with source
+                <ShieldAlert className="h-2.5 w-2.5" />
+                Draft
               </Badge>
             )}
           </div>
 
-          <div className="flex items-center gap-1">
-            <Badge variant="secondary" className={`text-xs ${difficultyColor}`}>
-              {difficultyLabel}
-            </Badge>
-            {/* Source + Flag actions */}
+          <div className="flex items-center gap-0.5">
             {hasSourceCitations && (
               <SourceCitationDrawer
                 sourceCitations={question.sourceCitations}
@@ -185,15 +184,16 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
           </div>
         </div>
 
-        <p className="mt-3 text-lg font-medium leading-relaxed">{question.stem}</p>
+        {/* The question — hero element, maximum readability */}
+        <p className="mt-4 text-[17px] font-medium leading-[1.6] tracking-[-0.01em]">{question.stem}</p>
 
-        {/* Topic tags */}
+        {/* Topic tags — subtle */}
         {question.topicTags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-2">
-            {question.topicTags.slice(0, 4).map((tag) => (
+          <div className="flex flex-wrap gap-1 mt-2.5">
+            {question.topicTags.slice(0, 3).map((tag) => (
               <span
                 key={tag}
-                className="rounded-full border border-border/60 bg-muted/40 px-2 py-0.5 text-[0.65rem] text-muted-foreground"
+                className="rounded-full bg-muted/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
               >
                 {tag}
               </span>
@@ -202,7 +202,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
         )}
       </CardHeader>
 
-      <CardContent className="space-y-2.5">
+      <CardContent className="space-y-2">
         {/* Answer options */}
         {question.options.map((option, i) => {
           const isSelected = selectedIndex === i;
@@ -210,16 +210,16 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
           const isCorrectOption = i === question.correctIndex;
 
           let style =
-            "border-border/70 bg-background/70 hover:border-primary/40 hover:bg-accent/45 cursor-pointer";
+            "border-border/60 bg-background hover:border-primary/40 hover:bg-primary/[0.03] cursor-pointer";
           if (isPending) {
-            style = "border-primary bg-primary/10 cursor-wait";
+            style = "border-primary bg-primary/5 cursor-wait";
           } else if (isAnswered) {
             if (isCorrectOption) {
-              style = "border-green-500/60 bg-green-500/8";
+              style = "border-emerald-500/50 bg-emerald-50/80 dark:bg-emerald-500/10";
             } else if (isSelected && !isCorrect) {
-              style = "border-amber-500/50 bg-amber-500/8"; // Softer than red — supportive, not punitive
+              style = "border-amber-400/50 bg-amber-50/80 dark:bg-amber-500/10";
             } else {
-              style = "border-border/70 opacity-55";
+              style = "border-border/40 opacity-45";
             }
           }
 
@@ -229,32 +229,32 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
               onClick={() => handleSelect(i)}
               disabled={isAnswered || submitting}
               className={cn(
-                "flex w-full items-start gap-3 rounded-xl border p-4 text-left text-sm transition-all",
+                "flex w-full items-start gap-3 rounded-xl border p-3.5 text-left text-[14px] transition-all duration-150",
                 style,
                 isAnswered ? "cursor-default" : ""
               )}
             >
               <span
                 className={cn(
-                  "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold transition-colors",
+                  "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold transition-all",
                   isPending
-                    ? "border-primary bg-primary text-primary-foreground"
+                    ? "bg-primary text-primary-foreground"
                     : isAnswered && isCorrectOption
-                    ? "bg-green-500 text-white"
+                    ? "bg-emerald-500 text-white"
                     : isAnswered && isSelected && !isCorrect
                     ? "bg-amber-500 text-white"
-                    : "border bg-muted"
+                    : "bg-muted text-muted-foreground"
                 )}
               >
                 {isPending ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="h-3 w-3 animate-spin" />
                 ) : (
                   String.fromCharCode(65 + i)
                 )}
               </span>
               <span className="flex-1 leading-relaxed">{option}</span>
               {isAnswered && isCorrectOption && (
-                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-green-500" />
+                <CheckCircle2 className="mt-0.5 h-4.5 w-4.5 shrink-0 text-emerald-500" />
               )}
             </button>
           );
@@ -275,25 +275,25 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
 
         {/* ── Post-answer section ──────────────────────────────────── */}
         {isAnswered && (
-          <div className="space-y-4 pt-2">
-            {/* Result banner — supportive framing */}
+          <div className="space-y-3 pt-3 animate-in-up">
+            {/* Result banner — clean, supportive */}
             <div
               className={cn(
-                "flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium",
+                "flex items-center gap-2.5 rounded-xl px-4 py-3 text-[13px] font-semibold",
                 isCorrect
-                  ? "bg-green-500/10 text-green-700 dark:text-green-300"
-                  : "bg-amber-500/8 text-amber-700 dark:text-amber-300"
+                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
+                  : "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300"
               )}
             >
               {isCorrect ? (
                 <>
                   <CheckCircle2 className="h-4 w-4 shrink-0" />
-                  Well done — correct!
+                  Correct
                 </>
               ) : (
                 <>
                   <Lightbulb className="h-4 w-4 shrink-0" />
-                  Needs review — the answer is {String.fromCharCode(65 + question.correctIndex)}
+                  The answer is {String.fromCharCode(65 + question.correctIndex)}
                 </>
               )}
             </div>

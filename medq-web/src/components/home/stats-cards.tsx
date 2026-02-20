@@ -15,12 +15,12 @@ interface StatsCardsProps {
 export function StatsCards({ stats, loading = false }: StatsCardsProps) {
   if (loading) {
     return (
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
-          <div key={index} className="rounded-xl border border-border bg-card p-5 space-y-3">
+          <div key={index} className="rounded-xl border border-border bg-card p-4 space-y-2.5">
             <Skeleton className="h-3 w-2/5" />
-            <Skeleton className="h-8 w-3/5" />
-            <Skeleton className="h-3 w-4/5" />
+            <Skeleton className="h-7 w-3/5" />
+            <Skeleton className="h-2.5 w-4/5" />
           </div>
         ))}
       </div>
@@ -35,61 +35,55 @@ export function StatsCards({ stats, loading = false }: StatsCardsProps) {
   const answered   = stats?.totalQuestionsAnswered ?? 0;
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
 
       {/* Study Time */}
       <div className="metric-card">
-        <div className="flex items-center justify-between">
-          <Clock className="h-4 w-4 text-muted-foreground" />
-          <span className="text-xs font-medium text-muted-foreground">Study Time</span>
+        <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Study Time</p>
+        <div className="mt-2 flex items-baseline gap-0.5">
+          <NumberTicker value={totalHours} className="text-xl font-bold tabular-nums tracking-tight" />
+          <span className="text-xs text-muted-foreground">h</span>
+          {totalMins > 0 && (
+            <>
+              <NumberTicker value={totalMins} className="text-xl font-bold tabular-nums tracking-tight" />
+              <span className="text-xs text-muted-foreground">m</span>
+            </>
+          )}
         </div>
-        <div className="mt-3">
-          <div className="flex items-baseline gap-1">
-            <NumberTicker value={totalHours} className="text-2xl font-semibold tabular-nums tracking-tight" />
-            <span className="text-sm text-muted-foreground">h</span>
-            {totalMins > 0 && (
-              <>
-                <NumberTicker value={totalMins} className="text-2xl font-semibold tabular-nums tracking-tight" />
-                <span className="text-sm text-muted-foreground">m</span>
-              </>
-            )}
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">Total this course</p>
+        <div className="mt-2 flex items-center gap-1.5">
+          <Clock className="h-3 w-3 text-muted-foreground/60" />
+          <span className="text-[11px] text-muted-foreground">This course</span>
         </div>
       </div>
 
       {/* Accuracy */}
       <div className="metric-card">
-        <div className="flex items-center justify-between">
-          <ProgressRing value={accuracy} size={32} strokeWidth={3} color="#2563eb" />
-          <span className="text-xs font-medium text-muted-foreground">Accuracy</span>
-        </div>
-        <div className="mt-3">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Accuracy</p>
+        <div className="mt-2 flex items-center gap-2.5">
+          <ProgressRing value={accuracy} size={36} strokeWidth={3.5} color="var(--primary)" />
           <div className="flex items-baseline gap-0.5">
-            <NumberTicker value={accuracy} className="text-2xl font-semibold tabular-nums tracking-tight" />
-            <span className="text-sm text-muted-foreground">%</span>
+            <NumberTicker value={accuracy} className="text-xl font-bold tabular-nums tracking-tight" />
+            <span className="text-xs text-muted-foreground">%</span>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {answered > 0 ? `${answered.toLocaleString()} questions` : "No attempts yet"}
-          </p>
         </div>
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          {answered > 0 ? `${answered.toLocaleString()} Qs` : "No attempts"}
+        </p>
       </div>
 
       {/* Completion */}
       <div className="metric-card">
-        <div className="flex items-center justify-between">
-          <ProgressRing value={completion} size={32} strokeWidth={3} color="#8b5cf6" />
-          <span className="text-xs font-medium text-muted-foreground">Completion</span>
-        </div>
-        <div className="mt-3">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Completion</p>
+        <div className="mt-2 flex items-center gap-2.5">
+          <ProgressRing value={completion} size={36} strokeWidth={3.5} color="#7c3aed" />
           <div className="flex items-baseline gap-0.5">
-            <NumberTicker value={completion} className="text-2xl font-semibold tabular-nums tracking-tight" />
-            <span className="text-sm text-muted-foreground">%</span>
+            <NumberTicker value={completion} className="text-xl font-bold tabular-nums tracking-tight" />
+            <span className="text-xs text-muted-foreground">%</span>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {completion >= 100 ? "Course complete" : `${100 - completion}% remaining`}
-          </p>
         </div>
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          {completion >= 100 ? "Complete" : `${100 - completion}% left`}
+        </p>
       </div>
 
       {/* Streak */}
