@@ -200,7 +200,7 @@ jobs:
             --filter="status:DEPLOYING" \
             --format="table(name.basename(),status,updateTime)" 2>&1 || true
 
-          echo "--- gcloud deploy healthCheck (nodejs22) ---"
+          echo "--- Attempt 1: UPDATE healthCheck (nodejs22) ---"
           if gcloud functions deploy healthCheck \
             --project "${FIREBASE_PROJECT_ID}" \
             --region us-central1 \
@@ -212,30 +212,39 @@ jobs:
             --memory 256MB \
             --timeout 60s \
             2>&1; then
-            echo "=== gcloud probe SUCCEEDED (nodejs22) — runtime change is the fix ==="
+            echo "=== UPDATE SUCCEEDED (nodejs22) ==="
           else
-            echo "=== gcloud probe FAILED — fetching Cloud Build logs ==="
-            BUILD_ID=$(gcloud builds list \
-              --project="${FIREBASE_PROJECT_ID}" \
-              --region=us-central1 \
-              --limit=1 \
-              --filter="status=FAILURE OR status=CANCELLED OR status=TIMEOUT" \
-              --format="value(id)" 2>/dev/null || echo "")
+            echo "=== UPDATE still fails — trying DELETE + CREATE ==="
+            echo "--- Deleting healthCheck ---"
+            gcloud functions delete healthCheck \
+              --project "${FIREBASE_PROJECT_ID}" \
+              --region us-central1 \
+              --quiet 2>&1 || true
 
-            if [ -n "${BUILD_ID}" ]; then
-              echo "--- Cloud Build log for ${BUILD_ID} ---"
-              gcloud builds log "${BUILD_ID}" \
-                --project="${FIREBASE_PROJECT_ID}" \
-                --region=us-central1 2>&1 | tail -150 || true
+            echo "--- Sleeping 10s for deletion to propagate ---"
+            sleep 10
+
+            echo "--- CREATE healthCheck (fresh) ---"
+            if gcloud functions deploy healthCheck \
+              --project "${FIREBASE_PROJECT_ID}" \
+              --region us-central1 \
+              --runtime nodejs22 \
+              --trigger-http \
+              --allow-unauthenticated \
+              --source functions \
+              --entry-point healthCheck \
+              --memory 256MB \
+              --timeout 60s \
+              2>&1; then
+              echo "=== CREATE SUCCEEDED — the UPDATE path is broken, CREATE works ==="
+              echo "=== Will need to delete+create all functions ==="
             else
-              echo "No failed Cloud Build found (trying without filter)..."
-              gcloud builds list \
-                --project="${FIREBASE_PROJECT_ID}" \
-                --region=us-central1 \
-                --limit=3 \
-                --format="table(id,status,createTime)" 2>&1 || true
+              echo "=== CREATE ALSO FAILED — GCP project-level issue ==="
+              echo "File a support ticket at console.cloud.google.com/support"
+              echo "Project: medq-a6cc6, Region: us-central1"
+              echo "Error: code=13, message=None after successful Cloud Build"
+              exit 1
             fi
-            exit 1
           fi
 
       # ── Deploy all functions in 4 batches with retries ──────────────────────
