@@ -116,13 +116,6 @@ jobs:
             --project "${FIREBASE_PROJECT_ID}" \
             --force
 
-      # ── Cloud Functions: batch deploy (8 per batch) ──────────────────────────
-      # Root cause of previous failures: 32 simultaneous PATCH requests each
-      # trigger a separate Cloud Build job. Default concurrent-builds quota is 10,
-      # so 22 jobs queue, firebase-tools times out, and ALL report "Failed to update".
-      # Fix: deploy in groups of 8 — well within the 10-concurrent Cloud Build limit.
-      # The predeploy test hook is also removed here (tests already ran in the test job).
-
       - name: Strip predeploy hook (tests already passed in test job)
         run: |
           python3 - <<'PYEOF'
@@ -136,116 +129,77 @@ jobs:
           print("Predeploy hook removed.")
           PYEOF
 
-      - name: Wait for in-flight Cloud Functions operations to clear
-        shell: bash
-        run: |
-          set -euo pipefail
-          max_wait_sec=900
-          poll_sec=20
-          elapsed=0
-
-          while true; do
-            active_count=$(gcloud functions operations list \
-              --project "${FIREBASE_PROJECT_ID}" \
-              --region us-central1 \
-              --filter="done=false" \
-              --format="value(name)" 2>/dev/null | wc -l | tr -d ' ')
-
-            if [ "${active_count}" = "0" ]; then
-              echo "No in-flight operations detected."
-              break
-            fi
-
-            echo "Waiting for ${active_count} in-flight operations to complete..."
-            if [ "${elapsed}" -ge "${max_wait_sec}" ]; then
-              echo "Timed out waiting for prior operations."
-              gcloud functions operations list \
-                --project "${FIREBASE_PROJECT_ID}" \
-                --region us-central1 \
-                --limit=20 \
-                --format="table(name,done,error.code,error.message,metadata.target)" || true
-              exit 1
-            fi
-
-            sleep "${poll_sec}"
-            elapsed=$((elapsed + poll_sec))
-          done
-
-      # ── Bypass firebase-tools: deploy healthCheck via gcloud directly ──────────
-      # firebase deploy keeps failing with code 13 (INTERNAL) before Cloud Build
-      # is even triggered. gcloud gives the raw GCP error with full detail.
-      - name: Probe — deploy healthCheck via gcloud (bypass firebase-tools)
-        shell: bash
-        run: |
-          echo "=== Deploying healthCheck directly via gcloud ==="
-          gcloud functions deploy healthCheck \
-            --project "${FIREBASE_PROJECT_ID}" \
-            --region us-central1 \
-            --runtime nodejs20 \
-            --trigger-http \
-            --security-level secure-always \
-            --no-allow-unauthenticated \
-            --source functions \
-            --entry-point healthCheck \
-            --memory 256MB \
-            --timeout 60s \
-            --verbosity=debug \
-            2>&1 || {
-              echo ""
-              echo "=== gcloud deploy ALSO FAILED — GCP-level issue confirmed ==="
-              echo "--- Recent operations ---"
-              gcloud functions operations list \
-                --project "${FIREBASE_PROJECT_ID}" \
-                --region us-central1 \
-                --limit=5 \
-                --format="table(name.basename(),done,error.code,error.message)" || true
-              exit 1
-            }
-          echo "=== gcloud deploy SUCCEEDED — switching all deploys to gcloud ==="
-
-      # If gcloud probe succeeded, use firebase for the rest (firebase handles
-      # secrets, env vars, and all the config from firebase.json properly)
-      - name: Deploy probe — healthCheck via firebase
-        run: |
-          firebase deploy \
-            --only functions:healthCheck \
-            --project "${FIREBASE_PROJECT_ID}" \
-            --force \
-            --non-interactive
-
+      # ── Deploy all functions in 4 batches with retries ──────────────────────
+      # No set -euo pipefail — we handle errors explicitly via retry logic.
       - name: Deploy functions in 4 batches (with retries)
         shell: bash
         run: |
-          set -euo pipefail
+          echo "firebase-tools version: $(firebase --version)"
+          echo "gcloud version: $(gcloud --version | head -1)"
 
           deploy_batch() {
-            label="$1"
-            only_targets="$2"
-            max_attempts=3
-            attempt=1
+            local label="$1"
+            local only_targets="$2"
+            local max_attempts=3
+            local attempt=1
 
-            until firebase deploy \
-                --only "${only_targets}" \
-                --project "${FIREBASE_PROJECT_ID}" \
-                --force \
-                --non-interactive; do
-              echo "${label} failed (attempt ${attempt}/${max_attempts})."
-              gcloud functions operations list \
-                --project "${FIREBASE_PROJECT_ID}" \
-                --region us-central1 \
-                --limit=12 \
-                --format="table(name,done,error.code,error.message,metadata.target)" || true
+            echo ""
+            echo "========================================="
+            echo "  ${label}"
+            echo "========================================="
+
+            while true; do
+              echo "[${label}] Attempt ${attempt}/${max_attempts}..."
+              if firebase deploy \
+                  --only "${only_targets}" \
+                  --project "${FIREBASE_PROJECT_ID}" \
+                  --force \
+                  --non-interactive \
+                  --debug > /tmp/deploy.log 2>&1; then
+                echo "[${label}] SUCCESS"
+                tail -20 /tmp/deploy.log
+                return 0
+              fi
+
+              echo "[${label}] FAILED — last 80 lines of debug output:"
+              tail -80 /tmp/deploy.log
+              echo "[${label}] FAILED (attempt ${attempt}/${max_attempts})"
 
               if [ "${attempt}" -ge "${max_attempts}" ]; then
-                echo "${label} failed after ${max_attempts} attempts."
-                exit 1
+                echo "[${label}] Giving up after ${max_attempts} attempts."
+                return 1
               fi
+
+              local wait_sec=$((attempt * 45))
+              echo "[${label}] Waiting ${wait_sec}s before retry..."
+              sleep "${wait_sec}"
               attempt=$((attempt + 1))
-              sleep $((attempt * 30))
             done
           }
 
-          deploy_batch "Batch 1/4" "functions:processDocumentBatch,functions:processUploadedFile,functions:deleteFile,functions:processSection,functions:generateSectionSummary,functions:sendChatMessage,functions:exploreQuiz,functions:processQuestionBackfillJob"
-          deploy_batch "Batch 2/4" "functions:exploreTopicInsight,functions:deleteUserData,functions:generateSchedule,functions:processExploreBackfillJob,functions:getTutorHelp,functions:reprocessBlueprints,functions:generateQuestions,functions:retryFailedSections"
-          deploy_batch "Batch 3/4" "functions:generateExamBankQuestions,functions:regenSchedule,functions:catchUp,functions:computeWeakness,functions:finishAssessmentSession,functions:getQuiz,functions:createCourse,functions:submitAssessmentAnswer"
-          deploy_batch "Batch 4/4" "functions:healthCheck,functions:getAssessmentCatalog,functions:startAssessmentSession,functions:flagQuestion,functions:submitAttempt,functions:runFixPlan,functions:seedSampleDeck,functions:trackActivity"
+          failed=0
+
+          deploy_batch "Batch 1/4" "functions:processDocumentBatch,functions:processUploadedFile,functions:deleteFile,functions:processSection,functions:generateSectionSummary,functions:sendChatMessage,functions:exploreQuiz,functions:processQuestionBackfillJob" || failed=1
+
+          if [ "$failed" = "1" ]; then
+            echo ""
+            echo "=== BATCH 1 FAILED — dumping diagnostics ==="
+            echo "--- gcloud functions list (current state) ---"
+            gcloud functions list --project "${FIREBASE_PROJECT_ID}" --format="table(name.basename(),status,updateTime)" 2>&1 || true
+            echo "--- gcloud operations (recent) ---"
+            gcloud functions operations list --project "${FIREBASE_PROJECT_ID}" --limit=10 --format="table(name.basename(),done,error.code,error.message)" 2>&1 || true
+            exit 1
+          fi
+
+          deploy_batch "Batch 2/4" "functions:exploreTopicInsight,functions:deleteUserData,functions:generateSchedule,functions:processExploreBackfillJob,functions:getTutorHelp,functions:reprocessBlueprints,functions:generateQuestions,functions:retryFailedSections" || failed=1
+          deploy_batch "Batch 3/4" "functions:generateExamBankQuestions,functions:regenSchedule,functions:catchUp,functions:computeWeakness,functions:finishAssessmentSession,functions:getQuiz,functions:createCourse,functions:submitAssessmentAnswer" || failed=1
+          deploy_batch "Batch 4/4" "functions:healthCheck,functions:getAssessmentCatalog,functions:startAssessmentSession,functions:flagQuestion,functions:submitAttempt,functions:runFixPlan,functions:seedSampleDeck,functions:trackActivity" || failed=1
+
+          if [ "$failed" = "1" ]; then
+            echo ""
+            echo "=== SOME BATCHES FAILED ==="
+            exit 1
+          fi
+
+          echo ""
+          echo "=== ALL 4 BATCHES DEPLOYED SUCCESSFULLY ==="
