@@ -260,6 +260,30 @@ jobs:
             elapsed=$((elapsed + poll))
           done
 
+      - name: Preflight Cloud Functions control-plane checks
+        shell: bash
+        run: |
+          PROJECT_NUMBER=$(gcloud projects describe "${FIREBASE_PROJECT_ID}" --format="value(projectNumber)")
+          echo "Project number: ${PROJECT_NUMBER}"
+
+          echo "--- Service account existence checks ---"
+          for SA in \
+            "${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+            "${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
+            "${FIREBASE_PROJECT_ID}@appspot.gserviceaccount.com" \
+            "service-${PROJECT_NUMBER}@gcf-admin-robot.iam.gserviceaccount.com"; do
+            echo "Checking SA: ${SA}"
+            gcloud iam service-accounts describe "${SA}" \
+              --project "${FIREBASE_PROJECT_ID}" \
+              --format="value(email)" 2>&1 || true
+          done
+
+          echo "--- Org policy hints (if allowed) ---"
+          gcloud resource-manager org-policies describe constraints/cloudfunctions.requireV2 \
+            --project "${FIREBASE_PROJECT_ID}" 2>&1 || true
+          gcloud resource-manager org-policies describe constraints/gcp.resourceLocations \
+            --project "${FIREBASE_PROJECT_ID}" 2>&1 || true
+
       # ── Deploy all functions in 4 batches with retries ──────────────────────
       # No set -euo pipefail — we handle errors explicitly via retry logic.
       - name: Deploy functions in 4 batches (with retries)
@@ -283,6 +307,48 @@ jobs:
               --freshness="60m" \
               --limit=20 \
               --format='table(timestamp,resource.type,protoPayload.methodName,protoPayload.resourceName,protoPayload.status.code,protoPayload.status.message)' 2>&1 || true
+          }
+
+          print_cf_operation_errors() {
+            echo "--- Cloud Functions operations API (recent failed ops) ---"
+            TOKEN=$(gcloud auth print-access-token)
+            curl -s -H "Authorization: Bearer ${TOKEN}" \
+              "https://cloudfunctions.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/locations/us-central1/operations?pageSize=100" \
+              | python3 - <<'PY'
+import json, sys
+try:
+    data = json.load(sys.stdin)
+except Exception as e:
+    print(f"Failed to parse operations JSON: {e}")
+    raise SystemExit(0)
+
+ops = data.get("operations", [])
+failed = []
+for op in ops:
+    if op.get("done") and op.get("error"):
+        failed.append(op)
+
+def op_ts(op):
+    md = op.get("metadata", {})
+    return md.get("updateTime") or md.get("insertTime") or ""
+
+failed.sort(key=op_ts, reverse=True)
+if not failed:
+    print("No failed operations returned.")
+    raise SystemExit(0)
+
+for op in failed[:15]:
+    md = op.get("metadata", {})
+    err = op.get("error", {})
+    print(f"time={op_ts(op)}")
+    print(f"target={md.get('target')}")
+    print(f"type={md.get('type')}")
+    print(f"code={err.get('code')} message={err.get('message')}")
+    details = err.get("details", [])
+    if details:
+        print(f"details[0]={details[0]}")
+    print("---")
+PY
           }
 
           deploy_batch() {
@@ -312,6 +378,7 @@ jobs:
               echo "[${label}] FAILED — debug output (base64 to bypass masking):"
               tail -80 /tmp/deploy.log | base64
               print_audit_errors
+              print_cf_operation_errors
               echo "[${label}] FAILED (attempt ${attempt}/${max_attempts})"
 
               if [ "${attempt}" -ge "${max_attempts}" ]; then
@@ -376,6 +443,7 @@ jobs:
             echo "--- Full deploy log (base64) ---"
             tail -120 /tmp/deploy.log 2>&1 | base64 || true
             print_audit_errors
+            print_cf_operation_errors
             exit 1
           fi
 
@@ -387,6 +455,7 @@ jobs:
             echo ""
             echo "=== SOME BATCHES FAILED ==="
             print_audit_errors
+            print_cf_operation_errors
             exit 1
           fi
 
