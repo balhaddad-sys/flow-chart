@@ -180,6 +180,24 @@ jobs:
             --project="${FIREBASE_PROJECT_ID}" \
             --location=us-central1 2>&1 || true
 
+          # ── Project-level builder roles for compute SA ──────────────────────
+          # GCP changed the default Cloud Build SA — the compute SA now needs
+          # explicit Cloud Build + Cloud Run builder roles at the project level.
+          CB_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+          echo "=== Granting project-level builder roles to ${CB_SA} ==="
+
+          gcloud projects add-iam-policy-binding "${FIREBASE_PROJECT_ID}" \
+            --member="serviceAccount:${CB_SA}" \
+            --role="roles/cloudbuild.builds.builder" \
+            --condition=None 2>&1 | tail -3 || true
+
+          gcloud projects add-iam-policy-binding "${FIREBASE_PROJECT_ID}" \
+            --member="serviceAccount:${CB_SA}" \
+            --role="roles/run.builder" \
+            --condition=None 2>&1 | tail -3 || true
+
+          echo "=== Project-level builder roles granted ==="
+
       # ── Wait for ALL stuck operations to clear ──────────────────────────────
       # Previous CI runs (cancelled by concurrency: cancel-in-progress) left
       # orphaned GCP operations that block all deploy/delete/update actions.
