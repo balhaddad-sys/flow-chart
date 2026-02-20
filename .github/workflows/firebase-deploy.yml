@@ -12,6 +12,12 @@ env:
   FIREBASE_PROJECT_ID: medq-a6cc6
   NODE_VERSION: '20'
 
+# Only one deploy pipeline runs at a time; cancels any queued run.
+# Prevents concurrent Cloud Functions operations (GCP allows 1 op/function).
+concurrency:
+  group: firebase-deploy
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -130,74 +136,138 @@ jobs:
           print("Predeploy hook removed.")
           PYEOF
 
-      # ── Diagnostic probe: deploy ONE function and show Cloud Build log on failure ──
-      # This will reveal the exact Cloud Build error (npm error, push failure, etc.)
-      - name: Deploy probe — healthCheck only (with Cloud Build log on failure)
+      - name: Wait for in-flight Cloud Functions operations to clear
         shell: bash
         run: |
-          if firebase deploy \
+          set -euo pipefail
+          max_wait_sec=900
+          poll_sec=20
+          elapsed=0
+
+          while true; do
+            active_count=$(gcloud functions operations list \
+              --project "${FIREBASE_PROJECT_ID}" \
+              --region us-central1 \
+              --filter="done=false" \
+              --format="value(name)" 2>/dev/null | wc -l | tr -d ' ')
+
+            if [ "${active_count}" = "0" ]; then
+              echo "No in-flight operations detected."
+              break
+            fi
+
+            echo "Waiting for ${active_count} in-flight operations to complete..."
+            if [ "${elapsed}" -ge "${max_wait_sec}" ]; then
+              echo "Timed out waiting for prior operations."
+              gcloud functions operations list \
+                --project "${FIREBASE_PROJECT_ID}" \
+                --region us-central1 \
+                --limit=20 \
+                --format="table(name,done,error.code,error.message,metadata.target)" || true
+              exit 1
+            fi
+
+            sleep "${poll_sec}"
+            elapsed=$((elapsed + poll_sec))
+          done
+
+      # ── Diagnostic probe: deploy ONE function and show operation/build diagnostics on failure ──
+      - name: Deploy probe — healthCheck only (with retries + diagnostics)
+        shell: bash
+        run: |
+          set -euo pipefail
+          max_attempts=3
+          attempt=1
+
+          until firebase deploy \
               --only functions:healthCheck \
               --project "${FIREBASE_PROJECT_ID}" \
-              --force 2>&1; then
-            echo "=== Probe SUCCEEDED — proceeding to full batch deploy ==="
-          else
-            echo ""
-            echo "=== Probe FAILED — fetching Cloud Build logs ==="
+              --force \
+              --non-interactive; do
+            echo "Probe attempt ${attempt}/${max_attempts} failed."
 
-            # Show the 3 most recent builds (all statuses) so we can see the failed one
-            echo "--- Recent Cloud Build jobs ---"
+            echo ""
+            echo "--- Recent Cloud Functions operations ---"
+            gcloud functions operations list \
+              --project "${FIREBASE_PROJECT_ID}" \
+              --region us-central1 \
+              --limit=12 \
+              --format="table(name,done,error.code,error.message,metadata.target)" || true
+
+            latest_op=$(gcloud functions operations list \
+              --project "${FIREBASE_PROJECT_ID}" \
+              --region us-central1 \
+              --limit=1 \
+              --format="value(name)" 2>/dev/null || true)
+            if [ -n "${latest_op}" ]; then
+              echo ""
+              echo "--- Latest operation detail (${latest_op}) ---"
+              gcloud functions operations describe "${latest_op}" \
+                --project "${FIREBASE_PROJECT_ID}" \
+                --region us-central1 \
+                --format="json" || true
+            fi
+
+            echo ""
+            echo "--- Recent Cloud Build jobs (all statuses) ---"
             gcloud builds list \
               --project "${FIREBASE_PROJECT_ID}" \
-              --limit=5 \
-              --format="table(id,status,createTime,finishTime,source.storageSource.bucket)" \
-              2>&1 || true
+              --limit=8 \
+              --format="table(id,status,createTime,finishTime)" || true
 
-            echo ""
-            echo "--- Log from most recent FAILED build ---"
-            FAILED_ID=$(gcloud builds list \
+            latest_build=$(gcloud builds list \
               --project "${FIREBASE_PROJECT_ID}" \
-              --filter="status=FAILURE" \
               --limit=1 \
-              --format="value(id)" 2>/dev/null)
-
-            if [ -n "$FAILED_ID" ]; then
-              echo "Build ID: $FAILED_ID"
-              gcloud builds log "$FAILED_ID" \
-                --project "${FIREBASE_PROJECT_ID}" 2>&1 | tail -120 || true
-            else
-              echo "No FAILURE status build found. Listing all recent builds:"
-              gcloud builds list \
-                --project "${FIREBASE_PROJECT_ID}" \
-                --limit=3 \
-                --format="table(id,status)" 2>&1 || true
+              --format="value(id)" 2>/dev/null || true)
+            if [ -n "${latest_build}" ]; then
+              echo ""
+              echo "--- Log from latest build (${latest_build}) ---"
+              gcloud builds log "${latest_build}" \
+                --project "${FIREBASE_PROJECT_ID}" 2>&1 | tail -200 || true
             fi
-            exit 1
-          fi
 
-      - name: Deploy functions — batch 1 of 4
-        run: |
-          firebase deploy \
-            --only functions:processDocumentBatch,functions:processUploadedFile,functions:deleteFile,functions:processSection,functions:generateSectionSummary,functions:sendChatMessage,functions:exploreQuiz,functions:processQuestionBackfillJob \
-            --project "${FIREBASE_PROJECT_ID}" \
-            --force
+            if [ "${attempt}" -ge "${max_attempts}" ]; then
+              echo "Probe failed after ${max_attempts} attempts."
+              exit 1
+            fi
+            attempt=$((attempt + 1))
+            sleep $((attempt * 20))
+          done
+          echo "=== Probe SUCCEEDED — proceeding to full batch deploy ==="
 
-      - name: Deploy functions — batch 2 of 4
+      - name: Deploy functions in 4 batches (with retries)
+        shell: bash
         run: |
-          firebase deploy \
-            --only functions:exploreTopicInsight,functions:deleteUserData,functions:generateSchedule,functions:processExploreBackfillJob,functions:getTutorHelp,functions:reprocessBlueprints,functions:generateQuestions,functions:retryFailedSections \
-            --project "${FIREBASE_PROJECT_ID}" \
-            --force
+          set -euo pipefail
 
-      - name: Deploy functions — batch 3 of 4
-        run: |
-          firebase deploy \
-            --only functions:generateExamBankQuestions,functions:regenSchedule,functions:catchUp,functions:computeWeakness,functions:finishAssessmentSession,functions:getQuiz,functions:createCourse,functions:submitAssessmentAnswer \
-            --project "${FIREBASE_PROJECT_ID}" \
-            --force
+          deploy_batch() {
+            label="$1"
+            only_targets="$2"
+            max_attempts=3
+            attempt=1
 
-      - name: Deploy functions — batch 4 of 4
-        run: |
-          firebase deploy \
-            --only functions:healthCheck,functions:getAssessmentCatalog,functions:startAssessmentSession,functions:flagQuestion,functions:submitAttempt,functions:runFixPlan,functions:seedSampleDeck,functions:trackActivity \
-            --project "${FIREBASE_PROJECT_ID}" \
-            --force
+            until firebase deploy \
+                --only "${only_targets}" \
+                --project "${FIREBASE_PROJECT_ID}" \
+                --force \
+                --non-interactive; do
+              echo "${label} failed (attempt ${attempt}/${max_attempts})."
+              gcloud functions operations list \
+                --project "${FIREBASE_PROJECT_ID}" \
+                --region us-central1 \
+                --limit=12 \
+                --format="table(name,done,error.code,error.message,metadata.target)" || true
+
+              if [ "${attempt}" -ge "${max_attempts}" ]; then
+                echo "${label} failed after ${max_attempts} attempts."
+                exit 1
+              fi
+              attempt=$((attempt + 1))
+              sleep $((attempt * 30))
+            done
+          }
+
+          deploy_batch "Batch 1/4" "functions:processDocumentBatch,functions:processUploadedFile,functions:deleteFile,functions:processSection,functions:generateSectionSummary,functions:sendChatMessage,functions:exploreQuiz,functions:processQuestionBackfillJob"
+          deploy_batch "Batch 2/4" "functions:exploreTopicInsight,functions:deleteUserData,functions:generateSchedule,functions:processExploreBackfillJob,functions:getTutorHelp,functions:reprocessBlueprints,functions:generateQuestions,functions:retryFailedSections"
+          deploy_batch "Batch 3/4" "functions:generateExamBankQuestions,functions:regenSchedule,functions:catchUp,functions:computeWeakness,functions:finishAssessmentSession,functions:getQuiz,functions:createCourse,functions:submitAssessmentAnswer"
+          deploy_batch "Batch 4/4" "functions:healthCheck,functions:getAssessmentCatalog,functions:startAssessmentSession,functions:flagQuestion,functions:submitAttempt,functions:runFixPlan,functions:seedSampleDeck,functions:trackActivity"
