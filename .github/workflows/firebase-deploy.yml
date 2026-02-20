@@ -186,8 +186,8 @@ jobs:
             echo "=== BATCH 1 FAILED — dumping diagnostics ==="
             echo "--- gcloud functions list (current state) ---"
             gcloud functions list --project "${FIREBASE_PROJECT_ID}" --format="table(name.basename(),status,updateTime)" 2>&1 || true
-            echo "--- gcloud operations (recent) ---"
-            gcloud functions operations list --project "${FIREBASE_PROJECT_ID}" --limit=10 --format="table(name.basename(),done,error.code,error.message)" 2>&1 || true
+            echo "--- Full deploy log (last 120 lines) ---"
+            tail -120 /tmp/deploy.log 2>&1 || true
             exit 1
           fi
 
