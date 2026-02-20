@@ -284,6 +284,43 @@ jobs:
           gcloud resource-manager org-policies describe constraints/gcp.resourceLocations \
             --project "${FIREBASE_PROJECT_ID}" 2>&1 || true
 
+      # ── Write helper script for parsing Cloud Functions operations ────────
+      - name: Write operations parser script
+        shell: python3 {0}
+        run: |
+          script = '''\
+          import json, sys
+          try:
+              data = json.load(sys.stdin)
+          except Exception as e:
+              print(f"Failed to parse operations JSON: {e}")
+              raise SystemExit(0)
+          ops = data.get("operations", [])
+          failed = [op for op in ops if op.get("done") and op.get("error")]
+          def op_ts(op):
+              md = op.get("metadata", {})
+              return md.get("updateTime") or md.get("insertTime") or ""
+          failed.sort(key=op_ts, reverse=True)
+          if not failed:
+              print("No failed operations returned.")
+              raise SystemExit(0)
+          for op in failed[:15]:
+              md = op.get("metadata", {})
+              err = op.get("error", {})
+              print(f"time={op_ts(op)}")
+              print(f"target={md.get('target')}")
+              print(f"type={md.get('type')}")
+              print(f"code={err.get('code')} message={err.get('message')}")
+              details = err.get("details", [])
+              if details:
+                  print(f"details[0]={details[0]}")
+              print("---")
+          '''
+          import textwrap
+          with open("/tmp/parse_ops.py", "w") as f:
+              f.write(textwrap.dedent(script))
+          print("Wrote /tmp/parse_ops.py")
+
       # ── Deploy all functions in 4 batches with retries ──────────────────────
       # No set -euo pipefail — we handle errors explicitly via retry logic.
       - name: Deploy functions in 4 batches (with retries)
@@ -314,41 +351,7 @@ jobs:
             TOKEN=$(gcloud auth print-access-token)
             curl -s -H "Authorization: Bearer ${TOKEN}" \
               "https://cloudfunctions.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/locations/us-central1/operations?pageSize=100" \
-              | python3 - <<'PY'
-import json, sys
-try:
-    data = json.load(sys.stdin)
-except Exception as e:
-    print(f"Failed to parse operations JSON: {e}")
-    raise SystemExit(0)
-
-ops = data.get("operations", [])
-failed = []
-for op in ops:
-    if op.get("done") and op.get("error"):
-        failed.append(op)
-
-def op_ts(op):
-    md = op.get("metadata", {})
-    return md.get("updateTime") or md.get("insertTime") or ""
-
-failed.sort(key=op_ts, reverse=True)
-if not failed:
-    print("No failed operations returned.")
-    raise SystemExit(0)
-
-for op in failed[:15]:
-    md = op.get("metadata", {})
-    err = op.get("error", {})
-    print(f"time={op_ts(op)}")
-    print(f"target={md.get('target')}")
-    print(f"type={md.get('type')}")
-    print(f"code={err.get('code')} message={err.get('message')}")
-    details = err.get("details", [])
-    if details:
-        print(f"details[0]={details[0]}")
-    print("---")
-PY
+              | python3 /tmp/parse_ops.py || true
           }
 
           deploy_batch() {
