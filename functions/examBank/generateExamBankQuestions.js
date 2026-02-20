@@ -16,7 +16,8 @@ const { db } = require("../lib/firestore");
 const { Errors, fail, ok, safeError } = require("../lib/errors");
 const log = require("../lib/logger");
 const { getAssessmentLevel } = require("../assessment/engine");
-const { callClaude, MAX_TOKENS } = require("../ai/aiClient");
+const { generateQuestions: geminiGenerate } = require("../ai/geminiClient");
+const { generateQuestions: claudeGenerate } = require("../ai/aiClient");
 const { EXPLORE_QUESTIONS_SYSTEM, exploreQuestionsUserPrompt } = require("../ai/prompts");
 const { normaliseQuestion } = require("../lib/serialize");
 const { EXAM_PLAYBOOKS, buildExamPlaybookPrompt, normalizeExamType } = require("../ai/examPlaybooks");
@@ -99,7 +100,7 @@ exports.generateExamBankQuestions = functions
   .runWith({
     timeoutSeconds: 180,
     memory: "512MB",
-    // Both secrets must be listed — callClaude reads ANTHROPIC_API_KEY at runtime
+    // Gemini = primary generator; Claude = fallback (both secrets needed)
     secrets: [geminiApiKey, anthropicApiKey],
   })
   .https.onCall(async (data, context) => {
@@ -170,20 +171,31 @@ exports.generateExamBankQuestions = functions
         excludeStems,
       });
 
-      // Call Claude directly — guaranteed usage, no Gemini routing
-      const raw = await callClaude(
-        EXPLORE_QUESTIONS_SYSTEM,
-        userPrompt,
-        "LIGHT",
-        MAX_TOKENS.questions,
-        2,
-        true, // usePrefill — forces JSON-only response
-      );
+      // Primary: Gemini (fast, low latency). Claude guides via learnedContext in prompt.
+      const geminiOpts = {
+        maxTokens: 3800,
+        retries: 1,
+        temperature: 0.12,
+        rateLimitMaxRetries: 1,
+        rateLimitRetryDelayMs: 2500,
+      };
+      let generationResult = await geminiGenerate(EXPLORE_QUESTIONS_SYSTEM, userPrompt, geminiOpts);
+      let modelUsed = "gemini";
 
-      const rawQuestions = Array.isArray(raw?.questions) ? raw.questions : [];
+      // Fallback: Claude if Gemini fails or returns nothing
+      if (!generationResult.success || !Array.isArray(generationResult.data?.questions) || generationResult.data.questions.length === 0) {
+        log.warn("Gemini exam bank generation failed, falling back to Claude", {
+          uid, examType, domain, geminiError: generationResult.error,
+        });
+        const claudeOpts = { maxTokens: 4200, retries: 1, usePrefill: false };
+        generationResult = await claudeGenerate(EXPLORE_QUESTIONS_SYSTEM, userPrompt, claudeOpts);
+        modelUsed = "claude-fallback";
+      }
+
+      const rawQuestions = Array.isArray(generationResult.data?.questions) ? generationResult.data.questions : [];
 
       if (rawQuestions.length === 0) {
-        return fail(Errors.AI_FAILED, "Claude returned no questions. Please try again.");
+        return fail(Errors.AI_FAILED, "No questions returned. Please try again.");
       }
 
       // Normalise (snake_case → camelCase, type enforcement, defaults)
@@ -239,7 +251,7 @@ exports.generateExamBankQuestions = functions
         totalCount: merged.length,
         domain,
         examType,
-        modelUsed: "claude-haiku-4-5",
+        modelUsed,
       });
     } catch (error) {
       log.error("Exam bank generation failed", {
