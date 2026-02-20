@@ -12,11 +12,13 @@ env:
   FIREBASE_PROJECT_ID: medq-a6cc6
   NODE_VERSION: '22'
 
-# Only one deploy pipeline runs at a time; cancels any queued run.
-# Prevents concurrent Cloud Functions operations (GCP allows 1 op/function).
+# Only one deploy pipeline runs at a time; queues the next run.
+# cancel-in-progress is FALSE because cancelling a CI run does NOT cancel
+# the GCP operations it spawned, leaving orphaned "in progress" operations
+# that block ALL subsequent deploys with "operation already in progress".
 concurrency:
   group: firebase-deploy
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   test:
@@ -178,64 +180,59 @@ jobs:
             --project="${FIREBASE_PROJECT_ID}" \
             --location=us-central1 2>&1 || true
 
-      # ── gcloud probe: fetch Cloud Build logs to see exact failure point ──────
-      - name: gcloud probe — deploy healthCheck + fetch Cloud Build logs on failure
+      # ── Wait for ALL stuck operations to clear ──────────────────────────────
+      # Previous CI runs (cancelled by concurrency: cancel-in-progress) left
+      # orphaned GCP operations that block all deploy/delete/update actions.
+      # Uses the Cloud Functions REST API (gcloud doesn't have operations list).
+      - name: Wait for all in-flight Cloud Functions operations to clear
         shell: bash
         run: |
-          echo "=== Probing with gcloud functions deploy ==="
-          echo "--- Current function states (DEPLOYING = stuck op) ---"
-          gcloud functions list \
-            --project "${FIREBASE_PROJECT_ID}" \
-            --regions us-central1 \
-            --filter="status:DEPLOYING" \
-            --format="table(name.basename(),status,updateTime)" 2>&1 || true
+          TOKEN=$(gcloud auth print-access-token)
+          API="https://cloudfunctions.googleapis.com/v1"
+          LOCATION="projects/${FIREBASE_PROJECT_ID}/locations/us-central1"
+          max_wait=600
+          elapsed=0
+          poll=15
 
-          echo "--- Attempt 1: UPDATE healthCheck (nodejs22) ---"
-          if gcloud functions deploy healthCheck \
-            --project "${FIREBASE_PROJECT_ID}" \
-            --region us-central1 \
-            --runtime nodejs22 \
-            --trigger-http \
-            --allow-unauthenticated \
-            --source functions \
-            --entry-point healthCheck \
-            --memory 256MB \
-            --timeout 60s \
-            2>&1; then
-            echo "=== UPDATE SUCCEEDED (nodejs22) ==="
-          else
-            echo "=== UPDATE still fails — trying DELETE + CREATE ==="
-            echo "--- Deleting healthCheck ---"
-            gcloud functions delete healthCheck \
-              --project "${FIREBASE_PROJECT_ID}" \
-              --region us-central1 \
-              --quiet 2>&1 || true
+          while true; do
+            response=$(curl -s -H "Authorization: Bearer ${TOKEN}" \
+              "${API}/${LOCATION}/operations?filter=done%3Dfalse")
 
-            echo "--- Sleeping 10s for deletion to propagate ---"
-            sleep 10
+            count=$(echo "$response" | python3 -c "
+          import sys, json
+          try:
+              data = json.load(sys.stdin)
+              ops = data.get('operations', [])
+              print(len(ops))
+              for op in ops[:5]:
+                  name = op.get('metadata', {}).get('target', op.get('name', 'unknown'))
+                  print(f'  in-flight: {name}', file=sys.stderr)
+          except:
+              print('0')
+          " 2>&1)
 
-            echo "--- CREATE healthCheck (fresh) ---"
-            if gcloud functions deploy healthCheck \
-              --project "${FIREBASE_PROJECT_ID}" \
-              --region us-central1 \
-              --runtime nodejs22 \
-              --trigger-http \
-              --allow-unauthenticated \
-              --source functions \
-              --entry-point healthCheck \
-              --memory 256MB \
-              --timeout 60s \
-              2>&1; then
-              echo "=== CREATE SUCCEEDED — the UPDATE path is broken, CREATE works ==="
-              echo "=== Will need to delete+create all functions ==="
-            else
-              echo "=== CREATE ALSO FAILED — GCP project-level issue ==="
-              echo "File a support ticket at console.cloud.google.com/support"
-              echo "Project: medq-a6cc6, Region: us-central1"
-              echo "Error: code=13, message=None after successful Cloud Build"
+            echo "${count}"
+            active=$(echo "$count" | head -1)
+
+            if [ "$active" = "0" ]; then
+              echo "No in-flight operations. Safe to deploy."
+              break
+            fi
+
+            echo "Waiting for ${active} in-flight operations to clear... (${elapsed}s/${max_wait}s)"
+
+            if [ "$elapsed" -ge "$max_wait" ]; then
+              echo "Timed out waiting. Dumping stuck operations:"
+              echo "$response" | python3 -m json.tool 2>/dev/null || echo "$response"
+              echo ""
+              echo "These operations were likely orphaned by cancelled CI runs."
+              echo "They should auto-expire. Wait ~10 min and re-run the pipeline."
               exit 1
             fi
-          fi
+
+            sleep "$poll"
+            elapsed=$((elapsed + poll))
+          done
 
       # ── Deploy all functions in 4 batches with retries ──────────────────────
       # No set -euo pipefail — we handle errors explicitly via retry logic.
