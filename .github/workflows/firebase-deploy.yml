@@ -130,6 +130,50 @@ jobs:
           print("Predeploy hook removed.")
           PYEOF
 
+      # ── Diagnostic probe: deploy ONE function and show Cloud Build log on failure ──
+      # This will reveal the exact Cloud Build error (npm error, push failure, etc.)
+      - name: Deploy probe — healthCheck only (with Cloud Build log on failure)
+        shell: bash
+        run: |
+          if firebase deploy \
+              --only functions:healthCheck \
+              --project "${FIREBASE_PROJECT_ID}" \
+              --force 2>&1; then
+            echo "=== Probe SUCCEEDED — proceeding to full batch deploy ==="
+          else
+            echo ""
+            echo "=== Probe FAILED — fetching Cloud Build logs ==="
+
+            # Show the 3 most recent builds (all statuses) so we can see the failed one
+            echo "--- Recent Cloud Build jobs ---"
+            gcloud builds list \
+              --project "${FIREBASE_PROJECT_ID}" \
+              --limit=5 \
+              --format="table(id,status,createTime,finishTime,source.storageSource.bucket)" \
+              2>&1 || true
+
+            echo ""
+            echo "--- Log from most recent FAILED build ---"
+            FAILED_ID=$(gcloud builds list \
+              --project "${FIREBASE_PROJECT_ID}" \
+              --filter="status=FAILURE" \
+              --limit=1 \
+              --format="value(id)" 2>/dev/null)
+
+            if [ -n "$FAILED_ID" ]; then
+              echo "Build ID: $FAILED_ID"
+              gcloud builds log "$FAILED_ID" \
+                --project "${FIREBASE_PROJECT_ID}" 2>&1 | tail -120 || true
+            else
+              echo "No FAILURE status build found. Listing all recent builds:"
+              gcloud builds list \
+                --project "${FIREBASE_PROJECT_ID}" \
+                --limit=3 \
+                --format="table(id,status)" 2>&1 || true
+            fi
+            exit 1
+          fi
+
       - name: Deploy functions — batch 1 of 4
         run: |
           firebase deploy \
