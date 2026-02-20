@@ -75,39 +75,67 @@ jobs:
       - name: Install Cloud Functions dependencies
         run: cd functions && npm ci
 
-      - name: Deploy Cloud Functions, Firestore rules/indexes, and Storage rules
+      - name: Authenticate to Google Cloud
         shell: bash
         env:
           SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
-          SA_FILE="$(mktemp -t sa-XXXXXX.json)"
+          # Write credentials file
+          SA_FILE="${HOME}/sa-key.json"
           printf '%s' "$SA_JSON" > "$SA_FILE"
-          export GOOGLE_APPLICATION_CREDENTIALS="$SA_FILE"
 
-          # Verify credentials are accepted before attempting deploy
-          echo "=== Verifying auth / listing existing functions ==="
-          firebase functions:list --project "${FIREBASE_PROJECT_ID}" 2>&1 | head -20 || true
+          # Validate JSON and print service account email for diagnostics
+          python3 -c "
+          import json, sys
+          with open('${SA_FILE}') as f:
+              d = json.load(f)
+          print('SA email:', d.get('client_email','MISSING'))
+          print('Project:  ', d.get('project_id','MISSING'))
+          print('Key type: ', d.get('type','MISSING'))
+          "
 
+          # Activate via gcloud so firebase-tools picks up credentials from ADC
+          gcloud auth activate-service-account \
+            --key-file="${SA_FILE}" \
+            --project="${FIREBASE_PROJECT_ID}"
+
+          # Belt-and-suspenders: also set GOOGLE_APPLICATION_CREDENTIALS
+          echo "GOOGLE_APPLICATION_CREDENTIALS=${SA_FILE}" >> "$GITHUB_ENV"
+          echo "SA_FILE=${SA_FILE}"                        >> "$GITHUB_ENV"
+
+      - name: Verify auth — list functions
+        run: |
+          echo "=== firebase functions:list ==="
+          firebase functions:list --project "${FIREBASE_PROJECT_ID}" 2>&1 | head -30 || true
+          echo ""
+          echo "=== gcloud functions list ==="
+          gcloud functions list --project "${FIREBASE_PROJECT_ID}" --limit=5 2>&1 | head -20 || true
+
+      - name: Deploy — probe single function first
+        shell: bash
+        run: |
           set -euo pipefail
-          LOG_FILE="$(mktemp -t firebase-deploy-XXXXXX.log)"
+          echo "--- Probing with single function deploy (healthCheck) ---"
+          firebase deploy \
+            --only functions:healthCheck \
+            --project "${FIREBASE_PROJECT_ID}" \
+            --force \
+            --debug \
+            2>&1 | tail -80
+
+      - name: Deploy Cloud Functions, Firestore rules/indexes, and Storage rules
+        shell: bash
+        run: |
+          set -euo pipefail
           max_attempts=3
           attempt=1
-          deploy_ok=false
 
           until firebase deploy \
               --only functions,firestore,storage \
               --project "${FIREBASE_PROJECT_ID}" \
-              --force \
-              --debug \
-              2>&1 | tee "$LOG_FILE"; do
-
-            echo ""
-            echo "=== DEPLOY ATTEMPT ${attempt} FAILED — extracting GCP error ==="
-            grep -iE "error|fail|denied|permission|quota|429|403|500|409" "$LOG_FILE" | tail -60 || true
-
+              --force; do
             if [ "${attempt}" -ge "${max_attempts}" ]; then
               echo "Firebase deploy failed after ${max_attempts} attempts."
-              rm -f "$SA_FILE" "$LOG_FILE"
               exit 1
             fi
             attempt=$((attempt + 1))
@@ -115,5 +143,3 @@ jobs:
             echo "Retrying in ${wait_seconds}s (attempt ${attempt}/${max_attempts})..."
             sleep "${wait_seconds}"
           done
-
-          rm -f "$SA_FILE" "$LOG_FILE"
