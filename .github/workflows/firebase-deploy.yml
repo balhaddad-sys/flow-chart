@@ -103,25 +103,48 @@ jobs:
           echo "GOOGLE_APPLICATION_CREDENTIALS=${SA_FILE}" >> "$GITHUB_ENV"
           echo "SA_FILE=${SA_FILE}"                        >> "$GITHUB_ENV"
 
-      - name: Verify auth — list functions
+      - name: Verify auth and diagnose function generation
+        shell: bash
         run: |
           echo "=== firebase functions:list ==="
           firebase functions:list --project "${FIREBASE_PROJECT_ID}" 2>&1 | head -30 || true
+
           echo ""
-          echo "=== gcloud functions list ==="
-          gcloud functions list --project "${FIREBASE_PROJECT_ID}" --limit=5 2>&1 | head -20 || true
+          echo "=== gcloud: describe healthCheck (reveals Gen 1 vs Gen 2) ==="
+          gcloud functions describe healthCheck \
+            --project "${FIREBASE_PROJECT_ID}" \
+            --region us-central1 2>&1 || true
+
+          echo ""
+          echo "=== gcloud: Cloud Functions API status ==="
+          gcloud services list \
+            --project "${FIREBASE_PROJECT_ID}" \
+            --filter "name:cloudfunctions.googleapis.com" 2>&1 || true
+
+          echo ""
+          echo "=== Direct REST: attempt PATCH on healthCheck ==="
+          ACCESS_TOKEN=$(gcloud auth print-access-token 2>&1)
+          curl -s -w "\nHTTP_STATUS:%{http_code}" \
+            -X PATCH \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            "https://cloudfunctions.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/locations/us-central1/functions/healthCheck" \
+            -d '{"description":"ci-probe"}' | python3 -m json.tool 2>/dev/null || true
 
       - name: Deploy — probe single function first
         shell: bash
         run: |
-          set -euo pipefail
           echo "--- Probing with single function deploy (healthCheck) ---"
-          firebase deploy \
-            --only functions:healthCheck \
-            --project "${FIREBASE_PROJECT_ID}" \
-            --force \
-            --debug \
-            2>&1 | tail -80
+          if firebase deploy \
+              --only functions:healthCheck \
+              --project "${FIREBASE_PROJECT_ID}" \
+              --force \
+              --debug \
+              2>&1; then
+            echo "=== PROBE SUCCEEDED ==="
+          else
+            echo "=== PROBE FAILED ==="
+          fi
 
       - name: Deploy Cloud Functions, Firestore rules/indexes, and Storage rules
         shell: bash
