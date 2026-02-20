@@ -70,7 +70,7 @@ jobs:
           cache-dependency-path: functions/package-lock.json
 
       - name: Install Firebase CLI
-        run: npm install -g firebase-tools@13
+        run: npm install -g firebase-tools@latest
 
       - name: Install Cloud Functions dependencies
         run: cd functions && npm ci
@@ -103,66 +103,57 @@ jobs:
           echo "GOOGLE_APPLICATION_CREDENTIALS=${SA_FILE}" >> "$GITHUB_ENV"
           echo "SA_FILE=${SA_FILE}"                        >> "$GITHUB_ENV"
 
-      - name: Verify auth and diagnose function generation
-        shell: bash
+      - name: Deploy Firestore indexes/rules and Storage rules
         run: |
-          echo "=== firebase functions:list ==="
-          firebase functions:list --project "${FIREBASE_PROJECT_ID}" 2>&1 | head -30 || true
-
-          echo ""
-          echo "=== gcloud: describe healthCheck (reveals Gen 1 vs Gen 2) ==="
-          gcloud functions describe healthCheck \
+          firebase deploy \
+            --only firestore,storage \
             --project "${FIREBASE_PROJECT_ID}" \
-            --region us-central1 2>&1 || true
+            --force
 
-          echo ""
-          echo "=== gcloud: Cloud Functions API status ==="
-          gcloud services list \
+      # ── Cloud Functions: batch deploy (8 per batch) ──────────────────────────
+      # Root cause of previous failures: 32 simultaneous PATCH requests each
+      # trigger a separate Cloud Build job. Default concurrent-builds quota is 10,
+      # so 22 jobs queue, firebase-tools times out, and ALL report "Failed to update".
+      # Fix: deploy in groups of 8 — well within the 10-concurrent Cloud Build limit.
+      # The predeploy test hook is also removed here (tests already ran in the test job).
+
+      - name: Strip predeploy hook (tests already passed in test job)
+        run: |
+          python3 - <<'PYEOF'
+          import json
+          with open("firebase.json") as f:
+              cfg = json.load(f)
+          for fn in cfg.get("functions", []):
+              fn.pop("predeploy", None)
+          with open("firebase.json", "w") as f:
+              json.dump(cfg, f, indent=2)
+          print("Predeploy hook removed.")
+          PYEOF
+
+      - name: Deploy functions — batch 1 of 4
+        run: |
+          firebase deploy \
+            --only functions:processDocumentBatch,functions:processUploadedFile,functions:deleteFile,functions:processSection,functions:generateSectionSummary,functions:sendChatMessage,functions:exploreQuiz,functions:processQuestionBackfillJob \
             --project "${FIREBASE_PROJECT_ID}" \
-            --filter "name:cloudfunctions.googleapis.com" 2>&1 || true
+            --force
 
-          echo ""
-          echo "=== Direct REST: attempt PATCH on healthCheck ==="
-          ACCESS_TOKEN=$(gcloud auth print-access-token 2>&1)
-          curl -s -w "\nHTTP_STATUS:%{http_code}" \
-            -X PATCH \
-            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
-            -H "Content-Type: application/json" \
-            "https://cloudfunctions.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/locations/us-central1/functions/healthCheck" \
-            -d '{"description":"ci-probe"}' | python3 -m json.tool 2>/dev/null || true
-
-      - name: Deploy — probe single function first
-        shell: bash
+      - name: Deploy functions — batch 2 of 4
         run: |
-          echo "--- Probing with single function deploy (healthCheck) ---"
-          if firebase deploy \
-              --only functions:healthCheck \
-              --project "${FIREBASE_PROJECT_ID}" \
-              --force \
-              --debug \
-              2>&1; then
-            echo "=== PROBE SUCCEEDED ==="
-          else
-            echo "=== PROBE FAILED ==="
-          fi
+          firebase deploy \
+            --only functions:exploreTopicInsight,functions:deleteUserData,functions:generateSchedule,functions:processExploreBackfillJob,functions:getTutorHelp,functions:reprocessBlueprints,functions:generateQuestions,functions:retryFailedSections \
+            --project "${FIREBASE_PROJECT_ID}" \
+            --force
 
-      - name: Deploy Cloud Functions, Firestore rules/indexes, and Storage rules
-        shell: bash
+      - name: Deploy functions — batch 3 of 4
         run: |
-          set -euo pipefail
-          max_attempts=3
-          attempt=1
+          firebase deploy \
+            --only functions:generateExamBankQuestions,functions:regenSchedule,functions:catchUp,functions:computeWeakness,functions:finishAssessmentSession,functions:getQuiz,functions:createCourse,functions:submitAssessmentAnswer \
+            --project "${FIREBASE_PROJECT_ID}" \
+            --force
 
-          until firebase deploy \
-              --only functions,firestore,storage \
-              --project "${FIREBASE_PROJECT_ID}" \
-              --force; do
-            if [ "${attempt}" -ge "${max_attempts}" ]; then
-              echo "Firebase deploy failed after ${max_attempts} attempts."
-              exit 1
-            fi
-            attempt=$((attempt + 1))
-            wait_seconds=$((attempt * 30))
-            echo "Retrying in ${wait_seconds}s (attempt ${attempt}/${max_attempts})..."
-            sleep "${wait_seconds}"
-          done
+      - name: Deploy functions — batch 4 of 4
+        run: |
+          firebase deploy \
+            --only functions:healthCheck,functions:getAssessmentCatalog,functions:startAssessmentSession,functions:flagQuestion,functions:submitAttempt,functions:runFixPlan,functions:seedSampleDeck,functions:trackActivity \
+            --project "${FIREBASE_PROJECT_ID}" \
+            --force
