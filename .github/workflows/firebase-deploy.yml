@@ -328,6 +328,44 @@ jobs:
 
           failed=0
 
+          # ── Canary: deploy healthCheck alone (no secrets) to test infra ────
+          echo ""
+          echo "========================================="
+          echo "  Canary: healthCheck (no secrets)"
+          echo "========================================="
+          if firebase deploy \
+              --only "functions:healthCheck" \
+              --project "${FIREBASE_PROJECT_ID}" \
+              --force \
+              --non-interactive \
+              --debug > /tmp/canary.log 2>&1; then
+            echo "[Canary] SUCCESS — infrastructure is healthy"
+            tail -10 /tmp/canary.log
+          else
+            echo "[Canary] FAILED — base64 output:"
+            tail -80 /tmp/canary.log | base64
+            echo ""
+            echo "--- Cloud Build logs for canary ---"
+            gcloud builds list --project "${FIREBASE_PROJECT_ID}" --limit=3 \
+              --format="table(id,status,createTime,source.storageSource.object)" 2>&1 || true
+            echo ""
+            echo "--- Checking Secret Manager access for appspot SA ---"
+            gcloud secrets list --project "${FIREBASE_PROJECT_ID}" 2>&1 || true
+            echo ""
+            echo "--- Checking compute SA IAM ---"
+            PROJECT_NUMBER=$(gcloud projects describe "${FIREBASE_PROJECT_ID}" --format="value(projectNumber)")
+            gcloud projects get-iam-policy "${FIREBASE_PROJECT_ID}" \
+              --flatten="bindings[].members" \
+              --filter="bindings.members:${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+              --format="table(bindings.role)" 2>&1 || true
+            echo ""
+            print_audit_errors
+            echo ""
+            echo "=== CANARY FAILED — healthCheck has no secrets, this is a GCP infra issue ==="
+            echo "=== File a GCP support ticket with project medq-a6cc6, region us-central1 ==="
+            exit 1
+          fi
+
           deploy_batch "Batch 1/4" "functions:processDocumentBatch,functions:processUploadedFile,functions:deleteFile,functions:processSection,functions:generateSectionSummary,functions:sendChatMessage,functions:exploreQuiz,functions:processQuestionBackfillJob" || failed=1
 
           if [ "$failed" = "1" ]; then
