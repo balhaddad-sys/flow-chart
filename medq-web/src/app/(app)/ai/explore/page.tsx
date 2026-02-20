@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   ArrowRight,
   ArrowLeft,
@@ -128,6 +129,7 @@ function levelShortLabel(level: string): string {
 
 export default function ExplorePage() {
   const { uid } = useAuth();
+  const searchParams = useSearchParams();
   const store = useExploreStore();
   const {
     phase,
@@ -167,6 +169,14 @@ export default function ExplorePage() {
 
   useEffect(() => {
     refreshHistory();
+
+    // URL param ?topic= takes priority over localStorage
+    const urlTopic = searchParams.get("topic");
+    if (urlTopic) {
+      setInputTopic(urlTopic.slice(0, 200));
+      return;
+    }
+
     try {
       const raw = window.localStorage.getItem(EXPLORE_SETUP_KEY);
       if (!raw) return;
@@ -195,7 +205,7 @@ export default function ExplorePage() {
     } catch {
       // Ignore localStorage parse errors.
     }
-  }, [refreshHistory]);
+  }, [refreshHistory, searchParams]);
 
   useEffect(() => {
     try {

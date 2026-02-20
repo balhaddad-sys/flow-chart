@@ -33,9 +33,27 @@ import {
   Wrench,
   Zap,
   BookOpen,
+  Trophy,
+  ChevronRight,
 } from "lucide-react";
 import * as fn from "@/lib/firebase/functions";
 import { toast } from "sonner";
+
+const REAL_EXAM_TYPES = new Set([
+  "PLAB1", "PLAB2", "MRCP_PART1", "MRCP_PACES", "MRCGP_AKT",
+  "USMLE_STEP1", "USMLE_STEP2", "FINALS",
+]);
+
+const EXAM_SHORT_LABEL: Record<string, string> = {
+  PLAB1: "PLAB 1",
+  PLAB2: "PLAB 2",
+  MRCP_PART1: "MRCP Part 1",
+  MRCP_PACES: "MRCP PACES",
+  MRCGP_AKT: "MRCGP AKT",
+  USMLE_STEP1: "USMLE Step 1",
+  USMLE_STEP2: "USMLE Step 2",
+  FINALS: "Finals",
+};
 
 export default function TodayPage() {
   const router = useRouter();
@@ -83,6 +101,11 @@ export default function TodayPage() {
   // Sample deck CTA: visible when no files exist and deck hasn't been seeded
   const isSampleCourse = (activeCourse as { isSampleDeck?: boolean } | undefined)?.isSampleDeck === true;
   const showSampleDeckCTA = !hasFiles && !deckSeeded && !isSampleCourse;
+
+  // Exam prep card: visible when the active course targets a real licensing/specialty exam
+  const examType = (activeCourse as { examType?: string } | undefined)?.examType ?? "";
+  const isRealExam = REAL_EXAM_TYPES.has(examType);
+  const examShortLabel = EXAM_SHORT_LABEL[examType] ?? examType;
 
   const greeting = () => {
     const h = new Date().getHours();
@@ -230,6 +253,30 @@ export default function TodayPage() {
                 </>
               )}
             </Button>
+          </div>
+        </section>
+      )}
+
+      {/* ── Exam prep card ────────────────────────────────────────────── */}
+      {isRealExam && (
+        <section className="glass-card overflow-hidden border-primary/25">
+          <div className="h-1 w-full bg-gradient-to-r from-primary/30 via-primary/70 to-primary/30" />
+          <div className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/12">
+              <Trophy className="h-6 w-6 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold">{examShortLabel} Question Bank</h3>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Practise with exam-specific questions, track your countdown, and deep-dive weak topics.
+              </p>
+            </div>
+            <Link href="/practice/exam-bank" className="shrink-0">
+              <Button className="rounded-xl gap-1.5">
+                Open Bank
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </Link>
           </div>
         </section>
       )}

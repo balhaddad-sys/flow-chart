@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -296,6 +297,20 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
                 </>
               )}
             </div>
+
+            {/* Explore topic prompt — shown on wrong answers */}
+            {!isCorrect && question.topicTags.length > 0 && (
+              <Link
+                href={`/ai/explore?topic=${encodeURIComponent(question.topicTags[0])}`}
+                className="flex items-center gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 text-sm transition-colors hover:bg-primary/10"
+              >
+                <Sparkles className="h-4 w-4 shrink-0 text-primary" />
+                <span className="flex-1 text-foreground/90">
+                  Want to review <span className="font-medium text-primary">{question.topicTags[0]}</span> in depth?
+                </span>
+                <span className="text-xs font-medium text-primary whitespace-nowrap">Explore →</span>
+              </Link>
+            )}
 
             {/* Explanation toggle */}
             <button
