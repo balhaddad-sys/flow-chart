@@ -129,10 +129,39 @@ jobs:
           print("Predeploy hook removed.")
           PYEOF
 
-      # ── gcloud probe: confirms whether the GCP API itself is the blocker ────
-      # If gcloud ALSO fails with code 13, it's a GCP infrastructure issue
-      # (not firebase-tools). Output is unmasked so we see the real error.
-      - name: gcloud probe — deploy healthCheck (bypass firebase-tools)
+      # ── Fix: ensure gcf-artifacts Artifact Registry repo exists ─────────────
+      # Cloud Build pushes function container images to gcf-artifacts.
+      # If the repo was deleted or never created, Cloud Build fails with
+      # code=13, message=None (no informative error). Create it if missing.
+      - name: Ensure gcf-artifacts Artifact Registry repo exists
+        shell: bash
+        run: |
+          echo "=== Checking gcf-artifacts repository ==="
+          if gcloud artifacts repositories describe gcf-artifacts \
+            --project="${FIREBASE_PROJECT_ID}" \
+            --location=us-central1 2>&1; then
+            echo "gcf-artifacts repo EXISTS"
+          else
+            echo "gcf-artifacts repo NOT FOUND — creating..."
+            gcloud artifacts repositories create gcf-artifacts \
+              --project="${FIREBASE_PROJECT_ID}" \
+              --repository-format=docker \
+              --location=us-central1 \
+              --description="Cloud Functions v1 container images"
+            echo "gcf-artifacts repo CREATED"
+          fi
+
+          echo "--- Granting Cloud Build SA write access to gcf-artifacts ---"
+          PROJECT_NUMBER=$(gcloud projects describe "${FIREBASE_PROJECT_ID}" \
+            --format="value(projectNumber)")
+          gcloud artifacts repositories add-iam-policy-binding gcf-artifacts \
+            --project="${FIREBASE_PROJECT_ID}" \
+            --location=us-central1 \
+            --member="serviceAccount:${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
+            --role="roles/artifactregistry.writer" 2>&1 || true
+
+      # ── gcloud probe: fetch Cloud Build logs to see exact failure point ──────
+      - name: gcloud probe — deploy healthCheck + fetch Cloud Build logs on failure
         shell: bash
         run: |
           echo "=== Probing with gcloud functions deploy ==="
@@ -144,7 +173,7 @@ jobs:
             --format="table(name.basename(),status,updateTime)" 2>&1 || true
 
           echo "--- gcloud deploy healthCheck ---"
-          gcloud functions deploy healthCheck \
+          if gcloud functions deploy healthCheck \
             --project "${FIREBASE_PROJECT_ID}" \
             --region us-central1 \
             --runtime nodejs20 \
@@ -154,8 +183,32 @@ jobs:
             --entry-point healthCheck \
             --memory 256MB \
             --timeout 60s \
-            2>&1
-          echo "=== gcloud probe SUCCEEDED ==="
+            2>&1; then
+            echo "=== gcloud probe SUCCEEDED ==="
+          else
+            echo "=== gcloud probe FAILED — fetching Cloud Build logs ==="
+            BUILD_ID=$(gcloud builds list \
+              --project="${FIREBASE_PROJECT_ID}" \
+              --region=us-central1 \
+              --limit=1 \
+              --filter="status=FAILURE OR status=CANCELLED OR status=TIMEOUT" \
+              --format="value(id)" 2>/dev/null || echo "")
+
+            if [ -n "${BUILD_ID}" ]; then
+              echo "--- Cloud Build log for ${BUILD_ID} ---"
+              gcloud builds log "${BUILD_ID}" \
+                --project="${FIREBASE_PROJECT_ID}" \
+                --region=us-central1 2>&1 | tail -150 || true
+            else
+              echo "No failed Cloud Build found (trying without filter)..."
+              gcloud builds list \
+                --project="${FIREBASE_PROJECT_ID}" \
+                --region=us-central1 \
+                --limit=3 \
+                --format="table(id,status,createTime)" 2>&1 || true
+            fi
+            exit 1
+          fi
 
       # ── Deploy all functions in 4 batches with retries ──────────────────────
       # No set -euo pipefail — we handle errors explicitly via retry logic.
