@@ -2,13 +2,13 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
-  MessageCircle,
   X,
   Send,
   Trash2,
   CircleStop,
   Sparkles,
   RotateCcw,
+  ChevronLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -149,8 +149,20 @@ export function ExploreAskAiWidget() {
 
   useEffect(() => {
     if (!isOpen) return;
-    const id = window.setTimeout(() => inputRef.current?.focus(), 100);
+    const id = window.setTimeout(() => inputRef.current?.focus(), 200);
     return () => window.clearTimeout(id);
+  }, [isOpen]);
+
+  // Lock body scroll when drawer is open on mobile
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [isOpen]);
 
   useEffect(() => {
@@ -207,7 +219,6 @@ export function ExploreAskAiWidget() {
           })),
         });
 
-        // Try with cached token first; on 401, retry with a forced refresh
         let idToken = await user.getIdToken();
         let res = await fetch("/api/explore-chat", {
           method: "POST",
@@ -309,179 +320,213 @@ export function ExploreAskAiWidget() {
 
   if (!topicInsight) return null;
 
-  if (!isOpen) {
-    return (
-      <button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-20 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full border border-primary/35 bg-gradient-to-br from-primary to-sky-500 text-primary-foreground shadow-[0_16px_30px_-18px_rgba(37,99,235,0.95)] transition-transform hover:scale-105 active:scale-95 md:bottom-6 md:right-6"
-        aria-label="Ask AI about this topic"
-      >
-        <MessageCircle className="h-5 w-5" />
-      </button>
-    );
-  }
-
   return (
-    <div className="fixed bottom-20 right-4 z-40 flex h-[520px] w-[min(92vw,430px)] max-h-[calc(100dvh-6rem)] flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/95 shadow-[0_24px_60px_-34px_rgba(15,23,42,0.9)] backdrop-blur-xl md:bottom-6 md:right-6 md:max-h-[72vh]">
-      <div className="border-b border-border/60 bg-gradient-to-r from-primary/14 via-primary/6 to-transparent px-4 py-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">
-              Ask AI: {topic}
-            </p>
-            <p className="text-[11px] text-muted-foreground">
-              Context-aware tutor with cached quick replies
-            </p>
-          </div>
-          <div className="flex items-center gap-1">
+    <>
+      {/* Pull tab — visible on the right edge whenever the drawer is closed */}
+      {!isOpen && (
+        <button
+          onClick={() => setIsOpen(true)}
+          aria-label="Open AI tutor"
+          className="fixed right-0 top-1/2 z-40 -translate-y-1/2 flex flex-col items-center gap-1.5 rounded-l-2xl border border-r-0 border-primary/40 bg-card/95 px-2 py-4 shadow-[−4px_0_20px_-4px_rgba(37,99,235,0.35)] backdrop-blur-md transition-all hover:px-3 active:scale-95"
+        >
+          <Sparkles className="h-4 w-4 text-primary" />
+          <span
+            className="text-[10px] font-bold tracking-widest text-primary"
+            style={{ writingMode: "vertical-rl", textOrientation: "mixed" }}
+          >
+            AI
+          </span>
+          <ChevronLeft className="h-3.5 w-3.5 text-primary/70" />
+        </button>
+      )}
+
+      {/* Full-screen drawer overlay */}
+      <div
+        className={`fixed inset-0 z-50 transition-all duration-300 ${
+          isOpen ? "pointer-events-auto" : "pointer-events-none"
+        }`}
+      >
+        {/* Backdrop */}
+        <div
+          onClick={() => setIsOpen(false)}
+          className={`absolute inset-0 bg-background/50 backdrop-blur-[2px] transition-opacity duration-300 ${
+            isOpen ? "opacity-100" : "opacity-0"
+          }`}
+        />
+
+        {/* Drawer panel — full width on mobile, capped on desktop */}
+        <div
+          className={`absolute inset-y-0 right-0 flex w-full flex-col border-l border-border/70 bg-card shadow-2xl transition-transform duration-300 ease-out sm:w-[min(92vw,480px)] ${
+            isOpen ? "translate-x-0" : "translate-x-full"
+          }`}
+        >
+          {/* Header */}
+          <div className="flex shrink-0 items-center gap-3 border-b border-border/60 bg-gradient-to-r from-primary/12 via-primary/5 to-transparent px-4 py-3">
+            <button
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-1.5 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+              aria-label="Close AI panel"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/15">
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">Ask AI · {topic}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Context-aware tutor
+                </p>
+              </div>
+            </div>
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
+              className="h-7 w-7 shrink-0"
               onClick={handleClearChat}
               aria-label="Clear chat"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => setIsOpen(false)}
-              aria-label="Close chat"
-            >
-              <X className="h-4 w-4" />
-            </Button>
           </div>
-        </div>
-      </div>
 
-      <div className="border-b border-border/60 px-3 py-2">
-        <div className="flex flex-wrap gap-1.5">
-          {quickPrompts.map((prompt) => (
-            <button
-              key={prompt}
-              type="button"
-              onClick={() => setInput(prompt)}
-              className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
-            >
-              {prompt}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-3">
-        {messages.length === 0 && !loading && (
-          <div className="flex h-full flex-col items-center justify-center text-center">
-            <div className="mb-3 rounded-2xl border border-primary/25 bg-primary/10 p-2.5">
-              <Sparkles className="h-5 w-5 text-primary" />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Ask anything about{" "}
-              <span className="font-medium text-foreground">{topic}</span>
+          {/* Quick prompts */}
+          <div className="shrink-0 border-b border-border/60 px-3 py-2.5">
+            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              Quick prompts
             </p>
-            <p className="mt-1 text-xs text-muted-foreground/75">
-              Use the quick prompts above, then keep drilling with follow-up questions.
-            </p>
-          </div>
-        )}
-
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-          >
-            <div
-              className={`max-w-[88%] rounded-xl border px-3 py-2 text-sm ${
-                msg.role === "user"
-                  ? "ml-8 border-primary/30 bg-primary/10"
-                  : "mr-5 border-border/60 bg-background/80"
-              }`}
-            >
-              <p className="whitespace-pre-wrap break-words">{msg.content}</p>
-              {msg.cached && (
-                <Badge variant="outline" className="mt-2 text-[10px]">
-                  cached
-                </Badge>
-              )}
+            <div className="flex flex-wrap gap-1.5">
+              {quickPrompts.map((prompt) => (
+                <button
+                  key={prompt}
+                  type="button"
+                  onClick={() => setInput(prompt)}
+                  className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+                >
+                  {prompt}
+                </button>
+              ))}
             </div>
           </div>
-        ))}
 
-        {loading && (
-          <div className="flex justify-start">
-            <div className="mr-5 flex items-center gap-2 rounded-xl border border-border/60 bg-background/80 px-3 py-2 text-sm text-muted-foreground">
-              <InlineLoadingState label="Thinking..." className="text-sm" />
+          {/* Messages */}
+          <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
+            {messages.length === 0 && !loading && (
+              <div className="flex h-full flex-col items-center justify-center text-center px-4">
+                <div className="mb-3 rounded-2xl border border-primary/25 bg-primary/10 p-3">
+                  <Sparkles className="h-6 w-6 text-primary" />
+                </div>
+                <p className="text-sm font-medium">Ask anything about</p>
+                <p className="text-sm font-semibold text-primary">{topic}</p>
+                <p className="mt-2 text-xs text-muted-foreground/75 max-w-xs">
+                  Use the quick prompts above, or type your own question. Follow up
+                  to go deeper.
+                </p>
+              </div>
+            )}
+
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`max-w-[90%] rounded-2xl border px-4 py-2.5 text-sm ${
+                    msg.role === "user"
+                      ? "ml-10 border-primary/30 bg-primary/10"
+                      : "mr-6 border-border/60 bg-background/80"
+                  }`}
+                >
+                  <p className="whitespace-pre-wrap break-words leading-relaxed">
+                    {msg.content}
+                  </p>
+                  {msg.cached && (
+                    <Badge variant="outline" className="mt-2 text-[10px]">
+                      cached
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            ))}
+
+            {loading && (
+              <div className="flex justify-start">
+                <div className="mr-6 flex items-center gap-2 rounded-2xl border border-border/60 bg-background/80 px-4 py-2.5 text-sm text-muted-foreground">
+                  <InlineLoadingState label="Thinking..." className="text-sm" />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Error banner */}
+          {requestError && !loading && (
+            <div className="shrink-0 border-t border-border/60 px-4 py-2.5">
+              <div className="flex items-center justify-between gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+                <p className="min-w-0 flex-1 truncate text-xs text-amber-700 dark:text-amber-300">
+                  {requestError}
+                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2"
+                  onClick={handleRetry}
+                >
+                  <RotateCcw className="mr-1 h-3.5 w-3.5" />
+                  Retry
+                </Button>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
 
-      {requestError && !loading && (
-        <div className="border-t border-border/60 px-3 py-2">
-          <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2">
-            <p className="min-w-0 flex-1 truncate text-xs text-amber-700 dark:text-amber-300">
-              {requestError}
-            </p>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2"
-              onClick={handleRetry}
-            >
-              <RotateCcw className="mr-1 h-3.5 w-3.5" />
-              Retry
-            </Button>
-          </div>
-        </div>
-      )}
-
-      <div className="border-t border-border/60 p-3">
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            handleSend();
-          }}
-          className="flex gap-2"
-        >
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            placeholder="Ask a question..."
-            className="flex-1 resize-none rounded-xl border border-border/70 bg-background/75 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            rows={1}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
+          {/* Input */}
+          <div className="shrink-0 border-t border-border/60 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <form
+              onSubmit={(event) => {
                 event.preventDefault();
                 handleSend();
-              }
-            }}
-          />
-          {loading ? (
-            <Button
-              type="button"
-              size="icon"
-              variant="outline"
-              className="h-9 w-9 shrink-0"
-              onClick={handleStopRequest}
-              title="Stop generation"
+              }}
+              className="flex gap-2"
             >
-              <CircleStop className="h-4 w-4" />
-            </Button>
-          ) : (
-            <Button
-              type="submit"
-              size="icon"
-              disabled={!input.trim()}
-              className="h-9 w-9 shrink-0"
-            >
-              <Send className="h-4 w-4" />
-            </Button>
-          )}
-        </form>
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                placeholder="Ask a question about this topic..."
+                className="flex-1 resize-none rounded-xl border border-border/70 bg-background/75 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                rows={2}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    handleSend();
+                  }
+                }}
+              />
+              {loading ? (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  className="h-10 w-10 shrink-0 self-end"
+                  onClick={handleStopRequest}
+                  title="Stop generation"
+                >
+                  <CircleStop className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  size="icon"
+                  disabled={!input.trim()}
+                  className="h-10 w-10 shrink-0 self-end"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              )}
+            </form>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

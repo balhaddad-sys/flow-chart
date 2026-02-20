@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
+  ArrowLeft,
   BookOpen,
   CheckCircle2,
   XCircle,
@@ -864,6 +865,14 @@ export default function ExplorePage() {
   if (phase === "teaching") {
     return (
       <div className="page-wrap page-stack">
+        <button
+          type="button"
+          onClick={handleReset}
+          className="flex items-center gap-1.5 self-start rounded-lg px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground -ml-1"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </button>
         <ExploreTeaching
           onStartQuiz={handleQuizFromTeaching}
           onNewTopic={handleReset}
@@ -877,6 +886,14 @@ export default function ExplorePage() {
   if (phase === "results") {
     return (
       <div className="page-wrap page-stack">
+        <button
+          type="button"
+          onClick={handleReset}
+          className="flex items-center gap-1.5 self-start rounded-lg px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground -ml-1"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          New topic
+        </button>
         <ExploreResults />
         <ExploreAskAiWidget />
       </div>
@@ -892,7 +909,17 @@ export default function ExplorePage() {
       {/* Progress header */}
       <div className="glass-card p-4 animate-in-up">
         <div className="flex items-center justify-between gap-3">
-          <p className="min-w-0 truncate text-sm font-medium">{topic}</p>
+          <div className="flex min-w-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={handleReset}
+              className="shrink-0 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+              aria-label="Back to setup"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+            <p className="min-w-0 truncate text-sm font-medium">{topic}</p>
+          </div>
           <span className="shrink-0 text-xs text-muted-foreground">
             {currentIndex + 1} of {questions.length}
           </span>
