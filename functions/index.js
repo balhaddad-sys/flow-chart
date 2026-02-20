@@ -45,6 +45,9 @@ const { exploreQuiz } = require("./explore/exploreQuiz");
 const { processExploreBackfillJob } = require("./explore/processExploreBackfillJob");
 const { exploreTopicInsight } = require("./explore/exploreTopicInsight");
 
+// ── Exam Bank ────────────────────────────────────────────────────────────────
+const { generateExamBankQuestions } = require("./examBank/generateExamBankQuestions");
+
 // ── Analytics ────────────────────────────────────────────────────────────────
 const { submitAttempt } = require("./analytics/submitAttempt");
 const { computeWeakness } = require("./analytics/computeWeakness");
@@ -77,6 +80,7 @@ exports.finishAssessmentSession = finishAssessmentSession;
 exports.exploreQuiz = exploreQuiz;
 exports.processExploreBackfillJob = processExploreBackfillJob;
 exports.exploreTopicInsight = exploreTopicInsight;
+exports.generateExamBankQuestions = generateExamBankQuestions;
 exports.submitAttempt = submitAttempt;
 exports.computeWeakness = computeWeakness;
 exports.runFixPlan = runFixPlan;

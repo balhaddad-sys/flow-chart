@@ -2,17 +2,22 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCourses } from "@/lib/hooks/useCourses";
 import { useCourseStore } from "@/lib/stores/course-store";
 import { useStats } from "@/lib/hooks/useStats";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useExamBank } from "@/lib/hooks/useExamBank";
+import { useQuizStore } from "@/lib/stores/quiz-store";
 import { db } from "@/lib/firebase/client";
 import { doc, updateDoc, Timestamp } from "firebase/firestore";
 import { useSearchParams } from "next/navigation";
 import { EXAM_CATALOG } from "@/lib/types/user";
+import type { QuestionModel } from "@/lib/types/question";
+import * as fn from "@/lib/firebase/functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PageLoadingState } from "@/components/ui/loading-state";
+import { PageLoadingState, LoadingButtonLabel } from "@/components/ui/loading-state";
 import {
   ArrowLeft,
   ArrowRight,
@@ -22,6 +27,8 @@ import {
   Target,
   CheckCircle2,
   Compass,
+  Sparkles,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Timestamp as TSTimestamp } from "firebase/firestore";
@@ -155,10 +162,12 @@ function daysUntil(ts: TSTimestamp | undefined): number | null {
 }
 
 export default function ExamBankPage() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const { uid } = useAuth();
   const { courses, loading } = useCourses();
   const activeCourseId = useCourseStore((s) => s.activeCourseId);
+  const startQuiz = useQuizStore((s) => s.startQuiz);
   const activeCourse = useMemo(
     () => courses.find((c) => c.id === (activeCourseId || courses[0]?.id)),
     [courses, activeCourseId]
@@ -169,6 +178,8 @@ export default function ExamBankPage() {
   const [savingDate, setSavingDate] = useState(false);
   const [savingExamType, setSavingExamType] = useState(false);
   const [optimisticExamType, setOptimisticExamType] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
 
   const queryExamType = String(searchParams.get("exam") || "").toUpperCase();
   const courseExamType = String(activeCourse?.examType || "").toUpperCase();
@@ -186,6 +197,13 @@ export default function ExamBankPage() {
 
   const colors = COLOR_MAP[examMeta?.color ?? "blue"] ?? COLOR_MAP.blue;
   const daysLeft = daysUntil(activeCourse?.examDate as TSTimestamp | undefined);
+
+  const {
+    questions,
+    totalCount,
+    domainsGenerated,
+    loading: bankLoading,
+  } = useExamBank(examType || null);
 
   useEffect(() => {
     setOptimisticExamType(null);
@@ -230,6 +248,28 @@ export default function ExamBankPage() {
     } finally {
       setSavingExamType(false);
     }
+  }
+
+  async function handleGenerate() {
+    if (generating) return;
+    setGenerating(true);
+    setGenerateError(null);
+    try {
+      await fn.generateExamBankQuestions({ examType, count: 10 });
+      toast.success("Questions ready!");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Generation failed.";
+      setGenerateError(msg);
+      toast.error(msg);
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  function handleStartPractice() {
+    if (!questions.length) return;
+    startQuiz(questions as unknown as QuestionModel[]);
+    router.push("/practice/quiz?mode=exam-bank");
   }
 
   if (loading) {
@@ -444,9 +484,121 @@ export default function ExamBankPage() {
         </section>
       )}
 
-      {/* ── Practice modes ────────────────────────────────────────────────── */}
+      {/* ── Question bank ──────────────────────────────────────────────────── */}
       <section className="space-y-3">
-        <h2 className="section-label">Start Practising</h2>
+        <h2 className="section-label">Exam Question Bank</h2>
+
+        {bankLoading ? (
+          <div className="glass-card p-8 text-center text-sm text-muted-foreground">
+            Loading your bank…
+          </div>
+        ) : questions.length === 0 ? (
+          /* Zero-state */
+          <div className="glass-card overflow-hidden border-primary/20">
+            <div className="h-1 w-full bg-gradient-to-r from-primary/20 via-primary/60 to-primary/20" />
+            <div className="p-6 sm:p-8 flex flex-col items-center text-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/12">
+                <Sparkles className="h-7 w-7 text-primary" />
+              </div>
+              <div className="space-y-1.5 max-w-sm">
+                <h3 className="font-semibold text-base">Generate Your Question Bank</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Claude will research the official{" "}
+                  <span className="font-medium text-foreground">
+                    {examEntry?.label ?? examType}
+                  </span>{" "}
+                  syllabus and produce high-yield SBA questions — no materials needed.
+                </p>
+              </div>
+              {generateError && (
+                <p className="text-xs text-destructive">{generateError}</p>
+              )}
+              <Button
+                onClick={handleGenerate}
+                disabled={generating}
+                className="rounded-xl gap-2"
+              >
+                {generating ? (
+                  <LoadingButtonLabel label="Generating…" />
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4" />
+                    Generate Question Bank
+                  </>
+                )}
+              </Button>
+              <p className="text-xs text-muted-foreground/70">
+                ~10 questions per generation · powered by Claude
+              </p>
+            </div>
+          </div>
+        ) : (
+          /* Bank ready */
+          <div className="glass-card overflow-hidden border-primary/25">
+            <div className="h-1 w-full bg-gradient-to-r from-primary/30 via-primary/70 to-primary/30" />
+            <div className="p-5 sm:p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/12">
+                  <BookOpen className="h-6 w-6 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold">{totalCount} Questions Ready</h3>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {domainsGenerated.length} domain
+                    {domainsGenerated.length !== 1 ? "s" : ""} covered
+                  </p>
+                </div>
+                <div className="flex gap-2 shrink-0 flex-wrap">
+                  <Button
+                    onClick={handleStartPractice}
+                    className="rounded-xl gap-1.5"
+                  >
+                    <Zap className="h-4 w-4" />
+                    Start Practice
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleGenerate}
+                    disabled={generating}
+                    className="rounded-xl gap-1.5"
+                  >
+                    {generating ? (
+                      <LoadingButtonLabel label="Generating…" />
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4" />
+                        Generate more
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+
+              {domainsGenerated.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {[...new Set(domainsGenerated)].slice(0, 12).map((domain) => (
+                    <Badge
+                      key={domain}
+                      variant="secondary"
+                      className="text-xs rounded-full px-2.5"
+                    >
+                      {domain}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              {generateError && (
+                <p className="text-xs text-destructive">{generateError}</p>
+              )}
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* ── More practice ─────────────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <h2 className="section-label">More Practice</h2>
         <div className="grid gap-3 sm:grid-cols-2">
           {[
             {

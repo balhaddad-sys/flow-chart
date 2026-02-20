@@ -509,6 +509,23 @@ export function exploreTopicInsight(params: {
   return callFunction<ExploreTopicInsightResult>("exploreTopicInsight", params);
 }
 
+// --- Exam Bank ---
+
+export interface GenerateExamBankResult {
+  questions: ExploreQuestion[];
+  totalCount: number;
+  domain: string;
+  examType: string;
+  modelUsed: string;
+}
+
+export function generateExamBankQuestions(params: {
+  examType: string;
+  count?: number;
+}) {
+  return callFunction<GenerateExamBankResult>("generateExamBankQuestions", params);
+}
+
 // --- Fix Plan ---
 export function runFixPlan(params: { courseId: string }) {
   return callFunction("runFixPlan", params);
