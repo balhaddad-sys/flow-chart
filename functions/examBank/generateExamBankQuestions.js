@@ -226,7 +226,21 @@ exports.generateExamBankQuestions = functions
       const updatedDomains = [...domainsGenerated, domain].slice(-50);
 
       const now = admin.firestore.FieldValue.serverTimestamp();
-      await examBankRef.set(
+
+      // Write each new question to the individual questions collection so
+      // submitAttempt can look them up by ID (it reads users/{uid}/questions/{id}).
+      const batch = db.batch();
+      for (const q of uniqueNew) {
+        const qRef = db.doc(`users/${uid}/questions/${q.id}`);
+        batch.set(qRef, {
+          ...q,
+          courseId: examType,
+          createdAt: now,
+        });
+      }
+
+      batch.set(
+        examBankRef,
         {
           questions: merged,
           examType,
@@ -238,6 +252,8 @@ exports.generateExamBankQuestions = functions
         },
         { merge: true }
       );
+
+      await batch.commit();
 
       log.info("Exam bank questions generated", {
         uid, examType, domain, levelId,

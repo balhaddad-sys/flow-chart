@@ -1,0 +1,69 @@
+name: Launch Readiness Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      healthcheck_url:
+        description: "Optional health endpoint URL (e.g. https://us-central1-<project>.cloudfunctions.net/healthCheck)"
+        required: false
+        default: ""
+      fast_mode:
+        description: "Skip full suites and run quick checks only"
+        required: false
+        default: "false"
+      skip_web_build:
+        description: "Skip Next.js build check"
+        required: false
+        default: "false"
+
+jobs:
+  launch-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: |
+            functions/package-lock.json
+            medq-web/package-lock.json
+
+      - name: Install web dependencies
+        run: cd medq-web && npm ci
+
+      - name: Install functions dependencies
+        run: cd functions && npm ci
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Run launch readiness gate
+        shell: pwsh
+        env:
+          NEXT_PUBLIC_FIREBASE_API_KEY: ${{ secrets.NEXT_PUBLIC_FIREBASE_API_KEY }}
+          NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: ${{ secrets.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN }}
+          NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_PROJECT_ID }}
+          NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET }}
+          NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID }}
+          NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
+          NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID }}
+        run: |
+          $params = @{ Json = $true }
+
+          $health = "${{ github.event.inputs.healthcheck_url }}".Trim()
+          if ([string]::IsNullOrWhiteSpace($health)) {
+            $params.SkipDeploySmoke = $true
+          } else {
+            $params.HealthCheckUrl = $health
+          }
+          if ("${{ github.event.inputs.fast_mode }}" -eq "true") { $params.Fast = $true }
+          if ("${{ github.event.inputs.skip_web_build }}" -eq "true") { $params.SkipWebBuild = $true }
+
+          ./scripts/launch-readiness.ps1 @params
+
