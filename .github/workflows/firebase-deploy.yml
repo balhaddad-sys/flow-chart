@@ -10,7 +10,7 @@ on:
 
 env:
   FIREBASE_PROJECT_ID: medq-a6cc6
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
 
 # Only one deploy pipeline runs at a time; cancels any queued run.
 # Prevents concurrent Cloud Functions operations (GCP allows 1 op/function).
@@ -200,11 +200,11 @@ jobs:
             --filter="status:DEPLOYING" \
             --format="table(name.basename(),status,updateTime)" 2>&1 || true
 
-          echo "--- gcloud deploy healthCheck ---"
+          echo "--- gcloud deploy healthCheck (nodejs22) ---"
           if gcloud functions deploy healthCheck \
             --project "${FIREBASE_PROJECT_ID}" \
             --region us-central1 \
-            --runtime nodejs20 \
+            --runtime nodejs22 \
             --trigger-http \
             --allow-unauthenticated \
             --source functions \
@@ -212,7 +212,7 @@ jobs:
             --memory 256MB \
             --timeout 60s \
             2>&1; then
-            echo "=== gcloud probe SUCCEEDED ==="
+            echo "=== gcloud probe SUCCEEDED (nodejs22) — runtime change is the fix ==="
           else
             echo "=== gcloud probe FAILED — fetching Cloud Build logs ==="
             BUILD_ID=$(gcloud builds list \
