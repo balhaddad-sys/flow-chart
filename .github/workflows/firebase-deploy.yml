@@ -129,6 +129,34 @@ jobs:
           print("Predeploy hook removed.")
           PYEOF
 
+      # ── gcloud probe: confirms whether the GCP API itself is the blocker ────
+      # If gcloud ALSO fails with code 13, it's a GCP infrastructure issue
+      # (not firebase-tools). Output is unmasked so we see the real error.
+      - name: gcloud probe — deploy healthCheck (bypass firebase-tools)
+        shell: bash
+        run: |
+          echo "=== Probing with gcloud functions deploy ==="
+          echo "--- Current function states (DEPLOYING = stuck op) ---"
+          gcloud functions list \
+            --project "${FIREBASE_PROJECT_ID}" \
+            --regions us-central1 \
+            --filter="status:DEPLOYING" \
+            --format="table(name.basename(),status,updateTime)" 2>&1 || true
+
+          echo "--- gcloud deploy healthCheck ---"
+          gcloud functions deploy healthCheck \
+            --project "${FIREBASE_PROJECT_ID}" \
+            --region us-central1 \
+            --runtime nodejs20 \
+            --trigger-http \
+            --allow-unauthenticated \
+            --source functions \
+            --entry-point healthCheck \
+            --memory 256MB \
+            --timeout 60s \
+            2>&1
+          echo "=== gcloud probe SUCCEEDED ==="
+
       # ── Deploy all functions in 4 batches with retries ──────────────────────
       # No set -euo pipefail — we handle errors explicitly via retry logic.
       - name: Deploy functions in 4 batches (with retries)
