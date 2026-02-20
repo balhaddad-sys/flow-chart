@@ -87,7 +87,7 @@ jobs:
           max_attempts=3
           attempt=1
 
-          until firebase deploy --only functions,firestore,storage --project "${FIREBASE_PROJECT_ID}" --force; do
+          until firebase deploy --only functions,firestore,storage --project "${FIREBASE_PROJECT_ID}" --force --debug; do
             if [ "${attempt}" -ge "${max_attempts}" ]; then
               echo "Firebase deploy failed after ${max_attempts} attempts."
               exit 1
