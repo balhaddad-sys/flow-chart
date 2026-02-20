@@ -10,7 +10,7 @@ on:
 
 env:
   FIREBASE_PROJECT_ID: medq-a6cc6
-  NODE_VERSION: '20'
+  NODE_VERSION: '22'
 
 # Only one deploy pipeline runs at a time; queues the next run.
 # cancel-in-progress is FALSE because cancelling a CI run does NOT cancel
@@ -78,7 +78,7 @@ jobs:
           cache-dependency-path: functions/package-lock.json
 
       - name: Install Firebase CLI
-        run: npm install -g firebase-tools@13
+        run: npm install -g firebase-tools@latest
 
       - name: Install Cloud Functions dependencies
         run: cd functions && npm ci
@@ -141,6 +141,8 @@ jobs:
           PROJECT_NUMBER=$(gcloud projects describe "${FIREBASE_PROJECT_ID}" \
             --format="value(projectNumber)")
           echo "Project number: ${PROJECT_NUMBER}"
+          CF_SERVICE_AGENT="service-${PROJECT_NUMBER}@gcf-admin-robot.iam.gserviceaccount.com"
+          CB_COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 
           echo "=== Checking gcf-artifacts repository ==="
           gcloud artifacts repositories describe gcf-artifacts \
@@ -151,9 +153,9 @@ jobs:
 
           # Reader access for all runtime/service SAs
           for SA in \
-            "${PROJECT_NUMBER}-compute@developer.gserviceaccount.com" \
+            "${CB_COMPUTE_SA}" \
             "${FIREBASE_PROJECT_ID}@appspot.gserviceaccount.com" \
-            "service-${PROJECT_NUMBER}@gcf-admin-robot.iam.gserviceaccount.com" \
+            "${CF_SERVICE_AGENT}" \
             "service-${PROJECT_NUMBER}@serverless-robot-prod.iam.gserviceaccount.com"; do
             echo "--- Granting reader to ${SA} ---"
             gcloud artifacts repositories add-iam-policy-binding gcf-artifacts \
@@ -166,7 +168,7 @@ jobs:
           # Writer access for build SAs
           for SA in \
             "${PROJECT_NUMBER}@cloudbuild.gserviceaccount.com" \
-            "${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"; do
+            "${CB_COMPUTE_SA}"; do
             echo "--- Granting writer to ${SA} ---"
             gcloud artifacts repositories add-iam-policy-binding gcf-artifacts \
               --project="${FIREBASE_PROJECT_ID}" \
@@ -183,17 +185,23 @@ jobs:
           # ── Project-level builder roles for compute SA ──────────────────────
           # GCP changed the default Cloud Build SA — the compute SA now needs
           # explicit Cloud Build + Cloud Run builder roles at the project level.
-          CB_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
-          echo "=== Granting project-level builder roles to ${CB_SA} ==="
+          echo "=== Granting project-level builder roles to ${CB_COMPUTE_SA} ==="
 
           gcloud projects add-iam-policy-binding "${FIREBASE_PROJECT_ID}" \
-            --member="serviceAccount:${CB_SA}" \
+            --member="serviceAccount:${CB_COMPUTE_SA}" \
             --role="roles/cloudbuild.builds.builder" \
             --condition=None 2>&1 | tail -3 || true
 
           gcloud projects add-iam-policy-binding "${FIREBASE_PROJECT_ID}" \
-            --member="serviceAccount:${CB_SA}" \
+            --member="serviceAccount:${CB_COMPUTE_SA}" \
             --role="roles/run.builder" \
+            --condition=None 2>&1 | tail -3 || true
+
+          # Required for Cloud Functions control plane operations.
+          echo "=== Ensuring Cloud Functions service agent role ==="
+          gcloud projects add-iam-policy-binding "${FIREBASE_PROJECT_ID}" \
+            --member="serviceAccount:${CF_SERVICE_AGENT}" \
+            --role="roles/cloudfunctions.serviceAgent" \
             --condition=None 2>&1 | tail -3 || true
 
           echo "=== Project-level builder roles granted ==="
@@ -260,6 +268,23 @@ jobs:
           echo "firebase-tools version: $(firebase --version)"
           echo "gcloud version: $(gcloud --version | head -1)"
 
+          print_audit_errors() {
+            echo "--- Recent Cloud Functions audit errors (Update/Create) ---"
+            gcloud logging read \
+              'resource.type="cloud_function" AND protoPayload.serviceName="cloudfunctions.googleapis.com" AND (protoPayload.methodName="google.cloud.functions.v1.CloudFunctionsService.UpdateFunction" OR protoPayload.methodName="google.cloud.functions.v1.CloudFunctionsService.CreateFunction") AND severity>=ERROR' \
+              --project "${FIREBASE_PROJECT_ID}" \
+              --freshness="60m" \
+              --limit=20 \
+              --format='table(timestamp,protoPayload.methodName,protoPayload.resourceName,protoPayload.status.code,protoPayload.status.message)' 2>&1 || true
+            echo "--- Recent Cloud Functions operations errors ---"
+            gcloud logging read \
+              'protoPayload.serviceName="cloudfunctions.googleapis.com" AND severity>=ERROR' \
+              --project "${FIREBASE_PROJECT_ID}" \
+              --freshness="60m" \
+              --limit=20 \
+              --format='table(timestamp,resource.type,protoPayload.methodName,protoPayload.resourceName,protoPayload.status.code,protoPayload.status.message)' 2>&1 || true
+          }
+
           deploy_batch() {
             local label="$1"
             local only_targets="$2"
@@ -286,6 +311,7 @@ jobs:
 
               echo "[${label}] FAILED — debug output (base64 to bypass masking):"
               tail -80 /tmp/deploy.log | base64
+              print_audit_errors
               echo "[${label}] FAILED (attempt ${attempt}/${max_attempts})"
 
               if [ "${attempt}" -ge "${max_attempts}" ]; then
@@ -311,6 +337,7 @@ jobs:
             gcloud functions list --project "${FIREBASE_PROJECT_ID}" --format="table(name.basename(),status,updateTime)" 2>&1 || true
             echo "--- Full deploy log (base64) ---"
             tail -120 /tmp/deploy.log 2>&1 | base64 || true
+            print_audit_errors
             exit 1
           fi
 
@@ -321,6 +348,7 @@ jobs:
           if [ "$failed" = "1" ]; then
             echo ""
             echo "=== SOME BATCHES FAILED ==="
+            print_audit_errors
             exit 1
           fi
 
