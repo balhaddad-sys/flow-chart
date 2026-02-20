@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   Send,
@@ -75,6 +76,9 @@ export function ExploreAskAiWidget() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
+  // Portal needs the DOM to be mounted (avoid SSR mismatch)
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -318,9 +322,12 @@ export function ExploreAskAiWidget() {
     }
   }
 
-  if (!topicInsight) return null;
+  if (!topicInsight || !mounted) return null;
 
-  return (
+  // Render via portal so position:fixed escapes any CSS-transform ancestor
+  // (the app-shell animate-in-up wrapper uses transform:translateY(0) which
+  // would otherwise make fixed elements position relative to it, not the viewport)
+  return createPortal(
     <>
       {/* Pull tab — visible on the right edge whenever the drawer is closed */}
       {!isOpen && (
@@ -527,6 +534,7 @@ export function ExploreAskAiWidget() {
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 }

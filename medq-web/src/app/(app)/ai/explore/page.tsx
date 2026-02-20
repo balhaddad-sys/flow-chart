@@ -874,7 +874,7 @@ export default function ExplorePage() {
   // ── TEACHING ───────────────────────────────────────────────────────────
   if (phase === "teaching") {
     return (
-      <div className="page-wrap page-stack">
+      <div className="mx-auto w-full max-w-5xl px-2 py-5 sm:px-8 sm:py-8 space-y-5 sm:space-y-7">
         <button
           type="button"
           onClick={handleReset}
@@ -895,7 +895,7 @@ export default function ExplorePage() {
   // ── RESULTS ────────────────────────────────────────────────────────────
   if (phase === "results") {
     return (
-      <div className="page-wrap page-stack">
+      <div className="mx-auto w-full max-w-5xl px-2 py-5 sm:px-8 sm:py-8 space-y-5 sm:space-y-7">
         <button
           type="button"
           onClick={handleReset}
@@ -914,7 +914,7 @@ export default function ExplorePage() {
   if (!currentQuestion) return null;
 
   return (
-    <div className="page-wrap page-stack">
+    <div className="mx-auto w-full max-w-5xl px-2 py-5 sm:px-8 sm:py-8 space-y-5 sm:space-y-7">
       <ExploreAskAiWidget />
       {/* Progress header */}
       <div className="glass-card p-4 animate-in-up">
