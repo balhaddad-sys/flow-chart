@@ -80,26 +80,40 @@ jobs:
         env:
           SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
-          # Write credentials to a temp file so firebase-tools picks them up reliably.
-          # firebase-tools v13 doesn't always honour GOOGLE_APPLICATION_CREDENTIALS
-          # set by the auth action; writing the key explicitly avoids that issue.
           SA_FILE="$(mktemp -t sa-XXXXXX.json)"
           printf '%s' "$SA_JSON" > "$SA_FILE"
           export GOOGLE_APPLICATION_CREDENTIALS="$SA_FILE"
 
+          # Verify credentials are accepted before attempting deploy
+          echo "=== Verifying auth / listing existing functions ==="
+          firebase functions:list --project "${FIREBASE_PROJECT_ID}" 2>&1 | head -20 || true
+
           set -euo pipefail
+          LOG_FILE="$(mktemp -t firebase-deploy-XXXXXX.log)"
           max_attempts=3
           attempt=1
+          deploy_ok=false
 
-          until firebase deploy --only functions,firestore,storage --project "${FIREBASE_PROJECT_ID}" --force; do
+          until firebase deploy \
+              --only functions,firestore,storage \
+              --project "${FIREBASE_PROJECT_ID}" \
+              --force \
+              --debug \
+              2>&1 | tee "$LOG_FILE"; do
+
+            echo ""
+            echo "=== DEPLOY ATTEMPT ${attempt} FAILED — extracting GCP error ==="
+            grep -iE "error|fail|denied|permission|quota|429|403|500|409" "$LOG_FILE" | tail -60 || true
+
             if [ "${attempt}" -ge "${max_attempts}" ]; then
               echo "Firebase deploy failed after ${max_attempts} attempts."
-              rm -f "$SA_FILE"
+              rm -f "$SA_FILE" "$LOG_FILE"
               exit 1
             fi
             attempt=$((attempt + 1))
             wait_seconds=$((attempt * 30))
-            echo "Retrying deploy in ${wait_seconds}s (attempt ${attempt}/${max_attempts})..."
+            echo "Retrying in ${wait_seconds}s (attempt ${attempt}/${max_attempts})..."
             sleep "${wait_seconds}"
           done
-          rm -f "$SA_FILE"
+
+          rm -f "$SA_FILE" "$LOG_FILE"
