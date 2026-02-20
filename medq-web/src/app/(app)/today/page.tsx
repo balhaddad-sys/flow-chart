@@ -106,6 +106,9 @@ export default function TodayPage() {
   const examType = (activeCourse as { examType?: string } | undefined)?.examType ?? "";
   const isRealExam = REAL_EXAM_TYPES.has(examType);
   const examShortLabel = EXAM_SHORT_LABEL[examType] ?? examType;
+  const examBankHref = examType
+    ? `/practice/exam-bank?exam=${encodeURIComponent(examType)}`
+    : "/practice/exam-bank";
 
   const greeting = () => {
     const h = new Date().getHours();
@@ -271,7 +274,7 @@ export default function TodayPage() {
                 Practise with exam-specific questions, track your countdown, and deep-dive weak topics.
               </p>
             </div>
-            <Link href="/practice/exam-bank" className="shrink-0">
+            <Link href={examBankHref} className="shrink-0">
               <Button className="rounded-xl gap-1.5">
                 Open Bank
                 <ChevronRight className="h-4 w-4" />

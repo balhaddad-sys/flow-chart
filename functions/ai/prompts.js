@@ -7,6 +7,7 @@
  * consists of a constant system prompt and a builder function that assembles
  * the user message from runtime data.
  */
+const { buildExamPlaybookPrompt } = require("./examPlaybooks");
 
 /**
  * Returns exam-type-specific question writing instructions.
@@ -170,6 +171,7 @@ function questionsUserPrompt({
   return `Source file: "${sourceFileName}"
 Section: "${sectionTitle}"
 ${examTypeInstructions(examType)}
+${buildExamPlaybookPrompt(examType)}
 
 Topic blueprint (contains all learning objectives, key concepts, high-yield points, and terms):
 ${JSON.stringify(blueprintJSON)}
@@ -185,6 +187,7 @@ Quality rules:
 - Vary question style across the set in line with the exam type instructions above.
 - Do not paraphrase the same vignette pattern or repeat the same lead-in phrasing.
 - Vary demographics, context, and clinical clues while staying faithful to the blueprint.
+- Before writing questions, map the set to the coverage blueprint above and ensure broad domain spread (minimum 3 distinct blueprint domains when available).
 - Keep explanations concise and precise (1-2 sentences per field), but include the decisive clue and mechanism.
 - why_others_wrong must be specific to this vignette for each option; avoid generic filler.
 - Do not combine unrelated topics from different parts of the blueprint into one vague question.
@@ -551,6 +554,7 @@ function questionsFromTextUserPrompt({
   return `Source file: "${sourceFileName}"
 Section: "${sectionTitle}"
 ${examTypeInstructions(examType)}
+${buildExamPlaybookPrompt(examType)}
 
 Study material:
 """
@@ -572,6 +576,7 @@ Quality rules:
 - Vary question style across the set in line with the exam type instructions above.
 - Do not paraphrase the same vignette pattern or repeat the same lead-in phrasing.
 - Vary demographics, context, and clinical clues while staying faithful to the source material.
+- Before writing questions, map the set to the coverage blueprint above and ensure broad domain spread (minimum 3 distinct blueprint domains when available).
 - Keep explanations concise and precise (1-2 sentences per field), but include the decisive clue and mechanism.
 - why_others_wrong must be specific to this vignette for each option; avoid generic filler.
 - Do not combine unrelated topics from different parts of the text into one vague question.

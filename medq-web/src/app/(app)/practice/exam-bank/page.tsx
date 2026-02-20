@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useCourses } from "@/lib/hooks/useCourses";
 import { useCourseStore } from "@/lib/stores/course-store";
@@ -8,6 +8,7 @@ import { useStats } from "@/lib/hooks/useStats";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { db } from "@/lib/firebase/client";
 import { doc, updateDoc, Timestamp } from "firebase/firestore";
+import { useSearchParams } from "next/navigation";
 import { EXAM_CATALOG } from "@/lib/types/user";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +32,20 @@ const EXAM_META: Record<
   string,
   { format: string; authority: string; focus: string; tip: string; color: string }
 > = {
+  SBA: {
+    format: "Single Best Answer",
+    authority: "General Medical",
+    focus: "Core diagnosis, investigation logic, and first-line management",
+    tip: "Use decisive clues in the stem and practice ruling out the strongest distractor.",
+    color: "blue",
+  },
+  OSCE: {
+    format: "Clinical stations",
+    authority: "General Clinical",
+    focus: "History, examination flow, communication, and safe escalation",
+    tip: "Prioritize structure and safety first, then clinical depth and shared decisions.",
+    color: "green",
+  },
   PLAB1: {
     format: "180 SBAs · 3 hours",
     authority: "GMC UK",
@@ -89,6 +104,9 @@ const EXAM_META: Record<
   },
 };
 
+const EXAM_OPTIONS = EXAM_CATALOG.flatMap((group) => group.exams);
+const EXAM_OPTION_KEYS = new Set(EXAM_OPTIONS.map((exam) => exam.key));
+
 const COLOR_MAP: Record<
   string,
   { badge: string; icon: string; ring: string; bar: string; accent: string }
@@ -137,6 +155,7 @@ function daysUntil(ts: TSTimestamp | undefined): number | null {
 }
 
 export default function ExamBankPage() {
+  const searchParams = useSearchParams();
   const { uid } = useAuth();
   const { courses, loading } = useCourses();
   const activeCourseId = useCourseStore((s) => s.activeCourseId);
@@ -148,16 +167,29 @@ export default function ExamBankPage() {
 
   const [examDateInput, setExamDateInput] = useState("");
   const [savingDate, setSavingDate] = useState(false);
+  const [savingExamType, setSavingExamType] = useState(false);
+  const [optimisticExamType, setOptimisticExamType] = useState<string | null>(null);
 
-  const examType = (activeCourse?.examType ?? "SBA").toUpperCase();
-  const examMeta = EXAM_META[examType];
+  const queryExamType = String(searchParams.get("exam") || "").toUpperCase();
+  const courseExamType = String(activeCourse?.examType || "").toUpperCase();
+  const resolvedBaseExamType = EXAM_OPTION_KEYS.has(courseExamType)
+    ? courseExamType
+    : EXAM_OPTION_KEYS.has(queryExamType)
+      ? queryExamType
+      : (courseExamType || "SBA");
+  const examType = (optimisticExamType ?? resolvedBaseExamType).toUpperCase();
+  const examMeta = EXAM_META[examType] ?? EXAM_META.SBA;
   const examEntry = useMemo(
-    () => EXAM_CATALOG.flatMap((g) => g.exams).find((e) => e.key === examType),
+    () => EXAM_OPTIONS.find((e) => e.key === examType),
     [examType]
   );
 
   const colors = COLOR_MAP[examMeta?.color ?? "blue"] ?? COLOR_MAP.blue;
   const daysLeft = daysUntil(activeCourse?.examDate as TSTimestamp | undefined);
+
+  useEffect(() => {
+    setOptimisticExamType(null);
+  }, [activeCourse?.id, activeCourse?.examType]);
 
   async function handleSaveDate() {
     if (!uid || !activeCourse?.id || !examDateInput) return;
@@ -180,6 +212,26 @@ export default function ExamBankPage() {
     }
   }
 
+  async function handleSelectExam(nextExamType: string) {
+    const normalized = nextExamType.toUpperCase();
+    if (!uid || !activeCourse?.id || normalized === examType || savingExamType) return;
+
+    const nextExam = EXAM_OPTIONS.find((item) => item.key === normalized);
+    setOptimisticExamType(normalized);
+    setSavingExamType(true);
+    try {
+      await updateDoc(doc(db, "users", uid, "courses", activeCourse.id), {
+        examType: normalized,
+      });
+      toast.success(`Switched to ${nextExam?.label ?? normalized}.`);
+    } catch {
+      setOptimisticExamType(null);
+      toast.error("Failed to switch exam mode.");
+    } finally {
+      setSavingExamType(false);
+    }
+  }
+
   if (loading) {
     return (
       <PageLoadingState
@@ -190,12 +242,11 @@ export default function ExamBankPage() {
     );
   }
 
-  if (!activeCourse || !examMeta) {
+  if (!activeCourse) {
     return (
       <div className="page-wrap py-24 text-center space-y-4">
         <p className="text-muted-foreground text-sm">
-          No exam-specific question bank for this course. Select a specific exam
-          in your course settings.
+          No active course selected. Pick a course to open your exam question bank.
         </p>
         <Link href="/practice">
           <Button variant="outline" size="sm" className="rounded-xl">
@@ -314,6 +365,35 @@ export default function ExamBankPage() {
               <span className="font-semibold text-foreground">Exam tip: </span>
               {examMeta.tip}
             </p>
+          </div>
+
+          <div className="space-y-2 rounded-xl border border-border/50 bg-muted/15 p-3.5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Exam Mode
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Switch exam target. New AI-generated questions will use that exam&apos;s curated high-yield prompt profile.
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {EXAM_OPTIONS.map((exam) => {
+                const active = exam.key === examType;
+                return (
+                  <button
+                    key={exam.key}
+                    type="button"
+                    disabled={savingExamType}
+                    onClick={() => handleSelectExam(exam.key)}
+                    className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                      active
+                        ? "border-primary/70 bg-primary/12 text-primary"
+                        : "border-border/70 bg-background/70 text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                    }`}
+                  >
+                    {exam.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </section>
