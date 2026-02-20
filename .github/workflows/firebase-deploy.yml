@@ -10,7 +10,7 @@ on:
 
 env:
   FIREBASE_PROJECT_ID: medq-a6cc6
-  NODE_VERSION: '22'
+  NODE_VERSION: '20'
 
 # Only one deploy pipeline runs at a time; queues the next run.
 # cancel-in-progress is FALSE because cancelling a CI run does NOT cancel
