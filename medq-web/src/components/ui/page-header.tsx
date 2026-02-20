@@ -27,7 +27,7 @@ export function PageHeader({
   children,
 }: PageHeaderProps) {
   return (
-    <div className={cn("glass-card p-5 sm:p-6 animate-in-up", className)}>
+    <div className={cn("animate-in-fade", className)}>
       {breadcrumbs && breadcrumbs.length > 0 && (
         <nav className="mb-3 flex items-center gap-1 text-xs text-muted-foreground">
           {breadcrumbs.map((crumb, i) => (

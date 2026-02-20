@@ -54,7 +54,7 @@ function statusBadge(section: SectionModel) {
     );
   }
   if (section.questionsCount > 0) {
-    return <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/15 text-[10px]">Ready</Badge>;
+    return <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400 hover:bg-emerald-100 text-[10px]">Ready</Badge>;
   }
   if (section.questionsStatus === "FAILED") {
     return <Badge variant="destructive" className="text-[10px]">Failed</Badge>;
@@ -80,10 +80,10 @@ function SectionQuestionCard({
       section.questionsCount === 0);
 
   return (
-    <div className="flex items-start gap-3 rounded-xl border border-border/70 bg-background/70 p-4 transition-all duration-200 hover:border-primary/15 hover:bg-accent/30">
+    <div className="flex items-start gap-3 rounded-lg border border-border p-4 transition-colors hover:bg-accent/50">
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="truncate text-sm font-semibold">{section.title}</p>
+          <p className="truncate text-sm font-medium">{section.title}</p>
           {statusBadge(section)}
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -93,7 +93,7 @@ function SectionQuestionCard({
           <p className="mt-2 text-xs text-destructive">{section.questionsErrorMessage}</p>
         )}
         {section.questionsCount > 0 && section.questionsStatus !== "GENERATING" && (
-          <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">
+          <p className="mt-1 text-xs text-muted-foreground tabular-nums">
             {section.questionsCount} questions available
           </p>
         )}
@@ -113,8 +113,8 @@ function SectionQuestionCard({
       <div className="flex shrink-0 flex-col gap-2">
         {canStartQuiz ? (
           <Link href={`/practice/quiz?section=${section.id}`}>
-            <Button size="sm" className="rounded-xl">
-              <CircleHelp className="mr-2 h-4 w-4" />
+            <Button size="sm">
+              <CircleHelp className="mr-1.5 h-3.5 w-3.5" />
               Start Quiz
             </Button>
           </Link>
@@ -122,7 +122,6 @@ function SectionQuestionCard({
           <Button
             size="sm"
             variant="outline"
-            className="rounded-xl"
             onClick={() => onGenerate(section.id)}
             disabled={generating}
           >
@@ -132,18 +131,18 @@ function SectionQuestionCard({
               />
             ) : section.questionsStatus === "FAILED" ? (
               <>
-                <RefreshCw className="mr-2 h-4 w-4" />
+                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
                 Retry
               </>
             ) : (
               <>
-                <Sparkles className="mr-2 h-4 w-4" />
+                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
                 Generate
               </>
             )}
           </Button>
         ) : (
-          <Button size="sm" variant="ghost" disabled className="rounded-xl">
+          <Button size="sm" variant="ghost" disabled>
             {section.aiStatus !== "ANALYZED" ? "Waiting Analysis" : "In Progress"}
           </Button>
         )}
@@ -158,24 +157,24 @@ const modeCards = [
     icon: Zap,
     label: "Smart Mix",
     description: "AI-weighted mix focusing on weak areas",
-    color: "text-amber-500",
-    bg: "bg-amber-500/10",
+    color: "text-amber-600 dark:text-amber-400",
+    bg: "bg-amber-50 dark:bg-amber-500/10",
   },
   {
     href: "/practice/quiz?mode=random",
     icon: Shuffle,
     label: "Random Quiz",
-    description: "Random selection from all available questions",
-    color: "text-blue-500",
-    bg: "bg-blue-500/10",
+    description: "Random selection from all questions",
+    color: "text-blue-600 dark:text-blue-400",
+    bg: "bg-blue-50 dark:bg-blue-500/10",
   },
   {
     href: "/practice/assessment",
     icon: BrainCircuit,
     label: "Assessment",
-    description: "Adaptive diagnostics with level-based scoring",
-    color: "text-violet-500",
-    bg: "bg-violet-500/10",
+    description: "Adaptive diagnostics with scoring",
+    color: "text-violet-600 dark:text-violet-400",
+    bg: "bg-violet-50 dark:bg-violet-500/10",
   },
 ];
 
@@ -227,12 +226,12 @@ export default function PracticePage() {
       <div className="page-wrap page-stack">
         <h1 className="page-title">Practice</h1>
         <Card>
-          <CardContent className="flex items-center justify-between gap-4 p-6">
+          <CardContent className="flex items-center justify-between gap-4 p-5">
             <p className="text-sm text-muted-foreground">
               Select a course first to manage and practice questions.
             </p>
             <Link href="/onboarding">
-              <Button size="sm" className="rounded-xl">Create Course</Button>
+              <Button size="sm">Create Course</Button>
             </Link>
           </CardContent>
         </Card>
@@ -242,47 +241,37 @@ export default function PracticePage() {
 
   return (
     <div className="page-wrap page-stack">
-      <div className="glass-card overflow-hidden">
-        <div className="h-1 w-full bg-gradient-to-r from-primary/40 via-primary to-primary/40" />
-        <div className="flex items-start gap-4 p-6 sm:p-8">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/12">
-            <CircleHelp className="h-5 w-5 text-primary" />
-          </div>
-          <div className="space-y-1">
-            <p className="section-label animate-in-up stagger-1">Assessment</p>
-            <h1 className="page-title animate-in-up stagger-2">Practice</h1>
-            <p className="page-subtitle animate-in-up stagger-3">
-              {activeCourse
-                ? `Test your knowledge of ${activeCourse.title} with AI-generated questions tailored to your weak areas.`
-                : "Select sections and start quizzing to reinforce your understanding."}
-            </p>
-          </div>
-        </div>
+
+      {/* Header */}
+      <div>
+        <h1 className="page-title">Practice</h1>
+        <p className="page-subtitle">
+          {activeCourse
+            ? `Test your knowledge of ${activeCourse.title} with AI-generated questions.`
+            : "Select sections and start quizzing."}
+        </p>
       </div>
 
       {/* Mode cards */}
       {!loading && categorized.ready.length > 0 && (
-        <div className="space-y-2">
-          <h2 className="section-label">Quiz Modes</h2>
-          <div className="grid gap-3 sm:grid-cols-3 animate-in-up stagger-3">
-            {modeCards.map((mode) => (
-              <Link key={mode.href} href={mode.href}>
-                <div className="surface-interactive p-5">
-                  <div className={cn("flex h-10 w-10 items-center justify-center rounded-xl", mode.bg)}>
-                    <mode.icon className={cn("h-5 w-5", mode.color)} />
-                  </div>
-                  <p className="mt-3.5 text-sm font-semibold tracking-tight">{mode.label}</p>
-                  <p className="mt-1 text-[0.75rem] leading-relaxed text-muted-foreground">{mode.description}</p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {modeCards.map((mode) => (
+            <Link key={mode.href} href={mode.href}>
+              <div className="surface-interactive p-5">
+                <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg", mode.bg)}>
+                  <mode.icon className={cn("h-4.5 w-4.5", mode.color)} />
                 </div>
-              </Link>
-            ))}
-          </div>
+                <p className="mt-3 text-sm font-medium">{mode.label}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">{mode.description}</p>
+              </div>
+            </Link>
+          ))}
         </div>
       )}
 
       {loading ? (
         <SectionLoadingState
-          title="Loading practice sections"
+          title="Loading sections"
           description="Fetching analyzed sections and quiz readiness."
           rows={4}
         />
@@ -294,42 +283,42 @@ export default function PracticePage() {
           action={{ label: "Go to Library", href: "/library" }}
         />
       ) : (
-        <Tabs defaultValue="ready" className="glass-card p-4 sm:p-5">
-          <TabsList className="w-full justify-start rounded-xl bg-muted/70 p-1">
-            <TabsTrigger value="ready" className="rounded-lg">Ready to Quiz ({categorized.ready.length})</TabsTrigger>
-            <TabsTrigger value="all" className="rounded-lg">All Sections ({sections.length})</TabsTrigger>
-          </TabsList>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <Tabs defaultValue="ready">
+            <TabsList className="w-full justify-start">
+              <TabsTrigger value="ready">Ready ({categorized.ready.length})</TabsTrigger>
+              <TabsTrigger value="all">All ({sections.length})</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="ready" className="space-y-3 mt-4">
-            {categorized.ready.length === 0 ? (
-              <p className="py-12 text-center text-sm text-muted-foreground">
-                No sections are ready to quiz yet. Generate questions from the All Sections tab.
-              </p>
-            ) : (
-              categorized.ready.map((section, i) => (
-                <div key={section.id} style={{ animationDelay: `${i * 40}ms` }} className="animate-in-up">
+            <TabsContent value="ready" className="space-y-2 mt-4">
+              {categorized.ready.length === 0 ? (
+                <p className="py-10 text-center text-sm text-muted-foreground">
+                  No sections are ready yet. Generate questions from the All tab.
+                </p>
+              ) : (
+                categorized.ready.map((section) => (
                   <SectionQuestionCard
+                    key={section.id}
                     section={section}
                     generating={!!generatingIds[section.id]}
                     onGenerate={handleGenerate}
                   />
-                </div>
-              ))
-            )}
-          </TabsContent>
+                ))
+              )}
+            </TabsContent>
 
-          <TabsContent value="all" className="space-y-3 mt-4">
-            {sections.map((section, i) => (
-              <div key={section.id} style={{ animationDelay: `${i * 40}ms` }} className="animate-in-up">
+            <TabsContent value="all" className="space-y-2 mt-4">
+              {sections.map((section) => (
                 <SectionQuestionCard
+                  key={section.id}
                   section={section}
                   generating={!!generatingIds[section.id]}
                   onGenerate={handleGenerate}
                 />
-              </div>
-            ))}
-          </TabsContent>
-        </Tabs>
+              ))}
+            </TabsContent>
+          </Tabs>
+        </div>
       )}
     </div>
   );

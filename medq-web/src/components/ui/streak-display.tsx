@@ -27,7 +27,6 @@ function getDayDots(lastStudied: Date | null | undefined): boolean[] {
     const last = new Date(lastStudied);
     last.setHours(0, 0, 0, 0);
 
-    // Simple heuristic: mark days as active if they're within the streak range
     const diffDays = Math.floor((today.getTime() - day.getTime()) / (1000 * 60 * 60 * 24));
     dots.push(diffDays < (lastStudied ? 7 : 0) && day <= last);
   }
@@ -50,51 +49,31 @@ export function StreakDisplay({ days, lastStudied, className }: StreakDisplayPro
   const atRisk = isActive && !studiedToday;
 
   return (
-    <div className={cn("metric-card relative overflow-hidden", className)}>
+    <div className={cn("metric-card", className)}>
       <div className="flex items-center gap-3">
-        {/* Flame icon */}
-        <div
+        <Flame
           className={cn(
-            "flex h-11 w-11 items-center justify-center rounded-2xl",
-            isActive
-              ? "bg-gradient-to-br from-orange-400/20 to-amber-500/20"
-              : "bg-muted/60"
+            "h-5 w-5",
+            isActive ? "text-orange-500" : "text-muted-foreground"
           )}
-        >
-          <Flame
-            className={cn(
-              "h-6 w-6",
-              isActive
-                ? "text-orange-500 animate-streak-glow"
-                : "text-muted-foreground"
-            )}
-          />
-        </div>
-
-        {/* Counter */}
+        />
         <div>
           <div className="flex items-baseline gap-1">
-            <NumberTicker
-              value={days}
-              className="text-2xl font-bold tracking-tight"
-            />
-            <span className="text-sm font-medium text-muted-foreground">day streak</span>
+            <NumberTicker value={days} className="text-2xl font-semibold tracking-tight" />
+            <span className="text-sm text-muted-foreground">day streak</span>
           </div>
           {atRisk && (
-            <p className="text-[11px] font-medium text-orange-500">
-              Study today to keep your streak!
-            </p>
+            <p className="text-xs text-orange-500">Study today to keep your streak</p>
           )}
         </div>
       </div>
 
-      {/* 7-day calendar */}
       <div className="mt-3 flex items-center gap-1.5">
         {dots.map((active, i) => {
           const isToday = i === 6;
           return (
             <div key={i} className="flex flex-col items-center gap-1">
-              <span className="text-[9px] text-muted-foreground/70 font-medium">
+              <span className="text-[9px] text-muted-foreground font-medium">
                 {DAY_LABELS[i]}
               </span>
               <div
@@ -104,7 +83,7 @@ export function StreakDisplay({ days, lastStudied, className }: StreakDisplayPro
                     ? "bg-orange-500"
                     : isToday && atRisk
                     ? "border-2 border-orange-400/60 bg-transparent"
-                    : "bg-muted-foreground/20"
+                    : "bg-muted"
                 )}
               />
             </div>

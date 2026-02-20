@@ -7,7 +7,7 @@ import { useCourseStore } from "@/lib/stores/course-store";
 import { FileUploadZone } from "@/components/library/file-upload-zone";
 import { FileCard } from "@/components/library/file-card";
 import { InlineLoadingState, ListLoadingState } from "@/components/ui/loading-state";
-import { Library, Upload, ArrowRight } from "lucide-react";
+import { Upload, ArrowRight } from "lucide-react";
 
 export default function LibraryPage() {
   const courseId = useCourseStore((s) => s.activeCourseId);
@@ -22,75 +22,62 @@ export default function LibraryPage() {
   return (
     <div className="page-wrap page-stack">
 
-      {/* Page header */}
-      <div className="glass-card overflow-hidden">
-        <div className="h-1 w-full bg-gradient-to-r from-primary/40 via-primary to-primary/40" />
-        <div className="flex items-start gap-4 p-6 sm:p-8">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/12">
-            <Library className="h-5 w-5 text-primary" />
-          </div>
-          <div className="space-y-1">
-            <p className="section-label animate-in-up stagger-1">Materials</p>
-            <h1 className="page-title animate-in-up stagger-2">Library</h1>
-            <p className="page-subtitle animate-in-up stagger-3">
-              Upload your study materials once and let AI extract, analyse, and organise them into structured sections ready for quizzing.
-            </p>
-          </div>
-        </div>
+      {/* Header */}
+      <div>
+        <h1 className="page-title">Library</h1>
+        <p className="page-subtitle">
+          Upload study materials and let AI extract structured sections for quizzing.
+        </p>
       </div>
 
       {/* Upload zone */}
-      <div className="animate-in-up stagger-3">
-        <FileUploadZone />
-      </div>
+      <FileUploadZone />
 
       {/* File list */}
       <div className="space-y-3">
         {loading ? (
           <ListLoadingState rows={4} />
         ) : files.length === 0 ? (
-          <div className="glass-card flex flex-col items-center justify-center rounded-2xl border-dashed py-20 text-center">
-            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-muted/70">
-              <Upload className="h-6 w-6 text-muted-foreground/50" />
-            </div>
-            <p className="font-semibold">No materials uploaded yet</p>
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-16 text-center">
+            <Upload className="mb-3 h-8 w-8 text-muted-foreground/40" />
+            <p className="font-medium">No materials uploaded yet</p>
             <p className="mt-1 text-sm text-muted-foreground max-w-xs">
-              Drag a PDF, DOCX, or PPTX above to get started. AI will analyse and extract study sections automatically.
+              Drag a PDF, DOCX, or PPTX above to get started.
             </p>
           </div>
         ) : (
           <>
             {backgroundProcessingCount > 0 && (
-              <div className="glass-card flex items-center gap-3 px-5 py-3.5 animate-in-up">
-                <div className="h-2 w-2 shrink-0 rounded-full bg-amber-500 animate-glow-pulse" />
+              <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+                <div className="h-2 w-2 shrink-0 rounded-full bg-amber-500" />
                 <span className="text-sm text-muted-foreground">
-                  Sit tight — AI is analysing {backgroundProcessingCount} file{backgroundProcessingCount === 1 ? "" : "s"}. This usually takes 1–3 minutes. You can keep using the app.
+                  AI is analysing {backgroundProcessingCount} file{backgroundProcessingCount === 1 ? "" : "s"}. This usually takes 1-3 minutes.
                 </span>
               </div>
             )}
 
             {hasFiles && !hasPlan && backgroundProcessingCount === 0 && (
-              <div className="glass-card flex items-center justify-between gap-4 border-primary/15 px-5 py-3.5 animate-in-up">
+              <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card px-4 py-3">
                 <p className="text-sm text-muted-foreground">
                   {tasksLoading ? (
                     <InlineLoadingState label="Checking your plan status..." />
                   ) : (
-                    "All files analysed — your study plan will be generated automatically. Check your Today page soon!"
+                    "All files analysed — your study plan will be generated automatically."
                   )}
                 </p>
                 <Link
                   href="/today"
-                  className="inline-flex shrink-0 items-center gap-1.5 text-sm font-semibold text-primary hover:text-primary/80 transition-colors"
+                  className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-primary hover:underline"
                 >
-                  Go to Today
+                  Go to Home
                   <ArrowRight className="h-3.5 w-3.5" />
                 </Link>
               </div>
             )}
 
-            <div className="space-y-2.5">
-              {files.map((file, i) => (
-                <div key={file.id} style={{ animationDelay: `${i * 50}ms` }} className="animate-in-up">
+            <div className="space-y-2">
+              {files.map((file) => (
+                <div key={file.id}>
                   <FileCard file={file} />
                 </div>
               ))}

@@ -72,7 +72,6 @@ export function FileUploadZone() {
           });
 
           toast.success(`${file.name} uploaded! AI analysis will begin shortly.`);
-          // Remove completed upload after 3 seconds
           const timer = setTimeout(() => {
             cleanupTimers.current.delete(timer);
             setUploads((prev) => {
@@ -110,28 +109,25 @@ export function FileUploadZone() {
 
   if (!courseId) {
     return (
-      <div className="glass-card flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center">
+      <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border p-8 text-center">
         <p className="text-sm text-muted-foreground">Select a course first to upload files.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={() => setIsDragging(false)}
-        className={`glass-card flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-7 text-center transition-colors ${
-          isDragging ? "border-primary bg-primary/10" : "border-muted-foreground/25 hover:border-primary/50"
+        className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
+          isDragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"
         }`}
       >
-        <Upload className="mb-3 h-9 w-9 text-primary" />
-        <p className="text-base font-semibold">Drag and drop files here</p>
+        <Upload className="mb-3 h-8 w-8 text-muted-foreground" />
+        <p className="text-sm font-medium">Drag and drop files here</p>
         <p className="mt-1 text-xs text-muted-foreground">PDF, PPTX, or DOCX (max 100MB)</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Upload starts now, processing runs in the background, and you can continue using the app.
-        </p>
         <label className="mt-4">
           <Button variant="outline" size="sm" asChild>
             <span>Browse Files</span>
@@ -149,14 +145,14 @@ export function FileUploadZone() {
       {uploads.size > 0 && (
         <div className="space-y-2">
           {Array.from(uploads.entries()).map(([key, upload]) => (
-            <div key={key} className="glass-card flex items-center gap-3 rounded-xl p-3">
+            <div key={key} className="flex items-center gap-3 rounded-lg border border-border bg-card p-3">
               <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
               <div className="flex-1 min-w-0">
                 <p className="truncate text-sm">{upload.name}</p>
                 {upload.error ? (
                   <p role="alert" className="text-xs text-destructive">{upload.error}</p>
                 ) : upload.progress ? (
-                  <Progress value={upload.progress.percent} className="mt-1 h-1.5" />
+                  <Progress value={upload.progress.percent} className="mt-1 h-1" />
                 ) : null}
               </div>
               {upload.progress?.state === "running" && (

@@ -21,33 +21,14 @@ export function DiagnosticDirective({
   const isStrong = accuracyPct != null && accuracyPct >= 80;
 
   return (
-    <div
-      className={cn(
-        "glass-card overflow-hidden",
-        className
-      )}
-    >
+    <div className={cn("rounded-xl border border-border bg-card", className)}>
       {/* Header */}
-      <div className="flex items-center gap-2 border-b border-border/50 px-5 py-4">
-        <div
-          className={cn(
-            "flex h-7 w-7 items-center justify-center rounded-lg",
-            isStrong ? "bg-green-500/12" : "bg-primary/12"
-          )}
-        >
-          <Brain
-            className={cn(
-              "h-3.5 w-3.5",
-              isStrong ? "text-green-500" : "text-primary"
-            )}
-          />
-        </div>
+      <div className="flex items-center gap-2 border-b border-border px-5 py-3.5">
+        <Brain className={cn("h-4 w-4", isStrong ? "text-emerald-500" : "text-primary")} />
         <div>
-          <h3 className="text-[0.8125rem] font-semibold tracking-tight">
-            Today&rsquo;s Directive
-          </h3>
+          <h3 className="text-sm font-medium">Recommendations</h3>
           {accuracyPct != null && (
-            <p className="text-[0.6875rem] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Overall accuracy: {accuracyPct}%
             </p>
           )}
@@ -55,30 +36,28 @@ export function DiagnosticDirective({
       </div>
 
       {/* Directives */}
-      <div className="divide-y divide-border/40 px-5">
+      <div className="divide-y divide-border px-5">
         {directives.map((directive, i) => (
-          <div key={i} className="flex items-start gap-3 py-3.5">
+          <div key={i} className="flex items-start gap-3 py-3">
             <CheckCircle2
               className={cn(
                 "mt-0.5 h-4 w-4 shrink-0",
                 i === 0
-                  ? isStrong
-                    ? "text-green-500"
-                    : "text-primary"
-                  : "text-muted-foreground/50"
+                  ? isStrong ? "text-emerald-500" : "text-primary"
+                  : "text-muted-foreground/40"
               )}
             />
-            <p className="text-sm leading-relaxed text-foreground/90">{directive}</p>
+            <p className="text-sm leading-relaxed">{directive}</p>
           </div>
         ))}
       </div>
 
-      {/* Action link */}
+      {/* Action */}
       {!isStrong && (
-        <div className="border-t border-border/50 px-5 py-3">
+        <div className="border-t border-border px-5 py-3">
           <Link
             href="/practice"
-            className="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+            className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
           >
             Start targeted practice
             <ArrowRight className="h-3.5 w-3.5" />
