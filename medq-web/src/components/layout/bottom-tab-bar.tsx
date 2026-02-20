@@ -4,14 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Library, CircleHelp, Sparkles, User } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useMemo } from "react";
-
 const tabs = [
-  { href: "/today", label: "Today", icon: Home },
+  { href: "/today", label: "Home", icon: Home },
   { href: "/library", label: "Library", icon: Library },
   { href: "/practice", label: "Practice", icon: CircleHelp },
   { href: "/ai", label: "AI", icon: Sparkles },
-  { href: "/profile", label: "Profile", icon: User },
+  { href: "/profile", label: "Settings", icon: User },
 ];
 
 function isTabActive(pathname: string, href: string): boolean {
@@ -26,25 +24,9 @@ function isTabActive(pathname: string, href: string): boolean {
 export function BottomTabBar() {
   const pathname = usePathname();
 
-  const activeIndex = useMemo(
-    () => tabs.findIndex((tab) => isTabActive(pathname, tab.href)),
-    [pathname]
-  );
-
-  // Each tab is 20% wide, center the indicator
-  const indicatorOffset = activeIndex >= 0 ? `${activeIndex * 20 + 10}%` : "10%";
-
   return (
-    <nav aria-label="Main navigation" className="fixed inset-x-3 bottom-3 z-50 overflow-hidden rounded-2xl border border-border/50 bg-card/88 shadow-[0_-4px_24px_-8px_oklch(0.2_0.02_250/0.15)] backdrop-blur-2xl pb-[max(env(safe-area-inset-bottom),0.2rem)] md:hidden">
-      {/* Sliding indicator blob */}
-      {activeIndex >= 0 && (
-        <div
-          className="absolute top-1.5 h-[calc(100%-0.75rem-max(env(safe-area-inset-bottom),0.2rem))] w-[18%] rounded-xl bg-primary/10 border border-primary/15 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]"
-          style={{ left: indicatorOffset, transform: "translateX(-50%)" }}
-        />
-      )}
-
-      <div className="relative flex">
+    <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-card pb-[max(env(safe-area-inset-bottom),0.25rem)] md:hidden">
+      <div className="flex">
         {tabs.map((tab) => {
           const active = isTabActive(pathname, tab.href);
           return (
@@ -54,18 +36,13 @@ export function BottomTabBar() {
               aria-current={active ? "page" : undefined}
               aria-label={tab.label}
               className={cn(
-                "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-3 text-[10px] font-medium transition-all duration-200 active:scale-95 min-h-[44px]",
+                "flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 py-2.5 text-[10px] font-medium transition-colors min-h-[44px]",
                 active
                   ? "text-primary"
                   : "text-muted-foreground"
               )}
             >
-              <tab.icon
-                className={cn(
-                  "h-5 w-5 transition-transform duration-200",
-                  active && "scale-110"
-                )}
-              />
+              <tab.icon className="h-5 w-5" />
               <span className="truncate">{tab.label}</span>
             </Link>
           );

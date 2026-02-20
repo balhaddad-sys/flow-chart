@@ -20,7 +20,6 @@ import {
   Sparkles,
   Clock3,
 } from "lucide-react";
-import { NumberTicker } from "@/components/ui/animate-in";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { toast } from "sonner";
@@ -43,11 +42,6 @@ export default function AiPage() {
       return title.includes(term) || preview.includes(term);
     });
   }, [threads, debouncedSearch]);
-
-  const totalMessages = useMemo(
-    () => threads.reduce((sum, thread) => sum + (thread.messageCount || 0), 0),
-    [threads]
-  );
 
   const latestThread = filteredThreads[0] ?? null;
 
@@ -72,152 +66,124 @@ export default function AiPage() {
 
   return (
     <div className="page-wrap page-stack">
-      <section className="glass-card overflow-hidden">
-        <div className="h-1 w-full bg-gradient-to-r from-primary/40 via-primary to-primary/40" />
-        <div className="p-6 sm:p-8">
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-            <div className="space-y-3">
-              <span className="section-label animate-in-up stagger-1">AI Workspace</span>
-              <h1 className="page-title animate-in-up stagger-2">Clinical Reasoning Assistant</h1>
-              <p className="page-subtitle max-w-xl animate-in-up stagger-3">
-                Explore any medical topic in depth, maintain longitudinal conversation threads, and receive context-aware guidance grounded in your own study materials.
-              </p>
-              <div className="flex flex-wrap gap-2 animate-in-up stagger-4">
-                <Button onClick={() => router.push("/ai/explore")} size="sm">
-                  <Compass className="mr-1.5 h-3.5 w-3.5" />
-                  Explore Topic
-                </Button>
-                <Button
-                  onClick={handleNewThread}
-                  disabled={creating || !courseId}
-                  variant="outline"
-                  size="sm"
-                >
-                  {creating ? (
-                    <LoadingButtonLabel label="Creating..." />
-                  ) : (
-                    <Plus className="mr-1.5 h-3.5 w-3.5" />
-                  )}
-                  {!creating && "New Chat"}
-                </Button>
-                {latestThread && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => router.push(`/ai/${latestThread.id}`)}
-                  >
-                    Resume latest
-                    <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-                  </Button>
-                )}
-              </div>
-            </div>
 
-            {/* Stats */}
-            <div className="flex gap-3 shrink-0">
-              <div className="rounded-xl border border-border/70 bg-background/75 px-4 py-3 text-center min-w-[5rem]">
-                <NumberTicker value={threads.length} className="text-2xl font-bold tabular-nums tracking-tight" />
-                <p className="mt-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
-                  Threads
-                </p>
-              </div>
-              <div className="rounded-xl border border-border/70 bg-background/75 px-4 py-3 text-center min-w-[5rem]">
-                <NumberTicker value={totalMessages} className="text-2xl font-bold tabular-nums tracking-tight" />
-                <p className="mt-0.5 text-[0.6rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
-                  Messages
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <div className="flex items-center gap-2 rounded-xl border border-border/70 bg-card/80 px-3 py-2">
-          <Search className="h-4 w-4 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search threads by title or last message..."
-            className="h-8 border-none bg-transparent px-0 shadow-none focus-visible:ring-0"
-          />
-        </div>
-
-        {loading ? (
-          <ListLoadingState rows={4} />
-        ) : filteredThreads.length === 0 ? (
-          <EmptyState
-            icon={MessageSquare}
-            title={search.trim() ? "No threads match your search" : "No conversations yet"}
-            description="Start a new chat to ask AI about your course content."
-            action={{ label: "New Chat", onClick: handleNewThread }}
-          />
-        ) : (
-          <div className="space-y-2.5">
-            {filteredThreads.map((thread) => (
-              <Card
-                key={thread.id}
-                className="cursor-pointer border-border/70 transition-all hover:-translate-y-0.5 hover:border-primary/35"
-                onClick={() => router.push(`/ai/${thread.id}`)}
-              >
-                <CardContent className="flex items-start gap-3 p-4">
-                  <div className="rounded-lg border border-border/70 bg-background/75 p-2">
-                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{thread.title}</p>
-                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                      {thread.lastMessage || "No messages yet"}
-                    </p>
-                  </div>
-                  <div className="text-right text-xs text-muted-foreground">
-                    <div className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-background/70 px-2 py-0.5">
-                      <Clock3 className="h-3 w-3" />
-                      {thread.messageCount} msgs
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className="grid gap-3 md:grid-cols-2">
-        <Card className="border-primary/25 bg-gradient-to-br from-primary/12 via-primary/6 to-transparent">
-          <CardContent className="space-y-2 p-5">
-            <p className="text-sm font-semibold">Explore AI Tutor</p>
-            <p className="text-xs text-muted-foreground">
-              Generate adaptive quizzes, teaching outlines, and follow-up guidance for any medical topic.
-            </p>
+      {/* Header */}
+      <div>
+        <h1 className="page-title">AI Chat</h1>
+        <p className="page-subtitle">
+          Explore medical topics, ask questions, and get guidance grounded in your study materials.
+        </p>
+        <div className="flex flex-wrap gap-2 mt-3">
+          <Button onClick={() => router.push("/ai/explore")} size="sm">
+            <Compass className="mr-1.5 h-3.5 w-3.5" />
+            Explore Topic
+          </Button>
+          <Button
+            onClick={handleNewThread}
+            disabled={creating || !courseId}
+            variant="outline"
+            size="sm"
+          >
+            {creating ? (
+              <LoadingButtonLabel label="Creating..." />
+            ) : (
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            {!creating && "New Chat"}
+          </Button>
+          {latestThread && (
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
-              className="mt-1"
-              onClick={() => router.push("/ai/explore")}
+              onClick={() => router.push(`/ai/${latestThread.id}`)}
             >
-              Open Explore
+              Resume latest
+              <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
             </Button>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="space-y-2 p-5">
-            <p className="text-sm font-semibold">Threaded Course Chat</p>
-            <p className="text-xs text-muted-foreground">
-              Keep persistent conversations tied to your active course and revisit your reasoning trail.
-            </p>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleNewThread}
-              disabled={creating || !courseId}
+          )}
+        </div>
+      </div>
+
+      {/* Search */}
+      <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5">
+        <Search className="h-4 w-4 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search threads..."
+          className="h-8 border-none bg-transparent px-0 shadow-none focus-visible:ring-0"
+        />
+      </div>
+
+      {/* Thread list */}
+      {loading ? (
+        <ListLoadingState rows={4} />
+      ) : filteredThreads.length === 0 ? (
+        <EmptyState
+          icon={MessageSquare}
+          title={search.trim() ? "No threads match your search" : "No conversations yet"}
+          description="Start a new chat to ask AI about your course content."
+          action={{ label: "New Chat", onClick: handleNewThread }}
+        />
+      ) : (
+        <div className="space-y-2">
+          {filteredThreads.map((thread) => (
+            <Card
+              key={thread.id}
+              className="cursor-pointer transition-colors hover:bg-accent/50"
+              onClick={() => router.push(`/ai/${thread.id}`)}
             >
-              <Sparkles className="mr-2 h-4 w-4" />
-              Create Thread
-            </Button>
-          </CardContent>
-        </Card>
-      </section>
+              <CardContent className="flex items-start gap-3 p-4">
+                <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{thread.title}</p>
+                  <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
+                    {thread.lastMessage || "No messages yet"}
+                  </p>
+                </div>
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                  <Clock3 className="h-3 w-3" />
+                  {thread.messageCount}
+                </span>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Feature cards */}
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="rounded-xl border border-border bg-card p-5">
+          <p className="text-sm font-medium">Explore AI Tutor</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Generate adaptive quizzes and teaching outlines for any medical topic.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={() => router.push("/ai/explore")}
+          >
+            Open Explore
+          </Button>
+        </div>
+        <div className="rounded-xl border border-border bg-card p-5">
+          <p className="text-sm font-medium">Course Chat</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Keep persistent conversations tied to your active course.
+          </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-3"
+            onClick={handleNewThread}
+            disabled={creating || !courseId}
+          >
+            <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+            Create Thread
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

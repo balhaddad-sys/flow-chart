@@ -26,61 +26,49 @@ export function StatCard({
   icon,
   trend,
   trendLabel,
-  accentColor = "var(--color-primary)",
   className,
 }: StatCardProps) {
   return (
-    <div className={cn("metric-card relative overflow-hidden", className)}>
-      {/* Accent line */}
-      <div
-        className="absolute left-0 top-0 h-full w-1 rounded-l-2xl"
-        style={{ backgroundColor: accentColor }}
-      />
-
-      <div className="pl-3">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-            {label}
-          </p>
-          {icon && (
-            <div
-              className="flex h-8 w-8 items-center justify-center rounded-xl"
-              style={{ backgroundColor: `color-mix(in oklab, ${accentColor} 15%, transparent)` }}
-            >
-              {icon}
-            </div>
-          )}
-        </div>
-
-        <div className="mt-2 flex items-baseline gap-1.5">
-          <NumberTicker
-            value={value}
-            prefix={prefix}
-            suffix={suffix}
-            decimals={decimals}
-            className="text-2xl font-semibold tracking-tight"
-          />
-        </div>
-
-        {trend && trendLabel && (
-          <div className="mt-2 flex items-center gap-1">
-            {trend === "up" && (
-              <TrendingUp className="h-3 w-3" style={{ color: "var(--success)" }} />
-            )}
-            {trend === "down" && (
-              <TrendingDown className="h-3 w-3" style={{ color: "var(--destructive)" }} />
-            )}
-            <span
-              className="text-[11px] font-medium"
-              style={{
-                color: trend === "up" ? "var(--success)" : trend === "down" ? "var(--destructive)" : "var(--muted-foreground)",
-              }}
-            >
-              {trendLabel}
-            </span>
+    <div className={cn("metric-card", className)}>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          {label}
+        </p>
+        {icon && (
+          <div className="text-muted-foreground">
+            {icon}
           </div>
         )}
       </div>
+
+      <div className="mt-2 flex items-baseline gap-1">
+        <NumberTicker
+          value={value}
+          prefix={prefix}
+          suffix={suffix}
+          decimals={decimals}
+          className="text-2xl font-semibold tracking-tight"
+        />
+      </div>
+
+      {trend && trendLabel && (
+        <div className="mt-2 flex items-center gap-1">
+          {trend === "up" && (
+            <TrendingUp className="h-3 w-3 text-emerald-500" />
+          )}
+          {trend === "down" && (
+            <TrendingDown className="h-3 w-3 text-red-500" />
+          )}
+          <span
+            className={cn(
+              "text-xs font-medium",
+              trend === "up" ? "text-emerald-600 dark:text-emerald-400" : trend === "down" ? "text-red-600 dark:text-red-400" : "text-muted-foreground",
+            )}
+          >
+            {trendLabel}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

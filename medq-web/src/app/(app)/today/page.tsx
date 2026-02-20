@@ -62,7 +62,6 @@ export default function TodayPage() {
   const activeCourseId = useCourseStore((s) => s.activeCourseId);
   const setActiveCourseId = useCourseStore((s) => s.setActiveCourseId);
 
-  // Zero-state: sample deck seeding
   const [seedingDeck, setSeedingDeck] = useState(false);
   const [deckSeeded, setDeckSeeded] = useState(false);
 
@@ -98,11 +97,9 @@ export default function TodayPage() {
   const weakTopics = stats?.weakestTopics ?? [];
   const diagnosticDirectives = stats?.diagnosticDirectives ?? [];
 
-  // Sample deck CTA: visible when no files exist and deck hasn't been seeded
   const isSampleCourse = (activeCourse as { isSampleDeck?: boolean } | undefined)?.isSampleDeck === true;
   const showSampleDeckCTA = !hasFiles && !deckSeeded && !isSampleCourse;
 
-  // Exam prep card: visible when the active course targets a real licensing/specialty exam
   const examType = (activeCourse as { examType?: string } | undefined)?.examType ?? "";
   const isRealExam = REAL_EXAM_TYPES.has(examType);
   const examShortLabel = EXAM_SHORT_LABEL[examType] ?? examType;
@@ -173,82 +170,63 @@ export default function TodayPage() {
   return (
     <div className="page-wrap page-stack">
 
-      {/* ── Hero section ──────────────────────────────────────────────── */}
-      <section className="glass-card overflow-hidden">
-        <div className="h-1 w-full bg-gradient-to-r from-primary/40 via-primary to-primary/40" />
-        <div className="p-6 sm:p-8">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0 space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="section-label animate-in-up stagger-1">Study Command Center</span>
-                <span className="section-label text-border animate-in-up stagger-1">·</span>
-                <span className="section-label animate-in-up stagger-1">{todayDate}</span>
-              </div>
+      {/* ── Header ─────────────────────────────────────────────────── */}
+      <section>
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">{todayDate}</p>
+            <h1 className="page-title">
+              {greeting()}, {user?.displayName?.split(" ")[0] || "Student"}
+            </h1>
+            {activeCourse && (
+              <p className="text-sm text-muted-foreground">
+                {activeCourse.title}
+                {isSampleCourse && " — Sample Deck"}
+              </p>
+            )}
 
-              <div>
-                <h1 className="page-title animate-in-up stagger-2">
-                  {greeting()},{" "}
-                  <span className="text-gradient">{user?.displayName?.split(" ")[0] || "Student"}</span>
-                </h1>
-                {activeCourse && (
-                  <p className="page-subtitle animate-in-up stagger-3 mt-1.5">
-                    {activeCourse.title}
-                    {isSampleCourse ? " — Sample High-Yield Deck" : " — your personalised study plan is ready."}
-                  </p>
-                )}
-              </div>
+            {(filesLoading || sectionsLoading) && (
+              <InlineLoadingState label="Syncing course content..." />
+            )}
 
-              {(filesLoading || sectionsLoading) && (
-                <div className="animate-in-up stagger-4">
-                  <InlineLoadingState label="Syncing course content…" />
-                </div>
-              )}
-
-              <div className="animate-in-up stagger-4 flex flex-wrap gap-2 pt-1">
-                {quickActions.slice(0, 4).map((action) => (
-                  <Link key={action.href} href={action.href}>
-                    <Button
-                      variant={action.href === "/ai" ? "default" : "outline"}
-                      size="sm"
-                      className="rounded-xl"
-                    >
-                      <action.icon className="mr-1.5 h-3.5 w-3.5" />
-                      {action.label}
-                    </Button>
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-            <div className="animate-in-up stagger-3 shrink-0">
-              <ExamCountdown examDate={activeCourse?.examDate} courseTitle={activeCourse?.title} />
+            <div className="flex flex-wrap gap-2 pt-2">
+              {quickActions.slice(0, 4).map((action) => (
+                <Link key={action.href} href={action.href}>
+                  <Button
+                    variant={action.href === "/ai" ? "default" : "outline"}
+                    size="sm"
+                  >
+                    <action.icon className="mr-1.5 h-3.5 w-3.5" />
+                    {action.label}
+                  </Button>
+                </Link>
+              ))}
             </div>
           </div>
+
+          <ExamCountdown examDate={activeCourse?.examDate} courseTitle={activeCourse?.title} />
         </div>
       </section>
 
-      {/* ── Zero-state: Sample Deck CTA ───────────────────────────────── */}
+      {/* ── Sample Deck CTA ────────────────────────────────────────── */}
       {showSampleDeckCTA && (
-        <section className="glass-card overflow-hidden border-primary/20">
-          <div className="h-1 w-full bg-gradient-to-r from-primary/20 via-primary/60 to-primary/20" />
-          <div className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/12">
-              <Zap className="h-6 w-6 text-primary" />
-            </div>
+        <section className="rounded-xl border border-border bg-card p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <Zap className="h-5 w-5 shrink-0 text-primary" />
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold">Try a Sample High-Yield Deck</h3>
+              <p className="font-medium">Try a Sample High-Yield Deck</p>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Experience the full assessment engine instantly — 10 pre-authored Cardiology &
-                Pharmacology SBAs. No upload required.
+                10 pre-authored Cardiology & Pharmacology SBAs. No upload required.
               </p>
             </div>
             <Button
               onClick={handleSeedSampleDeck}
               disabled={seedingDeck}
-              className="shrink-0 rounded-xl"
+              size="sm"
+              className="shrink-0"
             >
               {seedingDeck ? (
-                <LoadingButtonLabel label="Loading…" />
+                <LoadingButtonLabel label="Loading..." />
               ) : (
                 <>
                   <BookOpen className="mr-1.5 h-4 w-4" />
@@ -260,31 +238,28 @@ export default function TodayPage() {
         </section>
       )}
 
-      {/* ── Exam prep card ────────────────────────────────────────────── */}
+      {/* ── Exam prep card ──────────────────────────────────────────── */}
       {isRealExam && (
-        <section className="glass-card overflow-hidden border-primary/25">
-          <div className="h-1 w-full bg-gradient-to-r from-primary/30 via-primary/70 to-primary/30" />
-          <div className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/12">
-              <Trophy className="h-6 w-6 text-primary" />
-            </div>
+        <section className="rounded-xl border border-border bg-card p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <Trophy className="h-5 w-5 shrink-0 text-primary" />
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold">{examShortLabel} Question Bank</h3>
+              <p className="font-medium">{examShortLabel} Question Bank</p>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Practise with exam-specific questions, track your countdown, and deep-dive weak topics.
+                Practise with exam-specific questions and track weak topics.
               </p>
             </div>
             <Link href={examBankHref} className="shrink-0">
-              <Button className="rounded-xl gap-1.5">
+              <Button size="sm" className="gap-1.5">
                 Open Bank
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="h-3.5 w-3.5" />
               </Button>
             </Link>
           </div>
         </section>
       )}
 
-      {/* ── Pipeline setup progress ───────────────────────────────────── */}
+      {/* ── Pipeline progress ──────────────────────────────────────── */}
       <PipelineProgress
         hasFiles={hasFiles}
         hasSections={hasSections}
@@ -292,7 +267,7 @@ export default function TodayPage() {
         hasQuizAttempts={hasQuizAttempts}
       />
 
-      {/* ── Diagnostic directive (actionable analytics) ───────────────── */}
+      {/* ── Diagnostic directives ──────────────────────────────────── */}
       {diagnosticDirectives.length > 0 && (
         <DiagnosticDirective
           directives={diagnosticDirectives}
@@ -300,23 +275,23 @@ export default function TodayPage() {
         />
       )}
 
-      {/* ── Performance metrics ───────────────────────────────────────── */}
+      {/* ── Stats ──────────────────────────────────────────────────── */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="section-label">Performance Overview</h2>
+          <h2 className="text-sm font-medium text-muted-foreground">Performance</h2>
           <Link
             href="/today/analytics"
-            className="inline-flex items-center gap-1 text-[0.75rem] font-medium text-muted-foreground hover:text-foreground transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
             <BarChart3 className="h-3.5 w-3.5" />
-            Full Analytics
+            Analytics
           </Link>
         </div>
         <StatsCards stats={stats} loading={statsLoading} />
       </section>
 
-      {/* ── Tasks + Weak Topics two-column ───────────────────────────── */}
-      <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
+      {/* ── Tasks + Weak Topics ────────────────────────────────────── */}
+      <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
         <TodayChecklist tasks={todayTasks} loading={tasksLoading} sectionMap={sectionMap} />
 
         <div className="space-y-4">
@@ -325,31 +300,32 @@ export default function TodayPage() {
           {weakTopics.length > 0 && (
             <Button
               variant="outline"
-              className="w-full rounded-xl"
+              size="sm"
+              className="w-full"
               onClick={handleFixPlan}
               disabled={fixPlanLoading || !effectiveCourseId}
             >
               {fixPlanLoading ? (
-                <LoadingButtonLabel label="Generating…" />
+                <LoadingButtonLabel label="Generating..." />
               ) : (
                 <>
-                  <Wrench className="mr-2 h-4 w-4" />
+                  <Wrench className="mr-2 h-3.5 w-3.5" />
                   Generate Remediation Plan
                 </>
               )}
             </Button>
           )}
 
-          <div className="grid grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-2 gap-2">
             <Link href="/today/plan" className="block">
-              <Button variant="outline" size="sm" className="w-full rounded-xl">
-                <Calendar className="mr-2 h-3.5 w-3.5" />
+              <Button variant="outline" size="sm" className="w-full">
+                <Calendar className="mr-1.5 h-3.5 w-3.5" />
                 Full Plan
               </Button>
             </Link>
             <Link href="/today/analytics" className="block">
-              <Button variant="outline" size="sm" className="w-full rounded-xl">
-                <BarChart3 className="mr-2 h-3.5 w-3.5" />
+              <Button variant="outline" size="sm" className="w-full">
+                <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
                 Analytics
               </Button>
             </Link>
@@ -357,7 +333,7 @@ export default function TodayPage() {
         </div>
       </section>
 
-      {/* ── Streak graph (shown once user has answered questions) ─────── */}
+      {/* ── Streak ─────────────────────────────────────────────────── */}
       {hasQuizAttempts && <StreakGraph />}
     </div>
   );

@@ -17,10 +17,10 @@ export function StatsCards({ stats, loading = false }: StatsCardsProps) {
     return (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, index) => (
-          <div key={index} className="metric-card space-y-4">
-            <Skeleton className="h-3 w-2/5 rounded-full" />
-            <Skeleton className="h-9 w-3/5 rounded-full" />
-            <Skeleton className="h-3 w-4/5 rounded-full" />
+          <div key={index} className="rounded-xl border border-border bg-card p-5 space-y-3">
+            <Skeleton className="h-3 w-2/5" />
+            <Skeleton className="h-8 w-3/5" />
+            <Skeleton className="h-3 w-4/5" />
           </div>
         ))}
       </div>
@@ -38,75 +38,55 @@ export function StatsCards({ stats, loading = false }: StatsCardsProps) {
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
 
       {/* Study Time */}
-      <div className="metric-card animate-in-up stagger-1 flex flex-col gap-3">
+      <div className="metric-card">
         <div className="flex items-center justify-between">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-500/12">
-            <Clock className="h-[1.0625rem] w-[1.0625rem] text-sky-500" />
-          </div>
-          <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
-            Study Time
-          </span>
+          <Clock className="h-4 w-4 text-muted-foreground" />
+          <span className="text-xs font-medium text-muted-foreground">Study Time</span>
         </div>
-        <div>
-          <div className="flex items-baseline gap-1.5">
-            <NumberTicker value={totalHours} className="stat-number" />
-            <span className="text-base font-semibold text-muted-foreground">h</span>
+        <div className="mt-3">
+          <div className="flex items-baseline gap-1">
+            <NumberTicker value={totalHours} className="text-2xl font-semibold tabular-nums tracking-tight" />
+            <span className="text-sm text-muted-foreground">h</span>
             {totalMins > 0 && (
               <>
-                <NumberTicker value={totalMins} className="stat-number" />
-                <span className="text-base font-semibold text-muted-foreground">m</span>
+                <NumberTicker value={totalMins} className="text-2xl font-semibold tabular-nums tracking-tight" />
+                <span className="text-sm text-muted-foreground">m</span>
               </>
             )}
           </div>
-          <p className="mt-0.5 text-[0.75rem] text-muted-foreground">
-            Total logged this course
-          </p>
+          <p className="mt-1 text-xs text-muted-foreground">Total this course</p>
         </div>
       </div>
 
       {/* Accuracy */}
-      <div className="metric-card animate-in-up stagger-2 flex flex-col gap-3">
+      <div className="metric-card">
         <div className="flex items-center justify-between">
-          <ProgressRing
-            value={accuracy}
-            size={36}
-            strokeWidth={3.5}
-            color="oklch(0.65 0.19 155)"
-          />
-          <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
-            Accuracy
-          </span>
+          <ProgressRing value={accuracy} size={32} strokeWidth={3} color="#2563eb" />
+          <span className="text-xs font-medium text-muted-foreground">Accuracy</span>
         </div>
-        <div>
-          <div className="flex items-baseline gap-1">
-            <NumberTicker value={accuracy} className="stat-number" />
-            <span className="text-base font-semibold text-muted-foreground">%</span>
+        <div className="mt-3">
+          <div className="flex items-baseline gap-0.5">
+            <NumberTicker value={accuracy} className="text-2xl font-semibold tabular-nums tracking-tight" />
+            <span className="text-sm text-muted-foreground">%</span>
           </div>
-          <p className="mt-0.5 text-[0.75rem] text-muted-foreground">
-            {answered > 0 ? `Across ${answered.toLocaleString()} questions` : "No attempts yet"}
+          <p className="mt-1 text-xs text-muted-foreground">
+            {answered > 0 ? `${answered.toLocaleString()} questions` : "No attempts yet"}
           </p>
         </div>
       </div>
 
       {/* Completion */}
-      <div className="metric-card animate-in-up stagger-3 flex flex-col gap-3">
+      <div className="metric-card">
         <div className="flex items-center justify-between">
-          <ProgressRing
-            value={completion}
-            size={36}
-            strokeWidth={3.5}
-            color="oklch(0.65 0.19 270)"
-          />
-          <span className="text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-muted-foreground/70">
-            Completion
-          </span>
+          <ProgressRing value={completion} size={32} strokeWidth={3} color="#8b5cf6" />
+          <span className="text-xs font-medium text-muted-foreground">Completion</span>
         </div>
-        <div>
-          <div className="flex items-baseline gap-1">
-            <NumberTicker value={completion} className="stat-number" />
-            <span className="text-base font-semibold text-muted-foreground">%</span>
+        <div className="mt-3">
+          <div className="flex items-baseline gap-0.5">
+            <NumberTicker value={completion} className="text-2xl font-semibold tabular-nums tracking-tight" />
+            <span className="text-sm text-muted-foreground">%</span>
           </div>
-          <p className="mt-0.5 text-[0.75rem] text-muted-foreground">
+          <p className="mt-1 text-xs text-muted-foreground">
             {completion >= 100 ? "Course complete" : `${100 - completion}% remaining`}
           </p>
         </div>
@@ -116,7 +96,6 @@ export function StatsCards({ stats, loading = false }: StatsCardsProps) {
       <StreakDisplay
         days={streakDays}
         lastStudied={stats?.lastStudiedAt?.toDate?.() ?? null}
-        className="animate-in-up stagger-4"
       />
     </div>
   );
