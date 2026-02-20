@@ -171,69 +171,47 @@ jobs:
             elapsed=$((elapsed + poll_sec))
           done
 
-      # ── Diagnostic probe: deploy ONE function and show operation/build diagnostics on failure ──
-      - name: Deploy probe — healthCheck only (with retries + diagnostics)
+      # ── Bypass firebase-tools: deploy healthCheck via gcloud directly ──────────
+      # firebase deploy keeps failing with code 13 (INTERNAL) before Cloud Build
+      # is even triggered. gcloud gives the raw GCP error with full detail.
+      - name: Probe — deploy healthCheck via gcloud (bypass firebase-tools)
         shell: bash
         run: |
-          set -euo pipefail
-          max_attempts=3
-          attempt=1
-
-          until firebase deploy \
-              --only functions:healthCheck \
-              --project "${FIREBASE_PROJECT_ID}" \
-              --force \
-              --non-interactive; do
-            echo "Probe attempt ${attempt}/${max_attempts} failed."
-
-            echo ""
-            echo "--- Recent Cloud Functions operations ---"
-            gcloud functions operations list \
-              --project "${FIREBASE_PROJECT_ID}" \
-              --region us-central1 \
-              --limit=12 \
-              --format="table(name,done,error.code,error.message,metadata.target)" || true
-
-            latest_op=$(gcloud functions operations list \
-              --project "${FIREBASE_PROJECT_ID}" \
-              --region us-central1 \
-              --limit=1 \
-              --format="value(name)" 2>/dev/null || true)
-            if [ -n "${latest_op}" ]; then
+          echo "=== Deploying healthCheck directly via gcloud ==="
+          gcloud functions deploy healthCheck \
+            --project "${FIREBASE_PROJECT_ID}" \
+            --region us-central1 \
+            --runtime nodejs20 \
+            --trigger-http \
+            --security-level secure-always \
+            --no-allow-unauthenticated \
+            --source functions \
+            --entry-point healthCheck \
+            --memory 256MB \
+            --timeout 60s \
+            --verbosity=debug \
+            2>&1 || {
               echo ""
-              echo "--- Latest operation detail (${latest_op}) ---"
-              gcloud functions operations describe "${latest_op}" \
+              echo "=== gcloud deploy ALSO FAILED — GCP-level issue confirmed ==="
+              echo "--- Recent operations ---"
+              gcloud functions operations list \
                 --project "${FIREBASE_PROJECT_ID}" \
                 --region us-central1 \
-                --format="json" || true
-            fi
-
-            echo ""
-            echo "--- Recent Cloud Build jobs (all statuses) ---"
-            gcloud builds list \
-              --project "${FIREBASE_PROJECT_ID}" \
-              --limit=8 \
-              --format="table(id,status,createTime,finishTime)" || true
-
-            latest_build=$(gcloud builds list \
-              --project "${FIREBASE_PROJECT_ID}" \
-              --limit=1 \
-              --format="value(id)" 2>/dev/null || true)
-            if [ -n "${latest_build}" ]; then
-              echo ""
-              echo "--- Log from latest build (${latest_build}) ---"
-              gcloud builds log "${latest_build}" \
-                --project "${FIREBASE_PROJECT_ID}" 2>&1 | tail -200 || true
-            fi
-
-            if [ "${attempt}" -ge "${max_attempts}" ]; then
-              echo "Probe failed after ${max_attempts} attempts."
+                --limit=5 \
+                --format="table(name.basename(),done,error.code,error.message)" || true
               exit 1
-            fi
-            attempt=$((attempt + 1))
-            sleep $((attempt * 20))
-          done
-          echo "=== Probe SUCCEEDED — proceeding to full batch deploy ==="
+            }
+          echo "=== gcloud deploy SUCCEEDED — switching all deploys to gcloud ==="
+
+      # If gcloud probe succeeded, use firebase for the rest (firebase handles
+      # secrets, env vars, and all the config from firebase.json properly)
+      - name: Deploy probe — healthCheck via firebase
+        run: |
+          firebase deploy \
+            --only functions:healthCheck \
+            --project "${FIREBASE_PROJECT_ID}" \
+            --force \
+            --non-interactive
 
       - name: Deploy functions in 4 batches (with retries)
         shell: bash
