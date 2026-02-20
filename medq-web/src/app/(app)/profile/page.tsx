@@ -70,20 +70,20 @@ export default function ProfilePage() {
     <div className="page-wrap page-stack max-w-2xl">
 
       {/* Profile header */}
-      <div className="flex items-center gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary/10 text-lg font-semibold text-primary">
+      <div className="flex items-center gap-4 animate-in-up">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 text-lg font-bold text-primary">
           {getInitials(user?.displayName)}
         </div>
         <div className="min-w-0">
-          <h1 className="text-lg font-semibold tracking-tight truncate">{user?.displayName ?? "Student"}</h1>
-          <p className="text-sm text-muted-foreground truncate">{user?.email}</p>
+          <h1 className="text-lg font-bold tracking-tight truncate">{user?.displayName ?? "Student"}</h1>
+          <p className="text-[13px] text-muted-foreground truncate">{user?.email}</p>
         </div>
       </div>
 
       {/* Appearance */}
-      <div className="rounded-xl border border-border bg-card p-5">
-        <h2 className="text-sm font-medium">Appearance</h2>
-        <p className="mt-0.5 text-xs text-muted-foreground">Customize how MedQ looks</p>
+      <div className="rounded-xl border border-border bg-card p-4 shadow-sm animate-in-up stagger-1">
+        <h2 className="text-[13px] font-bold tracking-tight">Appearance</h2>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">Customize how MedQ looks</p>
         <div className="mt-4 flex gap-2">
           {themeOptions.map((opt) => (
             <button
@@ -104,9 +104,9 @@ export default function ProfilePage() {
       </div>
 
       {/* Courses */}
-      <div className="rounded-xl border border-border bg-card p-5">
-        <h2 className="text-sm font-medium">Courses</h2>
-        <p className="mt-0.5 text-xs text-muted-foreground">Manage your courses and create new ones</p>
+      <div className="rounded-xl border border-border bg-card p-4 shadow-sm animate-in-up stagger-2">
+        <h2 className="text-[13px] font-bold tracking-tight">Courses</h2>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">Manage your courses and create new ones</p>
         <div className="mt-3">
           <Link href="/onboarding?new=1">
             <Button variant="outline" size="sm">
@@ -119,7 +119,7 @@ export default function ProfilePage() {
 
       {/* Study Groups */}
       <Link href="/profile/groups">
-        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:bg-accent cursor-pointer">
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:bg-accent hover:border-primary/20 cursor-pointer animate-in-up stagger-3">
           <Users className="h-4 w-4 text-muted-foreground" />
           <div className="flex-1">
             <p className="text-sm font-medium">Study Groups</p>
@@ -130,8 +130,8 @@ export default function ProfilePage() {
       </Link>
 
       {/* Account */}
-      <div className="rounded-xl border border-border bg-card p-5">
-        <h2 className="text-sm font-medium">Account</h2>
+      <div className="rounded-xl border border-border bg-card p-4 shadow-sm animate-in-up stagger-3">
+        <h2 className="text-[13px] font-bold tracking-tight">Account</h2>
         <div className="mt-3">
           <Button variant="outline" size="sm" onClick={handleSignOut}>
             <LogOut className="mr-1.5 h-3.5 w-3.5" />
@@ -141,9 +141,9 @@ export default function ProfilePage() {
       </div>
 
       {/* Legal */}
-      <div className="rounded-xl border border-border bg-card p-5">
-        <h2 className="text-sm font-medium">Legal & Safety</h2>
-        <p className="mt-0.5 text-xs text-muted-foreground">
+      <div className="rounded-xl border border-border bg-card p-4 shadow-sm animate-in-up stagger-4">
+        <h2 className="text-[13px] font-bold tracking-tight">Legal & Safety</h2>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">
           MedQ is an educational study platform and is not a clinical decision tool.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -163,9 +163,9 @@ export default function ProfilePage() {
       </div>
 
       {/* Danger Zone */}
-      <div className="rounded-xl border border-red-200 dark:border-red-500/20 bg-card p-5">
-        <h2 className="text-sm font-medium text-destructive">Danger Zone</h2>
-        <p className="mt-0.5 text-xs text-muted-foreground">
+      <div className="rounded-xl border border-red-200 dark:border-red-500/20 bg-card p-4 animate-in-up stagger-5">
+        <h2 className="text-[13px] font-bold tracking-tight text-destructive">Danger Zone</h2>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">
           Permanently delete your account and all associated data.
         </p>
         <div className="mt-3">

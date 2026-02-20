@@ -35,24 +35,24 @@ export function PipelineProgress(props: PipelineProgressProps) {
   const progressPercent = Math.round((activeStep / steps.length) * 100);
 
   return (
-    <div className="rounded-xl border border-border bg-card">
+    <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
       {/* Progress bar */}
-      <div className="h-0.5 w-full overflow-hidden rounded-t-xl bg-border">
+      <div className="h-1 w-full overflow-hidden bg-muted">
         <div
-          className="h-full bg-primary transition-all duration-500"
+          className="h-full bg-gradient-to-r from-primary to-teal-400 transition-all duration-700 ease-out"
           style={{ width: `${progressPercent}%` }}
         />
       </div>
 
-      <div className="p-5">
-        <div className="flex items-center justify-between gap-3 mb-4">
+      <div className="p-4">
+        <div className="flex items-center justify-between gap-3 mb-3">
           <div>
-            <p className="text-sm font-medium">Getting Started</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {steps[activeStep]?.description ?? "All steps complete"} — Step {activeStep + 1} of {steps.length}
+            <p className="text-[13px] font-bold tracking-tight">Getting Started</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Step {activeStep + 1} of {steps.length} — {steps[activeStep]?.description ?? "Done"}
             </p>
           </div>
-          <span className="text-xs font-medium tabular-nums text-muted-foreground">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold tabular-nums text-primary">
             {progressPercent}%
           </span>
         </div>

@@ -54,26 +54,29 @@ export function SidebarV2() {
   const activeCourse = courses.find((c) => c.id === activeCourseId);
 
   return (
-    <aside className="sticky top-0 hidden h-[100dvh] flex-col border-r border-border bg-sidebar md:flex">
+    <aside className="sticky top-0 hidden h-[100dvh] w-[15rem] flex-col bg-card md:flex">
       {/* Branding */}
-      <div className="flex items-center gap-2.5 px-5 py-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
+      <div className="flex items-center gap-2.5 px-5 pt-6 pb-5">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shadow-sm">
           <GraduationCap className="h-4 w-4 text-primary-foreground" />
         </div>
-        <span className="text-base font-bold tracking-tight text-sidebar-foreground">
-          MedQ
-        </span>
+        <div>
+          <span className="text-[15px] font-bold tracking-tight text-foreground">
+            MedQ
+          </span>
+          <p className="text-[10px] text-muted-foreground leading-none">Study smarter</p>
+        </div>
       </div>
 
       {/* Course switcher */}
       {courses.length > 0 && (
         <div className="px-3 pb-4">
           <DropdownMenu>
-            <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-              <span className="flex-1 truncate text-left text-sm">
+            <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-lg bg-muted/70 px-3 py-2 text-left text-[13px] font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <span className="flex-1 truncate">
                 {activeCourse?.title ?? "Select course"}
               </span>
-              <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              <ChevronsUpDown className="h-3 w-3 shrink-0 text-muted-foreground" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-56">
               {courses.map((course) => (
@@ -100,7 +103,7 @@ export function SidebarV2() {
       )}
 
       {/* Navigation */}
-      <nav aria-label="Main navigation" className="flex-1 px-3">
+      <nav aria-label="Main navigation" className="flex-1 px-3 pt-1">
         <div className="space-y-0.5">
           {navItems.map((item) => {
             const active = isNavActive(pathname, item.href);
@@ -110,19 +113,20 @@ export function SidebarV2() {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  "group flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-150",
                   active
-                    ? "bg-accent text-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
                 )}
               >
                 <item.icon
                   className={cn(
-                    "h-4 w-4 shrink-0",
+                    "h-[18px] w-[18px] shrink-0 transition-colors",
                     active
                       ? "text-primary"
-                      : "text-muted-foreground group-hover:text-foreground"
+                      : "text-muted-foreground/70 group-hover:text-foreground"
                   )}
+                  strokeWidth={active ? 2.2 : 1.8}
                 />
                 <span>{item.label}</span>
               </Link>
@@ -132,17 +136,17 @@ export function SidebarV2() {
       </nav>
 
       {/* User footer */}
-      <div className="border-t border-border p-3">
+      <div className="border-t border-border/50 p-3">
         <Link
           href="/profile"
-          className="flex items-center gap-3 rounded-lg px-3 py-2 transition-colors hover:bg-accent"
+          className="flex items-center gap-2.5 rounded-lg px-3 py-2 transition-colors hover:bg-muted"
         >
-          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 text-xs font-bold text-primary">
             {getInitials(user?.displayName)}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{user?.displayName || "Student"}</p>
-            <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
+            <p className="truncate text-[13px] font-medium">{user?.displayName || "Student"}</p>
+            <p className="truncate text-[11px] text-muted-foreground">{user?.email}</p>
           </div>
         </Link>
       </div>

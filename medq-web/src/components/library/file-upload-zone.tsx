@@ -121,13 +121,15 @@ export function FileUploadZone() {
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={() => setIsDragging(false)}
-        className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center transition-colors ${
-          isDragging ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"
+        className={`flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 text-center transition-all duration-200 ${
+          isDragging ? "border-primary bg-primary/5 scale-[1.01]" : "border-border hover:border-primary/40 hover:bg-accent/30"
         }`}
       >
-        <Upload className="mb-3 h-8 w-8 text-muted-foreground" />
-        <p className="text-sm font-medium">Drag and drop files here</p>
-        <p className="mt-1 text-xs text-muted-foreground">PDF, PPTX, or DOCX (max 100MB)</p>
+        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl mb-3 transition-colors ${isDragging ? "bg-primary/10" : "bg-muted/60"}`}>
+          <Upload className={`h-5 w-5 ${isDragging ? "text-primary" : "text-muted-foreground"}`} />
+        </div>
+        <p className="text-sm font-semibold">Drag and drop files here</p>
+        <p className="mt-1 text-[12px] text-muted-foreground">PDF, PPTX, or DOCX (max 100MB)</p>
         <label className="mt-4">
           <Button variant="outline" size="sm" asChild>
             <span>Browse Files</span>

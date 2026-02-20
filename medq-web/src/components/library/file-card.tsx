@@ -45,10 +45,10 @@ export function FileCard({ file }: FileCardProps) {
 
   return (
     <Link href={`/library/${file.id}`}>
-      <Card className="transition-colors hover:bg-accent/50">
-        <CardContent className="flex items-center gap-3 p-4">
-          <div className="rounded-xl bg-primary/10 p-2">
-            <FileText className="h-5 w-5 shrink-0 text-primary" />
+      <Card className="transition-all hover:bg-accent/40 hover:shadow-sm">
+        <CardContent className="flex items-center gap-3 p-3.5">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 shrink-0">
+            <FileText className="h-4.5 w-4.5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="truncate text-sm font-medium">{file.originalName}</p>

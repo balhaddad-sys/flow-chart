@@ -11,9 +11,11 @@ interface EmptyStateProps {
 export function EmptyState({ icon: Icon, title, description, action }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
-      <Icon className="mb-3 h-8 w-8 text-muted-foreground/30" />
-      <p className="font-medium">{title}</p>
-      <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted/60 mb-3">
+        <Icon className="h-5 w-5 text-muted-foreground/40" />
+      </div>
+      <p className="text-sm font-semibold">{title}</p>
+      <p className="mt-1 text-[13px] text-muted-foreground max-w-xs">{description}</p>
       {action && (
         action.href ? (
           <Link href={action.href}>

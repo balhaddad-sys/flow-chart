@@ -65,15 +65,15 @@ export function TodayChecklist({ tasks, loading, sectionMap }: TodayChecklistPro
     .reduce((sum, t) => sum + (t.estMinutes ?? 0), 0);
 
   return (
-    <div className="rounded-xl border border-border bg-card">
+    <div className="rounded-xl border border-border bg-card shadow-sm">
       {/* Header */}
-      <div className="border-b border-border p-5">
+      <div className="border-b border-border/60 px-4 py-3.5">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-sm font-semibold">Today&rsquo;s Tasks</h2>
+            <h2 className="text-[13px] font-bold tracking-tight">Today&rsquo;s Tasks</h2>
             {tasks.length > 0 && (
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {remainingMinutes > 0 ? `${remainingMinutes}m remaining` : "All done"}
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {remainingMinutes > 0 ? `${remainingMinutes}m remaining` : "All done for today"}
               </p>
             )}
           </div>
@@ -81,7 +81,7 @@ export function TodayChecklist({ tasks, loading, sectionMap }: TodayChecklistPro
             <Badge
               variant={doneCount === tasks.length ? "default" : "secondary"}
               className={cn(
-                "text-xs tabular-nums",
+                "text-[11px] tabular-nums font-semibold",
                 doneCount === tasks.length && "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400 hover:bg-emerald-100"
               )}
             >
@@ -91,24 +91,26 @@ export function TodayChecklist({ tasks, loading, sectionMap }: TodayChecklistPro
         </div>
 
         {tasks.length > 0 && (
-          <Progress value={progressPct} className="mt-3 h-1" />
+          <Progress value={progressPct} className="mt-2.5 h-1" />
         )}
       </div>
 
       {/* Task list */}
-      <div className="p-3">
+      <div className="p-2">
         {loading ? (
           <ListLoadingState rows={3} />
         ) : tasks.length === 0 ? (
-          <div className="flex items-center gap-3 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 px-4 py-4">
-            <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          <div className="flex items-center gap-3 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-500/20">
+              <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+            </div>
             <div>
-              <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">All caught up</p>
-              <p className="text-xs text-muted-foreground">No remaining tasks for today.</p>
+              <p className="text-[13px] font-semibold text-emerald-700 dark:text-emerald-300">All caught up</p>
+              <p className="text-[11px] text-muted-foreground">No remaining tasks for today.</p>
             </div>
           </div>
         ) : (
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {tasks.map((task) => {
               const Icon = typeIcon[task.type] ?? BookOpen;
               const isDone = task.status === "DONE";
@@ -118,19 +120,19 @@ export function TodayChecklist({ tasks, loading, sectionMap }: TodayChecklistPro
                 <div
                   key={task.id}
                   className={cn(
-                    "flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-accent",
-                    isDone && "opacity-50"
+                    "group flex items-start gap-2.5 rounded-lg px-3 py-2.5 transition-all hover:bg-accent/60",
+                    isDone && "opacity-45"
                   )}
                 >
                   <button
                     onClick={() => toggleTask(task)}
-                    className="shrink-0 pt-0.5"
+                    className="shrink-0 pt-0.5 transition-transform active:scale-90"
                     aria-label={isDone ? "Mark incomplete" : "Mark complete"}
                   >
                     {isDone ? (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                      <CheckCircle2 className="h-[18px] w-[18px] text-primary" />
                     ) : (
-                      <Circle className="h-4 w-4 text-muted-foreground/50 hover:text-primary transition-colors" />
+                      <Circle className="h-[18px] w-[18px] text-border hover:text-primary transition-colors" />
                     )}
                   </button>
 
@@ -142,18 +144,18 @@ export function TodayChecklist({ tasks, loading, sectionMap }: TodayChecklistPro
                     )}
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                          <Icon className="h-3 w-3" />
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                          <Icon className="h-2.5 w-2.5" />
                           {taskTypeLabel}
                         </span>
-                        <span className="text-xs text-muted-foreground tabular-nums">
+                        <span className="text-[10px] text-muted-foreground/70 tabular-nums">
                           {task.estMinutes}m
                         </span>
                       </div>
                       <span
                         className={cn(
-                          "block text-sm leading-relaxed mt-0.5",
+                          "block text-[13px] leading-relaxed mt-0.5",
                           isDone && "line-through text-muted-foreground",
                           "[display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] overflow-hidden"
                         )}
@@ -161,7 +163,7 @@ export function TodayChecklist({ tasks, loading, sectionMap }: TodayChecklistPro
                         {cleanTitle}
                       </span>
                     </div>
-                    <ChevronRight className="mt-1 h-3.5 w-3.5 shrink-0 text-muted-foreground/30" />
+                    <ChevronRight className="mt-1.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/20 group-hover:text-muted-foreground/50 transition-colors" />
                   </button>
                 </div>
               );
