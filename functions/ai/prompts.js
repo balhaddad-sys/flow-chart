@@ -345,7 +345,7 @@ Difficulty range: ${minDifficulty} to ${maxDifficulty} (scale 1-5)
 ${hardFloorCount > 0 ? `Hard-floor target: at least ${hardFloorCount} questions must be difficulty 4 or 5` : ""}
 ${expertFloorCount > 0 ? `Expert-floor target: at least ${expertFloorCount} questions must be difficulty 5` : ""}
 ${complexityGuidance ? `Complexity guidance: ${complexityGuidance}` : ""}
-${learnedContext ? `Learned context from prior runs: ${learnedContext}` : ""}
+${learnedContext ? `Teaching context:\n${learnedContext}` : ""}
 ${strictMode ? "Strict mode: Reject simplistic recall-only questions. Prefer nuanced clinical reasoning and management trade-offs." : ""}
 ${conciseMode ? "Concise mode: keep each explanation field compact (prefer <= 35 words) while still giving mechanism + clinical reasoning." : ""}
 ${stemHints.length > 0 ? `Avoid repeating or closely paraphrasing these stems:\n${stemHints.map((stem, i) => `${i + 1}. ${stem}`).join("\n")}` : ""}
@@ -353,6 +353,8 @@ ${stemHints.length > 0 ? `Avoid repeating or closely paraphrasing these stems:\n
 Generate exactly ${count} SBA questions on this topic.
 
 Quality rules:
+- TOPIC SCOPE: Stay tightly scoped to "${topic}". Do NOT generate questions about the broader parent topic — only test concepts that are directly part of "${topic}" itself.
+- If a teaching content summary appears in the Teaching context above, anchor your questions to that material — the quiz must test what was actually taught.
 - All questions must be directly relevant to "${topic}".
 - Questions should match the ${levelLabel} level: ${levelDescription}
 - Difficulty values must be between ${minDifficulty} and ${maxDifficulty}.
@@ -398,8 +400,11 @@ Return this exact JSON schema:
 }
 
 const EXPLORE_TOPIC_INSIGHT_SYSTEM = `You are MedQ Topic Teacher.
-Create a comprehensive, well-structured teaching module for a medical learner.
-The content must be thorough enough to serve as a standalone learning resource.
+Your module must be laser-focused on the EXACT topic the learner selected.
+If the topic is a subtopic (e.g. "antihypertensive drugs", "ACE inhibitors for heart failure", "ECG changes in MI"),
+treat it as your SOLE focus — cover the parent condition only with 1-2 sentences of essential context.
+Never turn a specific subtopic into a generic overview of the parent condition.
+Create a comprehensive, well-structured teaching module that is thorough enough to serve as a standalone learning resource on that specific topic.
 Include structured numerical data suitable for rendering charts and visual summaries.
 All statistics and data points must cite a real source (PubMed, UpToDate, Medscape).
 Output STRICT JSON only. No markdown, no commentary, no code fences.`;
@@ -411,6 +416,14 @@ function exploreTopicInsightUserPrompt({
 }) {
   return `Topic: "${topic}"
 Target audience: ${levelLabel} — ${levelDescription}
+
+FOCUS CONSTRAINT: Your entire module must stay anchored to "${topic}".
+Do NOT expand into the broader parent topic. If "${topic}" is a specific drug class, mechanism, procedure, or clinical aspect, keep every section tightly scoped to it.
+Include background on the parent condition only where it is essential to understanding "${topic}" (1-2 introductory sentences maximum).
+The teaching sections must reflect the actual subtopic — for example:
+- "antihypertensive drugs" → sections on drug classes, mechanisms, selection criteria, side-effect profiles, comparisons; NOT a generic hypertension overview
+- "ECG in MI" → sections on STEMI/NSTEMI patterns, leads, evolution of changes; NOT a general MI pathophysiology review
+- "OSCE history taking" → sections on structure, ICE, SOCRATES, red flags; NOT a broad history-taking theory module
 
 Write a comprehensive teaching module — NOT a brief summary.
 

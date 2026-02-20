@@ -142,27 +142,35 @@ function buildLearnedContext(profile, levelProfile) {
   const safeProfile = profile || {};
   const safeLevelProfile = levelProfile || {};
   const runs = clampInt(safeProfile.runs || 0, 0, 100_000);
-  if (runs <= 0) return "";
 
   const lines = [];
-  const focusTags = Array.isArray(safeProfile.focusTags) ? safeProfile.focusTags.slice(0, 6) : [];
-  if (focusTags.length > 0) {
-    lines.push(`Prior high-yield focus tags: ${focusTags.join(", ")}.`);
+
+  // Always inject teaching summary when available — anchors questions to what was taught
+  const insightSummary = truncate(sanitizeText(safeProfile.insightSummary || ""), 700);
+  if (insightSummary) {
+    lines.push(`Teaching content summary: ${insightSummary}`);
   }
 
-  const qualityScoreEma = clampFloat(safeProfile.qualityScoreEma || 0, 0, 1);
-  const inBandRatioEma = clampFloat(safeProfile.inBandRatioEma || 0, 0, 1);
-  const hardCoverageEma = clampFloat(safeProfile.hardCoverageEma || 0, 0, 1);
-  const advancedLevel = Number(safeLevelProfile.minDifficulty || 1) >= 4;
+  if (runs > 0) {
+    const focusTags = Array.isArray(safeProfile.focusTags) ? safeProfile.focusTags.slice(0, 6) : [];
+    if (focusTags.length > 0) {
+      lines.push(`Prior high-yield focus tags: ${focusTags.join(", ")}.`);
+    }
 
-  if (qualityScoreEma < 0.75 || inBandRatioEma < 0.8) {
-    lines.push("Prior runs drifted in relevance. Keep every vignette tightly anchored to the topic and level.");
-  }
-  if (advancedLevel && hardCoverageEma < 0.8) {
-    lines.push("Increase depth: include more difficulty 4-5 scenarios with management trade-offs.");
-  }
-  if (runs >= 4) {
-    lines.push("Vary scenario framing and avoid repeating prior stem patterns.");
+    const qualityScoreEma = clampFloat(safeProfile.qualityScoreEma || 0, 0, 1);
+    const inBandRatioEma = clampFloat(safeProfile.inBandRatioEma || 0, 0, 1);
+    const hardCoverageEma = clampFloat(safeProfile.hardCoverageEma || 0, 0, 1);
+    const advancedLevel = Number(safeLevelProfile.minDifficulty || 1) >= 4;
+
+    if (qualityScoreEma < 0.75 || inBandRatioEma < 0.8) {
+      lines.push("Prior runs drifted in relevance. Keep every vignette tightly anchored to the topic and level.");
+    }
+    if (advancedLevel && hardCoverageEma < 0.8) {
+      lines.push("Increase depth: include more difficulty 4-5 scenarios with management trade-offs.");
+    }
+    if (runs >= 4) {
+      lines.push("Vary scenario framing and avoid repeating prior stem patterns.");
+    }
   }
 
   return lines.join(" ");
