@@ -118,6 +118,21 @@ exports.exploreQuiz = functions
         return fail(Errors.AI_FAILED, "AI generated no valid questions. Try a different topic.");
       }
 
+      // Persist each question to users/{uid}/questions/{id} so submitAttempt
+      // can look them up when the student answers.
+      const now = admin.firestore.FieldValue.serverTimestamp();
+      const qBatch = db.batch();
+      for (const q of readyQuestions) {
+        if (!q.id) continue;
+        const qRef = db.doc(`users/${uid}/questions/${q.id}`);
+        qBatch.set(qRef, {
+          ...q,
+          courseId: `explore_${topic}`,
+          createdAt: now,
+        });
+      }
+      await qBatch.commit();
+
       const remainingCount = Math.max(0, count - readyQuestions.length);
       let backgroundJobId = null;
       let backgroundQueued = false;

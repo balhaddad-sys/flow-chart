@@ -133,6 +133,25 @@ exports.processExploreBackfillJob = functions
       const finalRemaining = Math.max(0, targetCount - mergedQuestions.length);
       const evaluation = evaluateQuestionSet(mergedQuestions, levelProfile, targetCount);
 
+      // Persist backfill questions to users/{uid}/questions/{id} so
+      // submitAttempt can look them up when the student answers.
+      const newQuestions = generated.success ? generated.questions : [];
+      if (newQuestions.length > 0) {
+        const db = snap.ref.firestore;
+        const ts = admin.firestore.FieldValue.serverTimestamp();
+        const qBatch = db.batch();
+        for (const q of newQuestions) {
+          if (!q.id) continue;
+          const qRef = db.doc(`users/${uid}/questions/${q.id}`);
+          qBatch.set(qRef, {
+            ...q,
+            courseId: `explore_${topic}`,
+            createdAt: ts,
+          });
+        }
+        await qBatch.commit();
+      }
+
       try {
         const profilePatch = computeExploreProfilePatch(profile || {}, {
           topic,
