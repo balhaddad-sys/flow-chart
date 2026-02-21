@@ -39,6 +39,24 @@ const { extractPptxSections } = require("./extractors/pptxExtractor");
 const { extractDocxSections } = require("./extractors/docxExtractor");
 const { filterAnalyzableSections } = require("./filters/sectionFilter");
 
+const ACTIVE_FILE_STATUSES = new Set([
+  "READY",
+  "PROCESSING",
+  "PARSING",
+  "CHUNKING",
+  "INDEXING",
+  "GENERATING_QUESTIONS",
+  "READY_PARTIAL",
+  "READY_FULL",
+]);
+
+function normaliseStatusKey(status) {
+  return String(status || "")
+    .trim()
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .toUpperCase();
+}
+
 exports.processUploadedFile = functions
   .runWith({
     timeoutSeconds: 120, // Extraction is fast; AI processing is async via triggers
@@ -46,12 +64,17 @@ exports.processUploadedFile = functions
     minInstances: 1, // Keep one warm instance to eliminate cold starts
   })
   .storage.object()
-  .onFinalize(async (object) => {
+  .onFinalize(async (object, context) => {
     const filePath = object.name;
     const contentType = object.contentType;
 
+    if (typeof filePath !== "string" || filePath.trim().length === 0) {
+      log.warn("Finalize event missing object.name, skipping");
+      return null;
+    }
+
     // ── Guard: only handle supported document types ──────────────────────
-    if (!SUPPORTED_MIME_TYPES.some((t) => contentType.startsWith(t))) {
+    if (typeof contentType !== "string" || !SUPPORTED_MIME_TYPES.some((t) => contentType.startsWith(t))) {
       log.debug("Unsupported file type, skipping", { contentType, filePath });
       return null;
     }
@@ -72,40 +95,92 @@ exports.processUploadedFile = functions
     try {
       const bucket = admin.storage().bucket(object.bucket);
 
-      // ── IDEMPOTENCY GUARD ────────────────────────────────────────────────
-      // Cloud Functions guarantees "at-least-once" execution. This prevents
-      // double-billing and data corruption on retries/replays.
-      const fileSnap = await fileRef.get();
-      if (!fileSnap.exists) {
-        log.warn("File metadata missing, cannot process upload", { uid, fileId, filePath });
-        return null;
-      }
-      const fileMeta = fileSnap.data() || {};
+      // ── IDEMPOTENCY GUARD + ATOMIC CLAIM ────────────────────────────────
+      // Cloud Functions is at-least-once. Claim the file atomically so only
+      // one worker can transition into parsing for a given upload event.
+      const claim = await db.runTransaction(async (tx) => {
+        const fileSnap = await tx.get(fileRef);
+        if (!fileSnap.exists) {
+          return { claimed: false, reason: "missing_file_doc", fileMeta: null };
+        }
 
-      const currentStatus = fileMeta.status;
+        const fileMeta = fileSnap.data() || {};
+        const currentStatus = normaliseStatusKey(fileMeta.status);
+        const eventId = String(context?.eventId || "");
+        const lastEventId = String(fileMeta.lastProcessingEventId || "");
 
-      if (currentStatus === "READY" || currentStatus === "PROCESSING") {
-        log.info("File already processed or in progress, skipping", {
+        if (eventId && lastEventId && eventId === lastEventId) {
+          return { claimed: false, reason: "duplicate_event", fileMeta };
+        }
+
+        if (ACTIVE_FILE_STATUSES.has(currentStatus)) {
+          return {
+            claimed: false,
+            reason: `active_status:${fileMeta.status || "unknown"}`,
+            fileMeta,
+          };
+        }
+
+        tx.set(
+          fileRef,
+          {
+            status: "parsing",
+            processingPhase: "EXTRACTING",
+            progress: 5,
+            stepLabel: INGESTION_STEP_LABELS["parsing"],
+            readyQuestionCount: 0,
+            totalQuestionTarget: 0,
+            processingStartedAt: admin.firestore.FieldValue.serverTimestamp(),
+            lastProcessingEventId: eventId || admin.firestore.FieldValue.delete(),
+          },
+          { merge: true }
+        );
+
+        return { claimed: true, reason: "claimed", fileMeta };
+      });
+
+      if (!claim.claimed) {
+        log.info("Skipping file processing (already claimed or active)", {
           uid,
           fileId,
-          status: currentStatus,
+          reason: claim.reason,
+          status: claim.fileMeta?.status || null,
         });
         return null;
       }
 
-      // Mark processing started & fetch courseId
-      await fileRef.set(
-        {
-          status: "parsing",
-          processingPhase: "EXTRACTING",
-          progress: 5,
-          stepLabel: INGESTION_STEP_LABELS["parsing"],
-          readyQuestionCount: 0,
-          totalQuestionTarget: 0,
-          processingStartedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        { merge: true }
-      );
+      const fileMeta = claim.fileMeta || {};
+
+      // If sections already exist, this upload event is a replay or partial retry.
+      // Do not recreate sections/questions; reconcile file status to a sane state.
+      const existingSectionSnap = await db
+        .collection(`users/${uid}/sections`)
+        .where("fileId", "==", fileId)
+        .get();
+      if (!existingSectionSnap.empty) {
+        const sections = existingSectionSnap.docs.map((d) => d.data() || {});
+        const allDone = sections.every((s) => s.aiStatus === "ANALYZED" || s.aiStatus === "FAILED");
+        await fileRef.set(
+          {
+            status: allDone ? "READY" : "generating_questions",
+            processingPhase: allDone ? admin.firestore.FieldValue.delete() : "ANALYZING",
+            sectionCount: existingSectionSnap.size,
+            progress: allDone ? 100 : 70,
+            stepLabel: allDone
+              ? INGESTION_STEP_LABELS["ready_full"]
+              : INGESTION_STEP_LABELS["generating_questions"],
+            totalQuestionTarget: existingSectionSnap.size * 10,
+          },
+          { merge: true }
+        );
+        log.warn("Sections already exist for this file; reconciled status and skipped replay", {
+          uid,
+          fileId,
+          allDone,
+          sectionCount: existingSectionSnap.size,
+        });
+        return null;
+      }
 
       const courseId = fileMeta.courseId;
       if (!courseId) {
@@ -150,6 +225,7 @@ exports.processUploadedFile = functions
           });
 
           return {
+            sectionSlug,
             fileId,
             // Prefix with source label to prevent ambiguous "Pages 1-10" section names across files.
             title: `${sourceLabel}: ${raw.title}`,
@@ -190,7 +266,7 @@ exports.processUploadedFile = functions
 
       // Batch-write section metadata (handles >500 docs automatically)
       const items = sections.map((sec, i) => ({
-        ref: db.collection(`users/${uid}/sections`).doc(),
+        ref: db.collection(`users/${uid}/sections`).doc(sec.sectionSlug),
         data: {
           ...sec,
           courseId,

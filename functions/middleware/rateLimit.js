@@ -5,9 +5,8 @@
  * Primary state lives in Firestore (`_rateLimits/{uid}:{operation}`) so that
  * limits are enforced consistently across Cloud Functions instances.  A
  * short-lived in-memory cache (10 s TTL) avoids a Firestore read on every
- * call.  If the Firestore transaction fails for any reason other than an
- * already-raised rate-limit error, the limiter falls back to in-memory
- * tracking to avoid blocking legitimate requests.
+ * call. If Firestore is temporarily unavailable, the limiter falls back to
+ * in-memory window tracking and still enforces limits.
  */
 
 const functions = require("firebase-functions");
@@ -77,15 +76,24 @@ async function checkRateLimit(uid, operation, { maxCalls, windowMs }) {
   } catch (error) {
     if (error.code === "resource-exhausted") throw error;
 
-    // Firestore failure — degrade to in-memory tracking.
+    // Firestore failure — degrade to in-memory tracking with real enforcement.
     console.warn(`Rate limit Firestore check failed for ${key}:`, error.message);
     const fallback = cache.get(key);
-    if (fallback) {
-      fallback.count = (fallback.count || 0) + 1;
-      fallback.timestamp = now;
-    } else {
-      cache.set(key, { count: 1, timestamp: now });
+    const windowStart = now - windowMs;
+    const calls = Array.isArray(fallback?.calls)
+      ? fallback.calls.filter((t) => t > windowStart)
+      : [];
+
+    if (calls.length >= maxCalls) {
+      cache.set(key, { count: calls.length, timestamp: now, calls });
+      throw new functions.https.HttpsError(
+        "resource-exhausted",
+        `Rate limit exceeded for ${operation}. Please wait before trying again.`
+      );
     }
+
+    calls.push(now);
+    cache.set(key, { count: calls.length, timestamp: now, calls });
   }
 }
 
