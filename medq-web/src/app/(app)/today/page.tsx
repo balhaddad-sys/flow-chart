@@ -20,6 +20,12 @@ import { StreakGraph } from "@/components/home/streak-graph";
 import { PipelineProgress } from "@/components/home/pipeline-progress";
 import { Button } from "@/components/ui/button";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   PageLoadingState,
   InlineLoadingState,
   LoadingButtonLabel,
@@ -35,6 +41,7 @@ import {
   BookOpen,
   Trophy,
   ChevronRight,
+  MoreHorizontal,
 } from "lucide-react";
 import * as fn from "@/lib/firebase/functions";
 import { toast } from "sonner";
@@ -151,11 +158,21 @@ export default function TodayPage() {
     }
   }
 
-  const quickActions = [];
-  if (!hasFiles) quickActions.push({ label: "Upload Materials", href: "/library", icon: Upload });
-  if (hasFiles && !hasPlan) quickActions.push({ label: "Generate Plan", href: "/today/plan", icon: Calendar });
-  if (hasSections) quickActions.push({ label: "Start Quiz", href: "/practice", icon: CircleHelp });
-  quickActions.push({ label: "AI Chat", href: "/ai", icon: Sparkles });
+  const primaryAction = !hasFiles
+    ? { label: "Upload Materials", href: "/library", icon: Upload }
+    : hasFiles && !hasPlan
+      ? { label: "Generate Plan", href: "/today/plan", icon: Calendar }
+      : hasSections
+        ? { label: "Start Quiz", href: "/practice", icon: CircleHelp }
+        : { label: "AI Chat", href: "/ai", icon: Sparkles };
+
+  const secondaryActions = [
+    { label: "Library", href: "/library", visible: primaryAction.href !== "/library" },
+    { label: "Plan", href: "/today/plan", visible: primaryAction.href !== "/today/plan" },
+    { label: "Practice", href: "/practice", visible: primaryAction.href !== "/practice" },
+    { label: "AI Chat", href: "/ai", visible: primaryAction.href !== "/ai" },
+    { label: "Analytics", href: "/today/analytics", visible: true },
+  ].filter((action) => action.visible);
 
   if (coursesLoading) {
     return (
@@ -195,18 +212,32 @@ export default function TodayPage() {
               </div>
             )}
 
-            <div className="flex flex-wrap gap-2 mt-4">
-              {quickActions.slice(0, 4).map((action) => (
-                <Link key={action.href} href={action.href}>
-                  <Button
-                    variant={action.href === "/ai" ? "default" : "outline"}
-                    size="sm"
-                  >
-                    <action.icon className="mr-1.5 h-3.5 w-3.5" />
-                    {action.label}
-                  </Button>
-                </Link>
-              ))}
+            <div className="mt-4 flex items-center gap-2">
+              <Link href={primaryAction.href}>
+                <Button size="sm">
+                  <primaryAction.icon className="mr-1.5 h-3.5 w-3.5" />
+                  {primaryAction.label}
+                </Button>
+              </Link>
+              {secondaryActions.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="icon" aria-label="More actions">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start">
+                    {secondaryActions.map((action) => (
+                      <DropdownMenuItem
+                        key={action.href}
+                        onSelect={() => router.push(action.href)}
+                      >
+                        {action.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           </div>
 
@@ -326,20 +357,12 @@ export default function TodayPage() {
             </Button>
           )}
 
-          <div className="grid grid-cols-2 gap-2">
-            <Link href="/today/plan" className="block">
-              <Button variant="outline" size="sm" className="w-full text-[12px]">
-                <Calendar className="mr-1 h-3.5 w-3.5" />
-                Full Plan
-              </Button>
-            </Link>
-            <Link href="/today/analytics" className="block">
-              <Button variant="outline" size="sm" className="w-full text-[12px]">
-                <BarChart3 className="mr-1 h-3.5 w-3.5" />
-                Analytics
-              </Button>
-            </Link>
-          </div>
+          <Link href="/today/plan" className="block">
+            <Button variant="outline" size="sm" className="w-full text-[12px]">
+              <Calendar className="mr-1 h-3.5 w-3.5" />
+              Open Plan Workspace
+            </Button>
+          </Link>
         </div>
       </section>
 

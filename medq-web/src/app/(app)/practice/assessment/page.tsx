@@ -8,7 +8,6 @@ import {
   BrainCircuit,
   CheckCircle2,
   Clock3,
-  Gauge,
   RotateCcw,
   Target,
   TrendingUp,
@@ -381,7 +380,7 @@ export default function AssessmentPage() {
               </>
             )}
 
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-3">
               <Button onClick={handleStartAssessment} disabled={!canStart}>
                 {starting ? (
                   <LoadingButtonLabel label="Starting assessment..." />
@@ -392,8 +391,8 @@ export default function AssessmentPage() {
                   </>
                 )}
               </Button>
-              <Link href="/practice">
-                <Button variant="outline">Back to Practice</Button>
+              <Link href="/practice" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                Back to Practice
               </Link>
             </div>
           </CardContent>
@@ -506,22 +505,23 @@ export default function AssessmentPage() {
                       <p className="mt-1 text-sm text-muted-foreground">{currentAnswer.explanation.keyTakeaway}</p>
                     </div>
                   )}
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap items-center gap-3">
                     <Button onClick={handleNextQuestion} disabled={finishing}>
                       {currentIndex >= questions.length - 1 ? "Finish Assessment" : "Next Question"}
                       {currentIndex < questions.length - 1 && <ArrowRight className="ml-2 h-4 w-4" />}
                     </Button>
-                    <Button
-                      variant="outline"
+                    <button
+                      type="button"
                       onClick={() => void handleFinishAssessment()}
                       disabled={finishing}
+                      className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
                     >
                       {finishing ? (
-                        <LoadingButtonLabel label="Finishing..." />
+                        "Finishing..."
                       ) : (
-                        "End Now"
+                        "End assessment now"
                       )}
-                    </Button>
+                    </button>
                   </div>
                 </div>
               )}
@@ -647,25 +647,25 @@ export default function AssessmentPage() {
                 </ul>
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                {topWeakTopic && (
-                  <Link href={`/practice/quiz?mode=topic&topic=${encodeURIComponent(topWeakTopic)}`}>
-                    <Button variant="outline">
-                      <Target className="mr-2 h-4 w-4" />
-                      Quiz Weakest Topic
-                    </Button>
-                  </Link>
-                )}
-                <Link href="/today/plan">
-                  <Button variant="outline">
-                    <Gauge className="mr-2 h-4 w-4" />
-                    Open Planner
-                  </Button>
-                </Link>
+              <div className="flex flex-wrap items-center gap-3">
                 <Button onClick={handleRestart}>
                   <RotateCcw className="mr-2 h-4 w-4" />
                   New Assessment
                 </Button>
+                {topWeakTopic && (
+                  <Link
+                    href={`/practice/quiz?mode=topic&topic=${encodeURIComponent(topWeakTopic)}`}
+                    className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Quiz weakest topic
+                  </Link>
+                )}
+                <Link
+                  href="/today/plan"
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Open planner
+                </Link>
               </div>
             </CardContent>
           </Card>

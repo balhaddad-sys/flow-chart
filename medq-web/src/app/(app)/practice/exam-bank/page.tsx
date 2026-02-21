@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCourses } from "@/lib/hooks/useCourses";
@@ -176,19 +176,16 @@ export default function ExamBankPage() {
 
   const [examDateInput, setExamDateInput] = useState("");
   const [savingDate, setSavingDate] = useState(false);
-  const [savingExamType, setSavingExamType] = useState(false);
-  const [optimisticExamType, setOptimisticExamType] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
 
   const queryExamType = String(searchParams.get("exam") || "").toUpperCase();
   const courseExamType = String(activeCourse?.examType || "").toUpperCase();
-  const resolvedBaseExamType = EXAM_OPTION_KEYS.has(courseExamType)
-    ? courseExamType
-    : EXAM_OPTION_KEYS.has(queryExamType)
-      ? queryExamType
-      : (courseExamType || "SBA");
-  const examType = (optimisticExamType ?? resolvedBaseExamType).toUpperCase();
+  const examType = EXAM_OPTION_KEYS.has(queryExamType)
+    ? queryExamType
+    : EXAM_OPTION_KEYS.has(courseExamType)
+      ? courseExamType
+      : "SBA";
   const examMeta = EXAM_META[examType] ?? EXAM_META.SBA;
   const examEntry = useMemo(
     () => EXAM_OPTIONS.find((e) => e.key === examType),
@@ -204,10 +201,6 @@ export default function ExamBankPage() {
     domainsGenerated,
     loading: bankLoading,
   } = useExamBank(examType || null);
-
-  useEffect(() => {
-    setOptimisticExamType(null);
-  }, [activeCourse?.id, activeCourse?.examType]);
 
   async function handleSaveDate() {
     if (!uid || !activeCourse?.id || !examDateInput) return;
@@ -227,26 +220,6 @@ export default function ExamBankPage() {
       toast.error("Failed to save exam date.");
     } finally {
       setSavingDate(false);
-    }
-  }
-
-  async function handleSelectExam(nextExamType: string) {
-    const normalized = nextExamType.toUpperCase();
-    if (!uid || !activeCourse?.id || normalized === examType || savingExamType) return;
-
-    const nextExam = EXAM_OPTIONS.find((item) => item.key === normalized);
-    setOptimisticExamType(normalized);
-    setSavingExamType(true);
-    try {
-      await updateDoc(doc(db, "users", uid, "courses", activeCourse.id), {
-        examType: normalized,
-      });
-      toast.success(`Switched to ${nextExam?.label ?? normalized}.`);
-    } catch {
-      setOptimisticExamType(null);
-      toast.error("Failed to switch exam mode.");
-    } finally {
-      setSavingExamType(false);
     }
   }
 
@@ -407,34 +380,6 @@ export default function ExamBankPage() {
             </p>
           </div>
 
-          <div className="space-y-2 rounded-xl border border-border/50 bg-muted/15 p-3.5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Exam Mode
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Switch exam target. New AI-generated questions will use that exam&apos;s curated high-yield prompt profile.
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {EXAM_OPTIONS.map((exam) => {
-                const active = exam.key === examType;
-                return (
-                  <button
-                    key={exam.key}
-                    type="button"
-                    disabled={savingExamType}
-                    onClick={() => handleSelectExam(exam.key)}
-                    className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors ${
-                      active
-                        ? "border-primary/70 bg-primary/12 text-primary"
-                        : "border-border/70 bg-background/70 text-muted-foreground hover:border-primary/40 hover:text-foreground"
-                    }`}
-                  >
-                    {exam.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
         </div>
       </section>
 
