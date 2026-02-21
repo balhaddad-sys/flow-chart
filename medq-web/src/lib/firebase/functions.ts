@@ -506,6 +506,7 @@ export function exploreTopicInsight(params: {
   topic: string;
   level: string;
   examType?: string;
+  questionContext?: string;
 }) {
   return callFunction<ExploreTopicInsightResult>("exploreTopicInsight", params);
 }

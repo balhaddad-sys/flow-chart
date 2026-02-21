@@ -453,6 +453,9 @@ exports.exploreTopicInsight = functions
 
     const topic = String(data.topic || "").trim();
     const examType = typeof data.examType === "string" ? data.examType.trim().slice(0, 40) : null;
+    const questionContext = typeof data.questionContext === "string"
+      ? data.questionContext.trim().slice(0, 800)
+      : "";
     const levelProfile = getAssessmentLevel(data.level);
     const examContext = examType ? buildExamPlaybookPrompt(examType) : "";
     const prompt = exploreTopicInsightUserPrompt({
@@ -460,6 +463,7 @@ exports.exploreTopicInsight = functions
       levelLabel: levelProfile.label,
       levelDescription: levelProfile.description || "",
       examContext: examContext || "",
+      questionContext,
     });
 
     try {

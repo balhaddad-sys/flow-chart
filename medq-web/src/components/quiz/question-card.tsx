@@ -306,9 +306,21 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
               const examParam = question.id.startsWith("exambank_") && question.courseId
                 ? `&exam=${encodeURIComponent(question.courseId)}`
                 : "";
+              const exploreHref = `/ai/explore?topic=${encodeURIComponent(specificTopic)}&autostart=learn${examParam}`;
+              function handleExploreClick() {
+                try {
+                  sessionStorage.setItem("medq_explore_question_context", JSON.stringify({
+                    stem: question.stem.slice(0, 300),
+                    correctAnswer: question.options[question.correctIndex]?.slice(0, 200) ?? "",
+                    keyTakeaway: question.explanation?.keyTakeaway?.slice(0, 300) ?? "",
+                    topicTags: question.topicTags.slice(0, 5),
+                  }));
+                } catch { /* sessionStorage unavailable */ }
+              }
               return (
                 <Link
-                  href={`/ai/explore?topic=${encodeURIComponent(specificTopic)}&autostart=learn${examParam}`}
+                  href={exploreHref}
+                  onClick={handleExploreClick}
                   className="flex items-center gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 text-sm transition-colors hover:bg-primary/10"
                 >
                   <Sparkles className="h-4 w-4 shrink-0 text-primary" />

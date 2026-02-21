@@ -417,6 +417,7 @@ function exploreTopicInsightUserPrompt({
   levelLabel,
   levelDescription,
   examContext,
+  questionContext,
 }) {
   let preamble = `Topic: "${topic}"
 Target audience: ${levelLabel} — ${levelDescription}`;
@@ -425,9 +426,13 @@ Target audience: ${levelLabel} — ${levelDescription}`;
     preamble += `\n\nEXAM CONTEXT — the learner is preparing for this exam:\n${examContext}\nTailor depth, emphasis, and clinical framing to what this exam tests. Prioritise the exam's tested domains, question style, and common traps.`;
   }
 
+  if (questionContext) {
+    preamble += `\n\nQUESTION THE LEARNER GOT WRONG:\n${questionContext}\n\nCRITICAL: The learner arrived here because they got this specific question wrong. Your teaching module MUST directly address the concept this question tests. Structure your sections around explaining WHY the correct answer is right and what knowledge gap caused the mistake. Do NOT produce a generic overview of the topic — anchor every section to the clinical reasoning needed for this type of question.`;
+  }
+
   return `${preamble}
 
-FOCUS CONSTRAINT: Your entire module must stay anchored to "${topic}".
+FOCUS CONSTRAINT: Your entire module must stay anchored to "${topic}"${questionContext ? " and the specific concept tested by the question above" : ""}.
 Do NOT expand into the broader parent topic. If "${topic}" is a specific drug class, mechanism, procedure, or clinical aspect, keep every section tightly scoped to it.
 Include background on the parent condition only where it is essential to understanding "${topic}" (1-2 introductory sentences maximum).
 The teaching sections must reflect the actual subtopic — for example:

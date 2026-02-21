@@ -259,8 +259,23 @@ export default function ExplorePage() {
       autostartRef.current = true;
       const topic = urlTopic.slice(0, 200);
       const examType = searchParams.get("exam") || undefined;
+      // Read question context stashed by the quiz question card
+      let questionContext: string | undefined;
+      try {
+        const raw = sessionStorage.getItem("medq_explore_question_context");
+        if (raw) {
+          sessionStorage.removeItem("medq_explore_question_context");
+          const ctx = JSON.parse(raw) as { stem?: string; correctAnswer?: string; keyTakeaway?: string };
+          if (ctx.stem) {
+            const parts = [`Question: ${ctx.stem}`];
+            if (ctx.correctAnswer) parts.push(`Correct answer: ${ctx.correctAnswer}`);
+            if (ctx.keyTakeaway) parts.push(`Key takeaway: ${ctx.keyTakeaway}`);
+            questionContext = parts.join("\n");
+          }
+        }
+      } catch { /* sessionStorage unavailable */ }
       setInputIntent("learn");
-      setTimeout(() => handleLearnTopic(topic, inputLevel, examType), 0);
+      setTimeout(() => handleLearnTopic(topic, inputLevel, examType, questionContext), 0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, hydrated]);
@@ -373,7 +388,7 @@ export default function ExplorePage() {
     targetCount,
   ]);
 
-  async function handleLearnTopic(overrideTopic?: string, overrideLevel?: string, overrideExamType?: string) {
+  async function handleLearnTopic(overrideTopic?: string, overrideLevel?: string, overrideExamType?: string, overrideQuestionContext?: string) {
     const trimmed = (overrideTopic ?? inputTopic).trim();
     const level = overrideLevel ?? inputLevel;
     if (!trimmed) {
@@ -388,6 +403,7 @@ export default function ExplorePage() {
         topic: trimmed,
         level,
         examType: overrideExamType || undefined,
+        questionContext: overrideQuestionContext || undefined,
       });
       store.setTopicInsight(insight);
       store.startTeaching(insight);
