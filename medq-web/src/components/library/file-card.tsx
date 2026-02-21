@@ -18,9 +18,9 @@ const statusConfig: Record<string, { icon: typeof FileText; color: string; label
 };
 
 const phaseLabels: Record<string, string> = {
-  EXTRACTING: "Reading your file...",
-  ANALYZING: "AI is studying the content...",
-  GENERATING_QUESTIONS: "Generating questions...",
+  EXTRACTING: "Reading your file (running in background)...",
+  ANALYZING: "AI is studying the content (usually 1-3 min)...",
+  GENERATING_QUESTIONS: "Generating questions (you can continue browsing)...",
 };
 
 function formatBytes(bytes: number): string {
@@ -30,9 +30,9 @@ function formatBytes(bytes: number): string {
 }
 
 function getSubtitle(file: FileModel): string | null {
-  if (file.status === "UPLOADED") return "Starting soon...";
+  if (file.status === "UPLOADED") return "Queued — processing will begin shortly.";
   if (file.status === "PROCESSING") {
-    return phaseLabels[file.processingPhase ?? ""] ?? "Hang tight, almost there...";
+    return phaseLabels[file.processingPhase ?? ""] ?? "Processing in background — this is normal.";
   }
   return null;
 }

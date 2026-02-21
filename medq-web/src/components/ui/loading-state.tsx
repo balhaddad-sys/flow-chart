@@ -8,6 +8,7 @@ type IconComponent = ComponentType<{ className?: string }>;
 interface PageLoadingStateProps {
   title?: string;
   description?: string;
+  expectation?: string;
   className?: string;
   minHeightClassName?: string;
   icon?: IconComponent;
@@ -16,6 +17,7 @@ interface PageLoadingStateProps {
 export function PageLoadingState({
   title = "Loading",
   description = "Please wait while we prepare your content.",
+  expectation = "This is running normally. Larger tasks can take up to a couple of minutes.",
   className,
   minHeightClassName = "min-h-[55dvh]",
   icon: Icon = Sparkles,
@@ -32,8 +34,9 @@ export function PageLoadingState({
         </p>
         <div className="mt-5 flex items-center justify-center gap-2 text-[12px] text-muted-foreground">
           <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-          Working...
+          Working in the background
         </div>
+        <p className="mt-2 text-[11px] text-muted-foreground/85">{expectation}</p>
         <div className="mt-4 space-y-2">
           <Skeleton className="h-2.5 w-full rounded-full" />
           <Skeleton className="h-2.5 w-[88%] rounded-full" />
@@ -47,6 +50,7 @@ export function PageLoadingState({
 interface SectionLoadingStateProps {
   title?: string;
   description?: string;
+  expectation?: string;
   rows?: number;
   className?: string;
 }
@@ -54,6 +58,7 @@ interface SectionLoadingStateProps {
 export function SectionLoadingState({
   title = "Loading",
   description = "Fetching the latest data.",
+  expectation = "Still working normally. You can keep using the app while this completes.",
   rows = 3,
   className,
 }: SectionLoadingStateProps) {
@@ -66,6 +71,7 @@ export function SectionLoadingState({
           <p className="text-xs text-muted-foreground">{description}</p>
         </div>
       </div>
+      <p className="text-[11px] text-muted-foreground/85">{expectation}</p>
       <div className="space-y-2.5">
         {Array.from({ length: rows }).map((_, index) => (
           <div key={index} className="rounded-lg border border-border p-3">
@@ -81,17 +87,23 @@ export function SectionLoadingState({
 
 interface ListLoadingStateProps {
   rows?: number;
+  label?: string;
   className?: string;
   itemClassName?: string;
 }
 
 export function ListLoadingState({
   rows = 4,
+  label = "Loading content...",
   className,
   itemClassName,
 }: ListLoadingStateProps) {
   return (
     <div className={cn("space-y-2", className)}>
+      <div className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+        <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+        {label}
+      </div>
       {Array.from({ length: rows }).map((_, index) => (
         <div
           key={index}
@@ -113,17 +125,22 @@ export function ListLoadingState({
 
 interface InlineLoadingStateProps {
   label?: string;
+  hint?: string;
   className?: string;
 }
 
 export function InlineLoadingState({
-  label = "Loading...",
+  label = "Working in the background...",
+  hint,
   className,
 }: InlineLoadingStateProps) {
   return (
-    <div className={cn("inline-flex items-center gap-2 text-sm text-muted-foreground", className)}>
-      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-      <span>{label}</span>
+    <div className={cn("inline-flex flex-col gap-0.5 text-sm text-muted-foreground", className)}>
+      <span className="inline-flex items-center gap-2">
+        <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+        <span>{label}</span>
+      </span>
+      {hint && <span className="text-[11px] text-muted-foreground/80">{hint}</span>}
     </div>
   );
 }

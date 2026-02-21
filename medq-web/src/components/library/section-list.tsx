@@ -22,13 +22,18 @@ const aiStatusConfig: Record<string, { icon: typeof BookOpen; color: string; lab
 
 export function SectionList({ sections, loading }: SectionListProps) {
   if (loading) {
-    return <ListLoadingState rows={4} />;
+    return (
+      <ListLoadingState
+        rows={4}
+        label="Loading sections and AI analysis status..."
+      />
+    );
   }
 
   if (sections.length === 0) {
     return (
       <p className="py-8 text-center text-sm text-muted-foreground">
-        No sections found. This file may still be processing.
+        No sections yet. Processing may still be running in the background.
       </p>
     );
   }

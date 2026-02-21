@@ -49,7 +49,8 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
       {disabled && (
         <InlineLoadingState
           className="mt-2 text-xs"
-          label="AI is replying..."
+          label="AI is drafting your reply..."
+          hint="This is running normally and usually takes a few seconds."
         />
       )}
     </div>

@@ -208,7 +208,10 @@ export default function TodayPage() {
 
             {(filesLoading || sectionsLoading) && (
               <div className="mt-2">
-                <InlineLoadingState label="Syncing course content..." />
+                <InlineLoadingState
+                  label="Syncing course content..."
+                  hint="This is normal after uploads and usually settles within a minute."
+                />
               </div>
             )}
 

@@ -134,7 +134,7 @@ export function IngestionStepper({
             <span className="flex-1 text-left">
               Quick Review — {readyQuestionCount} questions ready now
             </span>
-            <span className="text-xs opacity-70">More loading…</span>
+            <span className="text-xs opacity-70">More questions still generating</span>
           </button>
         )}
 
@@ -142,8 +142,8 @@ export function IngestionStepper({
         {!isFailed && !canQuickReview && (
           <p className="text-[0.7rem] text-muted-foreground">
             {status === "generating_questions"
-              ? "AI is reading your material and crafting high-yield exam questions. This usually takes 1–2 minutes."
-              : "Processing your document — this is a one-time step and runs in the background."}
+              ? "AI is reading your material and crafting high-yield exam questions. This usually takes 1-2 minutes and is running normally."
+              : "Processing your document — this is a one-time step and runs in the background while you continue using the app."}
           </p>
         )}
       </div>

@@ -42,7 +42,7 @@ export function FileProcessingNotifier() {
       if (!previous || previous === file.status) continue;
 
       if (file.status === "PROCESSING" && previous === "UPLOADED") {
-        toast(`Analysing ${file.originalName} — sit tight, this usually takes a couple of minutes.`, {
+        toast(`Analysing ${file.originalName} — running normally in background (usually 1-3 minutes).`, {
           duration: 5000,
         });
       } else if (file.status === "READY") {
@@ -61,7 +61,7 @@ export function FileProcessingNotifier() {
 
       if (allDone && anyReady) {
         toast.success(
-          "All files fully analysed! Your study plan is being generated automatically.",
+          "All files fully analysed. Your study plan generation has started automatically.",
           { duration: 8000 }
         );
       } else if (newlyReadyCount === 1) {

@@ -17,7 +17,12 @@ import type { QuestionModel } from "@/lib/types/question";
 import * as fn from "@/lib/firebase/functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { PageLoadingState, LoadingButtonLabel } from "@/components/ui/loading-state";
+import {
+  PageLoadingState,
+  LoadingButtonLabel,
+  SectionLoadingState,
+  InlineLoadingState,
+} from "@/components/ui/loading-state";
 import {
   ArrowLeft,
   ArrowRight,
@@ -250,6 +255,7 @@ export default function ExamBankPage() {
       <PageLoadingState
         title="Loading your exam bank"
         description="Fetching your course and exam details."
+        expectation="This is running normally. It can take a bit longer on first load."
         className="page-wrap py-16"
       />
     );
@@ -434,9 +440,12 @@ export default function ExamBankPage() {
         <h2 className="section-label">Exam Question Bank</h2>
 
         {bankLoading ? (
-          <div className="glass-card p-8 text-center text-sm text-muted-foreground">
-            Loading your bank…
-          </div>
+          <SectionLoadingState
+            title="Loading your question bank"
+            description="Syncing generated questions, domains, and readiness state."
+            expectation="This is normal and should complete shortly."
+            rows={2}
+          />
         ) : questions.length === 0 ? (
           /* Zero-state */
           <div className="glass-card overflow-hidden border-primary/20">
@@ -464,7 +473,7 @@ export default function ExamBankPage() {
                 className="rounded-xl gap-2"
               >
                 {generating ? (
-                  <LoadingButtonLabel label="Generating…" />
+                  <LoadingButtonLabel label="Generating high-yield questions..." />
                 ) : (
                   <>
                     <Sparkles className="h-4 w-4" />
@@ -472,6 +481,13 @@ export default function ExamBankPage() {
                   </>
                 )}
               </Button>
+              {generating && (
+                <InlineLoadingState
+                  label="Running AI generation..."
+                  hint="You can stay on this page; questions will appear automatically."
+                  className="text-xs"
+                />
+              )}
               <p className="text-xs text-muted-foreground/70">
                 ~10 questions per generation · powered by Claude
               </p>
@@ -508,7 +524,7 @@ export default function ExamBankPage() {
                     className="rounded-xl gap-1.5"
                   >
                     {generating ? (
-                      <LoadingButtonLabel label="Generating…" />
+                      <LoadingButtonLabel label="Generating more questions..." />
                     ) : (
                       <>
                         <Plus className="h-4 w-4" />

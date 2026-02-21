@@ -220,7 +220,11 @@ export function StudyAskAiWidget({
         {loading && (
           <div className="flex justify-start">
             <div className="mr-5 flex items-center gap-2 rounded-xl border border-border/60 bg-background/80 px-3 py-2 text-sm text-muted-foreground">
-              <InlineLoadingState label="Thinking..." className="text-sm" />
+              <InlineLoadingState
+                label="Thinking through your question..."
+                hint="Usually completes in 5-15 seconds."
+                className="text-sm"
+              />
             </div>
           </div>
         )}

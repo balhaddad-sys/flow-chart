@@ -65,7 +65,11 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
         <span>/</span>
         <span className="truncate text-foreground">
           {file?.originalName ?? (
-            <InlineLoadingState label="Loading file..." className="text-xs" />
+            <InlineLoadingState
+              label="Loading file details..."
+              hint="This is normal while we sync your course."
+              className="text-xs"
+            />
           )}
         </span>
       </div>
@@ -129,7 +133,10 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Sections</h2>
         {isFileLoading && (
           <div className="mb-3 rounded-xl border border-border/60 bg-background/70 px-3 py-2.5">
-            <InlineLoadingState label="Loading sections for this file..." />
+            <InlineLoadingState
+              label="Loading sections for this file..."
+              hint="If processing is still running, new sections will appear automatically."
+            />
           </div>
         )}
         <SectionList sections={sections} loading={loading} />

@@ -36,7 +36,10 @@ export default function LibraryPage() {
       {/* File list */}
       <div className="space-y-3">
         {loading ? (
-          <ListLoadingState rows={4} />
+          <ListLoadingState
+            rows={4}
+            label="Loading your files and processing states..."
+          />
         ) : files.length === 0 ? (
           <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-border py-16 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted/60 mb-3">
@@ -62,7 +65,10 @@ export default function LibraryPage() {
               <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card px-4 py-3">
                 <p className="text-sm text-muted-foreground">
                   {tasksLoading ? (
-                    <InlineLoadingState label="Checking your plan status..." />
+                    <InlineLoadingState
+                      label="Checking your plan status..."
+                      hint="This usually takes under 10 seconds."
+                    />
                   ) : (
                     "All files analysed — your study plan will be generated automatically."
                   )}
