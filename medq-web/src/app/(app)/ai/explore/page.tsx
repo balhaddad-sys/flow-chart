@@ -248,15 +248,17 @@ export default function ExplorePage() {
   }, [phase, hydrated]);
 
   // ── Auto-start when arriving from a quiz question via ?autostart=learn ──
+  // This must clear any stale session so the new question-specific topic takes over.
   const autostartRef = useRef(false);
   useEffect(() => {
-    if (!hydrated || autostartRef.current || phase !== "setup") return;
-    // Don't auto-start if there's a pending session to resume (that takes priority)
-    if (resumedRef.current) return;
+    if (!hydrated || autostartRef.current) return;
     const autostart = searchParams.get("autostart");
     const urlTopic = searchParams.get("topic");
     if (autostart === "learn" && urlTopic) {
       autostartRef.current = true;
+      // Wipe any leftover session so old teaching/quiz state doesn't bleed through
+      store.reset();
+      resumedRef.current = true; // prevent the resume-pending effect from firing
       const topic = urlTopic.slice(0, 200);
       const examType = searchParams.get("exam") || undefined;
       // Read question context stashed by the quiz question card
@@ -274,11 +276,12 @@ export default function ExplorePage() {
           }
         }
       } catch { /* sessionStorage unavailable */ }
+      setInputTopic(topic);
       setInputIntent("learn");
       setTimeout(() => handleLearnTopic(topic, inputLevel, examType, questionContext), 0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, hydrated]);
+  }, [hydrated]);
 
   const currentQuestion = questions[currentIndex] ?? null;
   const currentAnswer =
