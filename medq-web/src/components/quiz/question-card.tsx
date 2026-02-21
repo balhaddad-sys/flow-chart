@@ -99,6 +99,18 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
     const optimisticCorrect = optionIndex === question.correctIndex;
     answerQuestion(question.id, optionIndex, optimisticCorrect);
 
+    // Track answered exam bank questions so "Start Practice" skips them next time
+    if (question.id.startsWith("exambank_")) {
+      try {
+        const key = "medq_exambank_answered";
+        const existing = JSON.parse(localStorage.getItem(key) || "[]") as string[];
+        if (!existing.includes(question.id)) {
+          existing.push(question.id);
+          localStorage.setItem(key, JSON.stringify(existing));
+        }
+      } catch { /* localStorage unavailable */ }
+    }
+
     try {
       const elapsed = Math.round((Date.now() - useQuizStore.getState().startTime) / 1000);
       // Fire-and-forget to backend; UI already shows the result

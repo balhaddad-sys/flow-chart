@@ -207,6 +207,16 @@ export default function ExamBankPage() {
     loading: bankLoading,
   } = useExamBank(examType || null);
 
+  const answeredCount = useMemo(() => {
+    if (!questions.length) return 0;
+    try {
+      const raw = JSON.parse(localStorage.getItem("medq_exambank_answered") || "[]") as string[];
+      const answeredIds = new Set(raw);
+      return questions.filter((q) => answeredIds.has(q.id)).length;
+    } catch { return 0; }
+  }, [questions]);
+  const remainingCount = questions.length - answeredCount;
+
   async function handleSaveDate() {
     if (!uid || !activeCourse?.id || !examDateInput) return;
     const date = new Date(examDateInput);
@@ -246,7 +256,25 @@ export default function ExamBankPage() {
 
   function handleStartPractice() {
     if (!questions.length) return;
-    startQuiz(questions as unknown as QuestionModel[]);
+    // Filter out already-answered questions so the user picks up where they left off
+    let answeredIds: Set<string>;
+    try {
+      const raw = JSON.parse(localStorage.getItem("medq_exambank_answered") || "[]") as string[];
+      answeredIds = new Set(raw);
+    } catch {
+      answeredIds = new Set();
+    }
+    const unanswered = (questions as unknown as QuestionModel[]).filter(
+      (q) => !answeredIds.has(q.id)
+    );
+    if (unanswered.length === 0) {
+      toast("You've answered all questions! Generating a fresh set.", { duration: 3000 });
+      // Clear answered tracking and restart with all questions
+      try { localStorage.removeItem("medq_exambank_answered"); } catch {}
+      startQuiz(questions as unknown as QuestionModel[]);
+    } else {
+      startQuiz(unanswered);
+    }
     router.push("/practice/quiz?mode=exam-bank");
   }
 
@@ -505,8 +533,9 @@ export default function ExamBankPage() {
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold">{totalCount} Questions Ready</h3>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    {domainsGenerated.length} domain
-                    {domainsGenerated.length !== 1 ? "s" : ""} covered
+                    {answeredCount > 0
+                      ? `${answeredCount} answered · ${remainingCount} remaining`
+                      : `${domainsGenerated.length} domain${domainsGenerated.length !== 1 ? "s" : ""} covered`}
                   </p>
                 </div>
                 <div className="flex gap-2 shrink-0 flex-wrap">
@@ -515,7 +544,11 @@ export default function ExamBankPage() {
                     className="rounded-xl gap-1.5"
                   >
                     <Zap className="h-4 w-4" />
-                    Start Practice
+                    {answeredCount > 0 && remainingCount > 0
+                      ? `Continue (${remainingCount} left)`
+                      : answeredCount > 0
+                        ? "Restart All"
+                        : "Start Practice"}
                   </Button>
                   <Button
                     variant="outline"
