@@ -247,6 +247,24 @@ export default function ExplorePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, hydrated]);
 
+  // ── Auto-start when arriving from a quiz question via ?autostart=learn ──
+  const autostartRef = useRef(false);
+  useEffect(() => {
+    if (!hydrated || autostartRef.current || phase !== "setup") return;
+    // Don't auto-start if there's a pending session to resume (that takes priority)
+    if (resumedRef.current) return;
+    const autostart = searchParams.get("autostart");
+    const urlTopic = searchParams.get("topic");
+    if (autostart === "learn" && urlTopic) {
+      autostartRef.current = true;
+      const topic = urlTopic.slice(0, 200);
+      const examType = searchParams.get("exam") || undefined;
+      setInputIntent("learn");
+      setTimeout(() => handleLearnTopic(topic, inputLevel, examType), 0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, hydrated]);
+
   const currentQuestion = questions[currentIndex] ?? null;
   const currentAnswer =
     currentQuestion != null ? answers.get(currentQuestion.id) : undefined;
@@ -355,7 +373,7 @@ export default function ExplorePage() {
     targetCount,
   ]);
 
-  async function handleLearnTopic(overrideTopic?: string, overrideLevel?: string) {
+  async function handleLearnTopic(overrideTopic?: string, overrideLevel?: string, overrideExamType?: string) {
     const trimmed = (overrideTopic ?? inputTopic).trim();
     const level = overrideLevel ?? inputLevel;
     if (!trimmed) {
@@ -369,6 +387,7 @@ export default function ExplorePage() {
       const insight = await fn.exploreTopicInsight({
         topic: trimmed,
         level,
+        examType: overrideExamType || undefined,
       });
       store.setTopicInsight(insight);
       store.startTeaching(insight);

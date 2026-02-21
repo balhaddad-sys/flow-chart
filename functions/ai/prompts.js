@@ -416,9 +416,16 @@ function exploreTopicInsightUserPrompt({
   topic,
   levelLabel,
   levelDescription,
+  examContext,
 }) {
-  return `Topic: "${topic}"
-Target audience: ${levelLabel} — ${levelDescription}
+  let preamble = `Topic: "${topic}"
+Target audience: ${levelLabel} — ${levelDescription}`;
+
+  if (examContext) {
+    preamble += `\n\nEXAM CONTEXT — the learner is preparing for this exam:\n${examContext}\nTailor depth, emphasis, and clinical framing to what this exam tests. Prioritise the exam's tested domains, question style, and common traps.`;
+  }
+
+  return `${preamble}
 
 FOCUS CONSTRAINT: Your entire module must stay anchored to "${topic}".
 Do NOT expand into the broader parent topic. If "${topic}" is a specific drug class, mechanism, procedure, or clinical aspect, keep every section tightly scoped to it.

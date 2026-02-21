@@ -20,6 +20,7 @@ const {
   EXPLORE_TOPIC_INSIGHT_SYSTEM,
   exploreTopicInsightUserPrompt,
 } = require("../ai/prompts");
+const { buildExamPlaybookPrompt } = require("../ai/examPlaybooks");
 
 const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
 const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
@@ -451,11 +452,14 @@ exports.exploreTopicInsight = functions
     await checkRateLimit(uid, "exploreTopicInsight", RATE_LIMITS.exploreTopicInsight);
 
     const topic = String(data.topic || "").trim();
+    const examType = typeof data.examType === "string" ? data.examType.trim().slice(0, 40) : null;
     const levelProfile = getAssessmentLevel(data.level);
+    const examContext = examType ? buildExamPlaybookPrompt(examType) : "";
     const prompt = exploreTopicInsightUserPrompt({
       topic,
       levelLabel: levelProfile.label,
       levelDescription: levelProfile.description || "",
+      examContext: examContext || "",
     });
 
     try {
