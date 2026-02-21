@@ -114,8 +114,10 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
           answerQuestion(question.id, optionIndex, result.correct, result.attemptId);
         }
         if (result.tutorResponse) setTutorResponse(result.tutorResponse);
-      }).catch(() => {
-        toast.error("Answer couldn\u2019t sync. Your progress may not be saved.");
+      }).catch((err) => {
+        const detail = err instanceof Error ? err.message : String(err);
+        console.error("[QuestionCard] submitAttempt failed:", detail, { questionId: question.id });
+        toast.error(`Answer couldn\u2019t sync: ${detail}`);
       });
     } finally {
       setSubmitting(false);

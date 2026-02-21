@@ -45,10 +45,43 @@ exports.submitAttempt = functions
       const { questionId } = data;
 
       // ── Fetch question ──────────────────────────────────────────────────
+      let question = null;
+      let questionRef = null;
       const questionDoc = await db.doc(`users/${uid}/questions/${questionId}`).get();
-      if (!questionDoc.exists) return fail(Errors.NOT_FOUND, "Question not found.");
 
-      const question = questionDoc.data();
+      if (questionDoc.exists) {
+        question = questionDoc.data();
+        questionRef = questionDoc.ref;
+      } else if (questionId.startsWith("exambank_")) {
+        // Exam bank questions may only exist in the embedded array.
+        // ID format: exambank_{EXAM_TYPE}_{13-digit-timestamp}_{index}
+        const idMatch = questionId.match(/^exambank_(.+)_(\d{13,})_(\d+)$/);
+        const examType = idMatch ? idMatch[1] : null;
+        log.info("Exam bank question lookup", { uid, questionId, examType });
+        if (examType) {
+          const bankSnap = await db.doc(`users/${uid}/examBank/${examType}`).get();
+          if (bankSnap.exists) {
+            const bankData = bankSnap.data();
+            const match = (bankData.questions || []).find((q) => q.id === questionId);
+            if (match) {
+              question = { ...match, courseId: examType };
+              // Promote to individual doc so future attempts are fast
+              questionRef = db.doc(`users/${uid}/questions/${questionId}`);
+              await questionRef.set({ ...question, createdAt: admin.firestore.FieldValue.serverTimestamp() });
+              log.info("Exam bank question promoted", { uid, questionId, examType });
+            } else {
+              log.warn("Question not found in exam bank array", { uid, questionId, examType, bankSize: (bankData.questions || []).length });
+            }
+          } else {
+            log.warn("Exam bank doc not found", { uid, questionId, examType });
+          }
+        } else {
+          log.warn("Could not parse exam type from question ID", { uid, questionId });
+        }
+      }
+
+      if (!question) return fail(Errors.NOT_FOUND, "Question not found.");
+
       const correct = answerIndex === question.correctIndex;
 
       // ── IDEMPOTENCY: Use deterministic ID to prevent duplicate attempts ──
@@ -82,10 +115,12 @@ exports.submitAttempt = functions
 
       // ── Update question stats atomically ──────────────────────────────
       // Use Firestore increment to prevent race conditions with concurrent attempts
-      await questionDoc.ref.update({
-        "stats.timesAnswered": admin.firestore.FieldValue.increment(1),
-        "stats.timesCorrect": admin.firestore.FieldValue.increment(correct ? 1 : 0),
-      });
+      if (questionRef) {
+        await questionRef.update({
+          "stats.timesAnswered": admin.firestore.FieldValue.increment(1),
+          "stats.timesCorrect": admin.firestore.FieldValue.increment(correct ? 1 : 0),
+        });
+      }
 
       // ── AI tutor response (incorrect answers only) ─────────────────────
       let tutorResponse = null;
