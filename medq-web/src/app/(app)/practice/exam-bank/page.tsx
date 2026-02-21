@@ -160,6 +160,22 @@ const COLOR_MAP: Record<
   },
 };
 
+/** Shorten verbose coverageBlueprint domain names for compact badge display. */
+function shortenDomain(domain: string): string {
+  let short = domain
+    .split(/\s+(?:and|&)\s+/i)[0] // before "and" / "&"
+    .split(/[(/:\u2014,]/)[0]      // before ( / : — ,
+    .trim();
+
+  // Keep only the first word or two to stay compact on mobile
+  if (short.length > 18) {
+    const words = short.split(/\s+/);
+    short = words[0].length >= 10 ? words[0] : words.slice(0, 2).join(" ");
+  }
+
+  return short;
+}
+
 function daysUntil(ts: TSTimestamp | undefined): number | null {
   if (!ts) return null;
   const ms = ts.toDate().getTime() - Date.now();
@@ -574,9 +590,9 @@ export default function ExamBankPage() {
                     <Badge
                       key={domain}
                       variant="secondary"
-                      className="text-xs rounded-full px-2.5"
+                      className="text-xs rounded-full px-2.5 max-w-[160px] truncate"
                     >
-                      {domain}
+                      {shortenDomain(domain)}
                     </Badge>
                   ))}
                 </div>
