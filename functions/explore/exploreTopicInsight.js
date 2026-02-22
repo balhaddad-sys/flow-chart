@@ -21,6 +21,7 @@ const {
   exploreTopicInsightUserPrompt,
 } = require("../ai/prompts");
 const { buildExamPlaybookPrompt } = require("../ai/examPlaybooks");
+const { lookupInsight, writeInsight } = require("../cache/knowledgeCache");
 
 const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
 const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
@@ -457,6 +458,66 @@ exports.exploreTopicInsight = functions
       ? data.questionContext.trim().slice(0, 800)
       : "";
     const levelProfile = getAssessmentLevel(data.level);
+    const hasQuestionContext = Boolean(questionContext);
+
+    // ── Knowledge Cache lookup (skip when question-specific) ──────────
+    if (!hasQuestionContext) {
+      try {
+        const insightCache = await lookupInsight(topic, levelProfile.id, examType);
+        if (insightCache.hit) {
+          // Update explore profile with cached data (same as live generation)
+          try {
+            const profileDocId = buildExploreProfileDocId(topic, levelProfile.id);
+            const profileRef = db.doc(`users/${uid}/exploreProfiles/${profileDocId}`);
+            const focusTags = normaliseStringList(
+              []
+                .concat(insightCache.insight.corePoints || [])
+                .concat(insightCache.insight.clinicalFramework?.diagnosticApproach || [])
+                .concat(insightCache.insight.clinicalFramework?.managementApproach || []),
+              { maxItems: 8, maxLen: 80 }
+            );
+
+            await profileRef.set(
+              {
+                topic,
+                level: levelProfile.id,
+                levelLabel: levelProfile.label,
+                focusTags,
+                insightSummary: truncate(insightCache.insight.summary || "", 1200),
+                lastInsightModel: "cache",
+                lastInsightAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              },
+              { merge: true }
+            );
+          } catch (profileWriteError) {
+            log.warn("Explore profile update failed after cache hit", {
+              uid, topic, level: levelProfile.id, error: profileWriteError.message,
+            });
+          }
+
+          log.info("Explore topic insight served from cache", {
+            uid, topic, level: levelProfile.id, cacheKey: insightCache.cacheKey,
+          });
+
+          return ok({
+            topic,
+            level: levelProfile.id,
+            levelLabel: levelProfile.label,
+            modelUsed: "cache",
+            ...insightCache.insight,
+            fromCache: true,
+          });
+        }
+      } catch (cacheErr) {
+        log.warn("Insight cache lookup failed; falling through to AI", {
+          uid, topic, level: levelProfile.id, error: cacheErr.message,
+        });
+      }
+    }
+    // ── End cache lookup ──────────────────────────────────────────────
+
     const examContext = examType ? buildExamPlaybookPrompt(examType) : "";
     const prompt = exploreTopicInsightUserPrompt({
       topic,
@@ -559,6 +620,12 @@ exports.exploreTopicInsight = functions
           level: levelProfile.id,
           error: profileWriteError.message,
         });
+      }
+
+      // Non-blocking: populate global cache for future users.
+      if (!hasQuestionContext) {
+        writeInsight(topic, levelProfile.id, examType, payload, { modelUsed })
+          .catch((err) => log.warn("Insight cache write failed", { topic, error: err.message }));
       }
 
       return ok({

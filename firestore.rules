@@ -27,6 +27,10 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /_knowledgeCache/{document=**} {
+      allow read, write: if false;
+    }
+
     match /users/{userId} {
       allow read: if isOwner(userId);
       allow create: if isOwner(userId)

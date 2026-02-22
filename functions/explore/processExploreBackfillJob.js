@@ -14,6 +14,7 @@ const {
   computeExploreProfilePatch,
   buildLearnedContext,
 } = require("./exploreLearningProfile");
+const { writeQuestions } = require("../cache/knowledgeCache");
 
 const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
 const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
@@ -151,6 +152,12 @@ exports.processExploreBackfillJob = functions
         }
         await qBatch.commit();
       }
+
+      // Non-blocking: populate global cache for future users.
+      writeQuestions(topic, levelProfile.id, mergedQuestions, {
+        modelUsed: `${String(job.modelUsed || "fast-start")}+${generated.modelUsed || "backfill"}`,
+        qualityScore: evaluation.qualityScore,
+      }).catch((err) => log.warn("Cache write failed after backfill", { topic, error: err.message }));
 
       try {
         const profilePatch = computeExploreProfilePatch(profile || {}, {

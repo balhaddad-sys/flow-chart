@@ -389,6 +389,7 @@ export interface ExploreQuizResult {
   remainingCount?: number;
   backgroundQueued?: boolean;
   backgroundJobId?: string;
+  fromCache?: boolean;
 }
 
 export interface TeachingSection {
@@ -492,6 +493,7 @@ export interface ExploreTopicInsightResult {
     title: string;
     url: string;
   }>;
+  fromCache?: boolean;
 }
 
 export function exploreQuiz(params: {

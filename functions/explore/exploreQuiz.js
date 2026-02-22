@@ -19,6 +19,8 @@ const {
   computeExploreProfilePatch,
   buildLearnedContext,
 } = require("./exploreLearningProfile");
+const { lookupQuestions, writeQuestions } = require("../cache/knowledgeCache");
+const { selectAndVary } = require("../cache/variationEngine");
 
 const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
 const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
@@ -97,6 +99,60 @@ exports.exploreQuiz = functions
 
     const learnedContext = buildLearnedContext(profile, levelProfile);
     const profileExcludeStems = extractRecentStems(profile, 12);
+
+    // ── Knowledge Cache lookup ────────────────────────────────────────
+    try {
+      const cacheResult = await lookupQuestions(topic, level, { minCount: fastReadyCount });
+      if (cacheResult.hit) {
+        const varied = selectAndVary(cacheResult.questions, count, levelProfile, profileExcludeStems);
+
+        if (varied.length >= fastReadyCount) {
+          // Persist per-user copies so submitAttempt can look them up.
+          const now = admin.firestore.FieldValue.serverTimestamp();
+          const qBatch = db.batch();
+          for (const q of varied) {
+            if (!q.id) continue;
+            qBatch.set(db.doc(`users/${uid}/questions/${q.id}`), {
+              ...q,
+              courseId: `explore_${topic}`,
+              createdAt: now,
+            });
+          }
+          await qBatch.commit();
+
+          log.info("Explore quiz served from cache", {
+            uid,
+            topic,
+            level: levelProfile.id,
+            cacheKey: cacheResult.cacheKey,
+            requested: count,
+            served: varied.length,
+            durationMs: Date.now() - t0,
+          });
+
+          return ok({
+            questions: varied,
+            topic,
+            level: levelProfile.id,
+            levelLabel: levelProfile.label,
+            modelUsed: "cache",
+            qualityGatePassed: true,
+            qualityScore: 1,
+            targetCount: count,
+            readyNow: varied.length,
+            remainingCount: 0,
+            backgroundQueued: false,
+            backgroundJobId: null,
+            fromCache: true,
+          });
+        }
+      }
+    } catch (cacheErr) {
+      log.warn("Knowledge cache lookup failed; falling through to AI", {
+        uid, topic, level, error: cacheErr.message,
+      });
+    }
+    // ── End cache lookup; fall through to AI generation ───────────────
 
     try {
       const fastStart = await generateExploreQuestions({
@@ -183,6 +239,12 @@ exports.exploreQuiz = functions
           error: profileWriteError.message,
         });
       }
+
+      // Non-blocking: populate global cache for future users.
+      writeQuestions(topic, levelProfile.id, readyQuestions, {
+        modelUsed: fastStart.modelUsed,
+        qualityScore: fastStart.qualityScore,
+      }).catch((err) => log.warn("Cache write failed after fast-start", { topic, error: err.message }));
 
       log.info("Explore quiz generated (fast-start)", {
         uid,

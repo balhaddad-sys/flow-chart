@@ -218,6 +218,14 @@ const FLAG_REASONS = ["incorrect", "ambiguous", "bad_explanation", "source_misma
 /** Days of activity history surfaced in the streak contribution graph (12 weeks). */
 const STREAK_HISTORY_DAYS = 84;
 
+// ── Knowledge Cache ─────────────────────────────────────────────────────
+
+/** Maximum cached questions stored per topic+level document. */
+const CACHE_MAX_QUESTIONS_PER_TOPIC = 60;
+
+/** Root Firestore collection for the shared knowledge cache. */
+const CACHE_COLLECTION = "_knowledgeCache";
+
 module.exports = {
   FIRESTORE_BATCH_LIMIT,
   FIRESTORE_GET_ALL_LIMIT,
@@ -262,4 +270,6 @@ module.exports = {
   QUESTION_CONFIDENCE_THRESHOLD,
   FLAG_REASONS,
   STREAK_HISTORY_DAYS,
+  CACHE_MAX_QUESTIONS_PER_TOPIC,
+  CACHE_COLLECTION,
 };
