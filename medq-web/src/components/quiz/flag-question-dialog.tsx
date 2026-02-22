@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Flag, X, CheckCircle2, Loader2 } from "lucide-react";
 import * as fn from "@/lib/firebase/functions";
@@ -71,15 +71,9 @@ export function FlagQuestionDialog({ questionId, trigger }: FlagQuestionDialogPr
 
       {/* Modal overlay */}
       {open && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-4"
-          onClick={(e) => e.target === e.currentTarget && setOpen(false)}
-        >
-          {/* Backdrop */}
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setOpen(false)} />
-
+        <FlagDialogOverlay onClose={() => setOpen(false)}>
           {/* Dialog */}
-          <div className="relative z-50 w-full max-w-sm rounded-2xl border border-border/70 bg-card shadow-2xl animate-in-up">
+          <div role="dialog" aria-modal="true" aria-label="Report an issue" className="relative z-50 w-full max-w-sm rounded-2xl border border-border/70 bg-card shadow-2xl animate-in-up">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-border/50 px-5 py-4">
               <div className="flex items-center gap-2">
@@ -88,6 +82,7 @@ export function FlagQuestionDialog({ questionId, trigger }: FlagQuestionDialogPr
               </div>
               <button
                 onClick={() => setOpen(false)}
+                aria-label="Close dialog"
                 className="rounded-lg p-1 text-muted-foreground hover:bg-accent/60 hover:text-foreground"
               >
                 <X className="h-4 w-4" />
@@ -132,10 +127,11 @@ export function FlagQuestionDialog({ questionId, trigger }: FlagQuestionDialogPr
 
                 {/* Optional note */}
                 <div className="space-y-1.5">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  <label htmlFor="flag-note" className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                     Additional note <span className="normal-case font-normal">(optional)</span>
-                  </p>
+                  </label>
                   <textarea
+                    id="flag-note"
                     value={freeText}
                     onChange={(e) => setFreeText(e.target.value.slice(0, 500))}
                     placeholder="Add any extra detail…"
@@ -161,8 +157,62 @@ export function FlagQuestionDialog({ questionId, trigger }: FlagQuestionDialogPr
               </div>
             )}
           </div>
-        </div>
+        </FlagDialogOverlay>
       )}
     </>
+  );
+}
+
+function FlagDialogOverlay({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab" || !overlayRef.current) return;
+      const focusable = overlayRef.current.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+
+    const prev = document.activeElement as HTMLElement | null;
+    document.addEventListener("keydown", handleKeyDown);
+    // Auto-focus first focusable element
+    const timer = setTimeout(() => {
+      const first = overlayRef.current?.querySelector<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      first?.focus();
+    }, 50);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      clearTimeout(timer);
+      prev?.focus();
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center p-4"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      {children}
+    </div>
   );
 }

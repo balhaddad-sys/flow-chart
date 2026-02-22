@@ -10,9 +10,19 @@ import { Clock } from "lucide-react";
 interface StatsCardsProps {
   stats: StatsModel | null;
   loading?: boolean;
+  error?: string | null;
 }
 
-export function StatsCards({ stats, loading = false }: StatsCardsProps) {
+export function StatsCards({ stats, loading = false, error = null }: StatsCardsProps) {
+  if (error) {
+    return (
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-center">
+        <p className="text-sm text-destructive">{error}</p>
+        <p className="mt-1 text-xs text-muted-foreground">Stats will refresh automatically.</p>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">

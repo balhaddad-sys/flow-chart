@@ -54,9 +54,15 @@ jobs:
           NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
           NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID }}
 
+      - name: Run Next.js tests
+        run: cd medq-web && npm test -- --ci --passWithNoTests
+
       # ── Cloud Functions ──────────────────────────────
       - name: Install Cloud Functions dependencies
         run: cd functions && npm ci
+
+      - name: Lint Cloud Functions
+        run: cd functions && npx eslint . --max-warnings 0
 
       - name: Run Cloud Functions tests
         run: cd functions && npm test

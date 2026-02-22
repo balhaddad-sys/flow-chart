@@ -120,9 +120,9 @@ export default function SignupPage() {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" aria-describedby={error ? "signup-error" : undefined}>
           {error && (
-            <div role="alert" aria-live="polite" className="animate-in-up rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
+            <div id="signup-error" role="alert" aria-live="polite" className="animate-in-up rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
               {error}
             </div>
           )}

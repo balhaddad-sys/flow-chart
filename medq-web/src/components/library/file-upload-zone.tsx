@@ -130,15 +130,16 @@ export function FileUploadZone() {
         </div>
         <p className="text-sm font-semibold">Drag and drop files here</p>
         <p className="mt-1 text-[12px] text-muted-foreground">PDF, PPTX, or DOCX (max 100MB)</p>
-        <label className="mt-4">
+        <label className="mt-4 cursor-pointer">
           <Button variant="outline" size="sm" asChild>
-            <span>Browse Files</span>
+            <span role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); (e.currentTarget.nextElementSibling as HTMLInputElement)?.click(); } }}>Browse Files</span>
           </Button>
           <input
             type="file"
-            className="hidden"
+            className="sr-only"
             accept=".pdf,.pptx,.docx"
             multiple
+            tabIndex={-1}
             onChange={(e) => e.target.files && handleFiles(e.target.files)}
           />
         </label>

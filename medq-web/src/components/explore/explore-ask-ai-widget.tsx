@@ -313,6 +313,7 @@ export function ExploreAskAiWidget() {
   }
 
   function handleClearChat() {
+    if (messages.length > 0 && !window.confirm("Clear chat history for this topic?")) return;
     setMessages([]);
     setRequestError(null);
     try {

@@ -126,8 +126,10 @@ export function TodayChecklist({ tasks, loading, sectionMap }: TodayChecklistPro
                 >
                   <button
                     onClick={() => toggleTask(task)}
+                    role="checkbox"
+                    aria-checked={isDone}
                     className="shrink-0 pt-0.5 transition-transform active:scale-90"
-                    aria-label={isDone ? "Mark incomplete" : "Mark complete"}
+                    aria-label={isDone ? `Mark "${cleanTitle}" as incomplete` : `Mark "${cleanTitle}" as complete`}
                   >
                     {isDone ? (
                       <CheckCircle2 className="h-[18px] w-[18px] text-primary" />

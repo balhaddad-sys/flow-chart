@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -63,8 +63,8 @@ export function StreakGraph({ className }: StreakGraphProps) {
         const q = query(ref, orderBy("date", "desc"), limit(84));
         const snap = await getDocs(q);
         setActivity(snap.docs.map((d) => d.data() as DayActivity));
-      } catch {
-        // Non-critical
+      } catch (err) {
+        console.warn("[StreakGraph] Failed to fetch activity:", err);
       } finally {
         setLoading(false);
       }
@@ -73,23 +73,25 @@ export function StreakGraph({ className }: StreakGraphProps) {
     fetchActivity();
   }, [uid]);
 
-  const today = new Date();
-  const days: { date: string; count: number }[] = [];
-  for (let i = 83; i >= 0; i--) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().slice(0, 10);
-    const found = activity.find((a) => a.date === dateStr);
-    days.push({ date: dateStr, count: found?.completedCount ?? 0 });
-  }
+  const { days, weeks } = useMemo(() => {
+    const today = new Date();
+    const activityMap = new Map(activity.map((a) => [a.date, a.completedCount]));
+    const d: { date: string; count: number }[] = [];
+    for (let i = 83; i >= 0; i--) {
+      const dt = new Date(today);
+      dt.setDate(dt.getDate() - i);
+      const dateStr = dt.toISOString().slice(0, 10);
+      d.push({ date: dateStr, count: activityMap.get(dateStr) ?? 0 });
+    }
+    const w: { date: string; count: number }[][] = [];
+    for (let i = 0; i < d.length; i += 7) {
+      w.push(d.slice(i, i + 7));
+    }
+    return { days: d, weeks: w };
+  }, [activity]);
 
-  const weeks: { date: string; count: number }[][] = [];
-  for (let i = 0; i < days.length; i += 7) {
-    weeks.push(days.slice(i, i + 7));
-  }
-
-  const streak = computeStreak(activity);
-  const totalQuestions = activity.reduce((sum, d) => sum + d.completedCount, 0);
+  const streak = useMemo(() => computeStreak(activity), [activity]);
+  const totalQuestions = useMemo(() => activity.reduce((sum, d) => sum + d.completedCount, 0), [activity]);
 
   if (loading) {
     return (

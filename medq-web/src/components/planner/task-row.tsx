@@ -50,10 +50,12 @@ export function TaskRow({ task, sectionMap }: TaskRowProps) {
         isDone ? "opacity-60" : ""
       }`}
     >
-      <div
+      <button
+        type="button"
         onClick={toggleDone}
         role="checkbox"
         aria-checked={isDone}
+        aria-label={isDone ? `Mark "${displayTitle}" as incomplete` : `Mark "${displayTitle}" as complete`}
         className="shrink-0 rounded-full p-0.5 transition-colors hover:bg-accent"
       >
         {isDone ? (
@@ -61,7 +63,7 @@ export function TaskRow({ task, sectionMap }: TaskRowProps) {
         ) : (
           <Circle className="h-5 w-5 text-muted-foreground/40" />
         )}
-      </div>
+      </button>
 
       <div className={`shrink-0 rounded-lg p-1.5 ${meta.color}`}>
         <Icon className="h-4 w-4" />

@@ -56,7 +56,18 @@ function withSecurityHeaders(response: NextResponse) {
   response.headers.set("Cross-Origin-Resource-Policy", "same-origin");
   response.headers.set(
     "Content-Security-Policy",
-    "frame-ancestors 'none'; base-uri 'self'; form-action 'self';"
+    [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://apis.google.com https://*.firebaseio.com https://*.googleapis.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "img-src 'self' data: blob: https://*.googleusercontent.com https://*.googleapis.com https://firebasestorage.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "connect-src 'self' https://*.firebaseio.com https://*.googleapis.com https://*.cloudfunctions.net wss://*.firebaseio.com https://firebasestorage.googleapis.com https://api.anthropic.com",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "object-src 'none'",
+    ].join("; ")
   );
   response.headers.set(
     "Strict-Transport-Security",

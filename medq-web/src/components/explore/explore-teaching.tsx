@@ -44,13 +44,13 @@ function BarChart({
   const maxVal = Math.max(...dataPoints.map((d) => d.value), 1);
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" role="img" aria-label={`Bar chart${yLabel ? `: ${yLabel}` : ""}. ${dataPoints.map((p) => `${p.label}: ${p.value}${p.unit ? ` ${p.unit}` : ""}`).join(", ")}`}>
       {yLabel && (
         <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
           {yLabel}
         </p>
       )}
-      <div className="flex items-end gap-2">
+      <div className="flex items-end gap-2" aria-hidden="true">
         {dataPoints.map((point) => (
           <div key={point.label} className="min-w-[52px] flex-1 text-center">
             <div className="flex h-28 items-end justify-center">
@@ -97,7 +97,7 @@ function GroupedBarChart({ chart }: { chart: TreatmentComparisonChart }) {
   const maxVal = Math.max(...allValues, 1);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" role="img" aria-label={`Grouped bar chart comparing ${chart.series.map((s) => s.name).join(", ")} across ${chart.categories.join(", ")}${chart.unit ? ` (${chart.unit})` : ""}`}>
       <div className="flex flex-wrap gap-3">
         {chart.series.map((s, i) => (
           <div key={s.name} className="flex items-center gap-1.5 text-xs">
@@ -152,7 +152,7 @@ function AlgorithmFlowchart({ chart }: { chart: DiagnosticAlgorithmChart }) {
   };
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1" role="img" aria-label={`Diagnostic algorithm with ${chart.steps.length} steps: ${chart.steps.map((s) => s.label).join(" → ")}`}>
       {chart.steps.map((step, i) => (
         <div key={step.id} className="relative flex items-start gap-2 pl-2">
           {i < chart.steps.length - 1 && (

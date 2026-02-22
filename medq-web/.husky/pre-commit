@@ -1,0 +1,1 @@
+cd medq-web && npx lint-staged

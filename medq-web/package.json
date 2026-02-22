@@ -9,7 +9,8 @@
     "lint": "eslint",
     "test": "jest --verbose",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "prepare": "cd .. && husky medq-web/.husky"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -29,8 +30,15 @@
     "tailwind-merge": "^3.4.0",
     "zustand": "^5.0.11"
   },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --max-warnings 0"
+    ]
+  },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "husky": "^9.1.0",
+    "lint-staged": "^15.4.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
