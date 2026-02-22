@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import {
   BookOpen,
   ExternalLink,
@@ -9,6 +10,8 @@ import {
   Circle,
   Square,
   ChevronRight,
+  ImageIcon,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,7 +26,13 @@ import type {
   ChartDataPoint,
   TreatmentComparisonChart,
   DiagnosticAlgorithmChart,
+  ExploreTopicInsightResult,
 } from "@/lib/firebase/functions";
+import {
+  fetchExploreVisualAids,
+  shouldShowExploreVisualAids,
+  type ExploreVisualAid,
+} from "@/lib/utils/explore-visual-aids";
 
 /* ---------- Chart sub-components ---------- */
 
@@ -217,8 +226,31 @@ interface ExploreTeachingProps {
 export function ExploreTeaching({ onStartQuiz, onNewTopic }: ExploreTeachingProps) {
   const store = useExploreStore();
   const { topicInsight, topic, levelLabel, reset } = store;
+  const [visualAids, setVisualAids] = useState<ExploreVisualAid[]>([]);
+  const [isLoadingVisualAids, setIsLoadingVisualAids] = useState(false);
 
-  if (!topicInsight) return null;
+  const fallbackInsight: ExploreTopicInsightResult = {
+    topic: "",
+    level: "",
+    levelLabel: "",
+    modelUsed: "",
+    summary: "",
+    teachingSections: [],
+    corePoints: [],
+    clinicalFramework: {
+      pathophysiology: "",
+      diagnosticApproach: [],
+      managementApproach: [],
+      escalationTriggers: [],
+    },
+    chartData: {},
+    clinicalPitfalls: [],
+    redFlags: [],
+    studyApproach: [],
+    guidelineUpdates: [],
+    citations: [],
+  };
+  const insight = topicInsight ?? fallbackInsight;
 
   const {
     summary,
@@ -231,7 +263,45 @@ export function ExploreTeaching({ onStartQuiz, onNewTopic }: ExploreTeachingProp
     studyApproach,
     guidelineUpdates,
     citations,
-  } = topicInsight;
+  } = insight;
+
+  const shouldLoadVisualAids = useMemo(
+    () =>
+      shouldShowExploreVisualAids({
+        topic,
+        summary,
+        sectionTitles: teachingSections.map((section) => section.title),
+        corePoints,
+      }),
+    [topic, summary, teachingSections, corePoints]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!topicInsight || !shouldLoadVisualAids || !topic.trim()) {
+      setVisualAids([]);
+      setIsLoadingVisualAids(false);
+      return;
+    }
+
+    setIsLoadingVisualAids(true);
+    fetchExploreVisualAids(topic, 6)
+      .then((items) => {
+        if (cancelled) return;
+        setVisualAids(items);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setIsLoadingVisualAids(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [topicInsight, shouldLoadVisualAids, topic]);
+
+  if (!topicInsight) return null;
 
   return (
     <div className="space-y-5">
@@ -251,6 +321,80 @@ export function ExploreTeaching({ onStartQuiz, onNewTopic }: ExploreTeachingProp
           </CardContent>
         )}
       </Card>
+
+      {/* Visual Aids (anatomy/structure-heavy topics) */}
+      {shouldLoadVisualAids && (
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <ImageIcon className="h-4 w-4 text-primary" />
+              <CardTitle className="text-base">Visual Aids</CardTitle>
+              <Badge variant="outline" className="text-[10px]">Auto</Badge>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Added for visual-heavy topics. Verify labels with trusted anatomy sources before exams or clinical use.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {isLoadingVisualAids && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading visual references...
+              </div>
+            )}
+
+            {!isLoadingVisualAids && visualAids.length > 0 && (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {visualAids.map((item) => (
+                  <a
+                    key={item.id}
+                    href={item.pageUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group overflow-hidden rounded-lg border border-border/60 transition-colors hover:border-primary/50 hover:bg-muted/20"
+                  >
+                    <div className="aspect-[4/3] overflow-hidden bg-muted/40">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={item.imageUrl}
+                        alt={`${item.title} visual reference`}
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                        loading="lazy"
+                      />
+                    </div>
+                    <div className="space-y-1 p-2.5">
+                      <p className="line-clamp-2 text-xs font-medium leading-snug">
+                        {item.title}
+                      </p>
+                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <span>{item.source}</span>
+                        <ExternalLink className="h-2.5 w-2.5" />
+                      </div>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            )}
+
+            {!isLoadingVisualAids && visualAids.length === 0 && (
+              <div className="rounded-lg border border-dashed border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+                No image references found for this topic.
+                <a
+                  href={`https://commons.wikimedia.org/w/index.php?search=${encodeURIComponent(
+                    `${topic} anatomy diagram`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ml-1 inline-flex items-center gap-1 text-primary hover:underline"
+                >
+                  Search Wikimedia
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Teaching Sections */}
       {teachingSections.map((section) => (
