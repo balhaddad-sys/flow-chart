@@ -21,6 +21,8 @@ import { ExploreTeaching } from "@/components/explore/explore-teaching";
 import { ExploreAskAiWidget } from "@/components/explore/explore-ask-ai-widget";
 import * as fn from "@/lib/firebase/functions";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useCourses } from "@/lib/hooks/useCourses";
+import { useCourseStore } from "@/lib/stores/course-store";
 import { db } from "@/lib/firebase/client";
 import { doc, onSnapshot } from "firebase/firestore";
 import { toast } from "sonner";
@@ -47,6 +49,15 @@ const EXPLORE_LEVELS = [
 ];
 const ADVANCED_LEVEL_IDS = new Set(["MD4", "MD5", "INTERN", "RESIDENT", "POSTGRADUATE"]);
 const EXPLORE_SETUP_KEY = "medq_explore_setup_v2";
+
+/** Map exam type → appropriate Explore level so content matches the user's stage. */
+const EXAM_LEVEL_MAP: Record<string, string> = {
+  PLAB1: "MD3", PLAB2: "MD3",
+  MRCP_PART1: "MD4", MRCP_PACES: "MD4",
+  MRCGP_AKT: "MD3",
+  USMLE_STEP1: "MD3", USMLE_STEP2: "MD4",
+  FINALS: "MD3", SBA: "MD3", OSCE: "MD3",
+};
 const TOPIC_SUGGESTIONS = [
   "Acute Coronary Syndrome",
   "DKA Management",
@@ -151,6 +162,13 @@ export default function ExplorePage() {
   const syncedCountRef = useRef(0);
   const terminalStatusRef = useRef<string | null>(null);
 
+  // Derive default level from user's active exam type
+  const { courses } = useCourses();
+  const activeCourseId = useCourseStore((s) => s.activeCourseId);
+  const activeCourse = courses.find((c) => c.id === (activeCourseId || courses[0]?.id));
+  const examDerivedLevel =
+    EXAM_LEVEL_MAP[String(activeCourse?.examType || "").toUpperCase()] || null;
+
   // Wait for Zustand persist to rehydrate from localStorage
   const [hydrated, setHydrated] = useState(useExploreStore.persist.hasHydrated());
   useEffect(() => {
@@ -166,6 +184,17 @@ export default function ExplorePage() {
   const [showAllHistory, setShowAllHistory] = useState(false);
 
   const refreshHistory = useCallback(() => setHistory(getExploreHistory()), []);
+
+  // Auto-set level from active exam when no localStorage override exists
+  const levelInitRef = useRef(false);
+  useEffect(() => {
+    if (levelInitRef.current || !examDerivedLevel) return;
+    const raw = window.localStorage.getItem(EXPLORE_SETUP_KEY);
+    if (!raw) {
+      setInputLevel(examDerivedLevel);
+      levelInitRef.current = true;
+    }
+  }, [examDerivedLevel]);
 
   useEffect(() => {
     refreshHistory();
