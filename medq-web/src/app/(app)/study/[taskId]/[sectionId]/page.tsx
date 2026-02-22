@@ -343,6 +343,7 @@ export default function StudySessionPage({
 
   return (
     <div className="flex flex-col">
+      <Tabs defaultValue={defaultTab}>
       {/* ── Sticky header ── sits below the CourseSwitcherBar (min-h-12) */}
       <div className="sticky top-12 z-10 border-b border-border/50 bg-background/80 backdrop-blur-2xl">
         {/* Row 1: back + title + timer */}
@@ -411,12 +412,9 @@ export default function StudySessionPage({
             ))}
           </div>
         )}
-      </div>
 
-      {/* ── Content ── */}
-      <div className="mx-auto w-full max-w-2xl flex-1 px-4 pt-4 pb-24 sm:px-6">
-        <Tabs defaultValue={defaultTab} className="space-y-5">
-          {/* Tab selector */}
+        {/* Tab selector — pinned inside sticky header so it never scrolls away */}
+        <div className="px-4 pb-2 pt-1">
           <TabsList className="grid w-full grid-cols-2 h-10 rounded-xl p-1">
             <TabsTrigger value="guide" className="rounded-lg gap-1.5 text-xs sm:text-sm data-[state=active]:shadow-sm">
               <BookOpen className="h-3.5 w-3.5" />
@@ -427,6 +425,11 @@ export default function StudySessionPage({
               Notes
             </TabsTrigger>
           </TabsList>
+        </div>
+      </div>
+
+      {/* ── Content ── */}
+      <div className="mx-auto w-full max-w-2xl flex-1 px-4 pt-4 pb-24 sm:px-6">
 
           {/* ─── Guide Tab ─── */}
           <TabsContent value="guide" className="space-y-3 mt-0">
@@ -884,8 +887,8 @@ export default function StudySessionPage({
             )}
           </TabsContent>
 
-        </Tabs>
       </div>
+      </Tabs>
 
       {/* Floating AI chat widget */}
       <StudyAskAiWidget
