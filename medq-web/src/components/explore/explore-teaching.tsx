@@ -286,7 +286,15 @@ export function ExploreTeaching({ onStartQuiz, onNewTopic }: ExploreTeachingProp
     }
 
     setIsLoadingVisualAids(true);
-    fetchExploreVisualAids(topic, 6)
+    fetchExploreVisualAids(
+      {
+        topic,
+        summary,
+        sectionTitles: teachingSections.map((section) => section.title),
+        corePoints,
+      },
+      6
+    )
       .then((items) => {
         if (cancelled) return;
         setVisualAids(items);
@@ -299,7 +307,7 @@ export function ExploreTeaching({ onStartQuiz, onNewTopic }: ExploreTeachingProp
     return () => {
       cancelled = true;
     };
-  }, [topicInsight, shouldLoadVisualAids, topic]);
+  }, [topicInsight, shouldLoadVisualAids, topic, summary, teachingSections, corePoints]);
 
   if (!topicInsight) return null;
 
@@ -367,6 +375,11 @@ export function ExploreTeaching({ onStartQuiz, onNewTopic }: ExploreTeachingProp
                         {item.title}
                       </p>
                       <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                        {item.matchedTarget && (
+                          <Badge variant="secondary" className="h-4 px-1.5 text-[9px] font-medium">
+                            {item.matchedTarget}
+                          </Badge>
+                        )}
                         <span>{item.source}</span>
                         <ExternalLink className="h-2.5 w-2.5" />
                       </div>

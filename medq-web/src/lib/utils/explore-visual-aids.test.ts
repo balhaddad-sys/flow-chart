@@ -1,5 +1,6 @@
 import {
   buildExploreVisualAidQueries,
+  extractExploreVisualTargets,
   shouldShowExploreVisualAids,
 } from "./explore-visual-aids";
 
@@ -22,8 +23,16 @@ describe("explore visual aids", () => {
 
   it("builds stable wiki search queries", () => {
     const queries = buildExploreVisualAidQueries("Femoral triangle");
-    expect(queries).toContain("Femoral triangle anatomy diagram");
-    expect(queries).toContain("Femoral triangle anatomy illustration");
+    expect(queries).toContain('intitle:"Femoral triangle" anatomy diagram');
+  });
+
+  it("extracts specific anatomy targets from context", () => {
+    const targets = extractExploreVisualTargets({
+      topic: "Upper limb injuries",
+      summary: "Assess brachial plexus and radial nerve deficits.",
+      corePoints: ["Radial nerve palsy patterns"],
+    });
+    expect(targets).toContain("brachial plexus");
+    expect(targets).toContain("radial nerve");
   });
 });
-

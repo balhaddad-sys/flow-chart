@@ -4,6 +4,14 @@ export interface ExploreVisualAid {
   imageUrl: string;
   pageUrl: string;
   source: "Wikipedia";
+  matchedTarget?: string;
+}
+
+export interface ExploreVisualAidInput {
+  topic: string;
+  summary?: string | null;
+  sectionTitles?: string[];
+  corePoints?: string[];
 }
 
 const STRONG_VISUAL_TERMS: readonly RegExp[] = [
@@ -13,7 +21,7 @@ const STRONG_VISUAL_TERMS: readonly RegExp[] = [
   /\bmusculoskeletal\b/i,
   /\bdermatome\b/i,
   /\bmyotome\b/i,
-  /\bcranial nerve\b/i,
+  /\bcranial nerve(?:s)?\b/i,
 ];
 
 const STRUCTURE_TERMS: readonly RegExp[] = [
@@ -29,20 +37,171 @@ const STRUCTURE_TERMS: readonly RegExp[] = [
   /\bforamen\b/i,
   /\bfossa\b/i,
   /\borgan\b/i,
+  /\btriangle\b/i,
+  /\bcanal\b/i,
 ];
 
-interface ShowVisualAidInput {
-  topic: string;
-  summary?: string | null;
-  sectionTitles?: string[];
-  corePoints?: string[];
+const TARGET_PHRASE_RE =
+  /\b([a-z][a-z-]*(?:\s+[a-z][a-z-]*){0,3}\s+(?:nerve|artery|vein|muscle|bone|ligament|tendon|foramen|fossa|plexus|ganglion|canal|triangle|lobe|tract|sinus|valve))\b/gi;
+
+const TITLE_NOISE_PATTERNS: readonly RegExp[] = [
+  /\bdisambiguation\b/i,
+  /\blist of\b/i,
+  /\bcategory:/i,
+  /\bhistory of\b/i,
+  /\bhuman body\b/i,
+  /\banatomical terminology\b/i,
+];
+
+const STRUCTURE_HEADWORDS = new Set([
+  "nerve",
+  "artery",
+  "vein",
+  "muscle",
+  "bone",
+  "ligament",
+  "tendon",
+  "foramen",
+  "fossa",
+  "plexus",
+  "ganglion",
+  "canal",
+  "triangle",
+  "lobe",
+  "tract",
+  "sinus",
+  "valve",
+]);
+
+const TARGET_CONNECTORS = new Set([
+  "and",
+  "or",
+  "with",
+  "without",
+  "of",
+  "in",
+  "on",
+  "at",
+  "for",
+  "to",
+  "from",
+  "the",
+  "a",
+  "an",
+  "assess",
+  "evaluation",
+  "evaluate",
+  "management",
+  "approach",
+  "injury",
+  "injuries",
+  "deficit",
+  "deficits",
+]);
+
+const TOKEN_STOPWORDS = new Set([
+  "the",
+  "and",
+  "for",
+  "with",
+  "from",
+  "into",
+  "anatomy",
+  "anatomical",
+  "medical",
+  "study",
+  "disease",
+  "syndrome",
+  "approach",
+]);
+
+interface WikipediaPage {
+  pageid: number;
+  title: string;
+  fullurl?: string;
+  thumbnail?: {
+    source?: string;
+    width?: number;
+    height?: number;
+  };
+}
+
+interface WikipediaQueryResponse {
+  query?: {
+    pages?: Record<string, WikipediaPage>;
+  };
+}
+
+interface VisualAidCandidate extends ExploreVisualAid {
+  score: number;
+}
+
+interface QueryPlan {
+  target: string;
+  query: string;
+}
+
+function toInput(input: string | ExploreVisualAidInput): ExploreVisualAidInput {
+  return typeof input === "string" ? { topic: input } : input;
+}
+
+function normalizeWords(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, " ")
+    .split(/\s+/)
+    .map((w) => w.trim())
+    .filter((w) => w.length >= 3 && !TOKEN_STOPWORDS.has(w));
+}
+
+function cleanTarget(value: string): string {
+  return value
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/^[^a-zA-Z0-9]+|[^a-zA-Z0-9]+$/g, "");
+}
+
+function tightenStructurePhrase(value: string): string {
+  const words = cleanTarget(value)
+    .split(/\s+/)
+    .filter(Boolean);
+  if (words.length === 0) return "";
+
+  const structureIdx = (() => {
+    for (let i = words.length - 1; i >= 0; i--) {
+      const token = words[i].toLowerCase();
+      if (STRUCTURE_HEADWORDS.has(token)) return i;
+    }
+    return -1;
+  })();
+
+  if (structureIdx === -1) return cleanTarget(value);
+
+  const picked: string[] = [words[structureIdx]];
+  let includedBefore = 0;
+  for (let i = structureIdx - 1; i >= 0; i--) {
+    const token = words[i];
+    const lower = token.toLowerCase();
+    if (TARGET_CONNECTORS.has(lower)) break;
+    picked.unshift(token);
+    includedBefore++;
+    if (includedBefore >= 3) break;
+  }
+
+  return cleanTarget(picked.join(" "));
 }
 
 function countPatternHits(text: string, patterns: readonly RegExp[]): number {
   return patterns.reduce((count, pattern) => (pattern.test(text) ? count + 1 : count), 0);
 }
 
-export function shouldShowExploreVisualAids(input: ShowVisualAidInput): boolean {
+function topicLooksSpecific(topic: string): boolean {
+  if (!topic.trim()) return false;
+  if (countPatternHits(topic, STRUCTURE_TERMS) > 0) return true;
+  return /\b(anatomy|neuroanatomy|cranial nerve(?:s)?)\b/i.test(topic);
+}
+
+export function shouldShowExploreVisualAids(input: ExploreVisualAidInput): boolean {
   const combined = [
     input.topic,
     input.summary || "",
@@ -62,45 +221,107 @@ export function shouldShowExploreVisualAids(input: ShowVisualAidInput): boolean 
   return structureHits >= 2;
 }
 
-export function buildExploreVisualAidQueries(topic: string): string[] {
-  const cleaned = topic.trim();
-  if (!cleaned) return [];
+export function extractExploreVisualTargets(
+  input: ExploreVisualAidInput,
+  maxTargets = 4
+): string[] {
+  const seen = new Set<string>();
+  const targets: string[] = [];
 
-  const lower = cleaned.toLowerCase();
-  const withAnatomy = /\banatom/i.test(lower) ? cleaned : `${cleaned} anatomy`;
-
-  return Array.from(
-    new Set([
-      `${withAnatomy} diagram`,
-      `${withAnatomy} illustration`,
-      `${cleaned} labeled structures`,
-    ])
-  );
-}
-
-interface WikipediaPage {
-  pageid: number;
-  title: string;
-  fullurl?: string;
-  thumbnail?: {
-    source?: string;
+  const pushTarget = (value: string) => {
+    const cleaned = tightenStructurePhrase(value);
+    if (!cleaned) return;
+    const key = cleaned.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    targets.push(cleaned);
   };
+
+  const topic = input.topic.trim();
+  if (topicLooksSpecific(topic)) {
+    pushTarget(topic);
+  }
+
+  const combined = [
+    input.topic,
+    input.summary || "",
+    ...(input.sectionTitles || []),
+    ...(input.corePoints || []),
+  ].join(" ");
+
+  for (const match of combined.matchAll(TARGET_PHRASE_RE)) {
+    const phrase = match[1];
+    if (phrase) {
+      pushTarget(phrase);
+    }
+  }
+
+  if (targets.length === 0 && topic) {
+    pushTarget(topic);
+  }
+
+  return targets.slice(0, maxTargets);
 }
 
-interface WikipediaQueryResponse {
-  query?: {
-    pages?: Record<string, WikipediaPage>;
-  };
+function buildQueryPlan(input: ExploreVisualAidInput, maxTargets = 3): QueryPlan[] {
+  const targets = extractExploreVisualTargets(input, maxTargets);
+  if (targets.length === 0) return [];
+
+  const plan: QueryPlan[] = [];
+  for (const target of targets) {
+    const hasAnatomy = /\banatom/i.test(target);
+    const query = hasAnatomy
+      ? `intitle:"${target}" diagram`
+      : `intitle:"${target}" anatomy diagram`;
+    plan.push({ target, query });
+  }
+  return plan;
 }
 
-async function fetchWikipediaQuery(query: string, limit: number): Promise<ExploreVisualAid[]> {
+export function buildExploreVisualAidQueries(input: string | ExploreVisualAidInput): string[] {
+  return buildQueryPlan(toInput(input)).map((item) => item.query);
+}
+
+function scorePageTitle(title: string, target: string, topicWords: string[]): number {
+  const lowerTitle = title.toLowerCase();
+  const lowerTarget = target.toLowerCase();
+
+  let score = 0;
+  if (lowerTitle.includes(lowerTarget)) {
+    score += 8;
+  }
+
+  const targetWords = normalizeWords(target);
+  for (const token of targetWords) {
+    if (lowerTitle.includes(token)) score += 2;
+  }
+
+  for (const token of topicWords.slice(0, 8)) {
+    if (lowerTitle.includes(token)) score += 1;
+  }
+
+  for (const noise of TITLE_NOISE_PATTERNS) {
+    if (noise.test(title)) score -= 5;
+  }
+
+  return score;
+}
+
+async function fetchWikipediaQuery(
+  query: string,
+  target: string,
+  topicWords: string[],
+  limit: number
+): Promise<VisualAidCandidate[]> {
   const params = new URLSearchParams({
     action: "query",
     format: "json",
     origin: "*",
     generator: "search",
     gsrsearch: query,
-    gsrlimit: String(limit),
+    gsrlimit: String(Math.max(limit, 4)),
+    gsrnamespace: "0",
+    gsrsort: "relevance",
     prop: "pageimages|info",
     piprop: "thumbnail",
     pithumbsize: "900",
@@ -114,53 +335,93 @@ async function fetchWikipediaQuery(query: string, limit: number): Promise<Explor
 
   const payload = (await response.json()) as WikipediaQueryResponse;
   const pages = Object.values(payload.query?.pages || {});
+  const candidates: VisualAidCandidate[] = [];
 
-  return pages
-    .map((page) => {
-      const imageUrl = page.thumbnail?.source || "";
-      const pageUrl = page.fullurl || "";
-      if (!imageUrl || !pageUrl) return null;
+  for (const page of pages) {
+    const imageUrl = page.thumbnail?.source || "";
+    const pageUrl = page.fullurl || "";
+    const width = page.thumbnail?.width || 0;
+    const height = page.thumbnail?.height || 0;
+    if (!imageUrl || !pageUrl) continue;
+    if (width < 220 || height < 160) continue;
 
-      // Skip obvious non-anatomy assets.
-      if (/\blogo\b/i.test(page.title)) return null;
+    const score = scorePageTitle(page.title, target, topicWords);
+    if (score < 3) continue;
 
-      return {
-        id: `wiki-${page.pageid}`,
-        title: page.title,
-        imageUrl,
-        pageUrl,
-        source: "Wikipedia" as const,
-      };
-    })
-    .filter((item): item is ExploreVisualAid => Boolean(item));
+    candidates.push({
+      id: `wiki-${page.pageid}`,
+      title: page.title,
+      imageUrl,
+      pageUrl,
+      source: "Wikipedia",
+      matchedTarget: target,
+      score,
+    });
+  }
+
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates;
+}
+
+function selectDiverseCandidates(candidates: VisualAidCandidate[], limit: number): ExploreVisualAid[] {
+  const sorted = [...candidates].sort((a, b) => b.score - a.score);
+  const selected: VisualAidCandidate[] = [];
+  const usedIds = new Set<string>();
+  const usedTargets = new Set<string>();
+
+  // Pass 1: one result per target when possible.
+  for (const item of sorted) {
+    if (selected.length >= limit) break;
+    if (usedIds.has(item.id)) continue;
+    if (item.matchedTarget && usedTargets.has(item.matchedTarget.toLowerCase())) continue;
+
+    selected.push(item);
+    usedIds.add(item.id);
+    if (item.matchedTarget) usedTargets.add(item.matchedTarget.toLowerCase());
+  }
+
+  // Pass 2: fill remaining slots by global relevance.
+  for (const item of sorted) {
+    if (selected.length >= limit) break;
+    if (usedIds.has(item.id)) continue;
+    selected.push(item);
+    usedIds.add(item.id);
+  }
+
+  return selected.map((item) => ({
+    id: item.id,
+    title: item.title,
+    imageUrl: item.imageUrl,
+    pageUrl: item.pageUrl,
+    source: item.source,
+    matchedTarget: item.matchedTarget,
+  }));
 }
 
 export async function fetchExploreVisualAids(
-  topic: string,
+  input: string | ExploreVisualAidInput,
   limit = 6
 ): Promise<ExploreVisualAid[]> {
-  const queries = buildExploreVisualAidQueries(topic);
-  if (queries.length === 0) return [];
+  const resolved = toInput(input);
+  const plan = buildQueryPlan(resolved, 3);
+  if (plan.length === 0) return [];
 
-  const dedupe = new Set<string>();
-  const merged: ExploreVisualAid[] = [];
+  const topicWords = normalizeWords(resolved.topic);
+  const dedupeByPage = new Set<string>();
+  const allCandidates: VisualAidCandidate[] = [];
 
-  for (const query of queries) {
+  for (const item of plan) {
     try {
-      const batch = await fetchWikipediaQuery(query, limit);
-      for (const item of batch) {
-        if (dedupe.has(item.imageUrl)) continue;
-        dedupe.add(item.imageUrl);
-        merged.push(item);
-        if (merged.length >= limit) {
-          return merged.slice(0, limit);
-        }
+      const batch = await fetchWikipediaQuery(item.query, item.target, topicWords, limit);
+      for (const candidate of batch) {
+        if (dedupeByPage.has(candidate.pageUrl)) continue;
+        dedupeByPage.add(candidate.pageUrl);
+        allCandidates.push(candidate);
       }
     } catch {
-      // Ignore transient fetch failures and continue with other queries.
+      // Ignore transient fetch failures and continue with other targets.
     }
   }
 
-  return merged.slice(0, limit);
+  return selectDiverseCandidates(allCandidates, limit);
 }
-
