@@ -25,13 +25,10 @@ import {
 } from "@/components/ui/loading-state";
 import {
   ArrowLeft,
-  ArrowRight,
   Calendar,
   Zap,
   BookOpen,
   Target,
-  CheckCircle2,
-  Compass,
   Sparkles,
   Plus,
 } from "lucide-react";
@@ -606,65 +603,6 @@ export default function ExamBankPage() {
         )}
       </section>
 
-      {/* ── More practice ─────────────────────────────────────────────────── */}
-      <section className="space-y-3">
-        <h2 className="section-label">More Practice</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {[
-            {
-              href: "/practice/quiz?mode=mixed",
-              icon: Zap,
-              iconClass: "bg-primary/12 text-primary",
-              title: "Smart Mix",
-              desc: "AI-weighted questions targeting your weakest areas first",
-              span: false,
-            },
-            {
-              href: "/practice/quiz?mode=random",
-              icon: BookOpen,
-              iconClass: "bg-muted text-muted-foreground",
-              title: "Random Quiz",
-              desc: "Random questions from all your uploaded materials",
-              span: false,
-            },
-            {
-              href: "/practice",
-              icon: CheckCircle2,
-              iconClass: "bg-muted text-muted-foreground",
-              title: "Browse by Topic",
-              desc: "Choose specific topics or sections to drill",
-              span: true,
-            },
-            {
-              href: `/ai/explore?topic=${encodeURIComponent(examEntry?.label ?? examType)}`,
-              icon: Compass,
-              iconClass: "bg-muted text-muted-foreground",
-              title: "Explore & Learn",
-              desc: "Structured teaching + quiz on any topic from your syllabus",
-              span: true,
-            },
-          ].map(({ href, icon: Icon, iconClass, title, desc, span }) => (
-            <Link
-              key={href}
-              href={href}
-              className={`block ${span ? "sm:col-span-2" : ""}`}
-            >
-              <div className="glass-card flex cursor-pointer items-center gap-3 p-4 transition-colors hover:border-primary/40 group">
-                <div
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${iconClass} group-hover:scale-105`}
-                >
-                  <Icon className="h-5 w-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold">{title}</p>
-                  <p className="text-xs text-muted-foreground">{desc}</p>
-                </div>
-                <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-colors group-hover:text-primary" />
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
     </div>
   );
 }
