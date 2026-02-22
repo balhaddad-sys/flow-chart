@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,25 +17,31 @@ void main() async {
     usePathUrlStrategy();
   }
 
-  // Global error handling
-  FlutterError.onError = (details) {
-    FlutterError.presentError(details);
-    if (kDebugMode) {
-      debugPrint('Flutter Error: ${details.exceptionAsString()}');
-    }
-  };
-
-  PlatformDispatcher.instance.onError = (error, stack) {
-    if (kDebugMode) {
-      debugPrint('Unhandled Error: $error');
-      debugPrint('Stack: $stack');
-    }
-    return true;
-  };
-
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Production crash reporting via Firebase Crashlytics (mobile only)
+  if (!kIsWeb) {
+    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
+  } else {
+    FlutterError.onError = (details) {
+      FlutterError.presentError(details);
+      if (kDebugMode) {
+        debugPrint('Flutter Error: ${details.exceptionAsString()}');
+      }
+    };
+    PlatformDispatcher.instance.onError = (error, stack) {
+      if (kDebugMode) {
+        debugPrint('Unhandled Error: $error');
+      }
+      return true;
+    };
+  }
 
   runApp(
     const ProviderScope(
