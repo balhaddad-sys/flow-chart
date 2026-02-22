@@ -61,6 +61,27 @@ if (Test-Path $gitignore) {
   }
 }
 
+# ── Release signing check ─────────────────────────────────────
+$gradleFile = "android/app/build.gradle.kts"
+if (Test-Path $gradleFile) {
+  $gradle = Get-Content $gradleFile -Raw
+  if ($gradle -match 'signingConfig\s*=\s*signingConfigs\.getByName\("debug"\)') {
+    Fail "Release build still uses debug signing ($gradleFile)"
+  } else {
+    Pass "Release build is not using debug signing"
+  }
+} else {
+  Warn "build.gradle.kts not found (android platform not yet added?)"
+}
+
+# ── PII file check ────────────────────────────────────────────
+$tracked = (& git ls-files temp-users.json 2>$null).Trim()
+if ($tracked) {
+  Fail "temp-users.json is still tracked in git (contains PII)"
+} else {
+  Pass "No tracked temp-users.json"
+}
+
 $appLinksFile = "lib/src/core/constants/app_links.dart"
 if (Test-Path $appLinksFile) {
   $links = Get-Content $appLinksFile -Raw

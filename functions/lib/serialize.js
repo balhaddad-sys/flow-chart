@@ -21,7 +21,7 @@ const LEADING_OBJECTIVE_VERB_RE =
 function cleanTitleCandidate(value, maxLen = 160) {
   return truncate(sanitizeText(value), maxLen)
     .replace(/\s+/g, " ")
-    .replace(/^[\-:;,.()\s]+|[\-:;,.()\s]+$/g, "")
+    .replace(/^[-:;,.()\s]+|[-:;,.()\s]+$/g, "")
     .trim();
 }
 

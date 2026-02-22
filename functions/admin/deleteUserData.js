@@ -59,9 +59,23 @@ exports.deleteUserData = functions
         log.warn("Rate limit cleanup partial failure", { uid, error: cleanupError.message });
       }
 
-      log.info("User data deleted", { uid });
+      // ── Optionally delete the Firebase Auth account ────────────────────
+      const deleteAccount = data?.deleteAccount === true;
+      if (deleteAccount) {
+        try {
+          await admin.auth().deleteUser(uid);
+        } catch (authError) {
+          if (authError?.code !== "auth/user-not-found") throw authError;
+        }
+      }
 
-      return ok({ message: "All user data has been permanently deleted." });
+      log.info("User data deleted", { uid, accountDeleted: deleteAccount });
+
+      return ok({
+        message: deleteAccount
+          ? "Your account and all data have been permanently deleted."
+          : "All user data has been permanently deleted.",
+      });
     } catch (error) {
       return safeError(error, "user data deletion");
     }

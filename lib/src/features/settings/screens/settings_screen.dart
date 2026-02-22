@@ -808,7 +808,7 @@ class SettingsScreen extends ConsumerWidget {
               try {
                 await ref.read(cloudFunctionsServiceProvider).call(
                   'deleteUserData',
-                  {},
+                  {'deleteAccount': true},
                 );
                 await ref.read(authServiceProvider).signOut();
                 if (context.mounted) {

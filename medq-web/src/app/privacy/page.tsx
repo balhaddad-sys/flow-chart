@@ -112,7 +112,6 @@ export default function PrivacyPage() {
           <ul className="mt-2 list-disc space-y-1 pl-5">
             <li>Access your personal data</li>
             <li>Delete your account and all associated data</li>
-            <li>Export your data</li>
             <li>Correct inaccurate information</li>
           </ul>
           <p className="mt-2">

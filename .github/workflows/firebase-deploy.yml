@@ -43,6 +43,9 @@ jobs:
       - name: Lint Next.js
         run: cd medq-web && npx next lint
 
+      - name: Run Next.js tests
+        run: cd medq-web && npm test -- --runInBand
+
       - name: Build Next.js
         run: cd medq-web && npx next build
         env:

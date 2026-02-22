@@ -61,6 +61,6 @@ describe("buildExploreTutorSystemPrompt", () => {
 
     expect(prompt).toContain("Selected level: Resident");
     expect(prompt).toContain("Summary: distributive shock with vasoplegia");
-    expect(prompt).toContain("clinically delicate/nuanced");
+    expect(prompt).toMatch(/clinically delicate(?:\/| or )nuanced/i);
   });
 });

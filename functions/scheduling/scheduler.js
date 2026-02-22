@@ -33,7 +33,7 @@ const LEADING_OBJECTIVE_VERB_RE =
 function cleanTitleCandidate(value, maxLen = 140) {
   return truncate(value, maxLen)
     .replace(/\s+/g, " ")
-    .replace(/^[\-:;,.()\s]+|[\-:;,.()\s]+$/g, "")
+    .replace(/^[-:;,.()\s]+|[-:;,.()\s]+$/g, "")
     .trim();
 }
 
