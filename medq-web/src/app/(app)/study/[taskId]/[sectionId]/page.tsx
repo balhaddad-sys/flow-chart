@@ -298,17 +298,20 @@ export default function StudySessionPage({
     if (!file?.storagePath || !section) return;
     setOpeningSource(true);
     const startIndex = Math.max(1, Math.floor(section.contentRef.startIndex || 1));
-    const canJumpByPage = file.mimeType === "application/pdf";
-    const previewWindow = window.open("", "_blank", "noopener,noreferrer");
+    const endIndex = Math.max(startIndex, Math.floor(section.contentRef.endIndex || startIndex));
+    const isPdf = file.mimeType === "application/pdf";
+    // Open blank tab synchronously (must NOT use noopener — it returns null)
+    const previewWindow = window.open("", "_blank");
     try {
       const downloadUrl = await getFileDownloadUrl(file.storagePath);
-      const sourceUrl = canJumpByPage ? `${downloadUrl}#page=${startIndex}` : downloadUrl;
+      const sourceUrl = isPdf
+        ? `/api/section-pdf?url=${encodeURIComponent(downloadUrl)}&start=${startIndex}&end=${endIndex}&name=${encodeURIComponent(file.originalName)}`
+        : downloadUrl;
       if (previewWindow) {
+        previewWindow.opener = null; // security: detach opener reference
         previewWindow.location.href = sourceUrl;
-      } else {
-        window.open(sourceUrl, "_blank", "noopener,noreferrer");
       }
-      if (!canJumpByPage) {
+      if (!isPdf) {
         toast.message("Opened source file. Direct page jump is currently supported for PDF files.");
       }
     } catch {
@@ -454,14 +457,14 @@ export default function StudySessionPage({
               <button
                 onClick={handleOpenSource}
                 disabled={openingSource}
-                className="ml-auto flex items-center gap-1 shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:text-primary hover:border-primary/40 disabled:opacity-50"
+                className="ml-auto flex items-center gap-1.5 shrink-0 rounded-full border border-primary/30 bg-primary/5 px-3 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10 hover:border-primary/50 disabled:opacity-50"
               >
                 {openingSource ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  <ExternalLink className="h-3 w-3" />
+                  <ExternalLink className="h-3.5 w-3.5" />
                 )}
-                <span className="hidden sm:inline">{openingSource ? "Opening..." : "View Source"}</span>
+                {openingSource ? "Opening..." : "Source"}
               </button>
             )}
           </div>

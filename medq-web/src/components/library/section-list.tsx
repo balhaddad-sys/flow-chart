@@ -37,20 +37,26 @@ export function SectionList({ sections, loading, file }: SectionListProps) {
 
     setOpeningSectionId(section.id);
     const startIndex = Math.max(1, Math.floor(section.contentRef.startIndex || 1));
-    const canJumpByPage = file.mimeType === "application/pdf";
-    const previewWindow = window.open("", "_blank", "noopener,noreferrer");
+    const endIndex = Math.max(
+      startIndex,
+      Math.floor(section.contentRef.endIndex || startIndex)
+    );
+    const isPdf = file.mimeType === "application/pdf";
+    // Open blank tab synchronously (must NOT use noopener — it returns null)
+    const previewWindow = window.open("", "_blank");
 
     try {
       const downloadUrl = await getFileDownloadUrl(file.storagePath);
-      const sourceUrl = canJumpByPage ? `${downloadUrl}#page=${startIndex}` : downloadUrl;
+      const sourceUrl = isPdf
+        ? `/api/section-pdf?url=${encodeURIComponent(downloadUrl)}&start=${startIndex}&end=${endIndex}&name=${encodeURIComponent(file.originalName)}`
+        : downloadUrl;
 
       if (previewWindow) {
+        previewWindow.opener = null; // security: detach opener reference
         previewWindow.location.href = sourceUrl;
-      } else {
-        window.open(sourceUrl, "_blank", "noopener,noreferrer");
       }
 
-      if (!canJumpByPage) {
+      if (!isPdf) {
         toast.message(
           "Opened source file. Direct page jump is currently supported for PDF files."
         );
