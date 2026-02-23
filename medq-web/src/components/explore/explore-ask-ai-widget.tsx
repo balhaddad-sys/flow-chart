@@ -16,6 +16,10 @@ import { Badge } from "@/components/ui/badge";
 import { InlineLoadingState } from "@/components/ui/loading-state";
 import { useExploreStore } from "@/lib/stores/explore-store";
 import { useAuth } from "@/lib/hooks/useAuth";
+import {
+  EXPLORE_DIG_DEEPER_EVENT,
+  type ExploreDigDeeperEventDetail,
+} from "@/lib/utils/explore-dig-deeper";
 
 interface ChatMsg {
   id: string;
@@ -83,6 +87,8 @@ export function ExploreAskAiWidget() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const messagesRef = useRef<ChatMsg[]>([]);
+  const runRequestRef = useRef<((message: string, history: ChatMsg[], appendUser: boolean) => Promise<void>) | null>(null);
   const lastRequestRef = useRef<{ message: string; history: ChatMsg[] } | null>(
     null
   );
@@ -127,6 +133,9 @@ export function ExploreAskAiWidget() {
       setMessages([]);
     }
   }, [topicInsight, storageKey]);
+
+  // Keep messagesRef in sync for use in event handlers (avoids stale closures)
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
 
   useEffect(() => {
     if (!topicInsight) return;
@@ -174,6 +183,38 @@ export function ExploreAskAiWidget() {
       abortRef.current?.abort();
     };
   }, []);
+
+  useEffect(() => {
+    function handleDigDeeper(event: Event) {
+      const customEvent = event as CustomEvent<ExploreDigDeeperEventDetail>;
+      const detail = customEvent.detail;
+      if (!detail?.prompt) return;
+
+      const currentTopic = topic.trim().toLowerCase();
+      const eventTopic = detail.topic.trim().toLowerCase();
+      if (currentTopic && eventTopic && currentTopic !== eventTopic) return;
+
+      setRequestError(null);
+      setIsOpen(true);
+      setInput("");
+      // Auto-send the dig deeper prompt so the user doesn't have to press Send
+      const currentMessages = messagesRef.current;
+      window.setTimeout(() => {
+        runRequestRef.current?.(detail.prompt, currentMessages, true);
+      }, 150);
+    }
+
+    window.addEventListener(
+      EXPLORE_DIG_DEEPER_EVENT,
+      handleDigDeeper as EventListener
+    );
+    return () => {
+      window.removeEventListener(
+        EXPLORE_DIG_DEEPER_EVENT,
+        handleDigDeeper as EventListener
+      );
+    };
+  }, [topic]);
 
   const runRequest = useCallback(
     async (message: string, historyBeforeRequest: ChatMsg[], appendUser: boolean) => {
@@ -291,6 +332,8 @@ export function ExploreAskAiWidget() {
     },
     [topicInsight, loading, user, topic]
   );
+  // Keep ref in sync so event handlers can call runRequest without stale closures
+  useEffect(() => { runRequestRef.current = runRequest; }, [runRequest]);
 
   const handleSend = useCallback(async () => {
     const trimmed = input.trim();

@@ -12,6 +12,7 @@ import {
   ChevronRight,
   ImageIcon,
   Loader2,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,12 +28,14 @@ import type {
   TreatmentComparisonChart,
   DiagnosticAlgorithmChart,
   ExploreTopicInsightResult,
+  TeachingSection,
 } from "@/lib/firebase/functions";
 import {
   fetchExploreVisualAids,
   shouldShowExploreVisualAids,
   type ExploreVisualAid,
 } from "@/lib/utils/explore-visual-aids";
+import { buildExploreDigDeeperPrompt } from "@/lib/utils/explore-dig-deeper";
 
 /* ---------- Chart sub-components ---------- */
 
@@ -221,9 +224,14 @@ function ChartSource({ citation, url }: { citation?: string; url?: string }) {
 interface ExploreTeachingProps {
   onStartQuiz?: () => void;
   onNewTopic?: () => void;
+  onDigDeeperSection?: (section: TeachingSection, prompt: string) => void;
 }
 
-export function ExploreTeaching({ onStartQuiz, onNewTopic }: ExploreTeachingProps) {
+export function ExploreTeaching({
+  onStartQuiz,
+  onNewTopic,
+  onDigDeeperSection,
+}: ExploreTeachingProps) {
   const store = useExploreStore();
   const { topicInsight, topic, levelLabel, reset } = store;
   const [visualAids, setVisualAids] = useState<ExploreVisualAid[]>([]);
@@ -310,6 +318,12 @@ export function ExploreTeaching({ onStartQuiz, onNewTopic }: ExploreTeachingProp
   }, [topicInsight, shouldLoadVisualAids, topic, summary, teachingSections, corePoints]);
 
   if (!topicInsight) return null;
+
+  function handleDigDeeperSection(section: TeachingSection) {
+    if (!onDigDeeperSection) return;
+    const prompt = buildExploreDigDeeperPrompt({ topic, section });
+    onDigDeeperSection(section, prompt);
+  }
 
   return (
     <div className="space-y-5">
@@ -482,6 +496,21 @@ export function ExploreTeaching({ onStartQuiz, onNewTopic }: ExploreTeachingProp
                   sourceCitation={chartData.prognosticData.sourceCitation}
                   sourceUrl={chartData.prognosticData.sourceUrl}
                 />
+              </div>
+            )}
+            {onDigDeeperSection && (
+              <div className="border-t border-border/50 pt-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => handleDigDeeperSection(section)}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Dig deeper
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
               </div>
             )}
           </CardContent>

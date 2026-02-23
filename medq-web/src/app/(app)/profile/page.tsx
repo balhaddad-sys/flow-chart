@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { signOut } from "@/lib/firebase/auth";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useCourses } from "@/lib/hooks/useCourses";
+import { useCourseStore } from "@/lib/stores/course-store";
 import { useThemeStore } from "@/lib/stores/theme-store";
+import { updateCourse, deleteCourse } from "@/lib/firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { LoadingButtonLabel } from "@/components/ui/loading-state";
 import { cn } from "@/lib/utils";
@@ -15,11 +18,14 @@ import {
   Monitor,
   LogOut,
   Trash2,
-  GraduationCap,
   ShieldCheck,
   FileText,
   Users,
   ChevronRight,
+  Check,
+  Pencil,
+  PlusCircle,
+  X,
 } from "lucide-react";
 import * as fn from "@/lib/firebase/functions";
 import { toast } from "sonner";
@@ -38,10 +44,50 @@ function getInitials(name?: string | null): string {
 export default function ProfilePage() {
   const router = useRouter();
   const { user } = useAuth();
+  const { courses } = useCourses();
+  const activeCourseId = useCourseStore((s) => s.activeCourseId);
+  const setActiveCourseId = useCourseStore((s) => s.setActiveCourseId);
   const { mode, setMode } = useThemeStore();
   const [deleting, setDeleting] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+
+  // Course management state
+  const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [deletingCourseId, setDeletingCourseId] = useState<string | null>(null);
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingCourseId && editInputRef.current) editInputRef.current.focus();
+  }, [editingCourseId]);
+
+  async function handleRename(courseId: string) {
+    const trimmed = editTitle.trim();
+    if (!trimmed || !user?.uid) return;
+    try {
+      await updateCourse(user.uid, courseId, { title: trimmed });
+      toast.success("Course renamed");
+    } catch {
+      toast.error("Failed to rename course");
+    }
+    setEditingCourseId(null);
+  }
+
+  async function handleDeleteCourse(courseId: string) {
+    if (!user?.uid) return;
+    try {
+      await deleteCourse(user.uid, courseId);
+      if (activeCourseId === courseId) {
+        const remaining = courses.filter((c) => c.id !== courseId);
+        setActiveCourseId(remaining.length > 0 ? remaining[0].id : null);
+      }
+      toast.success("Course deleted");
+    } catch {
+      toast.error("Failed to delete course");
+    }
+    setDeletingCourseId(null);
+  }
   async function handleSignOut() {
     await signOut();
     toast.success("Signed out.");
@@ -105,16 +151,127 @@ export default function ProfilePage() {
 
       {/* Courses */}
       <div className="rounded-xl border border-border bg-card p-4 shadow-sm animate-in-up stagger-2">
-        <h2 className="text-[13px] font-bold tracking-tight">Courses</h2>
-        <p className="mt-0.5 text-[11px] text-muted-foreground">Manage your courses and create new ones</p>
-        <div className="mt-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-[13px] font-bold tracking-tight">Courses</h2>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">Tap a course to switch, or create a new one</p>
+          </div>
           <Link href="/onboarding?new=1">
             <Button variant="outline" size="sm">
-              <GraduationCap className="mr-1.5 h-3.5 w-3.5" />
-              Manage Courses
+              <PlusCircle className="mr-1.5 h-3.5 w-3.5" />
+              New
             </Button>
           </Link>
         </div>
+
+        {courses.length === 0 ? (
+          <p className="mt-4 text-center text-xs text-muted-foreground py-4">
+            No courses yet. Create one to get started.
+          </p>
+        ) : (
+          <div className="mt-3 space-y-1.5">
+            {courses.map((course) => {
+              const isActive = course.id === activeCourseId;
+              const isEditing = editingCourseId === course.id;
+              const isDeleting = deletingCourseId === course.id;
+
+              return (
+                <div key={course.id}>
+                  <div
+                    className={cn(
+                      "flex items-center gap-2 rounded-lg px-3 py-2.5 transition-all",
+                      isActive
+                        ? "bg-primary/10 border border-primary/20"
+                        : "border border-transparent hover:bg-muted cursor-pointer"
+                    )}
+                    onClick={() => {
+                      if (!isEditing && !isDeleting) {
+                        setActiveCourseId(course.id);
+                        if (!isActive) toast.success(`Switched to ${course.title}`);
+                      }
+                    }}
+                  >
+                    {/* Active indicator */}
+                    <div className={cn(
+                      "flex h-5 w-5 shrink-0 items-center justify-center rounded-full transition-colors",
+                      isActive ? "bg-primary text-primary-foreground" : "bg-muted"
+                    )}>
+                      {isActive && <Check className="h-3 w-3" />}
+                    </div>
+
+                    {/* Title or edit input */}
+                    {isEditing ? (
+                      <form
+                        className="flex flex-1 items-center gap-1.5"
+                        onSubmit={(e) => { e.preventDefault(); handleRename(course.id); }}
+                      >
+                        <input
+                          ref={editInputRef}
+                          type="text"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          className="flex-1 rounded-md border border-border bg-background px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-ring"
+                          onKeyDown={(e) => { if (e.key === "Escape") setEditingCourseId(null); }}
+                        />
+                        <Button type="submit" variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={!editTitle.trim()}>
+                          <Check className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button type="button" variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setEditingCourseId(null)}>
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </form>
+                    ) : (
+                      <div className="flex-1 min-w-0">
+                        <p className={cn("text-sm truncate", isActive && "font-medium")}>{course.title}</p>
+                        {course.examType && (
+                          <p className="text-[11px] text-muted-foreground">{course.examType}</p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    {!isEditing && !isDeleting && (
+                      <div className="flex shrink-0 items-center gap-0.5">
+                        <button
+                          className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingCourseId(course.id);
+                            setEditTitle(course.title);
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          className="rounded-md p-1.5 text-muted-foreground hover:bg-red-50 hover:text-destructive dark:hover:bg-red-500/10 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDeletingCourseId(course.id);
+                          }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Delete confirmation */}
+                  {isDeleting && (
+                    <div className="ml-7 mt-1 flex items-center gap-2 rounded-lg border border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-red-500/5 px-3 py-2">
+                      <p className="flex-1 text-xs text-destructive">Delete this course?</p>
+                      <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={() => handleDeleteCourse(course.id)}>
+                        Delete
+                      </Button>
+                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setDeletingCourseId(null)}>
+                        Cancel
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Study Groups */}

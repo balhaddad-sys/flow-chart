@@ -36,6 +36,10 @@ import {
   clearPendingSession,
   type ExploreHistoryEntry,
 } from "@/lib/utils/explore-history";
+import {
+  EXPLORE_DIG_DEEPER_EVENT,
+  type ExploreDigDeeperEventDetail,
+} from "@/lib/utils/explore-dig-deeper";
 
 const EXPLORE_LEVELS = [
   { id: "MD1", label: "MD1 (Foundations)" },
@@ -611,6 +615,20 @@ export default function ExplorePage() {
     }
   }
 
+  function handleDigDeeperSection(section: fn.TeachingSection, prompt: string) {
+    const eventTopic = (topic || inputTopic).trim();
+    window.dispatchEvent(
+      new CustomEvent<ExploreDigDeeperEventDetail>(EXPLORE_DIG_DEEPER_EVENT, {
+        detail: {
+          topic: eventTopic,
+          sectionId: section.id,
+          sectionTitle: section.title,
+          prompt,
+        },
+      })
+    );
+  }
+
   function handleSelectAnswer(optionIndex: number) {
     if (!currentQuestion || isAnswered) return;
     if (currentConfidence == null) {
@@ -953,6 +971,7 @@ export default function ExplorePage() {
         <ExploreTeaching
           onStartQuiz={handleQuizFromTeaching}
           onNewTopic={handleReset}
+          onDigDeeperSection={handleDigDeeperSection}
         />
         <ExploreAskAiWidget />
       </div>
