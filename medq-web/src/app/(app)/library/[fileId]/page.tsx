@@ -139,7 +139,7 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
             />
           </div>
         )}
-        <SectionList sections={sections} loading={loading} />
+        <SectionList sections={sections} loading={loading} file={file} />
       </div>
     </div>
   );

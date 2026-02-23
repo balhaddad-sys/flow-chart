@@ -294,7 +294,7 @@ export default function ProfilePage() {
           <div className="flex-1">
             <p className="text-sm font-medium">App Guide</p>
             <p className="text-xs text-muted-foreground">
-              Learn the full workflow from setup to exam prep.
+              Interactive walkthrough of MedQ features
             </p>
           </div>
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
