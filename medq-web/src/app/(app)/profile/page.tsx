@@ -25,6 +25,7 @@ import {
   Check,
   Pencil,
   PlusCircle,
+  BookOpen,
   X,
 } from "lucide-react";
 import * as fn from "@/lib/firebase/functions";
@@ -286,8 +287,22 @@ export default function ProfilePage() {
         </div>
       </Link>
 
+      {/* App Guide */}
+      <Link href="/guide">
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:bg-accent hover:border-primary/20 cursor-pointer animate-in-up stagger-4">
+          <BookOpen className="h-4 w-4 text-muted-foreground" />
+          <div className="flex-1">
+            <p className="text-sm font-medium">App Guide</p>
+            <p className="text-xs text-muted-foreground">
+              Learn the full workflow from setup to exam prep.
+            </p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </div>
+      </Link>
+
       {/* Account */}
-      <div className="rounded-xl border border-border bg-card p-4 shadow-sm animate-in-up stagger-3">
+      <div className="rounded-xl border border-border bg-card p-4 shadow-sm animate-in-up stagger-5">
         <h2 className="text-[13px] font-bold tracking-tight">Account</h2>
         <div className="mt-3">
           <Button variant="outline" size="sm" onClick={handleSignOut}>
@@ -298,7 +313,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Legal */}
-      <div className="rounded-xl border border-border bg-card p-4 shadow-sm animate-in-up stagger-4">
+      <div className="rounded-xl border border-border bg-card p-4 shadow-sm animate-in-up stagger-6">
         <h2 className="text-[13px] font-bold tracking-tight">Legal & Safety</h2>
         <p className="mt-0.5 text-[11px] text-muted-foreground">
           MedQ is an educational study platform and is not a clinical decision tool.
@@ -320,7 +335,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Danger Zone */}
-      <div className="rounded-xl border border-red-200 dark:border-red-500/20 bg-card p-4 animate-in-up stagger-5">
+      <div className="rounded-xl border border-red-200 dark:border-red-500/20 bg-card p-4 animate-in-up stagger-7">
         <h2 className="text-[13px] font-bold tracking-tight text-destructive">Danger Zone</h2>
         <p className="mt-0.5 text-[11px] text-muted-foreground">
           Permanently delete your account and all associated data.
