@@ -9,6 +9,7 @@ interface QuizState {
   results: Map<string, boolean>; // questionId -> correct
   startTime: number;
   isFinished: boolean;
+  endedEarly: boolean;
 }
 
 interface QuizStore extends QuizState {
@@ -22,6 +23,7 @@ interface QuizStore extends QuizState {
   nextQuestion: () => void;
   prevQuestion: () => void;
   finishQuiz: () => void;
+  finishQuizEarly: () => void;
   reset: () => void;
   getAttemptId: (questionId: string) => string | null;
   currentQuestion: () => QuestionModel | null;
@@ -35,6 +37,7 @@ const initialState: QuizState = {
   results: new Map(),
   startTime: 0,
   isFinished: false,
+  endedEarly: false,
 };
 
 export const useQuizStore = create<QuizStore>((set, get) => ({
@@ -49,6 +52,7 @@ export const useQuizStore = create<QuizStore>((set, get) => ({
       results: new Map(),
       startTime: Date.now(),
       isFinished: false,
+      endedEarly: false,
     }),
 
   answerQuestion: (questionId, answerIndex, correct, attemptId) =>
@@ -75,6 +79,7 @@ export const useQuizStore = create<QuizStore>((set, get) => ({
     })),
 
   finishQuiz: () => set({ isFinished: true }),
+  finishQuizEarly: () => set({ isFinished: true, endedEarly: true }),
 
   reset: () => set(initialState),
 

@@ -11,7 +11,15 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { PageLoadingState } from "@/components/ui/loading-state";
-import { CircleHelp } from "lucide-react";
+import { CircleHelp, Square } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import * as fn from "@/lib/firebase/functions";
 import type { QuizMode } from "@/lib/firebase/functions";
 import type { QuestionModel } from "@/lib/types/question";
@@ -30,9 +38,13 @@ export default function QuizPage() {
   const topicTag = searchParams.get("topic");
   const courseId = useCourseStore((s) => s.activeCourseId);
 
-  const { questions, currentIndex, isFinished, startQuiz, reset } = useQuizStore();
+  const { questions, currentIndex, isFinished, answers, startQuiz, finishQuizEarly, reset } = useQuizStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showEndDialog, setShowEndDialog] = useState(false);
+
+  const answeredCount = answers.size;
+  const remainingCount = questions.length - answeredCount;
 
   const needsSection = mode === "section";
   const canLoad = courseId && (needsSection ? sectionId : true);
@@ -131,12 +143,23 @@ export default function QuizPage() {
   return (
     <div className="page-wrap page-stack">
       <div className="glass-card space-y-3 p-4 sm:p-5">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Link href="/practice" className="hover:text-foreground transition-colors">Practice</Link>
-          <span className="text-border">/</span>
-          <span className="text-foreground font-medium">Quiz</span>
-          {mode !== "section" && (
-            <Badge variant="secondary" className="ml-1 text-[10px]">{MODE_LABELS[mode]}</Badge>
+        <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <Link href="/practice" className="hover:text-foreground transition-colors">Practice</Link>
+            <span className="text-border">/</span>
+            <span className="text-foreground font-medium">Quiz</span>
+            {mode !== "section" && (
+              <Badge variant="secondary" className="ml-1 text-[10px]">{MODE_LABELS[mode]}</Badge>
+            )}
+          </div>
+          {answeredCount >= 2 && (
+            <button
+              onClick={() => setShowEndDialog(true)}
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+            >
+              <Square className="h-3 w-3" />
+              End Quiz
+            </button>
           )}
         </div>
         <Progress value={progressPercent} className="h-2.5" />
@@ -150,6 +173,34 @@ export default function QuizPage() {
           total={questions.length}
         />
       </div>
+
+      <Dialog open={showEndDialog} onOpenChange={setShowEndDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>End quiz early?</DialogTitle>
+            <DialogDescription>
+              You&apos;ve answered {answeredCount} of {questions.length} question{questions.length === 1 ? "" : "s"}.
+              {remainingCount > 0 && ` ${remainingCount} question${remainingCount === 1 ? " remains" : "s remain"} unanswered.`}
+              {" "}You&apos;ll see your results and a weak-point breakdown.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" className="rounded-xl" onClick={() => setShowEndDialog(false)}>
+              Keep Going
+            </Button>
+            <Button
+              variant="destructive"
+              className="rounded-xl"
+              onClick={() => {
+                setShowEndDialog(false);
+                finishQuizEarly();
+              }}
+            >
+              End Quiz
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
