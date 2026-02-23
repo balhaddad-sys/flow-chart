@@ -16,6 +16,8 @@ import {
   Sparkles,
   HelpCircle,
   RotateCcw,
+  ExternalLink,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,8 +28,8 @@ import {
 } from "@/components/ui/loading-state";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useTimerStore } from "@/lib/stores/timer-store";
-import { updateTask } from "@/lib/firebase/firestore";
-import { getTextBlob } from "@/lib/firebase/storage";
+import { updateTask, getFile } from "@/lib/firebase/firestore";
+import { getTextBlob, getFileDownloadUrl } from "@/lib/firebase/storage";
 import * as fn from "@/lib/firebase/functions";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
@@ -45,6 +47,7 @@ import {
 } from "@/lib/utils/study-text";
 import type { SectionModel } from "@/lib/types/section";
 import type { TaskModel } from "@/lib/types/task";
+import type { FileModel } from "@/lib/types/file";
 
 type KnowledgeStage = "STUDY" | "QUESTIONS" | "REVIEW";
 
@@ -104,6 +107,8 @@ export default function StudySessionPage({
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [activeSourceParagraphIndex, setActiveSourceParagraphIndex] = useState<number | null>(null);
   const sourceParagraphRefs = useRef<Record<number, HTMLLIElement | null>>({});
+  const [file, setFile] = useState<FileModel | null>(null);
+  const [openingSource, setOpeningSource] = useState(false);
 
 
   // Fetch task to determine knowledge stage
@@ -129,6 +134,16 @@ export default function StudySessionPage({
     });
     return unsub;
   }, [uid, sectionId]);
+
+  // Load parent file for View Source
+  useEffect(() => {
+    if (!uid || !section?.fileId) return;
+    let cancelled = false;
+    getFile(uid, section.fileId).then((f) => {
+      if (!cancelled) setFile(f);
+    });
+    return () => { cancelled = true; };
+  }, [uid, section?.fileId]);
 
   useEffect(() => {
     if (!section?.textBlobPath) return;
@@ -279,6 +294,31 @@ export default function StudySessionPage({
     }
   }, [sectionText, section?.title]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  async function handleOpenSource() {
+    if (!file?.storagePath || !section) return;
+    setOpeningSource(true);
+    const startIndex = Math.max(1, Math.floor(section.contentRef.startIndex || 1));
+    const canJumpByPage = file.mimeType === "application/pdf";
+    const previewWindow = window.open("", "_blank", "noopener,noreferrer");
+    try {
+      const downloadUrl = await getFileDownloadUrl(file.storagePath);
+      const sourceUrl = canJumpByPage ? `${downloadUrl}#page=${startIndex}` : downloadUrl;
+      if (previewWindow) {
+        previewWindow.location.href = sourceUrl;
+      } else {
+        window.open(sourceUrl, "_blank", "noopener,noreferrer");
+      }
+      if (!canJumpByPage) {
+        toast.message("Opened source file. Direct page jump is currently supported for PDF files.");
+      }
+    } catch {
+      previewWindow?.close();
+      toast.error("Failed to open source. Please try again.");
+    } finally {
+      setOpeningSource(false);
+    }
+  }
+
   async function handleComplete() {
     if (!uid) return;
     pause();
@@ -390,8 +430,8 @@ export default function StudySessionPage({
           </div>
         </div>
 
-        {/* Row 2: topic tags */}
-        {section && (section.estMinutes || (section.topicTags && section.topicTags.length > 0)) && (
+        {/* Row 2: topic tags + view source */}
+        {section && (section.estMinutes || (section.topicTags && section.topicTags.length > 0) || file?.storagePath) && (
           <div className="flex items-center gap-1 px-4 pb-1.5 overflow-x-auto scrollbar-none">
             <Badge
               variant="secondary"
@@ -410,6 +450,20 @@ export default function StudySessionPage({
                 {tag}
               </Badge>
             ))}
+            {file?.storagePath && (
+              <button
+                onClick={handleOpenSource}
+                disabled={openingSource}
+                className="ml-auto flex items-center gap-1 shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:text-primary hover:border-primary/40 disabled:opacity-50"
+              >
+                {openingSource ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <ExternalLink className="h-3 w-3" />
+                )}
+                <span className="hidden sm:inline">{openingSource ? "Opening..." : "View Source"}</span>
+              </button>
+            )}
           </div>
         )}
 

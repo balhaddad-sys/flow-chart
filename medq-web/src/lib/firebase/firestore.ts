@@ -91,6 +91,11 @@ export function subscribeFiles(uid: string, courseId: string, cb: (files: FileMo
   });
 }
 
+export async function getFile(uid: string, fileId: string): Promise<FileModel | null> {
+  const snap = await getDoc(doc(db, "users", uid, "files", fileId));
+  return snap.exists() ? withId<FileModel>(snap as never) : null;
+}
+
 // --- Sections ---
 
 export function subscribeSections(
