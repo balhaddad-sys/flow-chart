@@ -148,14 +148,21 @@ function deriveSectionTaskTitle(section, sourceOrder = 0) {
 /**
  * Convert a list of sections into STUDY, QUESTIONS, and REVIEW work units.
  *
+ * When `srsCards` is provided and contains an entry for a section with a valid
+ * `nextReview` date, a single FSRS-driven REVIEW task is created using the
+ * adaptive interval instead of the static policy offsets.  Sections without
+ * SRS cards fall back to the static `REVISION_POLICIES`.
+ *
  * @param {SectionInput[]} sections
  * @param {string} courseId
  * @param {string} [revisionPolicy="standard"]
+ * @param {Map<string,Object>|Object<string,Object>} [srsCards] - Map of sectionId → SRS card data
  * @returns {WorkUnit[]}
  */
-function buildWorkUnits(sections, courseId, revisionPolicy = "standard") {
+function buildWorkUnits(sections, courseId, revisionPolicy = "standard", srsCards) {
   const policy = VALID_REVISION_POLICIES.has(revisionPolicy) ? revisionPolicy : "standard";
   const tasks = [];
+  const srsMap = srsCards instanceof Map ? srsCards : (srsCards ? new Map(Object.entries(srsCards)) : null);
 
   for (const [sourceOrder, section] of sections.entries()) {
     const estMinutes = clampInt(section.estMinutes || 15, 5, 240);
@@ -180,8 +187,24 @@ function buildWorkUnits(sections, courseId, revisionPolicy = "standard") {
       tasks.push({ ...base, type: "QUESTIONS", title: `Questions: ${title}`, estMinutes: Math.max(8, Math.round(estMinutes * 0.35)) });
     }
 
-    for (const review of REVISION_POLICIES[policy]) {
-      tasks.push({ ...base, type: "REVIEW", title: `Review: ${title}`, estMinutes: review.minutes, _dayOffset: review.dayOffset });
+    // ── REVIEW tasks: use FSRS interval if available, else static policy ──
+    const srsCard = srsMap?.get(section.id);
+    if (srsCard && srsCard.nextReview && srsCard.interval > 0) {
+      // FSRS-driven: single review at the adaptive interval
+      const reviewMinutes = Math.max(10, Math.min(30, Math.round(10 + (srsCard.difficulty / 10) * 20)));
+      tasks.push({
+        ...base,
+        type: "REVIEW",
+        title: `Review: ${title}`,
+        estMinutes: reviewMinutes,
+        _dayOffset: srsCard.interval,
+        fsrsGenerated: true,
+      });
+    } else {
+      // Static fallback: multiple reviews at fixed offsets
+      for (const review of REVISION_POLICIES[policy]) {
+        tasks.push({ ...base, type: "REVIEW", title: `Review: ${title}`, estMinutes: review.minutes, _dayOffset: review.dayOffset });
+      }
     }
   }
 

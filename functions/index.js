@@ -28,6 +28,7 @@ const { retryFailedSections } = require("./processing/retryFailedSections");
 const { generateSchedule } = require("./scheduling/generateSchedule");
 const { regenSchedule } = require("./scheduling/regenSchedule");
 const { catchUp } = require("./scheduling/catchUp");
+const { onReviewComplete } = require("./scheduling/onReviewComplete");
 
 // ── Questions ────────────────────────────────────────────────────────────────
 const { generateQuestions } = require("./questions/generateQuestions");
@@ -68,6 +69,7 @@ exports.retryFailedSections = retryFailedSections;
 exports.generateSchedule = generateSchedule;
 exports.regenSchedule = regenSchedule;
 exports.catchUp = catchUp;
+exports.onReviewComplete = onReviewComplete;
 exports.generateQuestions = generateQuestions;
 exports.processQuestionBackfillJob = processQuestionBackfillJob;
 exports.getQuiz = getQuiz;

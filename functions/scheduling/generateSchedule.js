@@ -57,9 +57,26 @@ exports.generateSchedule = functions
           return (a.orderIndex ?? 0) - (b.orderIndex ?? 0);
         });
 
+      // ── Fetch FSRS SRS cards for adaptive review intervals ──────────
+      const srsSnap = await db
+        .collection(`users/${uid}/srs`)
+        .where("courseId", "==", courseId)
+        .get();
+      const srsCards = new Map();
+      srsSnap.docs.forEach((d) => {
+        const data = d.data();
+        if (data.sectionId) {
+          srsCards.set(data.sectionId, {
+            ...data,
+            nextReview: data.nextReview?.toDate?.() || null,
+            lastReview: data.lastReview?.toDate?.() || null,
+          });
+        }
+      });
+
       // ── Pure algorithm ────────────────────────────────────────────────
       const startDate = new Date();
-      const tasks = buildWorkUnits(sections, courseId, revisionPolicy);
+      const tasks = buildWorkUnits(sections, courseId, revisionPolicy, srsCards);
       const totalMinutes = computeTotalLoad(tasks);
       const requestedDays = buildDayCapacities(startDate, examDate, availability);
       let days = requestedDays;

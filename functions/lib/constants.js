@@ -83,6 +83,20 @@ const DEFAULT_STUDY_PERIOD_DAYS = 30;
 /** Number of future days the catch-up algorithm distributes overdue tasks across. */
 const CATCH_UP_SPAN_DAYS = 5;
 
+// ── FSRS v5 (adaptive spaced repetition) ────────────────────────────────────
+
+/** Target recall probability for FSRS interval computation. */
+const FSRS_DESIRED_RETENTION = 0.9;
+
+/** Minimum review interval in days. */
+const FSRS_MIN_INTERVAL = 1;
+
+/** Maximum review interval in days. */
+const FSRS_MAX_INTERVAL = 365;
+
+/** Days of recent attempts to consider when grading a section review. */
+const FSRS_ATTEMPT_LOOKBACK_DAYS = 7;
+
 // ── Questions ────────────────────────────────────────────────────────────────
 
 /** Difficulty distribution for AI-generated question sets. */
@@ -128,6 +142,7 @@ const USER_SUBCOLLECTIONS = [
   "courses",
   "flags",    // Consumer-ready: question flag reports
   "activity", // Consumer-ready: daily activity for streak graph
+  "srs",      // FSRS v5: per-section spaced repetition state
 ];
 
 // ── AI / Anthropic ──────────────────────────────────────────────────────────
@@ -243,6 +258,10 @@ module.exports = {
   MAX_SCHEDULE_DAYS,
   DEFAULT_STUDY_PERIOD_DAYS,
   CATCH_UP_SPAN_DAYS,
+  FSRS_DESIRED_RETENTION,
+  FSRS_MIN_INTERVAL,
+  FSRS_MAX_INTERVAL,
+  FSRS_ATTEMPT_LOOKBACK_DAYS,
   DIFFICULTY_DISTRIBUTION,
   VALID_QUIZ_MODES,
   STATS_THROTTLE_SEC,

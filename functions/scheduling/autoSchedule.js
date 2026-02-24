@@ -89,8 +89,25 @@ async function maybeAutoGenerateSchedule(uid, courseId) {
         return (a.orderIndex ?? 0) - (b.orderIndex ?? 0);
       });
 
+    // ── Fetch FSRS SRS cards for adaptive review intervals ──────────
+    const srsSnap = await db
+      .collection(`users/${uid}/srs`)
+      .where("courseId", "==", courseId)
+      .get();
+    const srsCards = new Map();
+    srsSnap.docs.forEach((d) => {
+      const data = d.data();
+      if (data.sectionId) {
+        srsCards.set(data.sectionId, {
+          ...data,
+          nextReview: data.nextReview?.toDate?.() || null,
+          lastReview: data.lastReview?.toDate?.() || null,
+        });
+      }
+    });
+
     const startDate = new Date();
-    const tasks = buildWorkUnits(sections, courseId, "standard");
+    const tasks = buildWorkUnits(sections, courseId, "standard", srsCards);
     const totalMinutes = computeTotalLoad(tasks);
     let days = buildDayCapacities(startDate, examDate, availability);
     const { feasible } = checkFeasibility(totalMinutes, days);
