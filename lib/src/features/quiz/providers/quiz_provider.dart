@@ -138,11 +138,12 @@ class QuizNotifier extends StateNotifier<QuizState> {
         timeSpentSec: timeSpentSec,
       );
 
+      final tutorData = result['tutorResponse'];
       state = state.copyWith(
         isLoading: false,
         correctCount: state.correctCount + (isCorrect ? 1 : 0),
         totalAnswered: state.totalAnswered + 1,
-        tutorResponse: isCorrect ? null : result,
+        tutorResponse: isCorrect ? null : (tutorData is Map ? Map<String, dynamic>.from(tutorData) : null),
       );
     } catch (e) {
       ErrorHandler.logError(e);

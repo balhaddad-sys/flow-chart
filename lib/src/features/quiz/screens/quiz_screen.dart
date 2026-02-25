@@ -137,7 +137,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                 ref.read(quizProvider.notifier).selectOption(i),
           ),
           AppSpacing.gapMd,
-          if (quiz.hasSubmitted && quiz.tutorResponse != null)
+          if (quiz.hasSubmitted)
             ExplanationPanel(
               question: question,
               selectedIndex: quiz.selectedOptionIndex!,
