@@ -5,9 +5,11 @@ allprojects {
     }
 }
 
+// Build outside OneDrive to avoid sync-lock failures on Windows.
+// Flutter picks up the AAB from the path printed at the end of the build.
 val newBuildDir: Directory =
     rootProject.layout.buildDirectory
-        .dir("../../build")
+        .dir("C:/Temp/medq-build")
         .get()
 rootProject.layout.buildDirectory.value(newBuildDir)
 
