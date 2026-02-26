@@ -1,4 +1,4 @@
-package com.medq.medq
+package io.medq.app
 
 import io.flutter.embedding.android.FlutterActivity
 
