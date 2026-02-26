@@ -5,15 +5,15 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static const String _androidApiKey = String.fromEnvironment(
     'FIREBASE_ANDROID_API_KEY',
-    defaultValue: '',
+    defaultValue: 'AIzaSyBC9lKDLIrHCGnM87qoREgHYZeRWhVFtC8',
   );
   static const String _androidAppId = String.fromEnvironment(
     'FIREBASE_ANDROID_APP_ID',
-    defaultValue: '',
+    defaultValue: '1:1061864749573:android:dd188cf3706ba97b34ba6c',
   );
   static const String _androidMessagingSenderId = String.fromEnvironment(
     'FIREBASE_ANDROID_MESSAGING_SENDER_ID',
-    defaultValue: '',
+    defaultValue: '1061864749573',
   );
   static const String _androidProjectId = String.fromEnvironment(
     'FIREBASE_ANDROID_PROJECT_ID',
