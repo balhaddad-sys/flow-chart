@@ -331,80 +331,83 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
       ),
     ];
 
-    // Vertical list of cards — works well on all screen widths
-    return Column(
+    // 3-column grid — matches web app sm:grid-cols-3 layout
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: List.generate(modes.length, (i) {
         final m = modes[i];
-        return Padding(
-          padding: EdgeInsets.only(bottom: i < modes.length - 1 ? 8 : 0),
-          child: Material(
-            color: isDark ? AppColors.darkSurface : AppColors.surface,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-            child: InkWell(
+        return Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(left: i > 0 ? 8 : 0),
+            child: Material(
+              color: isDark ? AppColors.darkSurface : AppColors.surface,
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              onTap: () => context.go(m.route),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  borderRadius:
-                      BorderRadius.circular(AppSpacing.radiusMd),
-                  border: Border.all(
-                    color:
-                        isDark ? AppColors.darkBorder : AppColors.border,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: isDark ? m.darkIconBg : m.iconBg,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(m.icon,
-                          size: 20,
-                          color:
-                              isDark ? m.darkIconColor : m.iconColor),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            m.label,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                          ),
-                          const SizedBox(height: 1),
-                          Text(
-                            m.description,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  color: isDark
-                                      ? AppColors.darkTextSecondary
-                                      : AppColors.textSecondary,
-                                  fontSize: 12,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      size: 18,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                onTap: () => context.go(m.route),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    borderRadius:
+                        BorderRadius.circular(AppSpacing.radiusMd),
+                    border: Border.all(
                       color: isDark
-                          ? AppColors.darkTextTertiary
-                          : AppColors.textTertiary,
+                          ? AppColors.darkBorder
+                          : AppColors.border,
                     ),
-                  ],
+                    boxShadow: isDark
+                        ? null
+                        : [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.03),
+                              blurRadius: 3,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        decoration: BoxDecoration(
+                          color: isDark ? m.darkIconBg : m.iconBg,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(
+                          m.icon,
+                          size: 18,
+                          color: isDark ? m.darkIconColor : m.iconColor,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        m.label,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        m.description,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(
+                              color: isDark
+                                  ? AppColors.darkTextSecondary
+                                  : AppColors.textSecondary,
+                              fontSize: 10,
+                              height: 1.4,
+                            ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -602,7 +605,7 @@ class _SectionCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      SizedBox(
+                      const SizedBox(
                         width: 10,
                         height: 10,
                         child: CircularProgressIndicator(
@@ -754,7 +757,7 @@ class _ActionBtn extends StatelessWidget {
           ? Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(
+                const SizedBox(
                   width: 12,
                   height: 12,
                   child: CircularProgressIndicator(

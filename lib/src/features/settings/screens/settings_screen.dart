@@ -443,6 +443,44 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
           AppSpacing.gapMd,
 
+          // ── Study Groups ──────────────────────────────────────────
+          Padding(
+            padding: AppSpacing.screenHorizontal,
+            child: _LinkCard(
+              isDark: isDark,
+              icon: Icons.group_outlined,
+              title: 'Study Groups',
+              subtitle: 'Collaborate with classmates',
+              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Study Groups coming soon'),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              ),
+            ),
+          ),
+
+          AppSpacing.gapMd,
+
+          // ── App Guide ─────────────────────────────────────────────
+          Padding(
+            padding: AppSpacing.screenHorizontal,
+            child: _LinkCard(
+              isDark: isDark,
+              icon: Icons.menu_book_outlined,
+              title: 'App Guide',
+              subtitle: 'Interactive walkthrough of MedQ features',
+              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('App Guide coming soon'),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              ),
+            ),
+          ),
+
+          AppSpacing.gapMd,
+
           // ── Account ───────────────────────────────────────────────
           Padding(
             padding: AppSpacing.screenHorizontal,
@@ -671,8 +709,105 @@ class _Card extends StatelessWidget {
         border: Border.all(
           color: isDark ? AppColors.darkBorder : AppColors.border,
         ),
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 3,
+                  offset: const Offset(0, 1),
+                ),
+              ],
       ),
       child: child,
+    );
+  }
+}
+
+class _LinkCard extends StatelessWidget {
+  final bool isDark;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _LinkCard({
+    required this.isDark,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: isDark ? AppColors.darkSurface : AppColors.surface,
+      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            border: Border.all(
+              color: isDark ? AppColors.darkBorder : AppColors.border,
+            ),
+            boxShadow: isDark
+                ? null
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.02),
+                      blurRadius: 3,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.textSecondary,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w500,
+                            fontSize: 14,
+                          ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 16,
+                color: isDark
+                    ? AppColors.darkTextTertiary
+                    : AppColors.textTertiary,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
