@@ -4,12 +4,12 @@ class AppLinks {
   // --dart-define=MEDQ_TERMS_URL=https://your-domain/terms
   static const String privacyPolicyUrl = String.fromEnvironment(
     'MEDQ_PRIVACY_URL',
-    defaultValue: 'https://medq-a6cc6.web.app/privacy',
+    defaultValue: 'https://medqs.vercel.app/privacy',
   );
 
   static const String termsOfServiceUrl = String.fromEnvironment(
     'MEDQ_TERMS_URL',
-    defaultValue: 'https://medq-a6cc6.web.app/terms',
+    defaultValue: 'https://medqs.vercel.app/terms',
   );
 
   static const String supportEmail = String.fromEnvironment(
