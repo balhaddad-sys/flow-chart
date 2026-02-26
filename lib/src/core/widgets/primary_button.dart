@@ -58,7 +58,7 @@ class PrimaryButton extends StatelessWidget {
             foregroundColor: AppColors.primary,
             side: BorderSide(color: AppColors.border.withValues(alpha: 0.7)),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
             ),
           ),
           child: child,
@@ -70,7 +70,7 @@ class PrimaryButton extends StatelessWidget {
       width: double.infinity,
       height: 52,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         gradient: onPressed != null && !isLoading
             ? AppColors.heroGradient
             : null,
@@ -96,7 +96,7 @@ class PrimaryButton extends StatelessWidget {
           disabledForegroundColor: Colors.white70,
           shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
           ),
           elevation: 0,
         ),

@@ -1,11 +1,6 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
-import 'package:package_info_plus/package_info_plus.dart';
-
 import '../../../app.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_links.dart';
@@ -13,48 +8,147 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../core/utils/external_link.dart';
-import '../../../core/widgets/course_selector_sheet.dart';
-import '../../../models/course_model.dart';
 import '../../home/providers/home_provider.dart';
+import '../../../models/course_model.dart';
 
-final packageInfoProvider = FutureProvider<PackageInfo>((ref) async {
-  return PackageInfo.fromPlatform();
-});
-
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  // Course management
+  String? _editingCourseId;
+  String? _deletingCourseId;
+  final _editController = TextEditingController();
+
+  // Delete account state
+  bool _deleteConfirmOpen = false;
+  String _deleteConfirmText = '';
+  bool _deleting = false;
+
+  @override
+  void dispose() {
+    _editController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _renameCourse(String courseId) async {
+    final title = _editController.text.trim();
+    if (title.isEmpty) return;
+    final uid = ref.read(uidProvider);
+    if (uid == null) return;
+    try {
+      await ref
+          .read(firestoreServiceProvider)
+          .updateCourse(uid, courseId, {'title': title});
+      if (mounted) {
+        setState(() => _editingCourseId = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Course renamed'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to rename course'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteCourse(String courseId) async {
+    final uid = ref.read(uidProvider);
+    if (uid == null) return;
+    try {
+      await ref.read(firestoreServiceProvider).deleteCourse(uid, courseId);
+      final activeCourseId = ref.read(activeCourseIdProvider);
+      if (activeCourseId == courseId) {
+        final courses = ref.read(coursesProvider).valueOrNull ?? [];
+        final remaining = courses.where((c) => c.id != courseId).toList();
+        ref.read(activeCourseIdProvider.notifier).state =
+            remaining.isNotEmpty ? remaining.first.id : null;
+      }
+      if (mounted) {
+        setState(() => _deletingCourseId = null);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Course deleted'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to delete course'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _deleteAccount() async {
+    if (_deleteConfirmText != 'DELETE') return;
+    setState(() => _deleting = true);
+    try {
+      await ref.read(cloudFunctionsServiceProvider).call('deleteUserData', {});
+      await ref.read(authServiceProvider).signOut();
+      if (mounted) context.go('/login');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to delete account. Please try again.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _deleting = false;
+          _deleteConfirmOpen = false;
+          _deleteConfirmText = '';
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final userAsync = ref.watch(userModelProvider);
     final firebaseUser = ref.watch(currentUserProvider);
     final themeMode = ref.watch(themeModeProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final coursesAsync = ref.watch(coursesProvider);
     final activeCourseId = ref.watch(activeCourseIdProvider);
-    final packageInfoAsync = ref.watch(packageInfoProvider);
 
     return Scaffold(
       body: ListView(
         padding: EdgeInsets.zero,
         children: [
-          // ── SafeArea header ───────────────────────────────────────
+          // ── Safe-area header ─────────────────────────────────────
           SafeArea(
             bottom: false,
             child: Padding(
               padding: const EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 20,
-                bottom: 4,
-              ),
+                  left: 20, right: 20, top: 20, bottom: 4),
               child: Text(
-                'Settings',
+                'Profile',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: isDark
-                          ? AppColors.darkTextPrimary
-                          : AppColors.textPrimary,
+                      letterSpacing: -0.5,
                     ),
               ),
             ),
@@ -62,326 +156,81 @@ class SettingsScreen extends ConsumerWidget {
 
           AppSpacing.gapLg,
 
-          // ── Profile card (prominent) ──────────────────────────────
+          // ── Profile header ────────────────────────────────────────
           Padding(
             padding: AppSpacing.screenHorizontal,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: isDark
-                    ? AppColors.darkHeroGradient
-                    : AppColors.primaryGradient,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                boxShadow: isDark ? [] : AppSpacing.shadowMd,
-              ),
-              padding: AppSpacing.cardPaddingLg,
-              child: userAsync.when(
-                data: (user) => Row(
+            child: userAsync.when(
+              data: (user) {
+                final name = user?.name ?? firebaseUser?.email ?? 'Student';
+                final email = user?.email ?? firebaseUser?.email ?? '';
+                final initials = name
+                    .split(' ')
+                    .map((w) => w.isNotEmpty ? w[0].toUpperCase() : '')
+                    .take(2)
+                    .join();
+
+                return Row(
                   children: [
                     Container(
-                      width: 64,
-                      height: 64,
+                      width: 56,
+                      height: 56,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius:
-                            BorderRadius.circular(AppSpacing.radiusMd),
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            AppColors.primary.withValues(alpha: 0.2),
+                            AppColors.primary.withValues(alpha: 0.05),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                       child: Center(
                         child: Text(
-                          (user?.name ?? 'U')[0].toUpperCase(),
+                          initials.isNotEmpty ? initials : '?',
                           style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 26,
+                            color: AppColors.primary,
+                            fontSize: 20,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
                     ),
-                    AppSpacing.hGapMd,
+                    const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            user?.name ?? 'User',
+                            name,
                             style: Theme.of(context)
                                 .textTheme
                                 .titleMedium
-                                ?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                            overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            user?.email ?? '',
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color:
-                                          Colors.white.withValues(alpha: 0.7),
-                                    ),
-                          ),
-                          if (user?.subscriptionTier != null) ...[
-                            const SizedBox(height: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(
-                                    AppSpacing.radiusFull),
-                              ),
-                              child: Text(
-                                user!.subscriptionTier.toUpperCase(),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: 0.8,
+                            email,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  color: isDark
+                                      ? AppColors.darkTextSecondary
+                                      : AppColors.textSecondary,
+                                  fontSize: 13,
                                 ),
-                              ),
-                            ),
-                          ],
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ],
                       ),
                     ),
                   ],
-                ),
-                loading: () => const SizedBox(
-                  height: 64,
-                  child: Center(
-                    child: CircularProgressIndicator(color: Colors.white),
-                  ),
-                ),
-                error: (_, __) => const Text(
-                  'Failed to load profile',
-                  style: TextStyle(color: Colors.white70),
-                ),
-              ),
-            ),
-          ),
-
-          AppSpacing.gapXl,
-
-          // ── Login Information section ─────────────────────────────
-          const Padding(
-            padding: AppSpacing.screenHorizontal,
-            child: _SectionHeader(
-                label: 'Account Information', icon: Icons.person_outline),
-          ),
-          AppSpacing.gapSm,
-          Padding(
-            padding: AppSpacing.screenHorizontal,
-            child: Container(
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.darkSurface : AppColors.surface,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                border: Border.all(
-                  color: isDark ? AppColors.darkBorder : AppColors.border,
-                ),
-              ),
-              child: Column(
-                children: [
-                  // Email
-                  _InfoRow(
-                    icon: Icons.email_outlined,
-                    label: 'Email',
-                    value: firebaseUser?.email ?? 'Not set',
-                    isDark: isDark,
-                  ),
-                  _divider(isDark),
-
-                  // Sign-in method
-                  _InfoRow(
-                    icon: Icons.login_rounded,
-                    label: 'Sign-in Method',
-                    value: _getSignInMethod(firebaseUser),
-                    isDark: isDark,
-                  ),
-                  _divider(isDark),
-
-                  // Email verified
-                  _InfoRow(
-                    icon: Icons.verified_user_outlined,
-                    label: 'Email Verified',
-                    value: firebaseUser?.emailVerified == true ? 'Yes' : 'No',
-                    valueColor: firebaseUser?.emailVerified == true
-                        ? AppColors.success
-                        : AppColors.warning,
-                    isDark: isDark,
-                  ),
-                  _divider(isDark),
-
-                  // Account created
-                  _InfoRow(
-                    icon: Icons.calendar_today_outlined,
-                    label: 'Account Created',
-                    value: _formatDate(firebaseUser?.metadata.creationTime),
-                    isDark: isDark,
-                  ),
-                  _divider(isDark),
-
-                  // Last sign-in
-                  _InfoRow(
-                    icon: Icons.access_time_rounded,
-                    label: 'Last Sign-in',
-                    value:
-                        _formatDate(firebaseUser?.metadata.lastSignInTime),
-                    isDark: isDark,
-                  ),
-                  _divider(isDark),
-
-                  // User ID (copyable)
-                  ListTile(
-                    leading: Icon(Icons.fingerprint_rounded,
-                        color: isDark
-                            ? AppColors.darkTextSecondary
-                            : AppColors.textSecondary,
-                        size: 20),
-                    title: const Text('User ID'),
-                    subtitle: Text(
-                      firebaseUser?.uid ?? 'N/A',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: isDark
-                                ? AppColors.darkTextTertiary
-                                : AppColors.textTertiary,
-                            fontFamily: 'monospace',
-                            fontSize: 11,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    trailing: IconButton(
-                      icon: Icon(
-                        Icons.copy_rounded,
-                        size: 18,
-                        color: isDark
-                            ? AppColors.darkTextTertiary
-                            : AppColors.textTertiary,
-                      ),
-                      onPressed: () {
-                        if (firebaseUser?.uid != null) {
-                          Clipboard.setData(
-                              ClipboardData(text: firebaseUser!.uid));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('User ID copied to clipboard'),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          AppSpacing.gapXl,
-
-          // ── Active Course section ─────────────────────────────────
-          const Padding(
-            padding: AppSpacing.screenHorizontal,
-            child: _SectionHeader(
-                label: 'Active Course', icon: Icons.school_outlined),
-          ),
-          AppSpacing.gapSm,
-          Padding(
-            padding: AppSpacing.screenHorizontal,
-            child: coursesAsync.when(
-              data: (courses) {
-                CourseModel? activeCourse;
-                if (activeCourseId != null) {
-                  try {
-                    activeCourse = courses.firstWhere((c) => c.id == activeCourseId);
-                  } catch (_) {
-                    activeCourse = null;
-                  }
-                } else if (courses.isNotEmpty) {
-                  activeCourse = courses.first;
-                }
-
-                return Material(
-                  color: isDark ? AppColors.darkSurface : AppColors.surface,
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                    onTap: () => CourseSelectorSheet.show(context),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        borderRadius:
-                            BorderRadius.circular(AppSpacing.radiusMd),
-                        border: Border.all(
-                          color: isDark
-                              ? AppColors.darkBorder
-                              : AppColors.border,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              gradient: AppColors.primaryGradient,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Center(
-                              child: Text(
-                                (activeCourse != null && activeCourse.title.isNotEmpty)
-                                    ? activeCourse.title[0].toUpperCase()
-                                    : '?',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  activeCourse?.title ??
-                                      'No course selected',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleSmall
-                                      ?.copyWith(
-                                          fontWeight: FontWeight.w600),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${courses.length} course${courses.length == 1 ? '' : 's'} \u00b7 Tap to switch',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .bodySmall
-                                      ?.copyWith(
-                                        color: isDark
-                                            ? AppColors.darkTextTertiary
-                                            : AppColors.textTertiary,
-                                      ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(
-                            Icons.swap_horiz_rounded,
-                            color: AppColors.primary,
-                            size: 22,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
                 );
               },
               loading: () => const SizedBox(
-                height: 76,
+                height: 56,
                 child: Center(child: CircularProgressIndicator()),
               ),
               error: (_, __) => const SizedBox.shrink(),
@@ -390,528 +239,891 @@ class SettingsScreen extends ConsumerWidget {
 
           AppSpacing.gapXl,
 
-          // ── Appearance section ─────────────────────────────────────
-          const Padding(
-            padding: AppSpacing.screenHorizontal,
-            child: _SectionHeader(
-                label: 'Appearance', icon: Icons.palette_outlined),
-          ),
-          AppSpacing.gapSm,
+          // ── Appearance ────────────────────────────────────────────
           Padding(
             padding: AppSpacing.screenHorizontal,
-            child: Container(
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.darkSurface : AppColors.surface,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                border: Border.all(
-                  color: isDark ? AppColors.darkBorder : AppColors.border,
-                ),
-              ),
+            child: _Card(
+              isDark: isDark,
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  RadioListTile<ThemeMode>(
-                    title: const Text('System default'),
-                    value: ThemeMode.system,
-                    groupValue: themeMode,
-                    secondary: const Icon(Icons.phone_android, size: 20),
-                    onChanged: (value) =>
-                        ref.read(themeModeProvider.notifier).state = value!,
+                  Text(
+                    'Appearance',
+                    style:
+                        Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
                   ),
-                  _divider(isDark),
-                  RadioListTile<ThemeMode>(
-                    title: const Text('Light'),
-                    value: ThemeMode.light,
-                    groupValue: themeMode,
-                    secondary: const Icon(Icons.light_mode, size: 20),
-                    onChanged: (value) =>
-                        ref.read(themeModeProvider.notifier).state = value!,
+                  const SizedBox(height: 2),
+                  Text(
+                    'Customize how MedQ looks',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.textSecondary,
+                          fontSize: 11,
+                        ),
                   ),
-                  _divider(isDark),
-                  RadioListTile<ThemeMode>(
-                    title: const Text('Dark'),
-                    value: ThemeMode.dark,
-                    groupValue: themeMode,
-                    secondary: const Icon(Icons.dark_mode, size: 20),
-                    onChanged: (value) =>
-                        ref.read(themeModeProvider.notifier).state = value!,
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      _ThemeButton(
+                        label: 'Light',
+                        icon: Icons.light_mode_rounded,
+                        selected: themeMode == ThemeMode.light,
+                        isDark: isDark,
+                        onTap: () => ref
+                            .read(themeModeProvider.notifier)
+                            .state = ThemeMode.light,
+                      ),
+                      const SizedBox(width: 8),
+                      _ThemeButton(
+                        label: 'Dark',
+                        icon: Icons.dark_mode_rounded,
+                        selected: themeMode == ThemeMode.dark,
+                        isDark: isDark,
+                        onTap: () => ref
+                            .read(themeModeProvider.notifier)
+                            .state = ThemeMode.dark,
+                      ),
+                      const SizedBox(width: 8),
+                      _ThemeButton(
+                        label: 'System',
+                        icon: Icons.phone_android_rounded,
+                        selected: themeMode == ThemeMode.system,
+                        isDark: isDark,
+                        onTap: () => ref
+                            .read(themeModeProvider.notifier)
+                            .state = ThemeMode.system,
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
           ),
 
-          AppSpacing.gapXl,
+          AppSpacing.gapMd,
 
-          // ── About section ─────────────────────────────────────────
-          const Padding(
-            padding: AppSpacing.screenHorizontal,
-            child: _SectionHeader(label: 'About', icon: Icons.info_outline),
-          ),
-          AppSpacing.gapSm,
+          // ── Courses ───────────────────────────────────────────────
           Padding(
             padding: AppSpacing.screenHorizontal,
-            child: Container(
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.darkSurface : AppColors.surface,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                border: Border.all(
-                  color: isDark ? AppColors.darkBorder : AppColors.border,
-                ),
-              ),
+            child: _Card(
+              isDark: isDark,
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ListTile(
-                    leading: Icon(Icons.info_outline,
-                        color: isDark
-                            ? AppColors.darkTextSecondary
-                            : AppColors.textSecondary,
-                        size: 20),
-                    title: const Text('Version'),
-                    trailing: packageInfoAsync.when(
-                      data: (info) => Text(
-                        '${info.version}+${info.buildNumber}',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: isDark
-                                  ? AppColors.darkTextTertiary
-                                  : AppColors.textTertiary,
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Courses',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w700),
                             ),
-                      ),
-                      loading: () => Text(
-                        'Loading...',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: isDark
-                                  ? AppColors.darkTextTertiary
-                                  : AppColors.textTertiary,
+                            const SizedBox(height: 2),
+                            Text(
+                              'Tap to switch, or add a new course',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: isDark
+                                        ? AppColors.darkTextSecondary
+                                        : AppColors.textSecondary,
+                                    fontSize: 11,
+                                  ),
                             ),
+                          ],
+                        ),
                       ),
-                      error: (_, __) => Text(
-                        'Unknown',
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: isDark
-                                  ? AppColors.darkTextTertiary
-                                  : AppColors.textTertiary,
-                            ),
-                      ),
-                    ),
-                  ),
-                  _divider(isDark),
-                  ListTile(
-                    leading: Icon(Icons.health_and_safety_outlined,
-                        color: isDark
-                            ? AppColors.darkTextSecondary
-                            : AppColors.textSecondary,
-                        size: 20),
-                    title: const Text('Medical Safety Notice'),
-                    trailing: Icon(Icons.chevron_right,
-                        color: isDark
-                            ? AppColors.darkTextTertiary
-                            : AppColors.textTertiary,
-                        size: 20),
-                    onTap: () => _showMedicalNotice(context),
-                  ),
-                  _divider(isDark),
-                  ListTile(
-                    leading: Icon(Icons.privacy_tip_outlined,
-                        color: isDark
-                            ? AppColors.darkTextSecondary
-                            : AppColors.textSecondary,
-                        size: 20),
-                    title: const Text('Privacy Policy'),
-                    trailing: Icon(Icons.chevron_right,
-                        color: isDark
-                            ? AppColors.darkTextTertiary
-                            : AppColors.textTertiary,
-                        size: 20),
-                    onTap: () => openExternalLink(
-                      context,
-                      AppLinks.privacyPolicyUrl,
-                      label: 'Privacy Policy',
-                    ),
-                  ),
-                  _divider(isDark),
-                  ListTile(
-                    leading: Icon(Icons.description_outlined,
-                        color: isDark
-                            ? AppColors.darkTextSecondary
-                            : AppColors.textSecondary,
-                        size: 20),
-                    title: const Text('Terms of Service'),
-                    trailing: Icon(Icons.chevron_right,
-                        color: isDark
-                            ? AppColors.darkTextTertiary
-                            : AppColors.textTertiary,
-                        size: 20),
-                    onTap: () => openExternalLink(
-                      context,
-                      AppLinks.termsOfServiceUrl,
-                      label: 'Terms of Service',
-                    ),
-                  ),
-                  _divider(isDark),
-                  ListTile(
-                    leading: Icon(Icons.support_agent_outlined,
-                        color: isDark
-                            ? AppColors.darkTextSecondary
-                            : AppColors.textSecondary,
-                        size: 20),
-                    title: const Text('Contact Support'),
-                    subtitle: Text(
-                      AppLinks.supportEmail,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: isDark
-                                ? AppColors.darkTextTertiary
-                                : AppColors.textTertiary,
+                      OutlinedButton.icon(
+                        onPressed: () => context.go('/onboarding'),
+                        icon: const Icon(Icons.add_rounded, size: 14),
+                        label: const Text('New'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side:
+                              const BorderSide(color: AppColors.primary),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          minimumSize: Size.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(AppSpacing.radiusMd),
                           ),
-                    ),
-                    trailing: Icon(Icons.chevron_right,
-                        color: isDark
-                            ? AppColors.darkTextTertiary
-                            : AppColors.textTertiary,
-                        size: 20),
-                    onTap: () => openExternalLink(
-                      context,
-                      AppLinks.supportMailto,
-                      label: 'Support',
-                    ),
+                          textStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-          ),
-
-          AppSpacing.gapXl,
-
-          // ── Account actions ───────────────────────────────────────
-          const Padding(
-            padding: AppSpacing.screenHorizontal,
-            child: _SectionHeader(
-                label: 'Account Actions', icon: Icons.manage_accounts),
-          ),
-          AppSpacing.gapSm,
-          Padding(
-            padding: AppSpacing.screenHorizontal,
-            child: Container(
-              decoration: BoxDecoration(
-                color: isDark ? AppColors.darkSurface : AppColors.surface,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                border: Border.all(
-                  color: isDark ? AppColors.darkBorder : AppColors.border,
-                ),
-              ),
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: Icon(Icons.logout,
-                        color: isDark
-                            ? AppColors.darkTextSecondary
-                            : AppColors.textSecondary,
-                        size: 20),
-                    title: const Text('Sign Out'),
-                    onTap: () async {
-                      await ref.read(authServiceProvider).signOut();
-                      if (context.mounted) {
-                        context.go('/login');
+                  const SizedBox(height: 12),
+                  coursesAsync.when(
+                    loading: () => const Center(
+                        child: Padding(
+                      padding: EdgeInsets.all(12),
+                      child: CircularProgressIndicator(),
+                    )),
+                    error: (_, __) => const SizedBox.shrink(),
+                    data: (courses) {
+                      if (courses.isEmpty) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Center(
+                            child: Text(
+                              'No courses yet. Create one to get started.',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: isDark
+                                        ? AppColors.darkTextTertiary
+                                        : AppColors.textTertiary,
+                                  ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        );
                       }
+                      return Column(
+                        children: courses.map((course) {
+                          final isActive = course.id == activeCourseId;
+                          final isEditing = _editingCourseId == course.id;
+                          final isDeleting = _deletingCourseId == course.id;
+                          return _CourseRow(
+                            course: course,
+                            isActive: isActive,
+                            isEditing: isEditing,
+                            isDeleting: isDeleting,
+                            isDark: isDark,
+                            editController:
+                                isEditing ? _editController : null,
+                            onTap: () {
+                              if (!isEditing && !isDeleting) {
+                                ref
+                                    .read(activeCourseIdProvider.notifier)
+                                    .state = course.id;
+                              }
+                            },
+                            onEdit: () {
+                              setState(() {
+                                _editingCourseId = course.id;
+                                _deletingCourseId = null;
+                                _editController.text = course.title;
+                              });
+                            },
+                            onEditSubmit: () => _renameCourse(course.id),
+                            onEditCancel: () =>
+                                setState(() => _editingCourseId = null),
+                            onDelete: () => setState(() {
+                              _deletingCourseId = course.id;
+                              _editingCourseId = null;
+                            }),
+                            onDeleteConfirm: () =>
+                                _deleteCourse(course.id),
+                            onDeleteCancel: () =>
+                                setState(() => _deletingCourseId = null),
+                          );
+                        }).toList(),
+                      );
                     },
                   ),
-                  _divider(isDark),
-                  ListTile(
-                    leading: const Icon(
-                      Icons.cleaning_services_outlined,
-                      color: AppColors.warning,
-                      size: 20,
-                    ),
-                    title: const Text(
-                      'Delete All Data',
-                      style: TextStyle(color: AppColors.warning),
-                    ),
-                    subtitle: Text(
-                      'Remove all courses, files, and progress',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: isDark
-                                ? AppColors.darkTextTertiary
-                                : AppColors.textTertiary,
-                          ),
-                    ),
-                    onTap: () => _showClearDataConfirmation(context, ref),
+                ],
+              ),
+            ),
+          ),
+
+          AppSpacing.gapMd,
+
+          // ── Account ───────────────────────────────────────────────
+          Padding(
+            padding: AppSpacing.screenHorizontal,
+            child: _Card(
+              isDark: isDark,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Account',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
                   ),
-                  _divider(isDark),
-                  ListTile(
-                    leading: const Icon(
-                      Icons.delete_forever,
-                      color: AppColors.error,
-                      size: 20,
+                  const SizedBox(height: 12),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      await ref.read(authServiceProvider).signOut();
+                      if (context.mounted) context.go('/login');
+                    },
+                    icon: const Icon(Icons.logout_rounded, size: 14),
+                    label: const Text('Sign Out'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      minimumSize: Size.zero,
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.radiusMd),
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                    title: const Text(
-                      'Delete Account',
-                      style: TextStyle(color: AppColors.error),
-                    ),
-                    subtitle: Text(
-                      'Permanently delete all data',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: isDark
-                                ? AppColors.darkTextTertiary
-                                : AppColors.textTertiary,
-                          ),
-                    ),
-                    onTap: () => _showDeleteConfirmation(context, ref),
                   ),
                 ],
               ),
             ),
           ),
 
-          // Extra bottom spacing
+          AppSpacing.gapMd,
+
+          // ── Legal & Safety ────────────────────────────────────────
+          Padding(
+            padding: AppSpacing.screenHorizontal,
+            child: _Card(
+              isDark: isDark,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Legal & Safety',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'MedQ is an educational study platform and is not a clinical decision tool.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.textSecondary,
+                          fontSize: 11,
+                        ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () => openExternalLink(
+                          context,
+                          AppLinks.termsOfServiceUrl,
+                          label: 'Terms',
+                        ),
+                        icon: const Icon(Icons.description_outlined,
+                            size: 14),
+                        label: const Text('Terms'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          minimumSize: Size.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                                AppSpacing.radiusMd),
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: () => openExternalLink(
+                          context,
+                          AppLinks.privacyPolicyUrl,
+                          label: 'Privacy',
+                        ),
+                        icon: const Icon(Icons.privacy_tip_outlined,
+                            size: 14),
+                        label: const Text('Privacy'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          minimumSize: Size.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                                AppSpacing.radiusMd),
+                          ),
+                          textStyle: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          AppSpacing.gapMd,
+
+          // ── Danger Zone ───────────────────────────────────────────
+          Padding(
+            padding: AppSpacing.screenHorizontal,
+            child: Container(
+              padding: AppSpacing.cardPadding,
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkSurface : AppColors.surface,
+                borderRadius:
+                    BorderRadius.circular(AppSpacing.radiusMd),
+                border: Border.all(
+                  color: isDark
+                      ? AppColors.error.withValues(alpha: 0.25)
+                      : AppColors.error.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Danger Zone',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.error,
+                        ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Permanently delete your account and all associated data.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.textSecondary,
+                          fontSize: 11,
+                        ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (!_deleteConfirmOpen)
+                    FilledButton.icon(
+                      onPressed: () =>
+                          setState(() => _deleteConfirmOpen = true),
+                      icon: const Icon(Icons.delete_forever, size: 14),
+                      label: const Text('Delete Account'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.error,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 8),
+                        minimumSize: Size.zero,
+                        shape: RoundedRectangleBorder(
+                          borderRadius:
+                              BorderRadius.circular(AppSpacing.radiusMd),
+                        ),
+                        textStyle: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    )
+                  else
+                    _DeleteConfirmPanel(
+                      isDark: isDark,
+                      confirmText: _deleteConfirmText,
+                      deleting: _deleting,
+                      onTextChanged: (v) =>
+                          setState(() => _deleteConfirmText = v),
+                      onConfirm: _deleteAccount,
+                      onCancel: () => setState(() {
+                        _deleteConfirmOpen = false;
+                        _deleteConfirmText = '';
+                      }),
+                    ),
+                ],
+              ),
+            ),
+          ),
+
           const SizedBox(height: 96),
         ],
       ),
     );
   }
-
-  void _showMedicalNotice(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Medical Safety Notice'),
-        content: const Text(
-          'MedQ is an educational study tool and does not provide medical diagnosis or treatment.\n\n'
-          'Do not use MedQ as a substitute for professional clinical judgment.\n\n'
-          'If you believe there is a medical emergency, contact local emergency services immediately.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static Widget _divider(bool isDark) {
-    return Divider(
-      height: 1,
-      color: isDark ? AppColors.darkBorder : AppColors.borderLight,
-    );
-  }
-
-  String _getSignInMethod(User? user) {
-    if (user == null) return 'Unknown';
-    final providers = user.providerData;
-    if (providers.isEmpty) return 'Email';
-
-    final methods = <String>[];
-    for (final info in providers) {
-      switch (info.providerId) {
-        case 'google.com':
-          methods.add('Google');
-          break;
-        case 'password':
-          methods.add('Email/Password');
-          break;
-        case 'apple.com':
-          methods.add('Apple');
-          break;
-        default:
-          methods.add(info.providerId);
-      }
-    }
-    return methods.join(', ');
-  }
-
-  String _formatDate(DateTime? date) {
-    if (date == null) return 'Unknown';
-    return DateFormat('MMM d, yyyy \u00b7 h:mm a').format(date);
-  }
-
-  void _showClearDataConfirmation(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete All Data?'),
-        content: const Text(
-          'This will permanently delete:\n'
-          '\u2022 All courses and study plans\n'
-          '\u2022 All uploaded files and materials\n'
-          '\u2022 All questions and quiz history\n'
-          '\u2022 All progress and statistics\n\n'
-          'Your account will remain active. You can start fresh after deletion.\n\n'
-          'This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              try {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Deleting all data...')),
-                  );
-                }
-
-                await ref.read(cloudFunctionsServiceProvider).call(
-                  'deleteUserData',
-                  {},
-                );
-
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('All data deleted successfully'),
-                      backgroundColor: AppColors.success,
-                    ),
-                  );
-                  context.go('/onboarding');
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to delete data: $e'),
-                      backgroundColor: AppColors.error,
-                    ),
-                  );
-                }
-              }
-            },
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.warning,
-            ),
-            child: const Text('Delete All Data'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showDeleteConfirmation(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Delete Account'),
-        content: const Text(
-          'This will permanently delete your account and all associated data. '
-          'This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              try {
-                await ref.read(cloudFunctionsServiceProvider).call(
-                  'deleteUserData',
-                  {'deleteAccount': true},
-                );
-                await ref.read(authServiceProvider).signOut();
-                if (context.mounted) {
-                  context.go('/login');
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content:
-                          Text('Failed to delete account. Please try again.'),
-                    ),
-                  );
-                }
-              }
-            },
-            style: TextButton.styleFrom(
-              foregroundColor: AppColors.error,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
-class _SectionHeader extends StatelessWidget {
-  final String label;
-  final IconData icon;
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-  const _SectionHeader({required this.label, required this.icon});
+class _Card extends StatelessWidget {
+  final bool isDark;
+  final Widget child;
+
+  const _Card({required this.isDark, required this.child});
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            size: 14,
-            color: isDark ? AppColors.darkTextTertiary : AppColors.textTertiary,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            label.toUpperCase(),
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: isDark
-                      ? AppColors.darkTextTertiary
-                      : AppColors.textTertiary,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.2,
-                  fontSize: 11,
-                ),
-          ),
-        ],
+    return Container(
+      padding: AppSpacing.cardPadding,
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.border,
+        ),
       ),
+      child: child,
     );
   }
 }
 
-class _InfoRow extends StatelessWidget {
-  final IconData icon;
+class _ThemeButton extends StatelessWidget {
   final String label;
-  final String value;
-  final Color? valueColor;
+  final IconData icon;
+  final bool selected;
   final bool isDark;
+  final VoidCallback onTap;
 
-  const _InfoRow({
-    required this.icon,
+  const _ThemeButton({
     required this.label,
-    required this.value,
-    this.valueColor,
+    required this.icon,
+    required this.selected,
     required this.isDark,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: Icon(icon,
-          color: isDark
-              ? AppColors.darkTextSecondary
-              : AppColors.textSecondary,
-          size: 20),
-      title: Text(label),
-      trailing: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 180),
-        child: Text(
-          value,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: valueColor ??
-                    (isDark
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding:
+              const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          decoration: BoxDecoration(
+            color: selected
+                ? AppColors.primary.withValues(alpha: 0.08)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            border: Border.all(
+              color: selected
+                  ? AppColors.primary
+                  : (isDark ? AppColors.darkBorder : AppColors.border),
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: selected
+                    ? AppColors.primary
+                    : (isDark
                         ? AppColors.darkTextSecondary
                         : AppColors.textSecondary),
-                fontWeight:
-                    valueColor != null ? FontWeight.w600 : FontWeight.w400,
               ),
-          textAlign: TextAlign.end,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
+              const SizedBox(height: 4),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: selected
+                      ? AppColors.primary
+                      : (isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.textSecondary),
+                ),
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _CourseRow extends StatelessWidget {
+  final CourseModel course;
+  final bool isActive;
+  final bool isEditing;
+  final bool isDeleting;
+  final bool isDark;
+  final TextEditingController? editController;
+  final VoidCallback onTap;
+  final VoidCallback onEdit;
+  final VoidCallback onEditSubmit;
+  final VoidCallback onEditCancel;
+  final VoidCallback onDelete;
+  final VoidCallback onDeleteConfirm;
+  final VoidCallback onDeleteCancel;
+
+  const _CourseRow({
+    required this.course,
+    required this.isActive,
+    required this.isEditing,
+    required this.isDeleting,
+    required this.isDark,
+    required this.editController,
+    required this.onTap,
+    required this.onEdit,
+    required this.onEditSubmit,
+    required this.onEditCancel,
+    required this.onDelete,
+    required this.onDeleteConfirm,
+    required this.onDeleteCancel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        GestureDetector(
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            margin: const EdgeInsets.only(bottom: 4),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: isActive
+                  ? AppColors.primary.withValues(alpha: 0.08)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              border: Border.all(
+                color: isActive
+                    ? AppColors.primary.withValues(alpha: 0.25)
+                    : Colors.transparent,
+              ),
+            ),
+            child: Row(
+              children: [
+                // Active indicator
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  width: 20,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? AppColors.primary
+                        : (isDark
+                            ? AppColors.darkSurfaceVariant
+                            : AppColors.surfaceVariant),
+                    shape: BoxShape.circle,
+                  ),
+                  child: isActive
+                      ? const Icon(Icons.check_rounded,
+                          size: 12, color: Colors.white)
+                      : null,
+                ),
+                const SizedBox(width: 10),
+                // Title or edit field
+                Expanded(
+                  child: isEditing
+                      ? TextField(
+                          controller: editController,
+                          autofocus: true,
+                          decoration: InputDecoration(
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 6),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(
+                                  AppSpacing.radiusSm),
+                            ),
+                          ),
+                          onSubmitted: (_) => onEditSubmit(),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        )
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              course.title,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    fontWeight: isActive
+                                        ? FontWeight.w600
+                                        : FontWeight.w400,
+                                  ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (course.examType != null &&
+                                course.examType!.isNotEmpty)
+                              Text(
+                                course.examType!,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      fontSize: 11,
+                                      color: isDark
+                                          ? AppColors.darkTextTertiary
+                                          : AppColors.textTertiary,
+                                    ),
+                              ),
+                          ],
+                        ),
+                ),
+                // Action buttons
+                if (isEditing) ...[
+                  IconButton(
+                    onPressed: onEditSubmit,
+                    icon: const Icon(Icons.check_rounded, size: 16),
+                    color: AppColors.success,
+                    padding: const EdgeInsets.all(10),
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                  ),
+                  IconButton(
+                    onPressed: onEditCancel,
+                    icon: const Icon(Icons.close_rounded, size: 16),
+                    padding: const EdgeInsets.all(10),
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                  ),
+                ] else if (!isDeleting) ...[
+                  IconButton(
+                    onPressed: onEdit,
+                    icon: Icon(
+                      Icons.edit_rounded,
+                      size: 15,
+                      color: isDark
+                          ? AppColors.darkTextTertiary
+                          : AppColors.textTertiary,
+                    ),
+                    padding: const EdgeInsets.all(10),
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                  ),
+                  IconButton(
+                    onPressed: onDelete,
+                    icon: Icon(
+                      Icons.delete_outline_rounded,
+                      size: 15,
+                      color: isDark
+                          ? AppColors.darkTextTertiary
+                          : AppColors.textTertiary,
+                    ),
+                    padding: const EdgeInsets.all(10),
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        // Delete confirmation row
+        if (isDeleting)
+          Container(
+            margin: const EdgeInsets.only(left: 30, bottom: 6),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.error.withValues(alpha: 0.06),
+              borderRadius:
+                  BorderRadius.circular(AppSpacing.radiusMd),
+              border: Border.all(
+                color: AppColors.error.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Delete this course?',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.error,
+                          fontSize: 12,
+                        ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: onDeleteConfirm,
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.error,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    minimumSize: Size.zero,
+                    textStyle: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  child: const Text('Delete'),
+                ),
+                TextButton(
+                  onPressed: onDeleteCancel,
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 4),
+                    minimumSize: Size.zero,
+                    textStyle: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  child: const Text('Cancel'),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _DeleteConfirmPanel extends StatefulWidget {
+  final bool isDark;
+  final String confirmText;
+  final bool deleting;
+  final ValueChanged<String> onTextChanged;
+  final VoidCallback onConfirm;
+  final VoidCallback onCancel;
+
+  const _DeleteConfirmPanel({
+    required this.isDark,
+    required this.confirmText,
+    required this.deleting,
+    required this.onTextChanged,
+    required this.onConfirm,
+    required this.onCancel,
+  });
+
+  @override
+  State<_DeleteConfirmPanel> createState() => _DeleteConfirmPanelState();
+}
+
+class _DeleteConfirmPanelState extends State<_DeleteConfirmPanel> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'This will permanently delete all your data.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.error,
+                  fontSize: 13,
+                ),
+          ),
+          const SizedBox(height: 6),
+          RichText(
+            text: TextSpan(
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: widget.isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.textSecondary,
+                    fontSize: 12,
+                  ),
+              children: const [
+                TextSpan(text: 'Type '),
+                TextSpan(
+                  text: 'DELETE',
+                  style: TextStyle(
+                    fontFamily: 'monospace',
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.error,
+                  ),
+                ),
+                TextSpan(text: ' to confirm.'),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _controller,
+            autofocus: true,
+            onChanged: widget.onTextChanged,
+            decoration: InputDecoration(
+              hintText: 'Type DELETE',
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius:
+                    BorderRadius.circular(AppSpacing.radiusMd),
+                borderSide: BorderSide(
+                    color: AppColors.error.withValues(alpha: 0.3)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius:
+                    BorderRadius.circular(AppSpacing.radiusMd),
+                borderSide: const BorderSide(color: AppColors.error),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              FilledButton(
+                onPressed: widget.confirmText == 'DELETE' && !widget.deleting
+                    ? widget.onConfirm
+                    : null,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                  disabledBackgroundColor:
+                      AppColors.error.withValues(alpha: 0.4),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 8),
+                  minimumSize: Size.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(AppSpacing.radiusMd),
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                child: widget.deleting
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.5,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Confirm Delete'),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton(
+                onPressed: widget.onCancel,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 8),
+                  minimumSize: Size.zero,
+                  shape: RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(AppSpacing.radiusMd),
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                child: const Text('Cancel'),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -301,23 +301,21 @@ class _LibraryHeader extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Your Library',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              'Library',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: isDark
-                        ? AppColors.darkTextPrimary
-                        : AppColors.textPrimary,
+                    letterSpacing: -0.5,
                   ),
             ),
-            const SizedBox(height: 2),
+            const SizedBox(height: 4),
             Text(
-              fileCount != null
-                  ? '$fileCount file${fileCount == 1 ? '' : 's'}'
-                  : 'Course materials & uploads',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              'Upload study materials and let AI extract structured sections for quizzing.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: isDark
                         ? AppColors.darkTextSecondary
                         : AppColors.textSecondary,
+                    fontSize: 13,
+                    height: 1.5,
                   ),
             ),
           ],

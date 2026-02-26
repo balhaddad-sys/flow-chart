@@ -3,21 +3,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/constants/app_colors.dart';
+import 'core/constants/app_links.dart';
 import 'core/constants/app_spacing.dart';
 import 'core/constants/app_typography.dart';
 import 'core/providers/auth_provider.dart';
+import 'core/utils/external_link.dart';
+import 'features/ai/screens/ai_screen.dart';
+import 'features/auth/screens/forgot_password_screen.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/signup_screen.dart';
 import 'features/dashboard/screens/weakness_dashboard.dart';
+import 'features/home/providers/home_provider.dart';
 import 'features/home/screens/home_screen.dart';
+import 'features/library/providers/library_provider.dart';
 import 'features/library/screens/library_screen.dart';
 import 'features/onboarding/screens/onboarding_flow.dart';
 import 'features/planner/screens/planner_screen.dart';
+import 'features/practice/screens/practice_screen.dart';
 import 'features/quiz/screens/quiz_screen.dart';
 import 'features/settings/screens/settings_screen.dart';
 import 'features/study_session/screens/study_session_screen.dart';
+import 'models/file_model.dart';
 
 // ── Auth notifier for GoRouter ──────────────────────────────────────────────
 
@@ -40,75 +49,347 @@ final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
 
 final _shellNavIndexProvider = StateProvider<int>((ref) => 0);
 
-class _AppShell extends ConsumerWidget {
+class _AppShell extends ConsumerStatefulWidget {
   final Widget child;
   const _AppShell({required this.child});
 
+  @override
+  ConsumerState<_AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends ConsumerState<_AppShell> {
+  static const _disclaimerDismissKey = 'medq_disclaimer_dismissed_v1';
+
   static const _navItems = [
-    _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Home', path: '/home'),
-    _NavItem(icon: Icons.calendar_month_outlined, activeIcon: Icons.calendar_month_rounded, label: 'Planner', path: '/planner'),
-    _NavItem(icon: Icons.library_books_outlined, activeIcon: Icons.library_books_rounded, label: 'Library', path: '/library'),
-    _NavItem(icon: Icons.bar_chart_outlined, activeIcon: Icons.bar_chart_rounded, label: 'Insights', path: '/dashboard'),
-    _NavItem(icon: Icons.settings_outlined, activeIcon: Icons.settings_rounded, label: 'Settings', path: '/settings'),
+    _NavItem(
+      icon: Icons.home_outlined,
+      activeIcon: Icons.home_rounded,
+      label: 'Home',
+      path: '/today',
+    ),
+    _NavItem(
+      icon: Icons.library_books_outlined,
+      activeIcon: Icons.library_books_rounded,
+      label: 'Library',
+      path: '/library',
+    ),
+    _NavItem(
+      icon: Icons.quiz_outlined,
+      activeIcon: Icons.quiz_rounded,
+      label: 'Practice',
+      path: '/practice',
+    ),
+    _NavItem(
+      icon: Icons.auto_awesome_outlined,
+      activeIcon: Icons.auto_awesome_rounded,
+      label: 'AI',
+      path: '/ai',
+    ),
+    _NavItem(
+      icon: Icons.person_outline_rounded,
+      activeIcon: Icons.person_rounded,
+      label: 'Settings',
+      path: '/profile',
+    ),
   ];
 
+  bool _showDisclaimer = false;
+  String? _statusCourseId;
+  bool _statusInitialized = false;
+  Map<String, String> _previousStatuses = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDisclaimerVisibility();
+  }
+
+  Future<void> _loadDisclaimerVisibility() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final dismissed = prefs.getString(_disclaimerDismissKey) == '1';
+      if (!mounted) return;
+      setState(() {
+        _showDisclaimer = !dismissed;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _showDisclaimer = true;
+      });
+    }
+  }
+
+  Future<void> _dismissDisclaimer() async {
+    setState(() {
+      _showDisclaimer = false;
+    });
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_disclaimerDismissKey, '1');
+    } catch (_) {
+      // Ignore preference write failures.
+    }
+  }
+
+  void _resetFileNotifier({String? courseId}) {
+    _statusCourseId = courseId;
+    _statusInitialized = false;
+    _previousStatuses = {};
+  }
+
+  void _showStatusSnackBar(String message, {Color? backgroundColor}) {
+    if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(message),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: backgroundColor,
+        ),
+      );
+    });
+  }
+
+  void _handleFileStatusChange(
+    List<FileModel> files, {
+    required String courseId,
+  }) {
+    if (_statusCourseId != courseId) {
+      _resetFileNotifier(courseId: courseId);
+    }
+
+    final currentStatuses = {for (final file in files) file.id: file.status};
+
+    if (!_statusInitialized) {
+      _previousStatuses = currentStatuses;
+      _statusInitialized = true;
+      return;
+    }
+
+    var newlyReadyCount = 0;
+    FileModel? latestReadyFile;
+
+    for (final file in files) {
+      final previous = _previousStatuses[file.id];
+      if (previous == null || previous == file.status) continue;
+
+      if (file.status == 'PROCESSING' && previous == 'UPLOADED') {
+        _showStatusSnackBar(
+          'Analysing ${file.originalName} - running in background (usually 1-3 minutes).',
+        );
+      } else if (file.status == 'READY') {
+        newlyReadyCount++;
+        latestReadyFile = file;
+      } else if (file.status == 'FAILED') {
+        _showStatusSnackBar(
+          '${file.originalName} failed to process. Open Library to retry.',
+          backgroundColor: AppColors.error,
+        );
+      }
+    }
+
+    if (newlyReadyCount > 0) {
+      final allDone =
+          files.isNotEmpty &&
+          files.every(
+            (file) => file.status == 'READY' || file.status == 'FAILED',
+          );
+      final anyReady = files.any((file) => file.status == 'READY');
+
+      if (allDone && anyReady) {
+        _showStatusSnackBar(
+          'All files analysed. Study plan generation has started automatically.',
+          backgroundColor: AppColors.success,
+        );
+      } else if (newlyReadyCount == 1 && latestReadyFile != null) {
+        _showStatusSnackBar(
+          '${latestReadyFile.originalName} is fully analysed. Sections and questions are ready.',
+          backgroundColor: AppColors.success,
+        );
+      } else {
+        _showStatusSnackBar(
+          '$newlyReadyCount files fully analysed. Sections and questions are ready.',
+          backgroundColor: AppColors.success,
+        );
+      }
+    }
+
+    _previousStatuses = currentStatuses;
+  }
+
   int _indexFromLocation(String location) {
-    for (var i = 0; i < _navItems.length; i++) {
-      if (location.startsWith(_navItems[i].path)) return i;
+    if (location.startsWith('/today') || location.startsWith('/home')) return 0;
+    if (location.startsWith('/library')) return 1;
+    if (location.startsWith('/practice')) return 2;
+    if (location.startsWith('/ai')) return 3;
+    if (location.startsWith('/profile') || location.startsWith('/settings')) {
+      return 4;
     }
     return 0;
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final location = GoRouterState.of(context).matchedLocation;
     final currentIndex = _indexFromLocation(location);
+    final activeCourseId = ref.watch(activeCourseIdProvider);
+
+    if (activeCourseId == null || activeCourseId.trim().isEmpty) {
+      _resetFileNotifier();
+    } else {
+      ref.listen<AsyncValue<List<FileModel>>>(filesProvider(activeCourseId), (
+        previous,
+        next,
+      ) {
+        next.whenData(
+          (files) => _handleFileStatusChange(files, courseId: activeCourseId),
+        );
+      });
+    }
 
     return Scaffold(
-      body: child,
+      body: Column(
+        children: [
+          if (_showDisclaimer)
+            _MedicalDisclaimerBanner(
+              onDismiss: _dismissDisclaimer,
+              onLearnMore:
+                  () => openExternalLink(
+                    context,
+                    AppLinks.termsOfServiceUrl,
+                    label: 'Terms',
+                  ),
+            ),
+          Expanded(child: widget.child),
+        ],
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: isDark ? AppColors.navBarDarkBackground : AppColors.navBarBackground,
+          color: (isDark ? AppColors.darkSurface : AppColors.surface)
+              .withValues(alpha: 0.97),
           border: Border(
             top: BorderSide(
-              color: isDark ? AppColors.darkBorder.withValues(alpha: 0.5) : AppColors.border.withValues(alpha: 0.5),
+              color:
+                  isDark
+                      ? AppColors.darkBorder.withValues(alpha: 0.6)
+                      : AppColors.border.withValues(alpha: 0.6),
               width: 0.5,
             ),
           ),
-          boxShadow: isDark
-              ? null
-              : const [
-                  BoxShadow(
-                    color: Color(0x08000000),
-                    blurRadius: 12,
-                    offset: Offset(0, -4),
-                  ),
-                ],
         ),
         child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: List.generate(_navItems.length, (i) {
-                final item = _navItems[i];
-                final isActive = i == currentIndex;
-                return Expanded(
-                  child: _NavBarItem(
-                    icon: isActive ? item.activeIcon : item.icon,
-                    label: item.label,
-                    isActive: isActive,
-                    onTap: () {
-                      if (i != currentIndex) {
-                        ref.read(_shellNavIndexProvider.notifier).state = i;
-                        context.go(item.path);
-                      }
-                    },
-                  ),
-                );
-              }),
-            ),
+          child: Row(
+            children: List.generate(_navItems.length, (i) {
+              final item = _navItems[i];
+              final isActive = i == currentIndex;
+              return Expanded(
+                child: _NavBarItem(
+                  icon: isActive ? item.activeIcon : item.icon,
+                  label: item.label,
+                  isActive: isActive,
+                  onTap: () {
+                    if (i != currentIndex) {
+                      ref.read(_shellNavIndexProvider.notifier).state = i;
+                      context.go(item.path);
+                    }
+                  },
+                ),
+              );
+            }),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MedicalDisclaimerBanner extends StatelessWidget {
+  final VoidCallback onDismiss;
+  final VoidCallback onLearnMore;
+
+  const _MedicalDisclaimerBanner({
+    required this.onDismiss,
+    required this.onLearnMore,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color:
+            isDark
+                ? AppColors.warning.withValues(alpha: 0.14)
+                : AppColors.warningLight,
+        border: Border(
+          bottom: BorderSide(color: AppColors.warning.withValues(alpha: 0.25)),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(top: 1),
+                child: Icon(
+                  Icons.warning_amber_rounded,
+                  size: 14,
+                  color: AppColors.warning,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Wrap(
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  runSpacing: 2,
+                  spacing: 4,
+                  children: [
+                    Text(
+                      'MedQ is for education only. It does not provide clinical advice.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontSize: 12,
+                        height: 1.35,
+                        color:
+                            isDark
+                                ? AppColors.darkTextPrimary
+                                : AppColors.textPrimary,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: onLearnMore,
+                      child: Text(
+                        'Learn more',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontSize: 12,
+                          color: AppColors.warning,
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: Icon(
+                  Icons.close_rounded,
+                  size: 16,
+                  color:
+                      isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.textSecondary,
+                ),
+                splashRadius: 16,
+                onPressed: onDismiss,
+              ),
+            ],
           ),
         ),
       ),
@@ -121,7 +402,12 @@ class _NavItem {
   final IconData activeIcon;
   final String label;
   final String path;
-  const _NavItem({required this.icon, required this.activeIcon, required this.label, required this.path});
+  const _NavItem({
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+    required this.path,
+  });
 }
 
 class _NavBarItem extends StatelessWidget {
@@ -139,37 +425,46 @@ class _NavBarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = isActive ? AppColors.primary : AppColors.navBarInactive;
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+      child: SizedBox(
+        height: 52,
+        child: Stack(
+          alignment: Alignment.topCenter,
           children: [
-            AnimatedContainer(
-              duration: AppSpacing.animFast,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              decoration: BoxDecoration(
-                color: isActive
-                    ? AppColors.primary.withValues(alpha: 0.1)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+            // Top active indicator line
+            if (isActive)
+              Positioned(
+                top: 0,
+                child: Container(
+                  width: 24,
+                  height: 2,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
               ),
-              child: Icon(
-                icon,
-                size: 22,
-                color: isActive ? AppColors.primary : AppColors.navBarInactive,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                color: isActive ? AppColors.primary : AppColors.navBarInactive,
-                letterSpacing: 0.1,
+            // Icon + label
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 20, color: color),
+                  const SizedBox(height: 2),
+                  Text(
+                    label,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: color,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -191,20 +486,22 @@ final _routerProvider = Provider<GoRouter>((ref) {
       final isLoggedIn = ref.read(authStateProvider).valueOrNull != null;
       final isAuthRoute =
           state.matchedLocation == '/login' ||
-          state.matchedLocation == '/signup';
+          state.matchedLocation == '/signup' ||
+          state.matchedLocation == '/forgot-password';
 
       if (!isLoggedIn && !isAuthRoute) return '/login';
-      if (isLoggedIn && isAuthRoute) return '/home';
+      if (isLoggedIn && isAuthRoute) return '/today';
       return null;
     },
     routes: [
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
-      ),
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/signup',
         builder: (context, state) => const SignupScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (context, state) => const ForgotPasswordScreen(),
       ),
       GoRoute(
         path: '/onboarding',
@@ -214,59 +511,101 @@ final _routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state, child) => _AppShell(child: child),
         routes: [
           GoRoute(
+            path: '/today',
+            pageBuilder:
+                (context, state) => CustomTransitionPage(
+                  key: state.pageKey,
+                  child: const HomeScreen(),
+                  transitionsBuilder: _fadeTransition,
+                ),
+          ),
+          GoRoute(
             path: '/home',
-            pageBuilder: (context, state) => CustomTransitionPage(
-              key: state.pageKey,
-              child: const HomeScreen(),
-              transitionsBuilder: _fadeTransition,
-            ),
+            pageBuilder:
+                (context, state) => CustomTransitionPage(
+                  key: state.pageKey,
+                  child: const HomeScreen(),
+                  transitionsBuilder: _fadeTransition,
+                ),
           ),
           GoRoute(
             path: '/library',
-            pageBuilder: (context, state) => CustomTransitionPage(
-              key: state.pageKey,
-              child: const LibraryScreen(),
-              transitionsBuilder: _fadeTransition,
-            ),
+            pageBuilder:
+                (context, state) => CustomTransitionPage(
+                  key: state.pageKey,
+                  child: const LibraryScreen(),
+                  transitionsBuilder: _fadeTransition,
+                ),
           ),
           GoRoute(
             path: '/planner',
-            pageBuilder: (context, state) => CustomTransitionPage(
-              key: state.pageKey,
-              child: const PlannerScreen(),
-              transitionsBuilder: _fadeTransition,
-            ),
+            pageBuilder:
+                (context, state) => CustomTransitionPage(
+                  key: state.pageKey,
+                  child: const PlannerScreen(),
+                  transitionsBuilder: _fadeTransition,
+                ),
           ),
           GoRoute(
             path: '/dashboard',
-            pageBuilder: (context, state) => CustomTransitionPage(
-              key: state.pageKey,
-              child: const WeaknessDashboard(),
-              transitionsBuilder: _fadeTransition,
-            ),
+            pageBuilder:
+                (context, state) => CustomTransitionPage(
+                  key: state.pageKey,
+                  child: const WeaknessDashboard(),
+                  transitionsBuilder: _fadeTransition,
+                ),
+          ),
+          GoRoute(
+            path: '/practice',
+            pageBuilder:
+                (context, state) => CustomTransitionPage(
+                  key: state.pageKey,
+                  child: const PracticeScreen(),
+                  transitionsBuilder: _fadeTransition,
+                ),
+          ),
+          GoRoute(
+            path: '/ai',
+            pageBuilder:
+                (context, state) => CustomTransitionPage(
+                  key: state.pageKey,
+                  child: const AiScreen(),
+                  transitionsBuilder: _fadeTransition,
+                ),
+          ),
+          GoRoute(
+            path: '/profile',
+            pageBuilder:
+                (context, state) => CustomTransitionPage(
+                  key: state.pageKey,
+                  child: const SettingsScreen(),
+                  transitionsBuilder: _fadeTransition,
+                ),
           ),
           GoRoute(
             path: '/settings',
-            pageBuilder: (context, state) => CustomTransitionPage(
-              key: state.pageKey,
-              child: const SettingsScreen(),
-              transitionsBuilder: _fadeTransition,
-            ),
+            pageBuilder:
+                (context, state) => CustomTransitionPage(
+                  key: state.pageKey,
+                  child: const SettingsScreen(),
+                  transitionsBuilder: _fadeTransition,
+                ),
           ),
         ],
       ),
       GoRoute(
         path: '/study/:taskId/:sectionId',
-        builder: (context, state) => StudySessionScreen(
-          taskId: state.pathParameters['taskId']!,
-          sectionId: state.pathParameters['sectionId']!,
-        ),
+        builder:
+            (context, state) => StudySessionScreen(
+              taskId: state.pathParameters['taskId']!,
+              sectionId: state.pathParameters['sectionId']!,
+            ),
       ),
       GoRoute(
         path: '/quiz/:sectionId',
-        builder: (context, state) => QuizScreen(
-          sectionId: state.pathParameters['sectionId'],
-        ),
+        builder:
+            (context, state) =>
+                QuizScreen(sectionId: state.pathParameters['sectionId']),
       ),
     ],
   );
@@ -325,26 +664,26 @@ class MedQApp extends ConsumerWidget {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.surfaceVariant.withValues(alpha: 0.4),
+        fillColor: AppColors.surfaceVariant.withValues(alpha: 0.5),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          borderSide: BorderSide(color: AppColors.border.withValues(alpha: 0.6)),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          borderSide: BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          borderSide: BorderSide(color: AppColors.border.withValues(alpha: 0.6)),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          borderSide: BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
           borderSide: const BorderSide(color: AppColors.error),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          borderSide: const BorderSide(color: AppColors.error, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
@@ -412,9 +751,7 @@ class MedQApp extends ConsumerWidget {
         contentTextStyle: AppTypography.textTheme.bodyMedium,
       ),
       checkboxTheme: CheckboxThemeData(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(4),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       ),
       tabBarTheme: TabBarThemeData(
         labelColor: AppColors.primary,
@@ -475,15 +812,22 @@ class MedQApp extends ConsumerWidget {
         fillColor: AppColors.darkSurfaceVariant.withValues(alpha: 0.5),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          borderSide: BorderSide(color: AppColors.darkBorder.withValues(alpha: 0.6)),
+          borderSide: BorderSide(
+            color: AppColors.darkBorder.withValues(alpha: 0.6),
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          borderSide: BorderSide(color: AppColors.darkBorder.withValues(alpha: 0.6)),
+          borderSide: BorderSide(
+            color: AppColors.darkBorder.withValues(alpha: 0.6),
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          borderSide: const BorderSide(color: AppColors.primaryLight, width: 1.5),
+          borderSide: const BorderSide(
+            color: AppColors.primaryLight,
+            width: 1.5,
+          ),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -540,9 +884,7 @@ class MedQApp extends ConsumerWidget {
         elevation: 16,
       ),
       checkboxTheme: CheckboxThemeData(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(4),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: AppColors.primaryLight,

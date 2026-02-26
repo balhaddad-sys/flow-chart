@@ -30,10 +30,9 @@ class FirestoreService {
   }
 
   Future<void> updateUser(String uid, Map<String, dynamic> data) async {
-    await _userDoc(uid).update({
-      ...data,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    await _userDoc(
+      uid,
+    ).update({...data, 'updatedAt': FieldValue.serverTimestamp()});
   }
 
   // --- Courses ---
@@ -43,16 +42,14 @@ class FirestoreService {
 
   Stream<List<CourseModel>> watchCourses(String uid) {
     return _courses(uid).snapshots().map(
-          (snap) =>
-              snap.docs.map((d) => CourseModel.fromFirestore(d)).toList(),
-        );
+      (snap) => snap.docs.map((d) => CourseModel.fromFirestore(d)).toList(),
+    );
   }
 
   Future<String> createCourse(String uid, Map<String, dynamic> data) async {
-    final ref = await _courses(uid).add({
-      ...data,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    final ref = await _courses(
+      uid,
+    ).add({...data, 'createdAt': FieldValue.serverTimestamp()});
     return ref.id;
   }
 
@@ -64,10 +61,13 @@ class FirestoreService {
     await _courses(uid).doc(courseId).update(data);
   }
 
+  Future<void> deleteCourse(String uid, String courseId) async {
+    await _courses(uid).doc(courseId).delete();
+  }
+
   // --- Files ---
 
-  CollectionReference _files(String uid) =>
-      _db.collection('users/$uid/files');
+  CollectionReference _files(String uid) => _db.collection('users/$uid/files');
 
   Stream<List<FileModel>> watchFiles(String uid, {String? courseId}) {
     Query query = _files(uid);
@@ -75,9 +75,8 @@ class FirestoreService {
       query = query.where('courseId', isEqualTo: courseId);
     }
     return query.snapshots().map(
-          (snap) =>
-              snap.docs.map((d) => FileModel.fromFirestore(d)).toList(),
-        );
+      (snap) => snap.docs.map((d) => FileModel.fromFirestore(d)).toList(),
+    );
   }
 
   Future<String> createFile(
@@ -115,6 +114,20 @@ class FirestoreService {
         );
   }
 
+  Stream<List<SectionModel>> watchSectionsByCourse(
+    String uid,
+    String courseId,
+  ) {
+    return _sections(uid)
+        .where('courseId', isEqualTo: courseId)
+        .orderBy('orderIndex')
+        .snapshots()
+        .map(
+          (snap) =>
+              snap.docs.map((d) => SectionModel.fromFirestore(d)).toList(),
+        );
+  }
+
   Future<SectionModel?> getSection(String uid, String sectionId) async {
     final doc = await _sections(uid).doc(sectionId).get();
     if (!doc.exists) return null;
@@ -131,8 +144,7 @@ class FirestoreService {
 
   // --- Tasks ---
 
-  CollectionReference _tasks(String uid) =>
-      _db.collection('users/$uid/tasks');
+  CollectionReference _tasks(String uid) => _db.collection('users/$uid/tasks');
 
   Stream<List<TaskModel>> watchTodayTasks(String uid, String courseId) {
     final now = DateTime.now();
@@ -141,14 +153,16 @@ class FirestoreService {
 
     return _tasks(uid)
         .where('courseId', isEqualTo: courseId)
-        .where('dueDate', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+        .where(
+          'dueDate',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay),
+        )
         .where('dueDate', isLessThan: Timestamp.fromDate(endOfDay))
         .orderBy('dueDate')
         .orderBy('orderIndex')
         .snapshots()
         .map(
-          (snap) =>
-              snap.docs.map((d) => TaskModel.fromFirestore(d)).toList(),
+          (snap) => snap.docs.map((d) => TaskModel.fromFirestore(d)).toList(),
         );
   }
 
@@ -159,8 +173,7 @@ class FirestoreService {
         .orderBy('orderIndex')
         .snapshots()
         .map(
-          (snap) =>
-              snap.docs.map((d) => TaskModel.fromFirestore(d)).toList(),
+          (snap) => snap.docs.map((d) => TaskModel.fromFirestore(d)).toList(),
         );
   }
 
@@ -204,18 +217,16 @@ class FirestoreService {
       _db.collection('users/$uid/attempts');
 
   Future<String> createAttempt(String uid, Map<String, dynamic> data) async {
-    final ref = await _attempts(uid).add({
-      ...data,
-      'createdAt': FieldValue.serverTimestamp(),
-    });
+    final ref = await _attempts(
+      uid,
+    ).add({...data, 'createdAt': FieldValue.serverTimestamp()});
     return ref.id;
   }
 
   // --- Stats ---
 
   Future<StatsModel?> getStats(String uid, String courseId) async {
-    final doc =
-        await _db.doc('users/$uid/stats/$courseId').get();
+    final doc = await _db.doc('users/$uid/stats/$courseId').get();
     if (!doc.exists) return null;
     return StatsModel.fromFirestore(doc);
   }
@@ -225,5 +236,80 @@ class FirestoreService {
         .doc('users/$uid/stats/$courseId')
         .snapshots()
         .map((doc) => doc.exists ? StatsModel.fromFirestore(doc) : null);
+  }
+
+  // --- Chat Threads ---
+
+  CollectionReference _chatThreads(String uid) =>
+      _db.collection('users/$uid/chatThreads');
+
+  CollectionReference _chatMessages(String uid) =>
+      _db.collection('users/$uid/chatMessages');
+
+  int _toMillis(dynamic value) {
+    if (value is Timestamp) return value.millisecondsSinceEpoch;
+    if (value is DateTime) return value.millisecondsSinceEpoch;
+    return 0;
+  }
+
+  Stream<List<Map<String, dynamic>>> watchChatThreads(
+    String uid, {
+    String? courseId,
+  }) {
+    Query query = _chatThreads(uid);
+    if (courseId != null && courseId.trim().isNotEmpty) {
+      query = query.where('courseId', isEqualTo: courseId.trim());
+    }
+
+    return query.snapshots().map((snap) {
+      final threads =
+          snap.docs.map((d) {
+            final data = d.data() as Map<String, dynamic>;
+            return {...data, 'id': d.id};
+          }).toList();
+
+      threads.sort(
+        (a, b) =>
+            _toMillis(b['updatedAt']).compareTo(_toMillis(a['updatedAt'])),
+      );
+      return threads;
+    });
+  }
+
+  Future<String> createChatThread(
+    String uid, {
+    required String courseId,
+    required String title,
+  }) async {
+    final ref = await _chatThreads(uid).add({
+      'courseId': courseId,
+      'title': title,
+      'lastMessage': '',
+      'messageCount': 0,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+    return ref.id;
+  }
+
+  Stream<List<Map<String, dynamic>>> watchChatMessages(
+    String uid,
+    String threadId,
+  ) {
+    return _chatMessages(
+      uid,
+    ).where('threadId', isEqualTo: threadId).snapshots().map((snap) {
+      final messages =
+          snap.docs.map((d) {
+            final data = d.data() as Map<String, dynamic>;
+            return {...data, 'id': d.id};
+          }).toList();
+
+      messages.sort(
+        (a, b) =>
+            _toMillis(a['createdAt']).compareTo(_toMillis(b['createdAt'])),
+      );
+      return messages;
+    });
   }
 }

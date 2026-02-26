@@ -6,6 +6,13 @@ import '../../../core/utils/error_handler.dart';
 
 enum AuthScreenState { idle, loading, success, error }
 
+const Map<String, dynamic> _defaultPreferences = {
+  'pomodoroStyle': '25/5',
+  'revisionPolicy': 'standard',
+  'dailyMinutesDefault': 120,
+  'catchUpBufferPercent': 15,
+};
+
 class AuthScreenNotifier extends StateNotifier<AuthScreenData> {
   final Ref _ref;
 
@@ -42,6 +49,7 @@ class AuthScreenNotifier extends StateNotifier<AuthScreenData> {
         'name': name,
         'email': email,
         'timezone': 'UTC',
+        'preferences': _defaultPreferences,
         'subscriptionTier': 'free',
       });
 
@@ -74,6 +82,7 @@ class AuthScreenNotifier extends StateNotifier<AuthScreenData> {
           'name': user.displayName ?? 'User',
           'email': user.email,
           'timezone': 'UTC',
+          'preferences': _defaultPreferences,
           'subscriptionTier': 'free',
         });
       }
@@ -103,10 +112,7 @@ class AuthScreenData {
   final AuthScreenState state;
   final String? errorMessage;
 
-  const AuthScreenData({
-    this.state = AuthScreenState.idle,
-    this.errorMessage,
-  });
+  const AuthScreenData({this.state = AuthScreenState.idle, this.errorMessage});
 
   AuthScreenData copyWith({
     AuthScreenState? state,
@@ -114,14 +120,13 @@ class AuthScreenData {
   }) {
     return AuthScreenData(
       state: state ?? this.state,
-      errorMessage: errorMessage is _Absent
-          ? this.errorMessage
-          : errorMessage as String?,
+      errorMessage:
+          errorMessage is _Absent ? this.errorMessage : errorMessage as String?,
     );
   }
 }
 
 final authScreenProvider =
     StateNotifierProvider<AuthScreenNotifier, AuthScreenData>((ref) {
-  return AuthScreenNotifier(ref);
-});
+      return AuthScreenNotifier(ref);
+    });

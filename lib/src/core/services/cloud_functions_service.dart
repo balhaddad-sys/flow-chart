@@ -244,6 +244,126 @@ class CloudFunctionsService {
     return _call('runFixPlan', {'courseId': courseId});
   }
 
+  // --- Catch Up ---
+
+  Future<Map<String, dynamic>> catchUp({required String courseId}) {
+    return _call('catchUp', {'courseId': courseId});
+  }
+
+  // --- Chat ---
+
+  Future<Map<String, dynamic>> sendChatMessage({
+    required String threadId,
+    required String message,
+    required String courseId,
+  }) {
+    return _call('sendChatMessage', {
+      'threadId': threadId,
+      'message': message,
+      'courseId': courseId,
+    });
+  }
+
+  // --- Explore ---
+
+  Future<Map<String, dynamic>> exploreQuiz({
+    required String topic,
+    required String level,
+    int count = 5,
+  }) {
+    return _call('exploreQuiz', {
+      'topic': topic,
+      'level': level,
+      'count': count,
+    });
+  }
+
+  Future<Map<String, dynamic>> exploreTopicInsight({
+    required String topic,
+    required String level,
+    String? examType,
+  }) {
+    return _call('exploreTopicInsight', {
+      'topic': topic,
+      'level': level,
+      if (examType != null) 'examType': examType,
+    });
+  }
+
+  // --- Exam Bank ---
+
+  Future<Map<String, dynamic>> generateExamBankQuestions({
+    required String examType,
+    int count = 10,
+  }) {
+    return _call('generateExamBankQuestions', {
+      'examType': examType,
+      'count': count,
+    });
+  }
+
+  // --- Assessment ---
+
+  Future<Map<String, dynamic>> getAssessmentCatalog() {
+    return _call('getAssessmentCatalog', {});
+  }
+
+  Future<Map<String, dynamic>> startAssessmentSession({
+    required String assessmentId,
+    required String courseId,
+  }) {
+    return _call('startAssessmentSession', {
+      'assessmentId': assessmentId,
+      'courseId': courseId,
+    });
+  }
+
+  Future<Map<String, dynamic>> submitAssessmentAnswer({
+    required String sessionId,
+    required String questionId,
+    required int answerIndex,
+  }) {
+    return _call('submitAssessmentAnswer', {
+      'sessionId': sessionId,
+      'questionId': questionId,
+      'answerIndex': answerIndex,
+    });
+  }
+
+  Future<Map<String, dynamic>> finishAssessmentSession({
+    required String sessionId,
+  }) {
+    return _call('finishAssessmentSession', {'sessionId': sessionId});
+  }
+
+  // --- Flag / Moderation ---
+
+  Future<Map<String, dynamic>> flagQuestion({
+    required String questionId,
+    String? reason,
+  }) {
+    return _call('flagQuestion', {
+      'questionId': questionId,
+      if (reason != null) 'reason': reason,
+    });
+  }
+
+  // --- File / Deck ---
+
+  Future<Map<String, dynamic>> deleteFile({required String fileId}) {
+    return _call('deleteFile', {'fileId': fileId});
+  }
+
+  Future<Map<String, dynamic>> seedSampleDeck() {
+    return _call('seedSampleDeck', {});
+  }
+
+  // --- Account ---
+
+  Future<Map<String, dynamic>> deleteUserData() {
+    return _call('deleteUserData', {});
+  }
+
   // --- Document Batch Processing ---
 
   /// Process multiple page images in parallel via Claude vision.

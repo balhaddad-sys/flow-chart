@@ -3,21 +3,21 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  // ── Primary palette ─────────────────────────────────────────────────────────
-  static const Color primary = Color(0xFF1E40AF);
-  static const Color primaryLight = Color(0xFF3B82F6);
-  static const Color primaryDark = Color(0xFF1E3A8A);
-  static const Color primarySubtle = Color(0xFFEFF6FF);
+  // ── Primary palette (teal — matches web app) ─────────────────────────────
+  static const Color primary = Color(0xFF0D9488);
+  static const Color primaryLight = Color(0xFF14B8A6);
+  static const Color primaryDark = Color(0xFF0F766E);
+  static const Color primarySubtle = Color(0xFFF0FDFA);
 
   // ── Secondary palette ───────────────────────────────────────────────────────
   static const Color secondary = Color(0xFF7C3AED);
   static const Color secondaryLight = Color(0xFFA78BFA);
   static const Color secondarySubtle = Color(0xFFF5F3FF);
 
-  // ── Accent / teal (medical-grade trust color) ───────────────────────────────
-  static const Color accent = Color(0xFF0D9488);
-  static const Color accentLight = Color(0xFF5EEAD4);
-  static const Color accentSubtle = Color(0xFFF0FDFA);
+  // ── Accent / cyan ───────────────────────────────────────────────────────────
+  static const Color accent = Color(0xFF06B6D4);
+  static const Color accentLight = Color(0xFF67E8F9);
+  static const Color accentSubtle = Color(0xFFECFEFF);
 
   // ── Semantic colors ─────────────────────────────────────────────────────────
   static const Color success = Color(0xFF059669);
@@ -26,36 +26,36 @@ class AppColors {
   static const Color warningLight = Color(0xFFFEF3C7);
   static const Color error = Color(0xFFDC2626);
   static const Color errorLight = Color(0xFFFEE2E2);
-  static const Color info = Color(0xFF2563EB);
-  static const Color infoLight = Color(0xFFDBEAFE);
+  static const Color info = Color(0xFF0D9488);
+  static const Color infoLight = Color(0xFFF0FDFA);
 
-  // ── Light neutral palette ───────────────────────────────────────────────────
-  static const Color background = Color(0xFFF8FAFC);
+  // ── Light neutral palette (warm stone — matches web app) ────────────────────
+  static const Color background = Color(0xFFFAFAF9);
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceVariant = Color(0xFFF1F5F9);
+  static const Color surfaceVariant = Color(0xFFF5F5F4);
   static const Color surfaceElevated = Color(0xFFFFFFFF);
-  static const Color textPrimary = Color(0xFF0F172A);
-  static const Color textSecondary = Color(0xFF475569);
-  static const Color textTertiary = Color(0xFF94A3B8);
+  static const Color textPrimary = Color(0xFF1C1917);
+  static const Color textSecondary = Color(0xFF78716C);
+  static const Color textTertiary = Color(0xFFA8A29E);
   static const Color textOnPrimary = Color(0xFFFFFFFF);
-  static const Color border = Color(0xFFE2E8F0);
-  static const Color borderLight = Color(0xFFF1F5F9);
-  static const Color divider = Color(0xFFE2E8F0);
+  static const Color border = Color(0xFFE7E5E4);
+  static const Color borderLight = Color(0xFFF5F5F4);
+  static const Color divider = Color(0xFFE7E5E4);
 
-  // ── Dark neutral palette ────────────────────────────────────────────────────
-  static const Color darkBackground = Color(0xFF0B1120);
-  static const Color darkSurface = Color(0xFF111827);
-  static const Color darkSurfaceVariant = Color(0xFF1E293B);
-  static const Color darkSurfaceElevated = Color(0xFF1E293B);
-  static const Color darkTextPrimary = Color(0xFFF1F5F9);
-  static const Color darkTextSecondary = Color(0xFF94A3B8);
-  static const Color darkTextTertiary = Color(0xFF64748B);
-  static const Color darkBorder = Color(0xFF334155);
-  static const Color darkDivider = Color(0xFF1E293B);
+  // ── Dark neutral palette (warm stone — matches web app) ─────────────────────
+  static const Color darkBackground = Color(0xFF0C0A09);
+  static const Color darkSurface = Color(0xFF1C1917);
+  static const Color darkSurfaceVariant = Color(0xFF292524);
+  static const Color darkSurfaceElevated = Color(0xFF292524);
+  static const Color darkTextPrimary = Color(0xFFFAFAF9);
+  static const Color darkTextSecondary = Color(0xFFA8A29E);
+  static const Color darkTextTertiary = Color(0xFF78716C);
+  static const Color darkBorder = Color(0xFF292524);
+  static const Color darkDivider = Color(0xFF292524);
 
   // ── Task status colors ──────────────────────────────────────────────────────
   static const Color taskTodo = Color(0xFF94A3B8);
-  static const Color taskInProgress = Color(0xFF2563EB);
+  static const Color taskInProgress = Color(0xFF0D9488);
   static const Color taskDone = Color(0xFF059669);
   static const Color taskSkipped = Color(0xFFD97706);
 
@@ -64,7 +64,7 @@ class AppColors {
   static const Color difficultyMedium = Color(0xFFD97706);
   static const Color difficultyHard = Color(0xFFDC2626);
 
-  // ── Surface aliases (used by onboarding, study session, etc.) ────────────
+  // ── Surface aliases ──────────────────────────────────────────────────────
   static const Color primarySurface = primarySubtle;
   static const Color secondarySurface = secondarySubtle;
   static const Color accentSurface = accentSubtle;
@@ -75,20 +75,20 @@ class AppColors {
 
   // ── Nav bar ───────────────────────────────────────────────────────────────
   static const Color navBarBackground = Color(0xFFFFFFFF);
-  static const Color navBarDarkBackground = Color(0xFF111827);
+  static const Color navBarDarkBackground = Color(0xFF1C1917);
   static const Color navBarInactive = Color(0xFF94A3B8);
 
   // ── Gradients ───────────────────────────────────────────────────────────────
   static const LinearGradient primaryGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF1E40AF), Color(0xFF7C3AED)],
+    colors: [Color(0xFF0D9488), Color(0xFF06B6D4)],
   );
 
   static const LinearGradient accentGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF0D9488), Color(0xFF2563EB)],
+    colors: [Color(0xFF0D9488), Color(0xFF059669)],
   );
 
   static const LinearGradient urgentGradient = LinearGradient(
@@ -100,30 +100,29 @@ class AppColors {
   static const LinearGradient darkHeroGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFF1E293B), Color(0xFF0B1120)],
+    colors: [Color(0xFF292524), Color(0xFF0C0A09)],
   );
 
   static const LinearGradient authGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
     colors: [
-      Color(0xFF0F172A),
-      Color(0xFF1E293B),
-      Color(0xFF1E3A8A),
+      Color(0xFFFFFFFF),
+      Color(0xFFF0FDFA),
     ],
-    stops: [0.0, 0.5, 1.0],
+    stops: [0.0, 1.0],
   );
 
   static const LinearGradient heroGradient = LinearGradient(
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
-    colors: [Color(0xFF1E40AF), Color(0xFF6D28D9), Color(0xFF7C3AED)],
+    colors: [Color(0xFF0D9488), Color(0xFF0891B2), Color(0xFF06B6D4)],
     stops: [0.0, 0.6, 1.0],
   );
 
   static const LinearGradient subtleGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFFF8FAFC), Color(0xFFEFF6FF)],
+    colors: [Color(0xFFF8FAFC), Color(0xFFF0FDFA)],
   );
 }

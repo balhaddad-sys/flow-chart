@@ -23,12 +23,7 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
 
   static const _stepCount = 4;
 
-  static const _stepLabels = [
-    'Course',
-    'Exam Date',
-    'Availability',
-    'Upload',
-  ];
+  static const _stepLabels = ['Course', 'Exam Date', 'Availability', 'Upload'];
 
   @override
   void initState() {
@@ -78,21 +73,26 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
                       icon: Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: isDark
-                              ? AppColors.darkSurfaceVariant
-                              : AppColors.surfaceVariant,
+                          color:
+                              isDark
+                                  ? AppColors.darkSurfaceVariant
+                                  : AppColors.surfaceVariant,
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           Icons.arrow_back_rounded,
                           size: 18,
-                          color: isDark
-                              ? AppColors.darkTextPrimary
-                              : AppColors.textPrimary,
+                          color:
+                              isDark
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.textPrimary,
                         ),
                       ),
-                      onPressed: () =>
-                          ref.read(onboardingProvider.notifier).previousStep(),
+                      onPressed:
+                          () =>
+                              ref
+                                  .read(onboardingProvider.notifier)
+                                  .previousStep(),
                     )
                   else
                     const SizedBox(width: 48),
@@ -100,10 +100,11 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
                   Text(
                     'Step ${data.currentStep + 1} of $_stepCount',
                     style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: isDark
+                      color:
+                          isDark
                               ? AppColors.darkTextTertiary
                               : AppColors.textTertiary,
-                        ),
+                    ),
                   ),
                 ],
               ),
@@ -130,31 +131,32 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
                           height: 4,
                           decoration: BoxDecoration(
                             gradient: isActive ? AppColors.heroGradient : null,
-                            color: isActive
-                                ? null
-                                : isDark
+                            color:
+                                isActive
+                                    ? null
+                                    : isDark
                                     ? AppColors.darkSurfaceVariant
                                     : AppColors.surfaceVariant,
-                            borderRadius:
-                                BorderRadius.circular(AppSpacing.radiusFull),
+                            borderRadius: BorderRadius.circular(
+                              AppSpacing.radiusFull,
+                            ),
                           ),
                         ),
                         AppSpacing.gapXs,
                         Text(
                           _stepLabels[i],
-                          style: Theme.of(context)
-                              .textTheme
-                              .labelSmall
-                              ?.copyWith(
-                                color: isCurrent
+                          style: Theme.of(
+                            context,
+                          ).textTheme.labelSmall?.copyWith(
+                            color:
+                                isCurrent
                                     ? AppColors.primary
                                     : isDark
-                                        ? AppColors.darkTextTertiary
-                                        : AppColors.textTertiary,
-                                fontWeight: isCurrent
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
-                              ),
+                                    ? AppColors.darkTextTertiary
+                                    : AppColors.textTertiary,
+                            fontWeight:
+                                isCurrent ? FontWeight.w600 : FontWeight.w400,
+                          ),
                         ),
                       ],
                     ),
@@ -191,18 +193,16 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
                 ),
                 child: Text(
                   data.errorMessage!,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: AppColors.error),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: AppColors.error),
                 ),
               ),
             ),
 
           // Bottom action
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: PrimaryButton(
               label: data.currentStep < _stepCount - 1 ? 'Continue' : 'Finish',
               isLoading: data.isSubmitting,
@@ -210,11 +210,12 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
                 if (data.currentStep < _stepCount - 1) {
                   ref.read(onboardingProvider.notifier).nextStep();
                 } else {
-                  final success = await ref
-                      .read(onboardingProvider.notifier)
-                      .finishOnboarding();
+                  final success =
+                      await ref
+                          .read(onboardingProvider.notifier)
+                          .finishOnboarding();
                   if (success && context.mounted) {
-                    context.go('/home');
+                    context.go('/today');
                   }
                 }
               },
