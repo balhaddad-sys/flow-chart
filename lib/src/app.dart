@@ -12,6 +12,7 @@ import 'core/constants/app_typography.dart';
 import 'core/providers/auth_provider.dart';
 import 'core/utils/external_link.dart';
 import 'features/ai/screens/ai_screen.dart';
+import 'features/ai/screens/explore_screen.dart';
 import 'features/auth/screens/forgot_password_screen.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/signup_screen.dart';
@@ -25,6 +26,7 @@ import 'features/planner/screens/planner_screen.dart';
 import 'features/practice/screens/practice_screen.dart';
 import 'features/quiz/screens/quiz_screen.dart';
 import 'features/settings/screens/settings_screen.dart';
+import 'features/analytics/screens/analytics_screen.dart';
 import 'features/study_session/screens/study_session_screen.dart';
 import 'models/file_model.dart';
 
@@ -588,6 +590,24 @@ final _routerProvider = Provider<GoRouter>((ref) {
                 (context, state) => CustomTransitionPage(
                   key: state.pageKey,
                   child: const SettingsScreen(),
+                  transitionsBuilder: _fadeTransition,
+                ),
+          ),
+          GoRoute(
+            path: '/analytics',
+            pageBuilder:
+                (context, state) => CustomTransitionPage(
+                  key: state.pageKey,
+                  child: const AnalyticsScreen(),
+                  transitionsBuilder: _fadeTransition,
+                ),
+          ),
+          GoRoute(
+            path: '/ai/explore',
+            pageBuilder:
+                (context, state) => CustomTransitionPage(
+                  key: state.pageKey,
+                  child: const ExploreScreen(),
                   transitionsBuilder: _fadeTransition,
                 ),
           ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
@@ -203,7 +204,7 @@ class _HubViewState extends ConsumerState<_HubView> {
               runSpacing: 8,
               children: [
                 ElevatedButton.icon(
-                  onPressed: hasActiveCourse ? widget.onNewThread : null,
+                  onPressed: () => context.go('/ai/explore'),
                   icon: const Icon(Icons.explore_rounded, size: 16),
                   label: const Text('Explore Topic'),
                   style: ElevatedButton.styleFrom(
