@@ -20,6 +20,17 @@
       ]
     }
   ],
+  "hosting": {
+    "public": "public",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "redirects": [
+      {
+        "source": "**",
+        "destination": "https://medqs.vercel.app",
+        "type": 301
+      }
+    ]
+  },
   "storage": {
     "rules": "storage.rules"
   },
