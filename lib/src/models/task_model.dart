@@ -39,6 +39,7 @@ class TaskModel with _$TaskModel {
     @SafeIntConverter() @Default(0) int orderIndex,
     @SafeNullableStringConverter() String? parentTaskId,
     @SafeNullableStringConverter() String? linkedQuestionSetId,
+    @Default(false) bool isFixPlan,
     @TimestampConverter() DateTime? createdAt,
   }) = _TaskModel;
 

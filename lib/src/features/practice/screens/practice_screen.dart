@@ -327,7 +327,7 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
         iconBg: const Color(0xFFF5F3FF),
         darkIconColor: const Color(0xFFA78BFA),
         darkIconBg: const Color(0xFFA78BFA).withValues(alpha: 0.10),
-        route: '/quiz/_all',
+        route: '/assessment',
       ),
     ];
 

@@ -23,12 +23,39 @@ class QuestionExplanation with _$QuestionExplanation {
 class QuestionSourceRef with _$QuestionSourceRef {
   const factory QuestionSourceRef({
     @SafeStringConverter() @Default('') String fileId,
+    @SafeStringConverter() String? fileName,
     @SafeStringConverter() @Default('') String sectionId,
     @SafeStringConverter() @Default('') String label,
   }) = _QuestionSourceRef;
 
   factory QuestionSourceRef.fromJson(Map<String, dynamic> json) =>
       _$QuestionSourceRefFromJson(json);
+}
+
+@freezed
+class QuestionSourceCitation with _$QuestionSourceCitation {
+  const factory QuestionSourceCitation({
+    @SafeStringConverter() required String fileId,
+    @SafeStringConverter() required String chunkId,
+    @SafeNullableIntConverter() int? pageNumber,
+    @SafeNullableIntConverter() int? slideIndex,
+    @SafeStringConverter() @Default('') String quote,
+  }) = _QuestionSourceCitation;
+
+  factory QuestionSourceCitation.fromJson(Map<String, dynamic> json) =>
+      _$QuestionSourceCitationFromJson(json);
+}
+
+@freezed
+class QuestionCitation with _$QuestionCitation {
+  const factory QuestionCitation({
+    @SafeStringConverter() @Default('') String source,
+    @SafeStringConverter() @Default('') String title,
+    @SafeStringConverter() @Default('') String url,
+  }) = _QuestionCitation;
+
+  factory QuestionCitation.fromJson(Map<String, dynamic> json) =>
+      _$QuestionCitationFromJson(json);
 }
 
 @freezed
@@ -57,7 +84,13 @@ class QuestionModel with _$QuestionModel {
     @SafeIntConverter() required int correctIndex,
     @Default(QuestionExplanation()) QuestionExplanation explanation,
     @Default(QuestionSourceRef()) QuestionSourceRef sourceRef,
+    @Default([]) List<QuestionSourceCitation> sourceCitations,
+    @Default([]) List<QuestionCitation> citations,
     @Default(QuestionStats()) QuestionStats stats,
+    @SafeDoubleConverter() double? confidenceScore,
+    @SafeStringConverter() @Default('normal') String quality,
+    @SafeIntConverter() @Default(0) int flagCount,
+    @Default(false) bool isSampleDeck,
     @TimestampConverter() DateTime? createdAt,
   }) = _QuestionModel;
 

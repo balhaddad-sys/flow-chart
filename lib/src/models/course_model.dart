@@ -9,13 +9,9 @@ part 'course_model.g.dart';
 @freezed
 class CourseAvailability with _$CourseAvailability {
   const factory CourseAvailability({
-    int? monday,
-    int? tuesday,
-    int? wednesday,
-    int? thursday,
-    int? friday,
-    int? saturday,
-    int? sunday,
+    int? defaultMinutesPerDay,
+    @Default({}) Map<String, int> perDayOverrides,
+    @Default({}) Map<String, int> perDay,
     @Default([]) List<String> excludedDates,
   }) = _CourseAvailability;
 
@@ -33,7 +29,12 @@ class CourseModel with _$CourseModel {
     @Default([]) List<String> tags,
     @Default(CourseAvailability()) CourseAvailability availability,
     @Default('ACTIVE') String status,
+    @Default(0) int fileCount,
+    @Default(0) int sectionCount,
+    @Default(0) int questionCount,
+    @Default(false) bool isSampleDeck,
     @TimestampConverter() DateTime? createdAt,
+    @TimestampConverter() DateTime? updatedAt,
   }) = _CourseModel;
 
   factory CourseModel.fromJson(Map<String, dynamic> json) =>

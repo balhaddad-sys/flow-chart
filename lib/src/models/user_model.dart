@@ -27,6 +27,10 @@ class UserModel with _$UserModel {
     @Default('UTC') String timezone,
     @Default(UserPreferences()) UserPreferences preferences,
     @Default('free') String subscriptionTier,
+    String? examTarget,
+    int? gradYear,
+    @Default(0) int profileCompleteness,
+    @Default(false) bool hasSeenSampleDeck,
     @TimestampConverter() DateTime? createdAt,
     @TimestampConverter() DateTime? updatedAt,
   }) = _UserModel;

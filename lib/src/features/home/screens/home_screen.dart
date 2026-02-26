@@ -12,8 +12,10 @@ import '../../home/providers/home_provider.dart';
 import '../../library/providers/library_provider.dart';
 import '../../practice/providers/practice_provider.dart';
 import '../widgets/exam_countdown.dart';
+import '../widgets/diagnostic_directives.dart';
 import '../widgets/pipeline_progress.dart';
 import '../widgets/stats_cards.dart';
+import '../widgets/streak_graph.dart';
 import '../widgets/today_checklist.dart';
 import '../widgets/weak_topics_banner.dart';
 
@@ -452,6 +454,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ),
                             ),
                           ),
+                        ),
+                      ],
+
+                      // ── Streak graph ──────────────────────────────────
+                      if (stats != null && (stats.streakDays) > 0) ...[
+                        AppSpacing.gapMd,
+                        StreakGraph(streakDays: stats.streakDays, isDark: isDark),
+                      ],
+
+                      // ── Diagnostic directives ──────────────────────────
+                      if (stats != null && stats.diagnosticDirectives.isNotEmpty) ...[
+                        AppSpacing.gapMd,
+                        DiagnosticDirectives(
+                          directives: stats.diagnosticDirectives,
+                          isDark: isDark,
                         ),
                       ],
 

@@ -27,6 +27,12 @@ import 'features/practice/screens/practice_screen.dart';
 import 'features/quiz/screens/quiz_screen.dart';
 import 'features/settings/screens/settings_screen.dart';
 import 'features/analytics/screens/analytics_screen.dart';
+import 'features/exam_bank/screens/exam_bank_screen.dart';
+import 'features/file_detail/screens/file_detail_screen.dart';
+import 'features/assessment/screens/assessment_screen.dart';
+import 'features/guide/screens/guide_screen.dart';
+import 'features/legal/screens/privacy_screen.dart';
+import 'features/legal/screens/terms_screen.dart';
 import 'features/study_session/screens/study_session_screen.dart';
 import 'models/file_model.dart';
 
@@ -608,6 +614,59 @@ final _routerProvider = Provider<GoRouter>((ref) {
                 (context, state) => CustomTransitionPage(
                   key: state.pageKey,
                   child: const ExploreScreen(),
+                  transitionsBuilder: _fadeTransition,
+                ),
+          ),
+          GoRoute(
+            path: '/exam-bank',
+            pageBuilder:
+                (context, state) => CustomTransitionPage(
+                  key: state.pageKey,
+                  child: ExamBankScreen(
+                    examType: state.uri.queryParameters['exam'],
+                  ),
+                  transitionsBuilder: _fadeTransition,
+                ),
+          ),
+          GoRoute(
+            path: '/file/:fileId',
+            builder: (context, state) => FileDetailScreen(
+              fileId: state.pathParameters['fileId']!,
+            ),
+          ),
+          GoRoute(
+            path: '/guide',
+            pageBuilder:
+                (context, state) => CustomTransitionPage(
+                  key: state.pageKey,
+                  child: const GuideScreen(),
+                  transitionsBuilder: _fadeTransition,
+                ),
+          ),
+          GoRoute(
+            path: '/assessment',
+            pageBuilder:
+                (context, state) => CustomTransitionPage(
+                  key: state.pageKey,
+                  child: const AssessmentScreen(),
+                  transitionsBuilder: _fadeTransition,
+                ),
+          ),
+          GoRoute(
+            path: '/terms',
+            pageBuilder:
+                (context, state) => CustomTransitionPage(
+                  key: state.pageKey,
+                  child: const TermsScreen(),
+                  transitionsBuilder: _fadeTransition,
+                ),
+          ),
+          GoRoute(
+            path: '/privacy',
+            pageBuilder:
+                (context, state) => CustomTransitionPage(
+                  key: state.pageKey,
+                  child: const PrivacyScreen(),
                   transitionsBuilder: _fadeTransition,
                 ),
           ),
