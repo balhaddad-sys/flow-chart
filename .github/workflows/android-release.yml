@@ -128,9 +128,24 @@ jobs:
             echo "build_number=${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build release AAB
+      - name: Build release AAB (Play Store)
         run: |
           flutter build appbundle --release \
+            --build-name="${{ steps.meta.outputs.build_name }}" \
+            --build-number="${{ steps.meta.outputs.build_number }}" \
+            --dart-define=FIREBASE_ANDROID_API_KEY="$FIREBASE_ANDROID_API_KEY" \
+            --dart-define=FIREBASE_ANDROID_APP_ID="$FIREBASE_ANDROID_APP_ID" \
+            --dart-define=FIREBASE_ANDROID_MESSAGING_SENDER_ID="$FIREBASE_ANDROID_MESSAGING_SENDER_ID" \
+            --dart-define=FIREBASE_ANDROID_PROJECT_ID="$FIREBASE_ANDROID_PROJECT_ID" \
+            --dart-define=FIREBASE_ANDROID_STORAGE_BUCKET="$FIREBASE_ANDROID_STORAGE_BUCKET" \
+            --dart-define=MEDQ_PRIVACY_URL="$MEDQ_PRIVACY_URL" \
+            --dart-define=MEDQ_TERMS_URL="$MEDQ_TERMS_URL" \
+            --dart-define=MEDQ_SUPPORT_EMAIL="$MEDQ_SUPPORT_EMAIL"
+
+      - name: Build release APK (direct install / sideload)
+        run: |
+          flutter build apk --release \
+            --split-per-abi \
             --build-name="${{ steps.meta.outputs.build_name }}" \
             --build-number="${{ steps.meta.outputs.build_number }}" \
             --dart-define=FIREBASE_ANDROID_API_KEY="$FIREBASE_ANDROID_API_KEY" \
@@ -147,3 +162,9 @@ jobs:
         with:
           name: medq-android-aab-${{ steps.meta.outputs.build_name }}-${{ steps.meta.outputs.build_number }}
           path: build/app/outputs/bundle/release/app-release.aab
+
+      - name: Upload APK artifacts (arm64 + arm32 + x86_64)
+        uses: actions/upload-artifact@v4
+        with:
+          name: medq-android-apk-${{ steps.meta.outputs.build_name }}-${{ steps.meta.outputs.build_number }}
+          path: build/app/outputs/flutter-apk/app-*-release.apk

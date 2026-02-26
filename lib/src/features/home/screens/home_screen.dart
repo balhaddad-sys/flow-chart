@@ -355,7 +355,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                           const Spacer(),
                           GestureDetector(
-                            onTap: () {},
+                            onTap: () => context.go('/analytics'),
                             child: Text(
                               'View analytics',
                               style: Theme.of(context)
