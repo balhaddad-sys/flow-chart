@@ -53,37 +53,36 @@ jobs:
           echo "=== CPU ===" && nproc
           echo "=== Disk ===" && df -h /
 
-      - name: Apply Gradle init script — fix FlutterFire inter-plugin deps
-        run: |
-          # FlutterFire plugins declare `api firebaseCoreProject` inside the
-          # android{} block, which is silently ignored by AGP 8.8+. This init
-          # script injects firebase_core as a top-level project dependency for
-          # each affected plugin so javac can find the core interfaces.
-          mkdir -p ~/.gradle/init.d
-          cat > ~/.gradle/init.d/fix-flutterfire-deps.gradle << 'GROOVY'
-          gradle.projectsEvaluated {
-              def coreProj = rootProject.findProject(':firebase_core')
-              if (coreProj == null) return
-              def needsCore = [
-                  'cloud_firestore', 'firebase_auth', 'firebase_crashlytics',
-                  'firebase_storage', 'cloud_functions', 'firebase_messaging',
-                  'firebase_remote_config', 'firebase_analytics'
-              ]
-              rootProject.subprojects { sp ->
-                  if (sp.name in needsCore) {
-                      try {
-                          sp.dependencies.add('api', coreProj)
-                      } catch (Exception e) {
-                          println "[fix-flutterfire] Skipped ${sp.name}: ${e.message}"
-                      }
-                  }
-              }
-          }
-          GROOVY
-          echo "Init script written to ~/.gradle/init.d/fix-flutterfire-deps.gradle"
-
       - name: Resolve Flutter dependencies
         run: flutter pub get
+
+      - name: Patch FlutterFire build.gradle — fix android.dependencies for AGP 8.x
+        run: |
+          # AGP 8.x no longer honours `api firebaseCoreProject` declared inside
+          # the android{} block (it goes to DependenciesInfo, not DependencyHandler).
+          # We move those declarations to a top-level dependencies{} block so javac
+          # can find the firebase_core interfaces at compile time.
+          python3 - << 'PYEOF'
+          import os, re, glob
+          cache = os.path.expanduser('~/.pub-cache/hosted/pub.dev')
+          total = 0
+          for path in glob.glob(os.path.join(cache, '*/android/build.gradle')):
+              with open(path) as f:
+                  txt = f.read()
+              if 'api firebaseCoreProject' not in txt:
+                  continue
+              pkg = os.path.basename(os.path.dirname(os.path.dirname(path)))
+              print('Patching ' + pkg + ' ...')
+              # Remove the line from inside android.dependencies{}
+              patched = re.sub(r'[ \t]*api\s+firebaseCoreProject[ \t]*\n', '', txt)
+              # Append as a top-level dependencies block
+              patched = patched.rstrip('\n') + '\n\ndependencies {\n    api firebaseCoreProject\n}\n'
+              with open(path, 'w') as f:
+                  f.write(patched)
+              print('  -> patched: ' + path)
+              total += 1
+          print('Total patched: ' + str(total) + ' file(s)')
+          PYEOF
 
       - name: Generate Freezed / JSON serialization code
         run: dart run build_runner build --delete-conflicting-outputs
