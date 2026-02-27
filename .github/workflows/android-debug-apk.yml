@@ -23,8 +23,12 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: "3.41.2"
           channel: stable
           cache: true
+
+      - name: Flutter version info
+        run: flutter --version
 
       - name: Resolve Flutter dependencies
         run: flutter pub get
@@ -40,6 +44,16 @@ jobs:
         # output detection when NDK/CMake are involved. A fat debug APK is
         # fine for testing and installs on any device/emulator.
         run: flutter build apk --debug
+
+      - name: Show Gradle build logs on failure
+        if: failure()
+        run: |
+          echo "=== Gradle exception logs ==="
+          find . -name "*.log" -path "*/build/*" 2>/dev/null | head -5 | xargs cat 2>/dev/null || true
+          echo "=== build/app/outputs/logs ==="
+          find build -name "*.txt" -o -name "*.log" 2>/dev/null | head -5 | xargs cat 2>/dev/null || true
+          echo "=== Last 100 lines of Gradle output ==="
+          find ~/.gradle -name "*.log" 2>/dev/null | tail -1 | xargs tail -100 2>/dev/null || true
 
       - name: List APK outputs (debug)
         if: always()
