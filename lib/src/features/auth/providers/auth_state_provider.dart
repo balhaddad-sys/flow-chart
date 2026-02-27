@@ -1,7 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/providers/proxy_provider.dart';
 import '../../../core/providers/user_provider.dart';
+import '../../../core/services/proxy_service.dart';
 import '../../../core/utils/error_handler.dart';
 
 enum AuthScreenState { idle, loading, success, error }
@@ -25,10 +27,32 @@ class AuthScreenNotifier extends StateNotifier<AuthScreenData> {
       await authService.signInWithEmail(email, password);
       state = state.copyWith(state: AuthScreenState.success);
     } catch (e) {
+      // If Firebase Auth is blocked by the ISP, fall back to proxy.
+      if (_ref.read(networkModeProvider) == NetworkMode.proxy) {
+        await _proxySignIn(email, password);
+      } else {
+        ErrorHandler.logError(e);
+        state = state.copyWith(
+          state: AuthScreenState.error,
+          errorMessage: ErrorHandler.userMessage(e),
+        );
+      }
+    }
+  }
+
+  Future<void> _proxySignIn(String email, String password) async {
+    try {
+      final proxy = _ref.read(proxyServiceProvider);
+      final session = await proxy.signIn(email, password);
+      await _ref.read(proxySessionProvider.notifier).setSession(session);
+      state = state.copyWith(state: AuthScreenState.success);
+    } catch (e) {
       ErrorHandler.logError(e);
+      final msg =
+          e is ProxyException ? e.message : ErrorHandler.userMessage(e);
       state = state.copyWith(
         state: AuthScreenState.error,
-        errorMessage: ErrorHandler.userMessage(e),
+        errorMessage: msg,
       );
     }
   }
@@ -55,10 +79,35 @@ class AuthScreenNotifier extends StateNotifier<AuthScreenData> {
 
       state = state.copyWith(state: AuthScreenState.success);
     } catch (e) {
+      // If Firebase Auth is blocked, fall back to proxy sign-up.
+      if (_ref.read(networkModeProvider) == NetworkMode.proxy) {
+        await _proxySignUp(name, email, password);
+      } else {
+        ErrorHandler.logError(e);
+        state = state.copyWith(
+          state: AuthScreenState.error,
+          errorMessage: ErrorHandler.userMessage(e),
+        );
+      }
+    }
+  }
+
+  Future<void> _proxySignUp(
+      String name, String email, String password) async {
+    try {
+      final proxy = _ref.read(proxyServiceProvider);
+      final session = await proxy.signUp(email, password, name);
+      await _ref.read(proxySessionProvider.notifier).setSession(session);
+      // Note: user profile creation in Firestore is handled by Cloud Functions
+      // (cloudfunctions.net), which remain reachable even in proxy mode.
+      state = state.copyWith(state: AuthScreenState.success);
+    } catch (e) {
       ErrorHandler.logError(e);
+      final msg =
+          e is ProxyException ? e.message : ErrorHandler.userMessage(e);
       state = state.copyWith(
         state: AuthScreenState.error,
-        errorMessage: ErrorHandler.userMessage(e),
+        errorMessage: msg,
       );
     }
   }

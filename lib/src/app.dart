@@ -10,6 +10,8 @@ import 'core/constants/app_links.dart';
 import 'core/constants/app_spacing.dart';
 import 'core/constants/app_typography.dart';
 import 'core/providers/auth_provider.dart';
+import 'core/providers/proxy_provider.dart';
+import 'core/services/proxy_service.dart';
 import 'core/utils/external_link.dart';
 import 'features/ai/screens/ai_screen.dart';
 import 'features/ai/screens/explore_screen.dart';
@@ -41,6 +43,10 @@ import 'models/file_model.dart';
 class _AuthNotifier extends ChangeNotifier {
   _AuthNotifier(Ref ref) {
     ref.listen<AsyncValue<User?>>(authStateProvider, (_, __) {
+      notifyListeners();
+    });
+    // Also react when the proxy session changes (e.g. ISP-blocked regions).
+    ref.listen<ProxySession?>(proxySessionProvider, (_, __) {
       notifyListeners();
     });
   }
@@ -491,7 +497,8 @@ final _routerProvider = Provider<GoRouter>((ref) {
     initialLocation: '/login',
     refreshListenable: authNotifier,
     redirect: (context, state) {
-      final isLoggedIn = ref.read(authStateProvider).valueOrNull != null;
+      final isLoggedIn = ref.read(authStateProvider).valueOrNull != null ||
+          ref.read(proxySessionProvider) != null;
       final isAuthRoute =
           state.matchedLocation == '/login' ||
           state.matchedLocation == '/signup' ||
