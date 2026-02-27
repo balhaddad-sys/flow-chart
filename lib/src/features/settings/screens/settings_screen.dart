@@ -7,6 +7,7 @@ import '../../../core/constants/app_links.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
+import '../../../core/utils/error_handler.dart';
 import '../../../core/utils/external_link.dart';
 import '../../home/providers/home_provider.dart';
 import '../../../models/course_model.dart';
@@ -53,11 +54,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         );
       }
-    } catch (_) {
+    } catch (e) {
+      ErrorHandler.logError(e);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to rename course'),
+          SnackBar(
+            content: Text('Failed to rename course: ${e.toString()}'),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -86,11 +88,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ),
         );
       }
-    } catch (_) {
+    } catch (e) {
+      ErrorHandler.logError(e);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to delete course'),
+          SnackBar(
+            content: Text('Failed to delete course: ${e.toString()}'),
             behavior: SnackBarBehavior.floating,
           ),
         );

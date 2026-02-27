@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/user_provider.dart';
+import '../../../core/utils/error_handler.dart';
 import '../providers/exam_bank_provider.dart';
 
 /// Exam options that match the web app's EXAM_CATALOG.
@@ -61,12 +62,20 @@ class _ExamBankScreenState extends ConsumerState<ExamBankScreen> {
         examType: _selectedExam!,
         count: 10,
       );
-      final questions = (result['questions'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final questions = (result['questions'] as List?)
+              ?.whereType<Map>()
+              .map((q) => Map<String, dynamic>.from(q))
+              .toList() ??
+          [];
       if (!mounted) return;
       setState(() { _questions = questions; _loading = false; });
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st);
       if (!mounted) return;
       setState(() { _error = 'Failed to load questions. Try again.'; _loading = false; });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to load questions. Please try again.')),
+      );
     }
   }
 
@@ -161,7 +170,8 @@ class _ExamBankScreenState extends ConsumerState<ExamBankScreen> {
     if (_currentIndex >= _questions.length) return const SizedBox.shrink();
     final q = _questions[_currentIndex];
     final stem = q['stem'] as String? ?? '';
-    final options = (q['options'] as List?)?.cast<String>() ?? [];
+    final options =
+        (q['options'] as List?)?.whereType<String>().toList() ?? [];
     final correctIdx = (q['correctIndex'] as num?)?.toInt() ?? 0;
     final explanation = q['explanation'];
     final keyTakeaway = explanation is Map ? (explanation['keyTakeaway'] as String? ?? '') : '';

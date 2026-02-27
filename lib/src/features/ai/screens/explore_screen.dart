@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/user_provider.dart';
+import '../../../core/utils/error_handler.dart';
 
 // ── Level options ─────────────────────────────────────────────────────────────
 
@@ -62,8 +63,9 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
           'No content returned.';
       setState(() => _insightText = insight);
     } catch (e) {
+      ErrorHandler.logError(e);
       if (!mounted) return;
-      setState(() => _errorText = 'Failed to get insight. Please try again.');
+      setState(() => _errorText = e.toString());
     } finally {
       if (mounted) setState(() => _loadingInsight = false);
     }
@@ -93,10 +95,11 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         return;
       }
       setState(() =>
-          _quizQuestions = questions.cast<Map<String, dynamic>>());
+          _quizQuestions = questions.whereType<Map>().map((q) => Map<String, dynamic>.from(q)).toList());
     } catch (e) {
+      ErrorHandler.logError(e);
       if (!mounted) return;
-      setState(() => _errorText = 'Failed to generate quiz. Please try again.');
+      setState(() => _errorText = e.toString());
     } finally {
       if (mounted) setState(() => _loadingQuiz = false);
     }

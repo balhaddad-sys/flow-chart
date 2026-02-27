@@ -27,10 +27,13 @@ class AnalyticsScreen extends ConsumerWidget {
     final statsAsync = ref.watch(courseStatsProvider(courseId));
     final coursesAsync = ref.watch(coursesProvider);
 
-    final activeCourse = coursesAsync.valueOrNull?.firstWhere(
-      (c) => c.id == courseId,
-      orElse: () => coursesAsync.valueOrNull!.first,
-    );
+    final coursesList = coursesAsync.valueOrNull;
+    if (coursesList == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    final activeCourse = coursesList.where((c) => c.id == courseId).firstOrNull;
 
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
