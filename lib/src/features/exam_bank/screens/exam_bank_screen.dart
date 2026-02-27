@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/user_provider.dart';
+import '../../../core/utils/error_handler.dart';
 import '../providers/exam_bank_provider.dart';
 
 /// Exam options that match the web app's EXAM_CATALOG.
@@ -28,6 +29,50 @@ const _examOptions = [
     _ExamOption('OSCE', 'OSCE Practice', 'General OSCE'),
   ]),
 ];
+
+/// Exam metadata matching the web app's EXAM_META.
+const _examMeta = {
+  'PLAB1': _ExamMeta(
+    focus: 'Clinical reasoning, UK guidelines, prescribing safety, GMC ethics',
+    tip: 'Anchor every answer to NICE guidelines and BNF drug choices. GMC ethics questions follow Good Medical Practice — know it.',
+  ),
+  'PLAB2': _ExamMeta(
+    focus: 'Clinical examination, communication, history taking, data interpretation',
+    tip: 'Use SOCRATES for pain, ICE for patient concerns, SBAR for handover. Every station has a hidden communication mark.',
+  ),
+  'MRCP_PART1': _ExamMeta(
+    focus: 'Mechanism-level medicine, rare presentations, investigation logic',
+    tip: 'Know the pathophysiology behind each drug — Best of Five rewards mechanism understanding, not pattern-matching.',
+  ),
+  'MRCP_PACES': _ExamMeta(
+    focus: 'Physical examination, history, communication, data interpretation, ethics',
+    tip: 'Communication station: use IDEAS framework. Examiners mark empathy and structure separately from medical content.',
+  ),
+  'MRCGP_AKT': _ExamMeta(
+    focus: 'Primary care, QOF, NNT, drug thresholds, referral pathways',
+    tip: 'Know QOF targets, QRISK thresholds, and when NOT to prescribe. Extended matching items need fast elimination.',
+  ),
+  'USMLE_STEP1': _ExamMeta(
+    focus: 'Basic science mechanisms, pathophysiology, pharmacology, microbiology',
+    tip: 'Every clinical vignette links to basic science. Always ask "what is the underlying mechanism?" before choosing an answer.',
+  ),
+  'USMLE_STEP2': _ExamMeta(
+    focus: 'Clinical reasoning, diagnosis, management, preventive care',
+    tip: 'Prioritise what to do NEXT, not the final diagnosis. Know USPSTF screening guidelines and first-line drugs.',
+  ),
+  'FINALS': _ExamMeta(
+    focus: 'Core clinical medicine, surgery, O&G, psychiatry, paediatrics',
+    tip: 'Know common presentations and their first-line investigations and management — breadth over depth.',
+  ),
+  'SBA': _ExamMeta(
+    focus: 'Core diagnosis, investigation logic, and first-line management',
+    tip: 'Use decisive clues in the stem and practice ruling out the strongest distractor.',
+  ),
+  'OSCE': _ExamMeta(
+    focus: 'History, examination flow, communication, and safe escalation',
+    tip: 'Prioritise structure and safety first, then clinical depth and shared decisions.',
+  ),
+};
 
 class ExamBankScreen extends ConsumerStatefulWidget {
   final String? examType;
@@ -61,12 +106,20 @@ class _ExamBankScreenState extends ConsumerState<ExamBankScreen> {
         examType: _selectedExam!,
         count: 10,
       );
-      final questions = (result['questions'] as List?)?.whereType<Map<String, dynamic>>().toList() ?? [];
+      final questions = (result['questions'] as List?)
+              ?.whereType<Map>()
+              .map((q) => Map<String, dynamic>.from(q))
+              .toList() ??
+          [];
       if (!mounted) return;
       setState(() { _questions = questions; _loading = false; });
-    } catch (e) {
+    } catch (e, st) {
+      ErrorHandler.logError(e, st);
       if (!mounted) return;
       setState(() { _error = 'Failed to load questions. Try again.'; _loading = false; });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to load questions. Please try again.')),
+      );
     }
   }
 
@@ -161,7 +214,8 @@ class _ExamBankScreenState extends ConsumerState<ExamBankScreen> {
     if (_currentIndex >= _questions.length) return const SizedBox.shrink();
     final q = _questions[_currentIndex];
     final stem = q['stem'] as String? ?? '';
-    final options = (q['options'] as List?)?.cast<String>() ?? [];
+    final options =
+        (q['options'] as List?)?.whereType<String>().toList() ?? [];
     final correctIdx = (q['correctIndex'] as num?)?.toInt() ?? 0;
     final explanation = q['explanation'];
     final keyTakeaway = explanation is Map ? (explanation['keyTakeaway'] as String? ?? '') : '';
@@ -193,6 +247,34 @@ class _ExamBankScreenState extends ConsumerState<ExamBankScreen> {
             color: AppColors.primary, minHeight: 3),
         ),
         AppSpacing.gapLg,
+
+        // Exam tip banner (only on first question)
+        if (_currentIndex == 0 && _examMeta[_selectedExam] != null) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.warning.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+              border: Border.all(color: AppColors.warning.withValues(alpha: 0.25)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.bolt_rounded, size: 14, color: AppColors.warning),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Exam tip: ${_examMeta[_selectedExam]!.tip}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontSize: 12, height: 1.4,
+                        color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          AppSpacing.gapMd,
+        ],
 
         // Stem
         Text(stem, style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -289,6 +371,12 @@ class _ExamOption {
   const _ExamOption(this.key, this.label, this.badge);
 }
 
+class _ExamMeta {
+  final String focus;
+  final String tip;
+  const _ExamMeta({required this.focus, required this.tip});
+}
+
 class _ExamCard extends StatelessWidget {
   final _ExamOption exam;
   final bool isDark;
@@ -321,6 +409,18 @@ class _ExamCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(exam.badge, style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary, fontSize: 11)),
+                  if (_examMeta[exam.key] != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      _examMeta[exam.key]!.focus,
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: isDark ? AppColors.darkTextTertiary : AppColors.textTertiary,
+                          fontSize: 10,
+                          height: 1.4),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ],
               ),
             ),

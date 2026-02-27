@@ -16,7 +16,7 @@ class ActiveLearningPanel extends ConsumerWidget {
 
     return sectionAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Error: $e')),
+      error: (e, _) => const Center(child: Text('Unable to load study content. Please try again.')),
       data: (section) {
         if (section == null) {
           return const Center(child: Text('Section not found'));

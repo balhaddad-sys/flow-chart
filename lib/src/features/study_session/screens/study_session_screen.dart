@@ -5,6 +5,7 @@ import 'package:pdfrx/pdfrx.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/auth_provider.dart';
+import '../../../core/utils/error_handler.dart';
 import '../providers/session_provider.dart';
 import '../widgets/active_learning_panel.dart';
 import '../widgets/session_timer.dart';
@@ -142,37 +143,40 @@ class _PdfViewerPanel extends ConsumerWidget {
 
     return sectionAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(
-        child: Padding(
-          padding: AppSpacing.cardPadding,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 56,
-                height: 56,
-                decoration: const BoxDecoration(
-                  color: AppColors.errorSurface,
-                  shape: BoxShape.circle,
+      error: (e, st) {
+        ErrorHandler.logError(e, st);
+        return Center(
+          child: Padding(
+            padding: AppSpacing.cardPadding,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 56,
+                  height: 56,
+                  decoration: const BoxDecoration(
+                    color: AppColors.errorSurface,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.error_outline_rounded,
+                      color: AppColors.error, size: 28),
                 ),
-                child: const Icon(Icons.error_outline_rounded,
-                    color: AppColors.error, size: 28),
-              ),
-              AppSpacing.gapMd,
-              Text(
-                'Could not load PDF',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              AppSpacing.gapSm,
-              Text(
-                '$e',
-                style: Theme.of(context).textTheme.bodySmall,
-                textAlign: TextAlign.center,
-              ),
-            ],
+                AppSpacing.gapMd,
+                Text(
+                  'Could not load PDF',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                AppSpacing.gapSm,
+                Text(
+                  'Failed to load PDF. Please try again.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
       data: (section) {
         if (section == null) {
           return const Center(child: Text('Section not found'));
@@ -195,39 +199,42 @@ class _PdfViewerPanel extends ConsumerWidget {
               ],
             ),
           ),
-          error: (e, _) => Center(
-            child: Padding(
-              padding: AppSpacing.cardPadding,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: const BoxDecoration(
-                      color: AppColors.errorSurface,
-                      shape: BoxShape.circle,
+          error: (e, st) {
+            ErrorHandler.logError(e, st);
+            return Center(
+              child: Padding(
+                padding: AppSpacing.cardPadding,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: const BoxDecoration(
+                        color: AppColors.errorSurface,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.cloud_off_rounded,
+                          color: AppColors.error, size: 28),
                     ),
-                    child: const Icon(Icons.cloud_off_rounded,
-                        color: AppColors.error, size: 28),
-                  ),
-                  AppSpacing.gapMd,
-                  Text(
-                    'Failed to load file',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  AppSpacing.gapSm,
-                  Text(
-                    '$e',
-                    style: Theme.of(context).textTheme.bodySmall,
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                    AppSpacing.gapMd,
+                    Text(
+                      'Failed to load file',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    AppSpacing.gapSm,
+                    Text(
+                      'Failed to load PDF. Please try again.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
           data: (url) {
-            if (url == null) {
+            if (url == null || url.isEmpty) {
               return const Center(child: Text('PDF not available'));
             }
             return PdfViewer.uri(

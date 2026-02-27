@@ -65,3 +65,4 @@ temp-users.json
 lib/firebase_options.dart
 .vercel
 .env*.local
+.claude/worktrees/

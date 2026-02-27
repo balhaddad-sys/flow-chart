@@ -7,6 +7,7 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../core/utils/date_utils.dart';
+import '../../../core/utils/error_handler.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../models/task_model.dart';
 import '../providers/home_provider.dart';
@@ -127,7 +128,19 @@ class _TaskRow extends ConsumerWidget {
             if (!isDone) {
               final uid = ref.read(uidProvider);
               if (uid != null) {
-                await ref.read(firestoreServiceProvider).completeTask(uid, task.id);
+                try {
+                  await ref.read(firestoreServiceProvider).completeTask(uid, task.id);
+                  if (!context.mounted) return;
+                } catch (e) {
+                  ErrorHandler.logError(e);
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to complete task: ${e.toString()}'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
               }
             }
           },

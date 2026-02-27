@@ -10,6 +10,7 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../core/services/storage_service.dart';
+import '../../../core/utils/error_handler.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../home/providers/home_provider.dart';
 import '../providers/library_provider.dart';
@@ -179,6 +180,7 @@ class LibraryScreen extends ConsumerWidget {
         );
       }
     } catch (e) {
+      ErrorHandler.logError(e);
       ref.read(_uploadStateProvider.notifier).state = const _UploadState();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -200,7 +202,7 @@ class LibraryScreen extends ConsumerWidget {
     return Scaffold(
       body: coursesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => const Center(child: Text('Unable to load library. Please try again.')),
         data: (courses) {
           if (courses.isEmpty) {
             return Column(
@@ -658,7 +660,7 @@ class _CourseSection extends ConsumerWidget {
         AppSpacing.gapSm,
         filesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Text('Error: $e'),
+          error: (e, _) => const Text('Unable to load files. Please try again.'),
           data: (files) {
             if (files.isEmpty) {
               return Container(

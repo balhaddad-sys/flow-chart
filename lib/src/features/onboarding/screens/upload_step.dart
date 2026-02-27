@@ -63,7 +63,7 @@ class _UploadStepState extends ConsumerState<UploadStep> {
       });
     } catch (e) {
       setState(() {
-        _statusMessage = 'Error: $e';
+        _statusMessage = 'Failed to add file. Please try again.';
         _isError = true;
         _isPickingFile = false;
       });

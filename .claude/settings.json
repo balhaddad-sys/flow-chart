@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(flutter pub run build_runner build:*)"
+      "Bash(flutter pub run build_runner build:*)",
+      "Bash(firebase deploy:*)",
+      "Bash(gh run list --branch claude/final --limit 1)"
     ]
   }
 }

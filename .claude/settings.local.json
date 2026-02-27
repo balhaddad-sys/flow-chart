@@ -10,14 +10,14 @@
       "Bash(git reset:*)",
       "Bash(firebase functions:log:*)",
       "Bash(git restore:*)",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\nFix: Data schema mismatch and silent question generation failures\n\n## Issue 1: Data Schema Mismatch \\(Critical\\)\n**Problem:** \n- prompts.js asks for `why_others_wrong` as array\n- serialize.js stored it as single string\n- Frontend expected List<String>\n- Result: Array became \"wa,wb,wc,wd,we\" string\n\n**Fix:**\n- serialize.js now keeps whyOthersWrong as List<String>\n- Each element sanitized and truncated individually \\(max 400 chars each\\)\n- Limited to 8 items matching max options\n\n## Issue 2: Silent Question Generation Failures \\(Critical\\)\n**Problem:**\n- Section marked as \"ANALYZED\" before question generation\n- If questions failed, only logged without marking failure\n- UI treated ANALYZED as quiz-ready\n- Users could open quiz with no questions\n\n**Fix:**\n- Added `questionsStatus` field separate from `aiStatus`\n- States: PENDING → GENERATING → COMPLETED/FAILED\n- Section can be ANALYZED with questions FAILED\n- UI now checks both aiStatus AND questionsStatus\n- Added questionsCount and questionsErrorMessage fields\n\n## Issue 3: No Retry Path in UI\n**Problem:**\n- generateQuestions callable existed but unused in UI\n- No way to retry failed question generation\n\n**Fix:**\n- Added retry button for sections with questionsStatus: FAILED\n- Wired up to call generateQuestions cloud function\n- Auto-refreshes section list after retry\n- Shows proper loading/error states\n\n**Files Changed:**\n- functions/lib/serialize.js: Array handling for whyOthersWrong\n- functions/processing/processSection.js: Separate question status tracking\n- lib/src/models/section_model.dart: Added questionsStatus fields\n- lib/src/features/library/widgets/section_list.dart: Retry UI + status checking\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(git push:*)",
       "Bash(find:*)",
       "Bash(npx next build)",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nFix: Study notes CORS and quiz answer selection\n\n- Use Firebase SDK getBytes\\(\\) for text fetch \\(bypasses CORS\\)\n- Clamp timeSpentSec to max 3600 to prevent Cloud Function rejection\n- Add loading spinner on selected quiz option while submitting\n- Log submitAttempt errors to console for debugging\n\nCo-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(firebase deploy:*)",
       "Bash(git commit:*)",
-      "Bash(npx next build:*)"
+      "Bash(npx next build:*)",
+      "Bash(npm audit:*)"
     ]
   }
 }

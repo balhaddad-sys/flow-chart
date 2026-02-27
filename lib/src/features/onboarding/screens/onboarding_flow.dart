@@ -210,12 +210,22 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
                 if (data.currentStep < _stepCount - 1) {
                   ref.read(onboardingProvider.notifier).nextStep();
                 } else {
-                  final success =
-                      await ref
-                          .read(onboardingProvider.notifier)
-                          .finishOnboarding();
-                  if (success && context.mounted) {
-                    context.go('/today');
+                  try {
+                    final success =
+                        await ref
+                            .read(onboardingProvider.notifier)
+                            .finishOnboarding();
+                    if (success && context.mounted) {
+                      context.go('/today');
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Something went wrong. Please try again.'),
+                        ),
+                      );
+                    }
                   }
                 }
               },

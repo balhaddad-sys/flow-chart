@@ -46,7 +46,7 @@ class FileDetailScreen extends ConsumerWidget {
       ),
       body: fileAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => const Center(child: Text('Unable to load file. Please try again.')),
         data: (file) {
           if (file == null) {
             return const Center(child: Text('File not found'));

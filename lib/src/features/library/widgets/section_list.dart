@@ -23,9 +23,9 @@ class SectionList extends ConsumerWidget {
         padding: EdgeInsets.all(16),
         child: Center(child: CircularProgressIndicator()),
       ),
-      error: (e, _) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text('Error: $e'),
+      error: (e, _) => const Padding(
+        padding: EdgeInsets.all(16),
+        child: Text('Unable to load sections. Please try again.'),
       ),
       data: (sections) {
         if (sections.isEmpty) {

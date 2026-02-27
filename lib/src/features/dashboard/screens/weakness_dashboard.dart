@@ -45,7 +45,7 @@ class WeaknessDashboard extends ConsumerWidget {
     return Scaffold(
       body: statsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => const Center(child: Text('Unable to load data. Please try again.')),
         data: (stats) {
           if (stats == null || stats.weakestTopics.isEmpty) {
             return const EmptyState(

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/user_provider.dart';
+import '../../../core/utils/error_handler.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../home/providers/home_provider.dart';
 
@@ -75,6 +76,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
         )['id'] as String? ?? '';
       });
     } catch (e) {
+      ErrorHandler.logError(e);
       setState(() => _catalogError = e.toString());
     } finally {
       setState(() => _catalogLoading = false);
@@ -110,6 +112,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
         _answers.clear();
       });
     } catch (e) {
+      ErrorHandler.logError(e);
       setState(() => _runtimeError = e.toString());
     } finally {
       setState(() => _starting = false);
@@ -144,6 +147,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
         await _finishAssessment();
       }
     } catch (e) {
+      ErrorHandler.logError(e);
       setState(() => _runtimeError = e.toString());
     } finally {
       setState(() => _submitting = false);
@@ -162,6 +166,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
           .finishAssessmentSession(sessionId: _sessionId!);
       setState(() => _report = result);
     } catch (e) {
+      ErrorHandler.logError(e);
       setState(() => _runtimeError = e.toString());
     } finally {
       setState(() => _finishing = false);
