@@ -5,18 +5,17 @@ allprojects {
     }
 }
 
-// Build outside OneDrive to avoid sync-lock failures on Windows.
-// On Linux/CI the default Gradle build directory is used.
-if (System.getProperty("os.name").startsWith("Windows")) {
-    val newBuildDir: Directory =
-        rootProject.layout.buildDirectory
-            .dir("C:/Temp/medq-build")
-            .get()
-    rootProject.layout.buildDirectory.value(newBuildDir)
-    subprojects {
-        val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
-        project.layout.buildDirectory.value(newSubprojectBuildDir)
-    }
+// Flutter convention: all Gradle outputs go to {flutter_root}/build/ (outside android/).
+// This matches where flutter_tools looks for the generated APK/AAB.
+// On Windows, use C:/Temp/medq-build instead to avoid OneDrive sync-lock failures.
+val flutterBuildRoot: Directory =
+    if (System.getProperty("os.name").startsWith("Windows"))
+        rootProject.layout.projectDirectory.dir("C:/Temp/medq-build")
+    else
+        rootProject.layout.projectDirectory.dir("../build")
+rootProject.layout.buildDirectory.value(flutterBuildRoot)
+subprojects {
+    project.layout.buildDirectory.value(flutterBuildRoot.dir(project.name))
 }
 
 // Fix for AGP 8.x: FlutterFire plugins declare `api project(':firebase_core')` inside
