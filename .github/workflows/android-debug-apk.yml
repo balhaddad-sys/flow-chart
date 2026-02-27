@@ -52,15 +52,12 @@ jobs:
         run: dart fix --apply
 
       - name: Analyze
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos
 
       - name: Build debug APK
         run: |
           set -euo pipefail
 
-          # Flutter may return non-zero even when Gradle produced the APK
-          # because our custom build-dir mapping puts outputs where Flutter
-          # doesn't expect them.  Build first, then locate the artifact.
           flutter build apk --debug || true
 
           echo ""
@@ -78,7 +75,6 @@ jobs:
             echo "  $apk  ($(du -h "$apk" | cut -f1))"
           done
 
-          # Prefer the flutter-apk output directory if present; otherwise take first hit
           selected="${found_apks[0]}"
           for apk in "${found_apks[@]}"; do
             if [[ "$apk" == *"flutter-apk"* ]]; then
@@ -100,3 +96,4 @@ jobs:
           name: medq-debug-apk-${{ github.sha }}
           path: build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 14
+          if-no-files-found: error

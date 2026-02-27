@@ -682,9 +682,10 @@ final _routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/quiz/:sectionId',
-        builder:
-            (context, state) =>
-                QuizScreen(sectionId: state.pathParameters['sectionId']),
+        builder: (context, state) => QuizScreen(
+          sectionId: state.pathParameters['sectionId'],
+          mode: state.uri.queryParameters['mode'] ?? 'section',
+        ),
       ),
     ],
   );

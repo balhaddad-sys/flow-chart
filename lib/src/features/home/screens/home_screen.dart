@@ -48,13 +48,31 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _deckSeeded = false;
   bool _fixingPlan = false;
 
+  void _showSnackBar(String message, {Color? backgroundColor}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: backgroundColor,
+      ),
+    );
+  }
+
   Future<void> _seedSampleDeck() async {
     setState(() => _seedingDeck = true);
     try {
-      await ref.read(cloudFunctionsServiceProvider).seedSampleDeck();
-      if (mounted) setState(() => _deckSeeded = true);
-    } catch (_) {
-      // silently ignore
+      final result = await ref.read(cloudFunctionsServiceProvider).seedSampleDeck();
+      if (!mounted) return;
+      if (result['alreadySeeded'] == true) {
+        _showSnackBar('Sample deck is already in your account.');
+      } else {
+        setState(() => _deckSeeded = true);
+        final count = result['questionCount'] ?? 0;
+        _showSnackBar('Sample deck ready — $count high-yield questions loaded!', backgroundColor: const Color(0xFF059669));
+      }
+    } catch (e) {
+      _showSnackBar('Failed to load sample deck. Please try again.', backgroundColor: const Color(0xFFDC2626));
     } finally {
       if (mounted) setState(() => _seedingDeck = false);
     }
@@ -63,11 +81,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _runFixPlan(String courseId) async {
     setState(() => _fixingPlan = true);
     try {
-      await ref
-          .read(cloudFunctionsServiceProvider)
-          .runFixPlan(courseId: courseId);
-    } catch (_) {
-      // silently ignore
+      await ref.read(cloudFunctionsServiceProvider).runFixPlan(courseId: courseId);
+      _showSnackBar('Remediation plan generated. Check your plan for updated tasks.', backgroundColor: const Color(0xFF059669));
+    } catch (e) {
+      _showSnackBar('Failed to generate remediation plan. Please try again.', backgroundColor: const Color(0xFFDC2626));
     } finally {
       if (mounted) setState(() => _fixingPlan = false);
     }
@@ -329,7 +346,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         _ExamBankCard(
                           examShortLabel: examShortLabel,
                           isDark: isDark,
-                          onTap: () => context.go('/practice'),
+                          onTap: () => context.go('/exam-bank?exam=${Uri.encodeComponent(examType)}'),
                         ),
                         AppSpacing.gapMd,
                       ],

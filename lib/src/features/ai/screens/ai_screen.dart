@@ -59,7 +59,14 @@ class _AiScreenState extends ConsumerState<AiScreen> {
           .createChatThread(uid, courseId: courseId, title: 'New conversation');
       _openThread(threadId, 'New conversation');
     } catch (_) {
-      // silently ignore
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to create conversation. Please try again.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _creating = false);
     }
@@ -382,8 +389,8 @@ class _HubViewState extends ConsumerState<_HubView> {
                     description:
                         'Generate adaptive quizzes and teaching outlines for any medical topic.',
                     buttonLabel: 'Open Explore',
-                    enabled: hasActiveCourse,
-                    onTap: widget.onNewThread,
+                    enabled: true,
+                    onTap: () async { context.go('/ai/explore'); },
                   ),
                 ),
                 const SizedBox(width: 12),
