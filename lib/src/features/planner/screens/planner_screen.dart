@@ -150,8 +150,7 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                 message: ErrorHandler.userMessage(actionsState.error!),
                 isDark: isDark,
                 onDismiss: () =>
-                    ref.read(plannerActionsProvider.notifier).state =
-                        const AsyncData(null),
+                    ref.read(plannerActionsProvider.notifier).clearError(),
               ),
 
             // ── Content ────────────────────────────────────────────────────

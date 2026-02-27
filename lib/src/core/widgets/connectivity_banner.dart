@@ -4,7 +4,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
-import '../constants/app_spacing.dart';
 
 /// A banner that slides in from the top when the device is offline.
 ///

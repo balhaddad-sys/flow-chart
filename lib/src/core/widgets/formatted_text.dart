@@ -129,7 +129,6 @@ class FormattedText extends StatelessWidget {
         );
 
       case _BlockType.paragraph:
-      default:
         if (block.text.trim().isEmpty) {
           return const SizedBox(height: 8);
         }

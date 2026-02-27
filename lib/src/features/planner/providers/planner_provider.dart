@@ -88,6 +88,11 @@ class PlannerActionsNotifier extends StateNotifier<AsyncValue<void>> {
 
   PlannerActionsNotifier(this._ref) : super(const AsyncData(null));
 
+  /// Reset state to idle (clears any error).
+  void clearError() {
+    state = const AsyncData(null);
+  }
+
   Future<void> generateSchedule(String courseId) async {
     state = const AsyncLoading();
     try {

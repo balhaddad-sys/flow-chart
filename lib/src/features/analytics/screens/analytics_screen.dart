@@ -292,12 +292,6 @@ class _OverviewRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final studyH = stats.totalStudyMinutes ~/ 60;
-    final studyM = stats.totalStudyMinutes % 60;
-    final studyLabel = studyH > 0
-        ? (studyM > 0 ? '${studyH}h ${studyM}m' : '${studyH}h')
-        : '${stats.totalStudyMinutes}m';
-
     return Row(
       children: [
         Expanded(
@@ -697,19 +691,17 @@ class _AnalyticsSkeleton extends StatelessWidget {
 class _MetricCard extends StatelessWidget {
   final bool isDark;
   final Widget child;
-  final EdgeInsetsGeometry? padding;
 
   const _MetricCard({
     required this.isDark,
     required this.child,
-    this.padding,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: padding ?? const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface : AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
