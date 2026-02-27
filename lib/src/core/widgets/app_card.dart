@@ -22,7 +22,7 @@ class AppCard extends StatelessWidget {
     this.padding,
     this.accentColor,
     this.onTap,
-    this.borderRadius = AppSpacing.radiusMd,
+    this.borderRadius = AppSpacing.radiusLg,
     this.elevated = true,
   });
 
@@ -31,49 +31,45 @@ class AppCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final decoration = BoxDecoration(
-      color: isDark ? AppColors.darkSurface : AppColors.surface,
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors:
+            isDark
+                ? [AppColors.darkSurfaceElevated, AppColors.darkSurface]
+                : [AppColors.surfaceElevated, AppColors.surface],
+      ),
       borderRadius: BorderRadius.circular(borderRadius),
       border: Border.all(
-        color: isDark
-            ? AppColors.darkBorder.withValues(alpha: 0.6)
-            : AppColors.border.withValues(alpha: 0.7),
-        width: 0.5,
+        color:
+            isDark
+                ? AppColors.darkBorder.withValues(alpha: 0.9)
+                : AppColors.border.withValues(alpha: 0.85),
+        width: 1,
       ),
-      boxShadow: elevated && !isDark
-          ? [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
-                blurRadius: 2,
-                offset: const Offset(0, 1),
-              ),
-            ]
-          : null,
+      boxShadow: elevated && !isDark ? AppSpacing.shadowMd : null,
     );
 
     Widget card = Container(
       decoration: decoration,
-      child: accentColor != null
-          ? ClipRRect(
-              borderRadius: BorderRadius.circular(borderRadius),
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border(
-                    left: BorderSide(color: accentColor!, width: 3),
+      child:
+          accentColor != null
+              ? ClipRRect(
+                borderRadius: BorderRadius.circular(borderRadius),
+                child: Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      left: BorderSide(color: accentColor!, width: 4),
+                    ),
                   ),
+                  padding: padding ?? AppSpacing.cardPadding,
+                  child: child,
                 ),
+              )
+              : Padding(
                 padding: padding ?? AppSpacing.cardPadding,
                 child: child,
               ),
-            )
-          : Padding(
-              padding: padding ?? AppSpacing.cardPadding,
-              child: child,
-            ),
     );
 
     if (onTap != null) {
@@ -108,16 +104,7 @@ class GradientHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    final gradientColors = colors ??
-        (isDark
-            ? [
-                const Color(0xFF0F2928),
-                AppColors.darkBackground,
-              ]
-            : [
-                const Color(0xFFE6FAF8),
-                AppColors.background,
-              ]);
+    final gradientColors = colors ?? AppColors.headerGradient(isDark).colors;
 
     return Container(
       width: double.infinity,
@@ -131,7 +118,7 @@ class GradientHeader extends StatelessWidget {
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: padding ?? const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          padding: padding ?? const EdgeInsets.fromLTRB(24, 24, 24, 0),
           child: child,
         ),
       ),
@@ -156,10 +143,11 @@ class StatBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = color ?? AppColors.primary;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: c.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+        border: Border.all(color: c.withValues(alpha: 0.12)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -202,13 +190,12 @@ class SectionLabel extends StatelessWidget {
         Text(
           text.toUpperCase(),
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: isDark
-                    ? AppColors.darkTextSecondary
-                    : AppColors.textSecondary,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.0,
-                fontSize: 11,
-              ),
+            color:
+                isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.9,
+            fontSize: 11,
+          ),
         ),
         const Spacer(),
         if (actionText != null)
@@ -217,10 +204,10 @@ class SectionLabel extends StatelessWidget {
             child: Text(
               actionText!,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 12,
-                  ),
+                color: AppColors.primary,
+                fontWeight: FontWeight.w500,
+                fontSize: 12,
+              ),
             ),
           ),
       ],

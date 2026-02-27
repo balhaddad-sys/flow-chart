@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
+import '../constants/app_spacing.dart';
 
 /// A Google "G" logo painted to match official branding.
 class _GoogleLogoPainter extends CustomPainter {
@@ -191,81 +192,102 @@ class GoogleSignInButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor =
+        isDark ? AppColors.darkSurfaceElevated : AppColors.surface;
+    final iconSurface =
+        isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant;
 
     return SizedBox(
       width: double.infinity,
-      height: 44,
-      child: OutlinedButton(
-        onPressed: isLoading ? null : onPressed,
-        style: OutlinedButton.styleFrom(
-          backgroundColor: isDark ? AppColors.darkSurface : AppColors.surface,
-          foregroundColor:
-              isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
-          side: BorderSide(
+      height: 52,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: backgroundColor,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          border: Border.all(
             color:
                 isDark
-                    ? AppColors.darkBorder.withValues(alpha: 0.8)
-                    : AppColors.border.withValues(alpha: 0.8),
+                    ? AppColors.darkBorder.withValues(alpha: 0.95)
+                    : AppColors.border.withValues(alpha: 0.95),
           ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          elevation: 0,
+          boxShadow: isDark ? null : AppSpacing.shadowSm,
         ),
-        child:
-            isLoading
-                ? Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      height: 16,
-                      width: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.0,
-                        color: isDark ? Colors.white70 : Colors.black54,
+        child: OutlinedButton(
+          onPressed: isLoading ? null : onPressed,
+          style: OutlinedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            foregroundColor:
+                isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
+            side: BorderSide.none,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            elevation: 0,
+          ),
+          child:
+              isLoading
+                  ? Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.0,
+                          color: isDark ? Colors.white70 : Colors.black54,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Connecting...',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color:
-                            isDark
-                                ? AppColors.darkTextPrimary
-                                : AppColors.textPrimary,
+                      const SizedBox(width: 10),
+                      Text(
+                        'Connecting...',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color:
+                              isDark
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.textPrimary,
+                        ),
                       ),
-                    ),
-                  ],
-                )
-                : Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CustomPaint(
-                        size: const Size(16, 16),
-                        painter: _GoogleLogoPainter(),
+                    ],
+                  )
+                  : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: iconSurface,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        alignment: Alignment.center,
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CustomPaint(
+                            size: const Size(16, 16),
+                            painter: _GoogleLogoPainter(),
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color:
-                            isDark
-                                ? AppColors.darkTextPrimary
-                                : AppColors.textPrimary,
+                      const SizedBox(width: 12),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color:
+                              isDark
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.textPrimary,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+        ),
       ),
     );
   }

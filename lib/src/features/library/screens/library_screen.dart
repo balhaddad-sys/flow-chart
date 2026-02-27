@@ -1,3 +1,4 @@
+// FILE: lib/src/features/library/screens/library_screen.dart
 import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
@@ -19,7 +20,7 @@ import '../widgets/file_card.dart';
 const _uuid = Uuid();
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Upload state provider — tracks active upload across rebuilds
+// Upload state — tracks active upload across rebuilds
 // ─────────────────────────────────────────────────────────────────────────────
 
 @immutable
@@ -58,7 +59,6 @@ class LibraryScreen extends ConsumerWidget {
   const LibraryScreen({super.key});
 
   Future<void> _uploadFile(BuildContext context, WidgetRef ref) async {
-    // Prevent double-tapping
     if (ref.read(_uploadStateProvider).isUploading) return;
 
     final uid = ref.read(uidProvider);
@@ -100,13 +100,13 @@ class LibraryScreen extends ConsumerWidget {
                 'Unsupported file type: .${ext ?? 'unknown'}. '
                 'Use PDF, PPTX, or DOCX.',
               ),
+              behavior: SnackBarBehavior.floating,
             ),
           );
         }
         return;
       }
 
-      // Client-side size check
       if (file.size > StorageService.maxFileSizeBytes) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -115,13 +115,13 @@ class LibraryScreen extends ConsumerWidget {
                 'File too large (${(file.size / 1024 / 1024).toStringAsFixed(1)} MB). '
                 'Max is ${StorageService.maxFileSizeBytes ~/ 1024 ~/ 1024} MB.',
               ),
+              behavior: SnackBarBehavior.floating,
             ),
           );
         }
         return;
       }
 
-      // Start upload — show inline progress
       ref.read(_uploadStateProvider.notifier).state = _UploadState(
         isUploading: true,
         progress: 0,
@@ -133,8 +133,6 @@ class LibraryScreen extends ConsumerWidget {
       final fileId = _uuid.v4();
       final storagePath = 'users/$uid/uploads/$fileId.$ext';
 
-      // Create metadata first so the storage trigger can resolve courseId/fileId
-      // deterministically from users/{uid}/files/{fileId}.
       await firestoreService.createFile(uid, fileId, {
         'courseId': activeCourseId,
         'originalName': file.name,
@@ -145,7 +143,6 @@ class LibraryScreen extends ConsumerWidget {
         'status': 'UPLOADED',
       });
 
-      // Upload to storage with cleanup on failure
       try {
         await storageService.uploadFile(
           uid: uid,
@@ -157,14 +154,11 @@ class LibraryScreen extends ConsumerWidget {
           },
         );
       } catch (uploadError) {
-        // CRITICAL: Clean up orphan Firestore record if storage upload fails
         try {
           await firestoreService.deleteFile(uid, fileId);
         } catch (cleanupError) {
-          // Log cleanup error but don't hide the original upload error
           debugPrint('Cleanup failed: $cleanupError');
         }
-        // Re-throw the original upload error to outer catch block
         rethrow;
       }
 
@@ -200,14 +194,28 @@ class LibraryScreen extends ConsumerWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
+      floatingActionButton: FloatingActionButton(
+        onPressed: uploadState.isUploading
+            ? null
+            : () => _uploadFile(context, ref),
+        backgroundColor: uploadState.isUploading
+            ? (isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant)
+            : AppColors.primary,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        tooltip: 'Upload Materials',
+        child: const Icon(Icons.upload_file_rounded),
+      ),
       body: coursesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => const Center(child: Text('Unable to load library. Please try again.')),
+        error: (e, _) => const Center(
+            child: Text('Unable to load library. Please try again.')),
         data: (courses) {
           if (courses.isEmpty) {
             return Column(
               children: [
-                _LibraryHeader(fileCount: 0, isDark: isDark),
+                _LibraryHeader(isDark: isDark),
                 const Expanded(
                   child: EmptyState(
                     icon: Icons.folder_open_rounded,
@@ -222,15 +230,10 @@ class LibraryScreen extends ConsumerWidget {
 
           return CustomScrollView(
             slivers: [
-              // ── Header ──────────────────────────────────────────
               SliverToBoxAdapter(
-                child: _LibraryHeader(
-                  fileCount: null,
-                  isDark: isDark,
-                ),
+                child: _LibraryHeader(isDark: isDark),
               ),
 
-              // ── Upload Area / Progress ────────────────────────
               SliverPadding(
                 padding: AppSpacing.screenHorizontal,
                 sliver: SliverToBoxAdapter(
@@ -249,7 +252,6 @@ class LibraryScreen extends ConsumerWidget {
 
               const SliverToBoxAdapter(child: AppSpacing.gapLg),
 
-              // ── Course Sections ─────────────────────────────────
               SliverPadding(
                 padding: AppSpacing.screenHorizontal,
                 sliver: SliverList(
@@ -259,6 +261,7 @@ class LibraryScreen extends ConsumerWidget {
                       return _CourseSection(
                         courseId: course.id,
                         courseTitle: course.title,
+                        isDark: isDark,
                       );
                     },
                     childCount: courses.length,
@@ -266,9 +269,8 @@ class LibraryScreen extends ConsumerWidget {
                 ),
               ),
 
-              // Bottom safe-area breathing room
               const SliverToBoxAdapter(
-                child: SizedBox(height: AppSpacing.xxl),
+                child: SizedBox(height: AppSpacing.xxl + AppSpacing.xl),
               ),
             ],
           );
@@ -283,10 +285,9 @@ class LibraryScreen extends ConsumerWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _LibraryHeader extends StatelessWidget {
-  final int? fileCount;
   final bool isDark;
 
-  const _LibraryHeader({required this.fileCount, required this.isDark});
+  const _LibraryHeader({required this.isDark});
 
   @override
   Widget build(BuildContext context) {
@@ -307,11 +308,12 @@ class _LibraryHeader extends StatelessWidget {
               style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     letterSpacing: -0.5,
+                    color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
                   ),
             ),
             const SizedBox(height: 4),
             Text(
-              'Upload study materials and let AI extract structured sections for quizzing.',
+              'Upload study materials',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: isDark
                         ? AppColors.darkTextSecondary
@@ -328,7 +330,7 @@ class _LibraryHeader extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Upload progress card — replaces the upload area while uploading
+// Upload progress card
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _UploadProgressCard extends StatelessWidget {
@@ -355,9 +357,9 @@ class _UploadProgressCard extends StatelessWidget {
         color: fillColor,
         borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         border: Border.all(
-          color:
-              AppColors.primary.withValues(alpha: isDark ? 0.3 : 0.2),
+          color: AppColors.primary.withValues(alpha: isDark ? 0.3 : 0.2),
         ),
+        boxShadow: isDark ? null : AppSpacing.shadowSm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -514,8 +516,8 @@ class _UploadAreaState extends State<_UploadArea>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  width: 44,
-                  height: 44,
+                  width: 48,
+                  height: 48,
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.12),
                     borderRadius:
@@ -524,7 +526,7 @@ class _UploadAreaState extends State<_UploadArea>
                   child: const Icon(
                     Icons.cloud_upload_outlined,
                     color: AppColors.primary,
-                    size: 24,
+                    size: 26,
                   ),
                 ),
                 AppSpacing.hGapMd,
@@ -534,21 +536,23 @@ class _UploadAreaState extends State<_UploadArea>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'Upload materials',
+                        'Upload Materials',
                         style:
                             Theme.of(context).textTheme.titleSmall?.copyWith(
-                                  fontWeight: FontWeight.w600,
+                                  fontWeight: FontWeight.w700,
                                   color: AppColors.primary,
+                                  fontSize: 15,
                                 ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 3),
                       Text(
                         'PDF, PPTX, or DOCX (max 100 MB)',
                         style:
                             Theme.of(context).textTheme.bodySmall?.copyWith(
                                   color: widget.isDark
-                                      ? AppColors.darkTextTertiary
-                                      : AppColors.textTertiary,
+                                      ? AppColors.darkTextSecondary
+                                      : AppColors.textSecondary,
+                                  fontSize: 12,
                                 ),
                       ),
                     ],
@@ -616,21 +620,22 @@ class _DashedBorderPainter extends CustomPainter {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Course section (unchanged business logic)
+// Course section
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _CourseSection extends ConsumerWidget {
   final String courseId;
   final String courseTitle;
+  final bool isDark;
 
   const _CourseSection({
     required this.courseId,
     required this.courseTitle,
+    required this.isDark,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final filesAsync = ref.watch(filesProvider(courseId));
 
     return Column(
@@ -639,39 +644,68 @@ class _CourseSection extends ConsumerWidget {
         Row(
           children: [
             Container(
-              width: 32,
-              height: 32,
+              width: 34,
+              height: 34,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
+                color: AppColors.primary.withValues(alpha: isDark ? 0.15 : 0.1),
                 borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
               ),
-              child: const Icon(Icons.folder, color: AppColors.primary,
-                  size: 18),
+              child: const Icon(
+                Icons.folder_rounded,
+                color: AppColors.primary,
+                size: 18,
+              ),
             ),
             AppSpacing.hGapSm,
             Expanded(
               child: Text(
                 courseTitle,
-                style: Theme.of(context).textTheme.titleLarge,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.textPrimary,
+                    ),
               ),
             ),
           ],
         ),
         AppSpacing.gapSm,
         filesAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => const Text('Unable to load files. Please try again.'),
+          loading: () => const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(
+              child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          ),
+          error: (e, _) => Padding(
+            padding: const EdgeInsets.all(12),
+            child: Text(
+              'Unable to load files. Please try again.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.error,
+                  ),
+            ),
+          ),
           data: (files) {
             if (files.isEmpty) {
               return Container(
                 width: double.infinity,
-                padding: AppSpacing.cardPadding,
+                padding: const EdgeInsets.symmetric(
+                    vertical: 20, horizontal: AppSpacing.md),
                 decoration: BoxDecoration(
                   color: isDark
                       ? AppColors.darkSurfaceVariant
                       : AppColors.surfaceVariant,
                   borderRadius:
                       BorderRadius.circular(AppSpacing.radiusMd),
+                  border: Border.all(
+                    color: isDark ? AppColors.darkBorder : AppColors.border,
+                  ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -686,10 +720,7 @@ class _CourseSection extends ConsumerWidget {
                     const SizedBox(width: 8),
                     Text(
                       'No files uploaded yet',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: isDark
                                 ? AppColors.darkTextTertiary
                                 : AppColors.textTertiary,
@@ -700,8 +731,9 @@ class _CourseSection extends ConsumerWidget {
               );
             }
             return Column(
-              children:
-                  files.map((file) => FileCard(file: file)).toList(),
+              children: files
+                  .map((file) => FileCard(file: file))
+                  .toList(),
             );
           },
         ),

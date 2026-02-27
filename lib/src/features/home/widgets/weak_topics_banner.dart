@@ -1,3 +1,5 @@
+// FILE: lib/src/features/home/widgets/weak_topics_banner.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -20,28 +22,24 @@ class WeakTopicsBanner extends ConsumerWidget {
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
       data: (stats) {
-        if (stats == null || stats.weakestTopics.isEmpty) {
-          return const SizedBox.shrink();
-        }
+        // Only show if there are topics with weaknessScore > 0.3
+        if (stats == null) return const SizedBox.shrink();
+        final weakTopics =
+            stats.weakestTopics.where((t) => t.weaknessScore > 0.3).toList();
+        if (weakTopics.isEmpty) return const SizedBox.shrink();
 
-        final top3 = stats.weakestTopics.take(3).toList();
+        final top3 = weakTopics.take(3).toList();
 
         return Container(
           decoration: BoxDecoration(
             color: isDark ? AppColors.darkSurface : AppColors.surface,
             borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             border: Border.all(
-              color: isDark ? AppColors.darkBorder : AppColors.border,
+              color: isDark
+                  ? AppColors.warning.withValues(alpha: 0.20)
+                  : AppColors.warning.withValues(alpha: 0.25),
             ),
-            boxShadow: isDark
-                ? null
-                : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
+            boxShadow: isDark ? null : AppSpacing.shadowSm,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -51,35 +49,58 @@ class WeakTopicsBanner extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.trending_down_rounded,
-                      size: 14,
-                      color: AppColors.error.withValues(alpha: 0.7),
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: AppColors.warning.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      child: const Icon(
+                        Icons.trending_down_rounded,
+                        size: 14,
+                        color: AppColors.warning,
+                      ),
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Weak Areas',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.2,
-                          ),
+                    const SizedBox(width: 9),
+                    Expanded(
+                      child: Text(
+                        'Weak Areas Detected',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                      ),
                     ),
-                    const Spacer(),
                     GestureDetector(
                       onTap: () => context.go('/dashboard'),
-                      child: Text(
-                        'View all',
-                        style:
-                            Theme.of(context).textTheme.labelSmall?.copyWith(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'View Insights',
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(
                                   color: AppColors.primary,
-                                  fontWeight: FontWeight.w500,
+                                  fontWeight: FontWeight.w600,
                                   fontSize: 11,
                                 ),
+                          ),
+                          const SizedBox(width: 2),
+                          const Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 11,
+                            color: AppColors.primary,
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
               ),
+
               Divider(
                 height: 1,
                 color: isDark
@@ -87,108 +108,68 @@ class WeakTopicsBanner extends ConsumerWidget {
                     : AppColors.border.withValues(alpha: 0.5),
               ),
 
-              // Topics
-              ...top3.map((topic) {
-                final accuracyPct = (topic.accuracy * 100).round();
-                final Color severityColor = topic.accuracy < 0.4
-                    ? const Color(0xFFDC2626)
-                    : topic.accuracy < 0.6
-                        ? const Color(0xFFEA580C)
-                        : const Color(0xFFD97706);
+              // Topic chips
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 11, 14, 13),
+                child: Wrap(
+                  spacing: 7,
+                  runSpacing: 7,
+                  children: top3.map((topic) {
+                    final accuracyPct = (topic.accuracy * 100).round();
+                    final Color chipColor;
+                    if (topic.accuracy < 0.4) {
+                      chipColor = AppColors.error;
+                    } else if (topic.accuracy < 0.6) {
+                      chipColor = const Color(0xFFEA580C);
+                    } else {
+                      chipColor = AppColors.warning;
+                    }
 
-                return Container(
-                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
-                  decoration: BoxDecoration(
-                    border: Border(
-                      bottom: topic != top3.last
-                          ? BorderSide(
-                              color: isDark
-                                  ? AppColors.darkBorder.withValues(alpha: 0.3)
-                                  : AppColors.border.withValues(alpha: 0.3),
-                            )
-                          : BorderSide.none,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    topic.tag,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.w500,
-                                          fontSize: 13,
-                                        ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  '$accuracyPct%',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .labelSmall
-                                      ?.copyWith(
-                                        color: severityColor,
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 10,
-                                      ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 6),
-                            // Progress bar
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(999),
-                              child: LinearProgressIndicator(
-                                value: topic.accuracy.clamp(0.0, 1.0),
-                                minHeight: 4,
-                                backgroundColor: isDark
-                                    ? AppColors.darkBorder
-                                    : AppColors.border,
-                                valueColor:
-                                    AlwaysStoppedAnimation<Color>(severityColor),
-                              ),
-                            ),
-                          ],
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: chipColor.withValues(alpha: 0.08),
+                        borderRadius:
+                            BorderRadius.circular(AppSpacing.radiusFull),
+                        border: Border.all(
+                          color: chipColor.withValues(alpha: 0.20),
                         ),
                       ),
-                      const SizedBox(width: 10),
-                      TextButton(
-                        onPressed: () => context.go('/quiz/_all'),
-                        style: TextButton.styleFrom(
-                          foregroundColor: AppColors.primary,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 4),
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          textStyle: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.radio_button_unchecked_rounded,
+                            size: 8,
+                            color: chipColor,
                           ),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.play_arrow_rounded, size: 12),
-                            SizedBox(width: 2),
-                            Text('Drill'),
-                          ],
-                        ),
+                          const SizedBox(width: 5),
+                          Text(
+                            topic.tag,
+                            style: TextStyle(
+                              color: chipColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            '$accuracyPct%',
+                            style: TextStyle(
+                              color: chipColor.withValues(alpha: 0.75),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                );
-              }),
+                    );
+                  }).toList(),
+                ),
+              ),
             ],
           ),
         );

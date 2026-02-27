@@ -215,6 +215,19 @@ class MedQIcons {
     c.drawPath(star, p);
   }
 
+  static void profile(Canvas c, double s, Paint p) {
+    final sc = s / 24;
+    p.strokeWidth = 1.8 * sc;
+    // Head circle
+    c.drawCircle(Offset(12 * sc, 8 * sc), 4 * sc, p);
+    // Body arc
+    final body = Path()
+      ..moveTo(4 * sc, 21 * sc)
+      ..cubicTo(4 * sc, 17.1 * sc, 7.6 * sc, 14 * sc, 12 * sc, 14 * sc)
+      ..cubicTo(16.4 * sc, 14 * sc, 20 * sc, 17.1 * sc, 20 * sc, 21 * sc);
+    c.drawPath(body, p);
+  }
+
   static void plan(Canvas c, double s, Paint p) {
     final sc = s / 24;
     p.strokeWidth = 1.8 * sc;

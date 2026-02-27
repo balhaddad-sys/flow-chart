@@ -12,22 +12,25 @@ class AppSpacing {
   static const double xxl = 48.0;
 
   // ── Screen padding ────────────────────────────────────────────────────────
-  static const EdgeInsets screenPadding =
-      EdgeInsets.symmetric(horizontal: 20, vertical: sm);
+  static const EdgeInsets screenPadding = EdgeInsets.symmetric(
+    horizontal: 24,
+    vertical: 12,
+  );
 
-  static const EdgeInsets screenHorizontal =
-      EdgeInsets.symmetric(horizontal: 20);
+  static const EdgeInsets screenHorizontal = EdgeInsets.symmetric(
+    horizontal: 24,
+  );
 
   // ── Card padding ──────────────────────────────────────────────────────────
-  static const EdgeInsets cardPadding = EdgeInsets.all(md);
+  static const EdgeInsets cardPadding = EdgeInsets.all(18);
 
-  static const EdgeInsets cardPaddingLg = EdgeInsets.all(lg);
+  static const EdgeInsets cardPaddingLg = EdgeInsets.all(22);
 
   // ── Border radius ─────────────────────────────────────────────────────────
-  static const double radiusSm = 8.0;
-  static const double radiusMd = 12.0;
-  static const double radiusLg = 16.0;
-  static const double radiusXl = 24.0;
+  static const double radiusSm = 10.0;
+  static const double radiusMd = 14.0;
+  static const double radiusLg = 20.0;
+  static const double radiusXl = 28.0;
   static const double radiusFull = 999.0;
 
   // ── Vertical gaps ─────────────────────────────────────────────────────────
@@ -43,19 +46,12 @@ class AppSpacing {
 
   // ── Box shadows ─────────────────────────────────────────────────────────
   static const List<BoxShadow> shadowSm = [
-    BoxShadow(
-      color: Color(0x0D000000),
-      blurRadius: 6,
-      offset: Offset(0, 2),
-    ),
+    BoxShadow(color: Color(0x120F172A), blurRadius: 14, offset: Offset(0, 4)),
   ];
 
   static const List<BoxShadow> shadowLg = [
-    BoxShadow(
-      color: Color(0x1A000000),
-      blurRadius: 24,
-      offset: Offset(0, 8),
-    ),
+    BoxShadow(color: Color(0x140F172A), blurRadius: 28, offset: Offset(0, 14)),
+    BoxShadow(color: Color(0x080F172A), blurRadius: 6, offset: Offset(0, 2)),
   ];
 
   // ── Horizontal gaps ───────────────────────────────────────────────────────
@@ -65,36 +61,20 @@ class AppSpacing {
   static const SizedBox hGapLg = SizedBox(width: lg);
 
   // ── Animation durations ─────────────────────────────────────────────────
-  static const Duration animFast = Duration(milliseconds: 150);
-  static const Duration animNormal = Duration(milliseconds: 300);
-  static const Duration animSlow = Duration(milliseconds: 500);
-  static const Duration animPageTransition = Duration(milliseconds: 350);
+  static const Duration animFast = Duration(milliseconds: 180);
+  static const Duration animNormal = Duration(milliseconds: 280);
+  static const Duration animSlow = Duration(milliseconds: 420);
+  static const Duration animPageTransition = Duration(milliseconds: 320);
 
   // ── Elevation shadows (multi-layer for depth) ──────────────────────────
   static const List<BoxShadow> shadowMd = [
-    BoxShadow(
-      color: Color(0x0A000000),
-      blurRadius: 4,
-      offset: Offset(0, 1),
-    ),
-    BoxShadow(
-      color: Color(0x0D000000),
-      blurRadius: 12,
-      offset: Offset(0, 4),
-    ),
+    BoxShadow(color: Color(0x0F0F172A), blurRadius: 12, offset: Offset(0, 4)),
+    BoxShadow(color: Color(0x080F172A), blurRadius: 3, offset: Offset(0, 1)),
   ];
 
   static const List<BoxShadow> shadowXl = [
-    BoxShadow(
-      color: Color(0x0D000000),
-      blurRadius: 8,
-      offset: Offset(0, 4),
-    ),
-    BoxShadow(
-      color: Color(0x1A000000),
-      blurRadius: 32,
-      offset: Offset(0, 12),
-    ),
+    BoxShadow(color: Color(0x140F172A), blurRadius: 20, offset: Offset(0, 10)),
+    BoxShadow(color: Color(0x0A0F172A), blurRadius: 56, offset: Offset(0, 22)),
   ];
 
   // ── Max content width for web ──────────────────────────────────────────

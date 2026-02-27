@@ -1,3 +1,4 @@
+// FILE: lib/src/features/study_session/screens/study_session_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdfrx/pdfrx.dart';
@@ -51,12 +52,21 @@ class _StudySessionScreenState extends ConsumerState<StudySessionScreen>
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isTablet = MediaQuery.of(context).size.width > 600;
 
     return Scaffold(
+      backgroundColor:
+          isDark ? AppColors.darkBackground : AppColors.background,
       appBar: AppBar(
-        title: Text(
-          session.isPaused ? 'Paused' : 'Study Session',
+        backgroundColor:
+            isDark ? AppColors.darkBackground : AppColors.background,
+        title: AnimatedSwitcher(
+          duration: AppSpacing.animFast,
+          child: Text(
+            session.isPaused ? 'Paused' : 'Study Session',
+            key: ValueKey(session.isPaused),
+          ),
         ),
         actions: [
           SessionTimer(elapsedSeconds: session.elapsedSeconds),
@@ -71,6 +81,7 @@ class _StudySessionScreenState extends ConsumerState<StudySessionScreen>
   }
 
   Widget _tabletLayout(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Row(
       children: [
         Expanded(
@@ -79,7 +90,7 @@ class _StudySessionScreenState extends ConsumerState<StudySessionScreen>
         ),
         Container(
           width: 1,
-          color: AppColors.divider,
+          color: isDark ? AppColors.darkDivider : AppColors.divider,
         ),
         Expanded(
           flex: 35,
@@ -90,24 +101,32 @@ class _StudySessionScreenState extends ConsumerState<StudySessionScreen>
   }
 
   Widget _phoneLayout(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       children: [
         Container(
-          decoration: const BoxDecoration(
-            color: AppColors.surface,
+          decoration: BoxDecoration(
+            color: isDark ? AppColors.darkSurface : AppColors.surface,
             border: Border(
-              bottom: BorderSide(color: AppColors.divider),
+              bottom: BorderSide(
+                color: isDark ? AppColors.darkDivider : AppColors.divider,
+              ),
             ),
           ),
           child: TabBar(
             controller: _tabController,
+            indicatorColor: AppColors.primary,
+            labelColor: AppColors.primary,
+            unselectedLabelColor: isDark
+                ? AppColors.darkTextSecondary
+                : AppColors.textSecondary,
             tabs: const [
               Tab(
-                icon: Icon(Icons.picture_as_pdf_rounded),
+                icon: Icon(Icons.picture_as_pdf_rounded, size: 18),
                 text: 'PDF',
               ),
               Tab(
-                icon: Icon(Icons.lightbulb_outline_rounded),
+                icon: Icon(Icons.lightbulb_outline_rounded, size: 18),
                 text: 'Study Guide',
               ),
             ],
@@ -127,6 +146,10 @@ class _StudySessionScreenState extends ConsumerState<StudySessionScreen>
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PDF viewer panel
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _PdfViewerPanel extends ConsumerWidget {
   final String sectionId;
 
@@ -135,6 +158,8 @@ class _PdfViewerPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final uid = ref.watch(uidProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (uid == null) {
       return const Center(child: Text('Not authenticated'));
     }
@@ -145,41 +170,21 @@ class _PdfViewerPanel extends ConsumerWidget {
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, st) {
         ErrorHandler.logError(e, st);
-        return Center(
-          child: Padding(
-            padding: AppSpacing.cardPadding,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: const BoxDecoration(
-                    color: AppColors.errorSurface,
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.error_outline_rounded,
-                      color: AppColors.error, size: 28),
-                ),
-                AppSpacing.gapMd,
-                Text(
-                  'Could not load PDF',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                AppSpacing.gapSm,
-                Text(
-                  'Failed to load PDF. Please try again.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
+        return _ErrorPanel(
+          icon: Icons.error_outline_rounded,
+          title: 'Could not load section',
+          subtitle: 'Failed to load section data. Please try again.',
+          isDark: isDark,
         );
       },
       data: (section) {
         if (section == null) {
-          return const Center(child: Text('Section not found'));
+          return _ErrorPanel(
+            icon: Icons.search_off_rounded,
+            title: 'Section not found',
+            subtitle: 'This section may have been removed.',
+            isDark: isDark,
+          );
         }
 
         final pdfUrlAsync =
@@ -190,7 +195,7 @@ class _PdfViewerPanel extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const CircularProgressIndicator(),
+                const CircularProgressIndicator(color: AppColors.primary),
                 AppSpacing.gapMd,
                 Text(
                   'Loading PDF...',
@@ -201,41 +206,21 @@ class _PdfViewerPanel extends ConsumerWidget {
           ),
           error: (e, st) {
             ErrorHandler.logError(e, st);
-            return Center(
-              child: Padding(
-                padding: AppSpacing.cardPadding,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: const BoxDecoration(
-                        color: AppColors.errorSurface,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.cloud_off_rounded,
-                          color: AppColors.error, size: 28),
-                    ),
-                    AppSpacing.gapMd,
-                    Text(
-                      'Failed to load file',
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    AppSpacing.gapSm,
-                    Text(
-                      'Failed to load PDF. Please try again.',
-                      style: Theme.of(context).textTheme.bodySmall,
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-              ),
+            return _ErrorPanel(
+              icon: Icons.cloud_off_rounded,
+              title: 'Failed to load file',
+              subtitle: 'Could not retrieve the PDF. Check your connection.',
+              isDark: isDark,
             );
           },
           data: (url) {
             if (url == null || url.isEmpty) {
-              return const Center(child: Text('PDF not available'));
+              return _ErrorPanel(
+                icon: Icons.picture_as_pdf_outlined,
+                title: 'PDF not available',
+                subtitle: 'The file has not finished processing yet.',
+                isDark: isDark,
+              );
             }
             return PdfViewer.uri(
               Uri.parse(url),
@@ -247,6 +232,65 @@ class _PdfViewerPanel extends ConsumerWidget {
           },
         );
       },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Error panel
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ErrorPanel extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool isDark;
+
+  const _ErrorPanel({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.isDark,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: AppSpacing.cardPadding,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: const BoxDecoration(
+                color: AppColors.errorSurface,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: AppColors.error, size: 26),
+            ),
+            AppSpacing.gapMd,
+            Text(
+              title,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            AppSpacing.gapSm,
+            Text(
+              subtitle,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.textSecondary,
+                  ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

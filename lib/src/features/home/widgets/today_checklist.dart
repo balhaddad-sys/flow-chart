@@ -1,3 +1,5 @@
+// FILE: lib/src/features/home/widgets/today_checklist.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,234 +14,626 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../models/course_model.dart';
 import '../../../models/task_model.dart';
 import '../../planner/providers/planner_provider.dart';
+import '../../practice/providers/practice_provider.dart';
 import '../providers/home_provider.dart';
 
-class TodayChecklist extends ConsumerWidget {
+class TodayChecklist extends ConsumerStatefulWidget {
   final String courseId;
 
   const TodayChecklist({super.key, required this.courseId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final tasksAsync = ref.watch(todayTasksProvider(courseId));
+  ConsumerState<TodayChecklist> createState() => _TodayChecklistState();
+}
+
+class _TodayChecklistState extends ConsumerState<TodayChecklist> {
+  final Set<String> _completing = {};
+  bool _generating = false;
+
+  Future<void> _generatePlan() async {
+    if (_generating) return;
+    setState(() => _generating = true);
+    try {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Row(
+              children: [
+                SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                ),
+                SizedBox(width: 12),
+                Text('Generating your study plan...'),
+              ],
+            ),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            ),
+          ),
+        );
+      }
+
+      final availability = await loadScheduleAvailability(
+        widget.courseId,
+        courses: ref.read(coursesProvider).valueOrNull ?? const <CourseModel>[],
+        uid: ref.read(uidProvider),
+        firestoreService: ref.read(firestoreServiceProvider),
+      );
+
+      final result = await ref
+          .read(cloudFunctionsServiceProvider)
+          .generateSchedule(
+            courseId: widget.courseId,
+            availability: availability,
+            revisionPolicy: 'standard',
+          );
+
+      if (!mounted) return;
+
+      if (result['feasible'] == false) {
+        final deficit = result['deficit'] ?? 0;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Not enough study time to fit the plan ($deficit minutes over capacity).',
+            ),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            ),
+          ),
+        );
+        return;
+      }
+
+      ref.invalidate(todayTasksProvider(widget.courseId));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Plan generated!'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.success,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(ErrorHandler.userMessage(e)),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.error,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _generating = false);
+    }
+  }
+
+  Future<void> _completeTask(TaskModel task) async {
+    if (_completing.contains(task.id)) return;
+    setState(() => _completing.add(task.id));
+    try {
+      final uid = ref.read(uidProvider);
+      if (uid != null) {
+        await ref.read(firestoreServiceProvider).completeTask(uid, task.id);
+      }
+    } catch (e) {
+      ErrorHandler.logError(e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to complete task: ${e.toString()}'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: AppColors.error,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _completing.discard(task.id));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final tasksAsync = ref.watch(todayTasksProvider(widget.courseId));
+    final sectionsAsync = ref.watch(courseSectionsProvider(widget.courseId));
+
+    final sections = sectionsAsync.valueOrNull ?? [];
+    final analyzedCount = sections.where((s) => s.aiStatus == 'ANALYZED').length;
+    final pendingCount = sections
+        .where((s) => s.aiStatus == 'PENDING' || s.aiStatus == 'PROCESSING')
+        .length;
+    final hasAnySections = sections.isNotEmpty;
+
+    if (_generating) {
+      return _GeneratingState(isDark: isDark);
+    }
 
     return tasksAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+      ),
       error: (e, _) {
-        // Parse common errors for user-friendly messages
-        final errorStr = e.toString().toLowerCase();
-
-        if (errorStr.contains('no_sections') ||
-            errorStr.contains('no analyzed sections')) {
-          return EmptyState(
-            icon: Icons.upload_file_outlined,
-            title: 'Get started',
-            subtitle:
-                'Upload your first study material to generate a personalized plan',
-            actionLabel: 'Upload File',
-            onAction: () {
-              // Navigate to library upload
-              final router = GoRouter.of(context);
-              router.go('/library');
-            },
-          );
-        }
-
-        // Generic error fallback
         return EmptyState(
           icon: Icons.error_outline,
           title: 'Unable to load plan',
           subtitle: 'Please try again or check your connection',
           actionLabel: 'Retry',
-          onAction: () => ref.invalidate(todayTasksProvider(courseId)),
+          onAction: () => ref.invalidate(todayTasksProvider(widget.courseId)),
         );
       },
       data: (tasks) {
         if (tasks.isEmpty) {
-          return EmptyState(
-            icon: Icons.check_circle_outline,
-            title: 'No tasks for today',
-            subtitle: 'Generate a plan to get started',
-            actionLabel: 'Generate Plan',
-            onAction: () async {
-              try {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Generating study plan...')),
-                  );
-                }
-                final availability = await loadScheduleAvailability(
-                  courseId,
-                  courses:
-                      ref.read(coursesProvider).valueOrNull ??
-                      const <CourseModel>[],
-                  uid: ref.read(uidProvider),
-                  firestoreService: ref.read(firestoreServiceProvider),
-                );
-                final result = await ref
-                    .read(cloudFunctionsServiceProvider)
-                    .generateSchedule(
-                      courseId: courseId,
-                      availability: availability,
-                      revisionPolicy: 'standard',
-                    );
-
-                if (!context.mounted) return;
-
-                if (result['feasible'] == false) {
-                  final deficit = result['deficit'] ?? 0;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Not enough study time to fit the plan ($deficit minutes over capacity).',
-                      ),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                  return;
-                }
-
-                ref.invalidate(todayTasksProvider(courseId));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Plan generated!'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(ErrorHandler.userMessage(e)),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                }
-              }
-            },
+          // Not enough info yet — sections still loading
+          if (sectionsAsync.isLoading) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
+            );
+          }
+          // No sections at all → prompt to upload
+          if (!hasAnySections) {
+            return EmptyState(
+              icon: Icons.upload_file_outlined,
+              title: 'Upload study materials',
+              subtitle:
+                  'Upload your first PDF or document in the Library tab to generate a personalised plan.',
+              actionLabel: 'Go to Library',
+              onAction: () => GoRouter.of(context).go('/library'),
+            );
+          }
+          // Sections exist but none analyzed yet → still processing
+          if (analyzedCount == 0 && pendingCount > 0) {
+            return EmptyState(
+              icon: Icons.hourglass_top_rounded,
+              title: 'Analyzing your materials',
+              subtitle:
+                  '$pendingCount section${pendingCount > 1 ? 's' : ''} being analyzed. '
+                  'Come back in a few minutes to generate your plan.',
+            );
+          }
+          // Sections exist but none analyzed and none pending → something went wrong
+          if (analyzedCount == 0) {
+            return EmptyState(
+              icon: Icons.hourglass_empty_rounded,
+              title: 'Materials still processing',
+              subtitle:
+                  'Your uploaded files are being processed. '
+                  'Check the Library tab for status.',
+              actionLabel: 'Open Library',
+              onAction: () => GoRouter.of(context).go('/library'),
+            );
+          }
+          // Analyzed sections available → show generate button
+          return _EmptyChecklist(
+            isDark: isDark,
+            analyzedCount: analyzedCount,
+            onGenerate: _generatePlan,
           );
         }
 
+        // Split into pending and done
+        final pendingTasks = tasks
+            .where((t) => t.status != 'DONE' && t.status != 'SKIPPED')
+            .toList();
+        final doneTasks = tasks
+            .where((t) => t.status == 'DONE' || t.status == 'SKIPPED')
+            .toList();
+
         return Column(
-          children: tasks.map((task) => _TaskRow(task: task)).toList(),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ...pendingTasks.map(
+              (task) => Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: _TaskRow(
+                  task: task,
+                  isDark: isDark,
+                  isCompleting: _completing.contains(task.id),
+                  onComplete: () => _completeTask(task),
+                ),
+              ),
+            ),
+            if (doneTasks.isNotEmpty && pendingTasks.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Divider(
+                        color: isDark ? AppColors.darkBorder : AppColors.border,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      child: Text(
+                        'Completed (${doneTasks.length})',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: isDark
+                                  ? AppColors.darkTextTertiary
+                                  : AppColors.textTertiary,
+                              fontSize: 11,
+                            ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Divider(
+                        color: isDark ? AppColors.darkBorder : AppColors.border,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ...doneTasks.map(
+              (task) => Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: _TaskRow(
+                  task: task,
+                  isDark: isDark,
+                  isCompleting: false,
+                  onComplete: null,
+                ),
+              ),
+            ),
+          ],
         );
       },
     );
   }
 }
 
-class _TaskRow extends ConsumerWidget {
-  final TaskModel task;
+// ── Empty state for checklist ─────────────────────────────────────────────────
 
-  const _TaskRow({required this.task});
+class _EmptyChecklist extends StatelessWidget {
+  final bool isDark;
+  final int analyzedCount;
+  final VoidCallback onGenerate;
+
+  const _EmptyChecklist({
+    required this.isDark,
+    required this.analyzedCount,
+    required this.onGenerate,
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isDone = task.status == 'DONE';
-
+  Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: isDone ? AppColors.successSurface : AppColors.surface,
+        color: isDark ? AppColors.darkSurface : AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         border: Border.all(
-          color:
-              isDone
-                  ? AppColors.success.withValues(alpha: 0.2)
-                  : AppColors.border,
+          color: isDark ? AppColors.darkBorder : AppColors.border,
+        ),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.08),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.check_circle_outline_rounded,
+              color: AppColors.primary,
+              size: 24,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'No tasks for today',
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '$analyzedCount section${analyzedCount > 1 ? 's' : ''} ready. '
+            'Tap below to generate your personalised study plan.',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: onGenerate,
+              icon: const Icon(Icons.auto_awesome_rounded, size: 15),
+              label: const Text('Generate Plan'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 11),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Generating state placeholder ──────────────────────────────────────────────
+
+class _GeneratingState extends StatelessWidget {
+  final bool isDark;
+
+  const _GeneratingState({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.border,
+        ),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(
+            width: 32,
+            height: 32,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Generating your study plan...',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Task row ─────────────────────────────────────────────────────────────────
+
+class _TaskRow extends StatelessWidget {
+  final TaskModel task;
+  final bool isDark;
+  final bool isCompleting;
+  final VoidCallback? onComplete;
+
+  const _TaskRow({
+    required this.task,
+    required this.isDark,
+    required this.isCompleting,
+    required this.onComplete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDone = task.status == 'DONE' || task.status == 'SKIPPED';
+    final isSkipped = task.status == 'SKIPPED';
+
+    return Container(
+      decoration: BoxDecoration(
+        color: isDone
+            ? (isDark
+                ? AppColors.darkSurface.withValues(alpha: 0.6)
+                : AppColors.successLight.withValues(alpha: 0.3))
+            : (isDark ? AppColors.darkSurface : AppColors.surface),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(
+          color: isDone
+              ? AppColors.success.withValues(alpha: 0.20)
+              : (isDark ? AppColors.darkBorder : AppColors.border),
         ),
         boxShadow: isDone ? null : AppSpacing.shadowSm,
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-        leading: GestureDetector(
-          onTap: () async {
-            if (!isDone) {
-              final uid = ref.read(uidProvider);
-              if (uid != null) {
-                try {
-                  await ref
-                      .read(firestoreServiceProvider)
-                      .completeTask(uid, task.id);
-                  if (!context.mounted) return;
-                } catch (e) {
-                  ErrorHandler.logError(e);
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to complete task: ${e.toString()}'),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                }
-              }
-            }
-          },
-          child: Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: isDone ? AppColors.success : AppColors.surface,
-              shape: BoxShape.circle,
-              border:
-                  isDone ? null : Border.all(color: AppColors.border, width: 2),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Checkbox
+            GestureDetector(
+              onTap: (!isDone && onComplete != null) ? onComplete : null,
+              child: Container(
+                width: 24,
+                height: 24,
+                margin: const EdgeInsets.only(top: 1),
+                decoration: BoxDecoration(
+                  color: isDone ? AppColors.success : Colors.transparent,
+                  shape: BoxShape.circle,
+                  border: isDone
+                      ? null
+                      : Border.all(
+                          color: isDark ? AppColors.darkBorder : AppColors.border,
+                          width: 1.75,
+                        ),
+                ),
+                child: isCompleting
+                    ? const Padding(
+                        padding: EdgeInsets.all(4),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.5,
+                          color: Colors.white,
+                        ),
+                      )
+                    : isDone
+                        ? const Icon(
+                            Icons.check_rounded,
+                            color: Colors.white,
+                            size: 14,
+                          )
+                        : null,
+              ),
             ),
-            child:
-                isDone
-                    ? const Icon(
-                      Icons.check_rounded,
-                      color: Colors.white,
-                      size: 16,
-                    )
-                    : null,
-          ),
-        ),
-        title: Text(
-          task.title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            decoration: isDone ? TextDecoration.lineThrough : null,
-            color: isDone ? AppColors.textTertiary : AppColors.textPrimary,
-          ),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: Text(
-            '${AppDateUtils.formatDuration(task.estMinutes)} | ${task.type}',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ),
-        trailing: _difficultyBadge(task.difficulty),
-      ),
-    );
-  }
+            const SizedBox(width: 12),
 
-  Widget _difficultyBadge(int difficulty) {
-    final label =
-        difficulty <= 2
-            ? 'Easy'
-            : difficulty <= 3
-            ? 'Med'
-            : 'Hard';
-    final color =
-        difficulty <= 2
-            ? AppColors.difficultyEasy
-            : difficulty <= 3
-            ? AppColors.difficultyMedium
-            : AppColors.difficultyHard;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
+            // Task content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    task.title,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
+                          decoration: isDone
+                              ? TextDecoration.lineThrough
+                              : TextDecoration.none,
+                          color: isDone
+                              ? (isDark
+                                  ? AppColors.darkTextTertiary
+                                  : AppColors.textTertiary)
+                              : (isDark
+                                  ? AppColors.darkTextPrimary
+                                  : AppColors.textPrimary),
+                          decorationColor: isDark
+                              ? AppColors.darkTextTertiary
+                              : AppColors.textTertiary,
+                        ),
+                  ),
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time_rounded,
+                        size: 12,
+                        color: isDark
+                            ? AppColors.darkTextTertiary
+                            : AppColors.textTertiary,
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        AppDateUtils.formatDuration(task.estMinutes),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: isDark
+                                  ? AppColors.darkTextTertiary
+                                  : AppColors.textTertiary,
+                              fontSize: 11,
+                            ),
+                      ),
+                      if (isSkipped) ...[
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Skipped',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.warning,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  if (task.topicTags.isNotEmpty) ...[
+                    const SizedBox(height: 7),
+                    Wrap(
+                      spacing: 5,
+                      runSpacing: 5,
+                      children: task.topicTags.take(3).map((tag) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? AppColors.darkSurfaceVariant
+                                : AppColors.surfaceVariant,
+                            borderRadius:
+                                BorderRadius.circular(AppSpacing.radiusFull),
+                            border: Border.all(
+                              color: isDark
+                                  ? AppColors.darkBorder
+                                  : AppColors.border,
+                            ),
+                          ),
+                          child: Text(
+                            tag,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: isDark
+                                  ? AppColors.darkTextSecondary
+                                  : AppColors.textSecondary,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+
+            // Est. minutes badge
+            Container(
+              margin: const EdgeInsets.only(left: 8, top: 1),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: isDone
+                    ? AppColors.success.withValues(alpha: 0.10)
+                    : AppColors.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+              ),
+              child: Text(
+                '${task.estMinutes}m',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: isDone ? AppColors.success : AppColors.primary,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
+}
+
+// Helper extension to avoid lint issue with Set.remove returning bool
+extension _SetDiscard<T> on Set<T> {
+  void discard(T element) => remove(element);
 }

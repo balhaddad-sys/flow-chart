@@ -1,73 +1,203 @@
+// FILE: lib/src/features/legal/screens/terms_screen.dart
+
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../core/constants/app_links.dart';
+
+// ── Terms of Service Screen ────────────────────────────────────────────────────
 
 class TermsScreen extends StatelessWidget {
   const TermsScreen({super.key});
 
+  Future<void> _openEmail() async {
+    final uri = Uri.parse(AppLinks.supportMailto);
+    if (await canLaunchUrl(uri)) await launchUrl(uri);
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
     final bodyStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
-          height: 1.6,
-          color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
+          height: 1.7,
+          color:
+              isDark ? AppColors.darkTextSecondary : AppColors.textSecondary,
         );
     final headingStyle = Theme.of(context).textTheme.titleSmall?.copyWith(
           fontWeight: FontWeight.w700,
+          color: isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
         );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Terms of Service')),
+      backgroundColor:
+          isDark ? AppColors.darkBackground : AppColors.background,
+      appBar: AppBar(
+        backgroundColor:
+            isDark ? AppColors.darkBackground : AppColors.background,
+        title: const Text('Terms of Service'),
+        elevation: 0,
+        scrolledUnderElevation: 1,
+      ),
       body: ListView(
-        padding: AppSpacing.screenPadding,
+        padding: AppSpacing.screenPadding.copyWith(top: 16, bottom: 40),
         children: [
+          // ── Page heading ────────────────────────────────────────────────
           Text(
             'Terms of Service',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
+            style: Theme.of(context)
+                .textTheme
+                .headlineSmall
+                ?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 4),
-          Text('Last updated: February 2026', style: bodyStyle?.copyWith(fontSize: 12)),
+          Text(
+            'Last updated: February 2026',
+            style: bodyStyle?.copyWith(fontSize: 12),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.warning.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              border: Border.all(
+                  color: AppColors.warning.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline_rounded,
+                    size: 16, color: AppColors.warning),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'MedQ is strictly an educational study tool. It does NOT provide medical advice, diagnosis, or treatment.',
+                    style: bodyStyle?.copyWith(
+                      fontSize: 12,
+                      color: AppColors.warning,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 20),
 
-          _Section(heading: '1. Acceptance of Terms', headingStyle: headingStyle, body: '''
-By accessing or using MedQ ("Service"), you agree to be bound by these Terms of Service. If you do not agree with any part of these terms, do not use the Service.''', bodyStyle: bodyStyle),
+          // ── Sections ────────────────────────────────────────────────────
+          _Section(
+            heading: '1. Acceptance of Terms',
+            headingStyle: headingStyle,
+            body:
+                'By accessing or using MedQ ("Service"), you agree to be bound by these Terms of Service. If you do not agree with any part of these terms, do not use the Service.',
+            bodyStyle: bodyStyle,
+          ),
+          _Section(
+            heading: '2. Description of Service',
+            headingStyle: headingStyle,
+            body:
+                'MedQ is an AI-powered medical study platform that helps medical students and trainees organise study materials, generate adaptive practice questions, create personalised study plans, and track progress over time. The Service uses artificial intelligence to process uploaded content and generate educational materials.',
+            bodyStyle: bodyStyle,
+          ),
+          _Section(
+            heading: '3. Medical Disclaimer',
+            headingStyle: headingStyle,
+            body:
+                'MedQ is strictly an educational study tool intended to support exam preparation. It does NOT provide medical advice, diagnosis, or treatment recommendations. Content generated by MedQ — including AI-generated questions and explanations — should never be used for clinical decision-making. Always consult qualified healthcare professionals for medical advice. The authors and operators of MedQ accept no liability for clinical decisions made on the basis of content generated by the Service.',
+            bodyStyle: bodyStyle,
+          ),
+          _Section(
+            heading: '4. AI-Generated Content',
+            headingStyle: headingStyle,
+            body:
+                'Content generated by MedQ\'s AI systems (questions, explanations, teaching outlines, and study plans) is produced algorithmically and may contain errors or inaccuracies. You should independently verify important clinical information using authoritative sources. MedQ makes no warranty as to the accuracy or completeness of AI-generated content.',
+            bodyStyle: bodyStyle,
+          ),
+          _Section(
+            heading: '5. User Accounts',
+            headingStyle: headingStyle,
+            body:
+                'You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. You must provide accurate information during registration and keep it up to date. You must be at least 18 years of age to create an account.',
+            bodyStyle: bodyStyle,
+          ),
+          _Section(
+            heading: '6. User Content',
+            headingStyle: headingStyle,
+            body:
+                'You retain ownership of all content you upload to MedQ. By uploading content, you grant MedQ a limited, non-exclusive, royalty-free licence to process, analyse, store, and generate educational materials from your content solely for your use within the Service. You represent that you have the right to upload and share any content you provide.',
+            bodyStyle: bodyStyle,
+          ),
+          _Section(
+            heading: '7. Prohibited Uses',
+            headingStyle: headingStyle,
+            body: 'You agree not to:\n'
+                '• Upload copyrighted material you do not have rights to share\n'
+                '• Use the Service for any unlawful purpose\n'
+                '• Attempt to reverse-engineer, scrape, or systematically extract data from the Service\n'
+                '• Share your account credentials with others\n'
+                '• Use automated tools to access the Service without permission\n'
+                '• Use generated content for commercial redistribution\n'
+                '• Attempt to circumvent access controls or security measures',
+            bodyStyle: bodyStyle,
+          ),
+          _Section(
+            heading: '8. Limitation of Liability',
+            headingStyle: headingStyle,
+            body:
+                'MedQ is provided "as is" without warranties of any kind, express or implied. To the fullest extent permitted by law, we are not liable for any direct, indirect, incidental, special, or consequential damages arising from your use of the Service, including but not limited to errors in generated content, service interruptions, data loss, or any reliance placed on content generated by the Service.',
+            bodyStyle: bodyStyle,
+          ),
+          _Section(
+            heading: '9. Changes to Terms',
+            headingStyle: headingStyle,
+            body:
+                'We reserve the right to modify these Terms at any time. We will notify users of significant changes via email or within the Service. Continued use of the Service after changes are posted constitutes your acceptance of the updated Terms.',
+            bodyStyle: bodyStyle,
+          ),
+          _Section(
+            heading: '10. Governing Law',
+            headingStyle: headingStyle,
+            body:
+                'These Terms shall be governed by and construed in accordance with the laws of England and Wales, without regard to its conflict of law provisions.',
+            bodyStyle: bodyStyle,
+          ),
+          _Section(
+            heading: '11. Contact',
+            headingStyle: headingStyle,
+            body:
+                'For questions about these Terms of Service, please contact us at ${AppLinks.supportEmail}.',
+            bodyStyle: bodyStyle,
+          ),
 
-          _Section(heading: '2. Description of Service', headingStyle: headingStyle, body: '''
-MedQ is an AI-powered medical study platform that helps medical students organize study materials, generate practice questions, create personalized study plans, and track progress. The Service uses artificial intelligence to process uploaded content and generate educational materials.''', bodyStyle: bodyStyle),
+          const SizedBox(height: 8),
 
-          _Section(heading: '3. Medical Disclaimer', headingStyle: headingStyle, body: '''
-MedQ is strictly an educational study tool. It does NOT provide medical advice, diagnosis, or treatment recommendations. Content generated by MedQ should not be used for clinical decision-making. Always consult qualified healthcare professionals for medical advice.''', bodyStyle: bodyStyle),
-
-          _Section(heading: '4. User Accounts', headingStyle: headingStyle, body: '''
-You are responsible for maintaining the confidentiality of your account credentials and for all activities under your account. You must provide accurate information during registration and keep it up to date.''', bodyStyle: bodyStyle),
-
-          _Section(heading: '5. User Content', headingStyle: headingStyle, body: '''
-You retain ownership of content you upload to MedQ. By uploading content, you grant MedQ a limited licence to process, analyse, and generate educational materials from your content solely for your use within the Service.''', bodyStyle: bodyStyle),
-
-          _Section(heading: '6. Acceptable Use', headingStyle: headingStyle, body: '''
-You agree not to:
-• Upload copyrighted material you don't have rights to
-• Use the Service for any unlawful purpose
-• Attempt to reverse-engineer the Service
-• Share your account credentials with others
-• Use automated tools to access the Service''', bodyStyle: bodyStyle),
-
-          _Section(heading: '7. Limitation of Liability', headingStyle: headingStyle, body: '''
-MedQ is provided "as is" without warranties of any kind. We are not liable for any damages arising from your use of the Service, including but not limited to errors in generated content, service interruptions, or data loss.''', bodyStyle: bodyStyle),
-
-          _Section(heading: '8. Changes to Terms', headingStyle: headingStyle, body: '''
-We reserve the right to modify these Terms at any time. We will notify users of significant changes. Continued use of the Service after changes constitutes acceptance of the updated Terms.''', bodyStyle: bodyStyle),
-
-          _Section(heading: '9. Contact', headingStyle: headingStyle, body: '''
-For questions about these Terms, contact us at support@medq.app.''', bodyStyle: bodyStyle),
-
-          const SizedBox(height: 32),
+          // ── Email link ───────────────────────────────────────────────────
+          Center(
+            child: TextButton.icon(
+              onPressed: _openEmail,
+              icon: const Icon(Icons.mail_outline_rounded,
+                  size: 16, color: AppColors.primary),
+              label: const Text(
+                'Email Support',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
         ],
       ),
     );
   }
 }
+
+// ── Section Widget ─────────────────────────────────────────────────────────────
 
 class _Section extends StatelessWidget {
   final String heading;
@@ -85,7 +215,7 @@ class _Section extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.only(bottom: 22),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

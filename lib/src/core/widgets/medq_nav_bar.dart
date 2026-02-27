@@ -1,10 +1,19 @@
+// FILE: lib/src/core/widgets/medq_nav_bar.dart
 import 'package:flutter/material.dart';
 
+import '../constants/app_colors.dart';
+import '../constants/app_spacing.dart';
 import '../icons/medq_icons.dart';
-import '../theme/app_colors.dart';
 
-/// Bottom navigation bar using custom MedQ SVG icons with
-/// animated pill indicator on the active item.
+/// Bottom navigation bar with 5 tabs and an animated pill indicator.
+///
+/// Usage:
+/// ```dart
+/// MedQNavBar(
+///   currentIndex: _index,
+///   onTap: (i) => setState(() => _index = i),
+/// )
+/// ```
 class MedQNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
@@ -16,80 +25,94 @@ class MedQNavBar extends StatelessWidget {
   });
 
   static const _items = [
-    (MedQIcons.home, 'Today'),
-    (MedQIcons.library, 'Library'),
-    (MedQIcons.quiz, 'Practice'),
-    (MedQIcons.ai, 'AI'),
-    (MedQIcons.plan, 'Plan'),
+    _NavItem(MedQIcons.home, 'Today'),
+    _NavItem(MedQIcons.library, 'Library'),
+    _NavItem(MedQIcons.quiz, 'Practice'),
+    _NavItem(MedQIcons.ai, 'AI'),
+    _NavItem(MedQIcons.profile, 'Profile'),
   ];
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final inactiveColor = isDark
-        ? AppColors.darkTextSecondary.withValues(alpha: 0.7)
-        : AppColors.textSecondary;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: (isDark ? AppColors.darkBackground : AppColors.surface)
-            .withValues(alpha: 0.92),
-        border: Border(
-          top: BorderSide(
-            color: isDark
-                ? Colors.white.withValues(alpha: 0.06)
-                : Colors.black.withValues(alpha: 0.05),
-            width: 0.5,
+    final dockColor =
+        isDark
+            ? AppColors.darkSurface.withValues(alpha: 0.98)
+            : AppColors.surface.withValues(alpha: 0.98);
+
+    final inactiveColor =
+        isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+
+    final borderColor = isDark ? AppColors.darkBorder : AppColors.border;
+
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          height: 72,
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: dockColor,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: borderColor.withValues(alpha: 0.95)),
+            boxShadow: isDark ? null : AppSpacing.shadowLg,
           ),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 56,
           child: Row(
             children: List.generate(_items.length, (i) {
-              final (icon, label) = _items[i];
+              final item = _items[i];
               final isActive = i == currentIndex;
+
               return Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => onTap(i),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        curve: Curves.easeOutCubic,
-                        width: isActive ? 48 : 32,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          color: isActive
-                              ? (isDark
-                                  ? AppColors.teal600.withValues(alpha: 0.15)
-                                  : AppColors.teal600.withValues(alpha: 0.1))
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(14),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutCubic,
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(
+                    gradient: isActive ? AppColors.primaryGradient : null,
+                    color: isActive ? null : Colors.transparent,
+                    borderRadius: BorderRadius.circular(22),
+                    boxShadow:
+                        isActive ? AppColors.primaryGradientShadow : null,
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(22),
+                      onTap: () => onTap(i),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 10,
                         ),
-                        child: Center(
-                          child: MedQIcon(
-                            icon,
-                            size: 18,
-                            color: isActive ? AppColors.teal500 : inactiveColor,
-                          ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            MedQIcon(
+                              item.icon,
+                              size: 18,
+                              color: isActive ? Colors.white : inactiveColor,
+                            ),
+                            const SizedBox(height: 4),
+                            AnimatedDefaultTextStyle(
+                              duration: const Duration(milliseconds: 180),
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight:
+                                    isActive
+                                        ? FontWeight.w700
+                                        : FontWeight.w600,
+                                color: isActive ? Colors.white : inactiveColor,
+                                letterSpacing: 0.15,
+                              ),
+                              child: Text(item.label),
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 3),
-                      Text(
-                        label,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                          color: isActive ? AppColors.teal500 : inactiveColor,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               );
@@ -99,4 +122,12 @@ class MedQNavBar extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─── Data class ──────────────────────────────────────────────────────────────
+
+class _NavItem {
+  final MedQIconData icon;
+  final String label;
+  const _NavItem(this.icon, this.label);
 }

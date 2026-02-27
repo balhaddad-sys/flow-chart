@@ -1,3 +1,5 @@
+// FILE: lib/src/features/ai/screens/explore_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,16 +8,24 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../core/widgets/formatted_text.dart';
 
-// ── Level options ─────────────────────────────────────────────────────────────
+// ── Constants ──────────────────────────────────────────────────────────────────
 
 const _levels = [
   'Medical Student',
   'Foundation Year',
-  'Core Trainee',
-  'Registrar',
+  'Core Training',
+  'Registrar/Specialist',
 ];
 
-// ── Explore Screen ────────────────────────────────────────────────────────────
+const _examTypes = [
+  'None',
+  'PLAB1',
+  'PLAB2',
+  'MRCP Part 1',
+  'USMLE Step 1',
+];
+
+// ── Explore Screen ─────────────────────────────────────────────────────────────
 
 class ExploreScreen extends ConsumerStatefulWidget {
   const ExploreScreen({super.key});
@@ -27,6 +37,7 @@ class ExploreScreen extends ConsumerStatefulWidget {
 class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   final _topicController = TextEditingController();
   String _selectedLevel = _levels[0];
+  String _selectedExamType = _examTypes[0];
   bool _loadingInsight = false;
   bool _loadingQuiz = false;
   String? _insightText;
@@ -39,21 +50,33 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     super.dispose();
   }
 
+  bool get _canSubmit =>
+      _topicController.text.trim().isNotEmpty &&
+      !_loadingInsight &&
+      !_loadingQuiz;
+
+  void _clearResults() {
+    _insightText = null;
+    _quizQuestions = null;
+    _errorText = null;
+  }
+
   Future<void> _getInsight() async {
     final topic = _topicController.text.trim();
     if (topic.isEmpty) return;
     setState(() {
       _loadingInsight = true;
-      _errorText = null;
-      _insightText = null;
-      _quizQuestions = null;
+      _clearResults();
     });
     try {
+      final examType =
+          _selectedExamType == 'None' ? null : _selectedExamType;
       final result = await ref
           .read(cloudFunctionsServiceProvider)
           .exploreTopicInsight(
             topic: topic,
             level: _selectedLevel,
+            examType: examType,
           );
       if (!mounted) return;
       final insight =
@@ -70,14 +93,12 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     }
   }
 
-  Future<void> _getQuiz() async {
+  Future<void> _generateQuiz() async {
     final topic = _topicController.text.trim();
     if (topic.isEmpty) return;
     setState(() {
       _loadingQuiz = true;
-      _errorText = null;
-      _insightText = null;
-      _quizQuestions = null;
+      _clearResults();
     });
     try {
       final result = await ref
@@ -90,14 +111,16 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
       if (!mounted) return;
       final questions = result['questions'] as List?;
       if (questions == null || questions.isEmpty) {
-        setState(() => _errorText = 'No questions generated. Try a different topic.');
+        setState(
+            () => _errorText = 'No questions generated. Try a different topic.');
         return;
       }
-      setState(() =>
-          _quizQuestions = questions.cast<Map<String, dynamic>>());
+      setState(
+          () => _quizQuestions = questions.cast<Map<String, dynamic>>());
     } catch (e) {
       if (!mounted) return;
-      setState(() => _errorText = 'Failed to generate quiz. Please try again.');
+      setState(
+          () => _errorText = 'Failed to generate quiz. Please try again.');
     } finally {
       if (mounted) setState(() => _loadingQuiz = false);
     }
@@ -108,18 +131,21 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
+      backgroundColor:
+          isDark ? AppColors.darkBackground : AppColors.background,
       appBar: AppBar(
         backgroundColor:
             isDark ? AppColors.darkBackground : AppColors.background,
-        title: const Text('Explore Topic'),
+        title: const Text('Explore'),
+        elevation: 0,
+        scrolledUnderElevation: 1,
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
         children: [
-          // ── Description ───────────────────────────────────────────────────
+          // ── Subtitle ───────────────────────────────────────────────────────
           Text(
-            'Enter any medical topic to get an AI-generated teaching outline or a quick quiz.',
+            'Explore any medical topic with AI',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: isDark
                       ? AppColors.darkTextSecondary
@@ -129,179 +155,160 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
           ),
           AppSpacing.gapMd,
 
-          // ── Topic input ───────────────────────────────────────────────────
-          TextField(
-            controller: _topicController,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _getInsight(),
-            style: Theme.of(context).textTheme.bodyMedium,
-            decoration: InputDecoration(
-              hintText: 'e.g. Acute Coronary Syndrome, Diabetes management...',
-              prefixIcon: const Icon(Icons.search_rounded, size: 20),
-              suffixIcon:
-                  _topicController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear_rounded, size: 18),
-                          onPressed: () {
-                            _topicController.clear();
-                            setState(() {
-                              _insightText = null;
-                              _quizQuestions = null;
-                              _errorText = null;
-                            });
-                          },
-                        )
-                      : null,
+          // ── Input Card ─────────────────────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurface : AppColors.surface,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+              border: Border.all(
+                color: isDark ? AppColors.darkBorder : AppColors.border,
+              ),
+              boxShadow: AppSpacing.shadowSm,
             ),
-            onChanged: (_) => setState(() {}),
-          ),
-          AppSpacing.gapMd,
-
-          // ── Level picker ──────────────────────────────────────────────────
-          Row(
-            children: [
-              Text(
-                'Level:',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.darkSurface : AppColors.surface,
-                    borderRadius:
-                        BorderRadius.circular(AppSpacing.radiusMd),
-                    border: Border.all(
-                      color:
-                          isDark ? AppColors.darkBorder : AppColors.border,
-                    ),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedLevel,
-                      isExpanded: true,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontSize: 13,
-                            color: isDark
-                                ? AppColors.darkTextPrimary
-                                : AppColors.textPrimary,
-                          ),
-                      dropdownColor: isDark
-                          ? AppColors.darkSurface
-                          : AppColors.surface,
-                      items: _levels
-                          .map(
-                            (l) => DropdownMenuItem(
-                              value: l,
-                              child: Text(l),
-                            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Topic field
+                _Label(text: 'Topic', isDark: isDark),
+                AppSpacing.gapXs,
+                TextField(
+                  controller: _topicController,
+                  textCapitalization: TextCapitalization.sentences,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _canSubmit ? _getInsight() : null,
+                  onChanged: (_) => setState(() {}),
+                  decoration: InputDecoration(
+                    hintText:
+                        'e.g. Diabetes Mellitus, Heart Failure, COPD...',
+                    prefixIcon: const Icon(Icons.search_rounded, size: 18),
+                    suffixIcon: _topicController.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear_rounded, size: 16),
+                            onPressed: () {
+                              _topicController.clear();
+                              setState(_clearResults);
+                            },
                           )
-                          .toList(),
-                      onChanged: (v) {
-                        if (v != null) setState(() => _selectedLevel = v);
-                      },
-                    ),
+                        : null,
                   ),
                 ),
-              ),
-            ],
-          ),
-          AppSpacing.gapMd,
+                AppSpacing.gapMd,
 
-          // ── Action buttons ────────────────────────────────────────────────
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed:
-                      (_loadingInsight ||
-                              _loadingQuiz ||
-                              _topicController.text.trim().isEmpty)
-                          ? null
-                          : _getInsight,
-                  icon: _loadingInsight
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 1.5,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.auto_stories_outlined, size: 16),
-                  label: Text(
-                      _loadingInsight ? 'Loading...' : 'Teaching Outline'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.radiusMd),
-                    ),
-                    textStyle: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                  ),
+                // Level picker
+                _Label(text: 'Level', isDark: isDark),
+                AppSpacing.gapXs,
+                _DropdownField<String>(
+                  value: _selectedLevel,
+                  items: _levels,
+                  isDark: isDark,
+                  onChanged: (v) {
+                    if (v != null) setState(() => _selectedLevel = v);
+                  },
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed:
-                      (_loadingInsight ||
-                              _loadingQuiz ||
-                              _topicController.text.trim().isEmpty)
-                          ? null
-                          : _getQuiz,
-                  icon: _loadingQuiz
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 1.5,
-                            color: AppColors.primary,
-                          ),
-                        )
-                      : const Icon(Icons.quiz_outlined, size: 16),
-                  label: Text(
-                      _loadingQuiz ? 'Generating...' : 'Quick Quiz'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primary,
-                    side: const BorderSide(color: AppColors.primary),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(AppSpacing.radiusMd),
-                    ),
-                    textStyle: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                  ),
+                AppSpacing.gapMd,
+
+                // Exam type picker
+                _Label(text: 'Exam Type (optional)', isDark: isDark),
+                AppSpacing.gapXs,
+                _DropdownField<String>(
+                  value: _selectedExamType,
+                  items: _examTypes,
+                  isDark: isDark,
+                  onChanged: (v) {
+                    if (v != null) setState(() => _selectedExamType = v);
+                  },
                 ),
-              ),
-            ],
+                AppSpacing.gapMd,
+
+                // Action buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _canSubmit ? _getInsight : null,
+                        icon: _loadingInsight
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 1.5,
+                                  color: AppColors.primary,
+                                ),
+                              )
+                            : const Icon(Icons.auto_stories_outlined,
+                                size: 16),
+                        label: Text(_loadingInsight
+                            ? 'Loading...'
+                            : 'Get Insight'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.primary,
+                          side:
+                              const BorderSide(color: AppColors.primary),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                                AppSpacing.radiusMd),
+                          ),
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _canSubmit ? _generateQuiz : null,
+                        icon: _loadingQuiz
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 1.5,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.quiz_outlined, size: 16),
+                        label: Text(_loadingQuiz
+                            ? 'Generating...'
+                            : 'Generate Quiz'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                                AppSpacing.radiusMd),
+                          ),
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
 
-          // ── Error ─────────────────────────────────────────────────────────
+          // ── Error Banner ───────────────────────────────────────────────────
           if (_errorText != null) ...[
             AppSpacing.gapMd,
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: AppColors.error.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                borderRadius:
+                    BorderRadius.circular(AppSpacing.radiusMd),
                 border: Border.all(
-                  color: AppColors.error.withValues(alpha: 0.3),
-                ),
+                    color: AppColors.error.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -315,30 +322,17 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                           fontSize: 13, color: AppColors.error),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: _getInsight,
-                    child: const Text(
-                      'Retry',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.primary,
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
           ],
 
-          // ── Teaching Outline result ───────────────────────────────────────
+          // ── Insight View ───────────────────────────────────────────────────
           if (_insightText != null) ...[
             AppSpacing.gapLg,
-            _SectionHeader(
+            _ResultHeader(
               icon: Icons.auto_stories_outlined,
-              title: 'Teaching Outline',
+              title: 'Topic Insight',
               subtitle: _topicController.text.trim(),
               isDark: isDark,
             ),
@@ -351,39 +345,63 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                 border: Border.all(
                   color: isDark ? AppColors.darkBorder : AppColors.border,
                 ),
+                boxShadow: AppSpacing.shadowSm,
               ),
               child: FormattedText(
                 text: _insightText!,
-                baseStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontSize: 14,
-                      height: 1.65,
-                      color: isDark
-                          ? AppColors.darkTextPrimary
-                          : AppColors.textPrimary,
-                    ),
+                baseStyle:
+                    Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontSize: 14,
+                          height: 1.65,
+                          color: isDark
+                              ? AppColors.darkTextPrimary
+                              : AppColors.textPrimary,
+                        ),
+              ),
+            ),
+            AppSpacing.gapMd,
+            // Generate quiz from insight
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _canSubmit ? _generateQuiz : null,
+                icon: const Icon(Icons.quiz_outlined, size: 16),
+                label: const Text('Generate Quiz on this topic'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius:
+                        BorderRadius.circular(AppSpacing.radiusMd),
+                  ),
+                  textStyle: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
               ),
             ),
           ],
 
-          // ── Quiz result ───────────────────────────────────────────────────
+          // ── Quiz View ──────────────────────────────────────────────────────
           if (_quizQuestions != null) ...[
             AppSpacing.gapLg,
-            _SectionHeader(
+            _ResultHeader(
               icon: Icons.quiz_outlined,
               title: 'Quick Quiz',
-              subtitle: '${_quizQuestions!.length} questions on ${_topicController.text.trim()}',
+              subtitle:
+                  '${_quizQuestions!.length} questions — ${_topicController.text.trim()}',
               isDark: isDark,
             ),
             AppSpacing.gapSm,
-            ..._quizQuestions!.asMap().entries.map((entry) {
-              final idx = entry.key;
-              final q = entry.value;
-              return _ExploreQuizCard(
-                index: idx,
-                question: q,
-                isDark: isDark,
-              );
-            }),
+            ..._quizQuestions!.asMap().entries.map(
+                  (entry) => _QuizCard(
+                    index: entry.key,
+                    question: entry.value,
+                    isDark: isDark,
+                  ),
+                ),
           ],
         ],
       ),
@@ -391,15 +409,85 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
   }
 }
 
-// ── Section Header ────────────────────────────────────────────────────────────
+// ── Helper Widgets ─────────────────────────────────────────────────────────────
 
-class _SectionHeader extends StatelessWidget {
+class _Label extends StatelessWidget {
+  final String text;
+  final bool isDark;
+  const _Label({required this.text, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: isDark
+                ? AppColors.darkTextSecondary
+                : AppColors.textSecondary,
+          ),
+    );
+  }
+}
+
+class _DropdownField<T> extends StatelessWidget {
+  final T value;
+  final List<T> items;
+  final bool isDark;
+  final ValueChanged<T?> onChanged;
+
+  const _DropdownField({
+    required this.value,
+    required this.items,
+    required this.isDark,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkBackground : AppColors.background,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.border,
+        ),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<T>(
+          value: value,
+          isExpanded: true,
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                fontSize: 14,
+                color: isDark
+                    ? AppColors.darkTextPrimary
+                    : AppColors.textPrimary,
+              ),
+          dropdownColor:
+              isDark ? AppColors.darkSurface : AppColors.surface,
+          items: items
+              .map(
+                (item) => DropdownMenuItem<T>(
+                  value: item,
+                  child: Text(item.toString()),
+                ),
+              )
+              .toList(),
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+}
+
+class _ResultHeader extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
   final bool isDark;
 
-  const _SectionHeader({
+  const _ResultHeader({
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -411,13 +499,13 @@ class _SectionHeader extends StatelessWidget {
     return Row(
       children: [
         Container(
-          width: 32,
-          height: 32,
+          width: 36,
+          height: 36,
           decoration: BoxDecoration(
             color: AppColors.primary.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
           ),
-          child: Icon(icon, size: 16, color: AppColors.primary),
+          child: Icon(icon, size: 18, color: AppColors.primary),
         ),
         const SizedBox(width: 10),
         Expanded(
@@ -426,9 +514,10 @@ class _SectionHeader extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                style:
+                    Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
               ),
               Text(
                 subtitle,
@@ -437,6 +526,8 @@ class _SectionHeader extends StatelessWidget {
                           ? AppColors.darkTextSecondary
                           : AppColors.textSecondary,
                     ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
@@ -446,24 +537,24 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-// ── Quiz Card ─────────────────────────────────────────────────────────────────
+// ── Quiz Card ──────────────────────────────────────────────────────────────────
 
-class _ExploreQuizCard extends StatefulWidget {
+class _QuizCard extends StatefulWidget {
   final int index;
   final Map<String, dynamic> question;
   final bool isDark;
 
-  const _ExploreQuizCard({
+  const _QuizCard({
     required this.index,
     required this.question,
     required this.isDark,
   });
 
   @override
-  State<_ExploreQuizCard> createState() => _ExploreQuizCardState();
+  State<_QuizCard> createState() => _QuizCardState();
 }
 
-class _ExploreQuizCardState extends State<_ExploreQuizCard> {
+class _QuizCardState extends State<_QuizCard> {
   int? _selectedIndex;
   bool _revealed = false;
 
@@ -474,10 +565,17 @@ class _ExploreQuizCardState extends State<_ExploreQuizCard> {
     final rawOptions = q['options'] as List? ?? [];
     final options = rawOptions.map((o) => o.toString()).toList();
     final correctIndex = (q['correctIndex'] as num?)?.toInt() ?? 0;
-    final explanation = q['explanation'] as String? ??
-        (q['explanation'] is Map
-            ? (q['explanation'] as Map)['keyTakeaway'] as String? ?? ''
-            : '');
+
+    // explanation can be a String or a Map with 'correctWhy'/'keyTakeaway'
+    String explanation = '';
+    final rawExplanation = q['explanation'];
+    if (rawExplanation is String) {
+      explanation = rawExplanation;
+    } else if (rawExplanation is Map) {
+      explanation = rawExplanation['keyTakeaway'] as String? ??
+          rawExplanation['correctWhy'] as String? ??
+          '';
+    }
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -488,6 +586,7 @@ class _ExploreQuizCardState extends State<_ExploreQuizCard> {
         border: Border.all(
           color: widget.isDark ? AppColors.darkBorder : AppColors.border,
         ),
+        boxShadow: AppSpacing.shadowSm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -497,8 +596,8 @@ class _ExploreQuizCardState extends State<_ExploreQuizCard> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                width: 24,
-                height: 24,
+                width: 26,
+                height: 26,
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(6),
@@ -527,7 +626,7 @@ class _ExploreQuizCardState extends State<_ExploreQuizCard> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
           // Options
           ...options.asMap().entries.map((e) {
@@ -538,8 +637,9 @@ class _ExploreQuizCardState extends State<_ExploreQuizCard> {
 
             Color? bgColor;
             Color? borderColor;
-            Color textColor =
-                widget.isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
+            Color textColor = widget.isDark
+                ? AppColors.darkTextPrimary
+                : AppColors.textPrimary;
 
             if (_revealed) {
               if (isCorrect) {
@@ -582,8 +682,8 @@ class _ExploreQuizCardState extends State<_ExploreQuizCard> {
                 child: Row(
                   children: [
                     Container(
-                      width: 22,
-                      height: 22,
+                      width: 24,
+                      height: 24,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: (borderColor ?? AppColors.primary)
@@ -591,12 +691,11 @@ class _ExploreQuizCardState extends State<_ExploreQuizCard> {
                       ),
                       child: Center(
                         child: Text(
-                          String.fromCharCode(65 + i), // A, B, C, D
+                          String.fromCharCode(65 + i),
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
-                            color:
-                                borderColor ?? AppColors.primary,
+                            color: borderColor ?? AppColors.primary,
                           ),
                         ),
                       ),
@@ -608,9 +707,10 @@ class _ExploreQuizCardState extends State<_ExploreQuizCard> {
                         style: TextStyle(
                           fontSize: 13,
                           color: textColor,
-                          fontWeight: isSelected || (_revealed && isCorrect)
-                              ? FontWeight.w600
-                              : FontWeight.w400,
+                          fontWeight:
+                              isSelected || (_revealed && isCorrect)
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
                         ),
                       ),
                     ),
@@ -626,7 +726,7 @@ class _ExploreQuizCardState extends State<_ExploreQuizCard> {
             );
           }),
 
-          // Reveal button / Explanation
+          // Reveal / Explanation
           if (!_revealed) ...[
             const SizedBox(height: 8),
             SizedBox(
@@ -678,14 +778,16 @@ class _ExploreQuizCardState extends State<_ExploreQuizCard> {
                   Expanded(
                     child: Text(
                       explanation,
-                      style:
-                          Theme.of(context).textTheme.bodySmall?.copyWith(
-                                fontSize: 12,
-                                height: 1.5,
-                                color: widget.isDark
-                                    ? AppColors.darkTextSecondary
-                                    : AppColors.textSecondary,
-                              ),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(
+                            fontSize: 12,
+                            height: 1.5,
+                            color: widget.isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.textSecondary,
+                          ),
                     ),
                   ),
                 ],

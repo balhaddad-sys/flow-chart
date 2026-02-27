@@ -1,3 +1,5 @@
+// FILE: lib/src/features/home/widgets/stats_cards.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -17,273 +19,52 @@ class StatsCards extends ConsumerWidget {
 
     return statsAsync.when(
       loading: () => _buildSkeleton(isDark),
-      error: (_, __) => const SizedBox.shrink(),
+      error: (_, __) => _buildSkeleton(isDark),
       data: (stats) {
         if (stats == null) return _buildSkeleton(isDark);
 
-        final totalHours = stats.totalStudyMinutes ~/ 60;
-        final totalMins = stats.totalStudyMinutes % 60;
-        final accuracy = (stats.overallAccuracy * 100).round();
-        final completion = (stats.completionPercent * 100).round();
-        final streak = stats.streakDays;
+        final accuracy = (stats.overallAccuracy * 100).toInt();
         final answered = stats.totalQuestionsAnswered;
+        final totalMinutes = stats.totalStudyMinutes;
 
-        return GridView(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            childAspectRatio: 1.7,
-          ),
+        return Row(
           children: [
-            // Study Time
-            _MetricCard(
-              isDark: isDark,
-              label: 'STUDY TIME',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Text(
-                        '$totalHours',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.5,
-                            ),
-                      ),
-                      const SizedBox(width: 2),
-                      Text(
-                        'h',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: isDark
-                                  ? AppColors.darkTextSecondary
-                                  : AppColors.textSecondary,
-                            ),
-                      ),
-                      if (totalMins > 0) ...[
-                        const SizedBox(width: 4),
-                        Text(
-                          '$totalMins',
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
-                              ?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -0.5,
-                              ),
-                        ),
-                        const SizedBox(width: 2),
-                        Text(
-                          'm',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: isDark
-                                        ? AppColors.darkTextSecondary
-                                        : AppColors.textSecondary,
-                                  ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.access_time_rounded,
-                        size: 11,
-                        color: isDark
-                            ? AppColors.darkTextTertiary
-                            : AppColors.textTertiary,
-                      ),
-                      const SizedBox(width: 3),
-                      Text(
-                        'This course',
-                        style:
-                            Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: isDark
-                                      ? AppColors.darkTextTertiary
-                                      : AppColors.textTertiary,
-                                  fontSize: 11,
-                                ),
-                      ),
-                    ],
-                  ),
-                ],
+            // Accuracy card
+            Expanded(
+              child: _StatCard(
+                isDark: isDark,
+                icon: Icons.track_changes_rounded,
+                iconColor: AppColors.primary,
+                iconBg: AppColors.primary.withValues(alpha: 0.10),
+                value: '$accuracy%',
+                label: 'Accuracy',
+                sublabel: answered > 0 ? '$answered Qs' : 'No attempts',
               ),
             ),
-
-            // Accuracy
-            _MetricCard(
-              isDark: isDark,
-              label: 'ACCURACY',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      _ProgressRing(
-                        value: accuracy / 100,
-                        color: AppColors.primary,
-                        size: 34,
-                        strokeWidth: 3.5,
-                      ),
-                      const SizedBox(width: 10),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
-                        children: [
-                          Text(
-                            '$accuracy',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: -0.5,
-                                ),
-                          ),
-                          Text(
-                            '%',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  color: isDark
-                                      ? AppColors.darkTextSecondary
-                                      : AppColors.textSecondary,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    answered > 0
-                        ? '${answered.toString()} Qs'
-                        : 'No attempts',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: isDark
-                              ? AppColors.darkTextTertiary
-                              : AppColors.textTertiary,
-                          fontSize: 11,
-                        ),
-                  ),
-                ],
+            const SizedBox(width: 8),
+            // Questions card
+            Expanded(
+              child: _StatCard(
+                isDark: isDark,
+                icon: Icons.quiz_outlined,
+                iconColor: const Color(0xFF7C3AED),
+                iconBg: const Color(0xFF7C3AED).withValues(alpha: 0.10),
+                value: '$answered',
+                label: 'Questions',
+                sublabel: answered == 1 ? '1 answered' : '$answered answered',
               ),
             ),
-
-            // Completion
-            _MetricCard(
-              isDark: isDark,
-              label: 'COMPLETION',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      _ProgressRing(
-                        value: completion / 100,
-                        color: const Color(0xFF7C3AED),
-                        size: 34,
-                        strokeWidth: 3.5,
-                      ),
-                      const SizedBox(width: 10),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
-                        children: [
-                          Text(
-                            '$completion',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  letterSpacing: -0.5,
-                                ),
-                          ),
-                          Text(
-                            '%',
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  color: isDark
-                                      ? AppColors.darkTextSecondary
-                                      : AppColors.textSecondary,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    completion >= 100
-                        ? 'Complete'
-                        : '${100 - completion}% left',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: isDark
-                              ? AppColors.darkTextTertiary
-                              : AppColors.textTertiary,
-                          fontSize: 11,
-                        ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Streak
-            _MetricCard(
-              isDark: isDark,
-              label: 'STREAK',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      const Text(
-                        '🔥',
-                        style: TextStyle(fontSize: 18),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '$streak',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: -0.5,
-                            ),
-                      ),
-                      const SizedBox(width: 2),
-                      Text(
-                        'days',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: isDark
-                                  ? AppColors.darkTextSecondary
-                                  : AppColors.textSecondary,
-                            ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    streak >= 7 ? 'Keep it up!' : 'Study daily to build streak',
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: isDark
-                              ? AppColors.darkTextTertiary
-                              : AppColors.textTertiary,
-                          fontSize: 11,
-                        ),
-                  ),
-                ],
+            const SizedBox(width: 8),
+            // Study time card
+            Expanded(
+              child: _StatCard(
+                isDark: isDark,
+                icon: Icons.timer_outlined,
+                iconColor: const Color(0xFF0891B2),
+                iconBg: const Color(0xFF0891B2).withValues(alpha: 0.10),
+                value: _formatMinutes(totalMinutes),
+                label: 'Study Time',
+                sublabel: 'This course',
               ),
             ),
           ],
@@ -292,163 +73,103 @@ class StatsCards extends ConsumerWidget {
     );
   }
 
+  static String _formatMinutes(int minutes) {
+    if (minutes == 0) return '0m';
+    final hours = minutes ~/ 60;
+    final mins = minutes % 60;
+    if (hours == 0) return '${mins}m';
+    if (mins == 0) return '${hours}h';
+    return '${hours}h ${mins}m';
+  }
+
   Widget _buildSkeleton(bool isDark) {
-    return GridView(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 10,
-        mainAxisSpacing: 10,
-        childAspectRatio: 1.7,
-      ),
-      children: List.generate(
-        4,
-        (_) => Container(
-          decoration: BoxDecoration(
-            color: isDark ? AppColors.darkSurface : AppColors.surface,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-            border: Border.all(
-              color: isDark ? AppColors.darkBorder : AppColors.border,
+    return Row(
+      children: List.generate(3, (i) {
+        return Expanded(
+          child: Container(
+            margin: EdgeInsets.only(left: i == 0 ? 0 : 8),
+            height: 96,
+            decoration: BoxDecoration(
+              color: isDark ? AppColors.darkSurface : AppColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+              border: Border.all(
+                color: isDark ? AppColors.darkBorder : AppColors.border,
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      }),
     );
   }
 }
 
-class _MetricCard extends StatelessWidget {
+class _StatCard extends StatelessWidget {
   final bool isDark;
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBg;
+  final String value;
   final String label;
-  final Widget child;
+  final String sublabel;
 
-  const _MetricCard({
+  const _StatCard({
     required this.isDark,
+    required this.icon,
+    required this.iconColor,
+    required this.iconBg,
+    required this.value,
     required this.label,
-    required this.child,
+    required this.sublabel,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurface : AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         border: Border.all(
           color: isDark ? AppColors.darkBorder : AppColors.border,
         ),
-        boxShadow: isDark
-            ? null
-            : [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 4,
-                  offset: const Offset(0, 1),
-                ),
-              ],
+        boxShadow: isDark ? null : AppSpacing.shadowSm,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
+          // Icon circle
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: iconBg,
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Icon(icon, color: iconColor, size: 18),
+          ),
+          const SizedBox(height: 10),
+          // Value
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.3,
+                ),
+          ),
+          const SizedBox(height: 2),
+          // Label
           Text(
             label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: isDark
                       ? AppColors.darkTextSecondary
                       : AppColors.textSecondary,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 10,
-                  letterSpacing: 0.8,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
                 ),
           ),
-          child,
         ],
       ),
     );
   }
-}
-
-// Simple progress ring drawn with CustomPaint
-class _ProgressRing extends StatelessWidget {
-  final double value; // 0.0 to 1.0
-  final Color color;
-  final double size;
-  final double strokeWidth;
-
-  const _ProgressRing({
-    required this.value,
-    required this.color,
-    required this.size,
-    required this.strokeWidth,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return SizedBox(
-      width: size,
-      height: size,
-      child: CustomPaint(
-        painter: _RingPainter(
-          value: value.clamp(0.0, 1.0),
-          color: color,
-          trackColor: isDark ? AppColors.darkBorder : AppColors.border,
-          strokeWidth: strokeWidth,
-        ),
-      ),
-    );
-  }
-}
-
-class _RingPainter extends CustomPainter {
-  final double value;
-  final Color color;
-  final Color trackColor;
-  final double strokeWidth;
-
-  _RingPainter({
-    required this.value,
-    required this.color,
-    required this.trackColor,
-    required this.strokeWidth,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width - strokeWidth) / 2;
-
-    final trackPaint = Paint()
-      ..color = trackColor
-      ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    final progressPaint = Paint()
-      ..color = color
-      ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    // Track
-    canvas.drawCircle(center, radius, trackPaint);
-
-    // Progress arc
-    const startAngle = -3.14159 / 2; // top
-    final sweepAngle = 2 * 3.14159 * value;
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      startAngle,
-      sweepAngle,
-      false,
-      progressPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _RingPainter old) =>
-      old.value != value || old.color != color;
 }

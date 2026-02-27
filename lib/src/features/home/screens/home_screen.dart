@@ -1,3 +1,5 @@
+// FILE: lib/src/features/home/screens/home_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,8 +14,8 @@ import '../../../models/course_model.dart';
 import '../../home/providers/home_provider.dart';
 import '../../library/providers/library_provider.dart';
 import '../../practice/providers/practice_provider.dart';
-import '../widgets/exam_countdown.dart';
 import '../widgets/diagnostic_directives.dart';
+import '../widgets/exam_countdown.dart';
 import '../widgets/pipeline_progress.dart';
 import '../widgets/stats_cards.dart';
 import '../widgets/streak_graph.dart';
@@ -56,6 +58,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         content: Text(message),
         behavior: SnackBarBehavior.floating,
         backgroundColor: backgroundColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        ),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       ),
     );
   }
@@ -63,17 +69,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _seedSampleDeck() async {
     setState(() => _seedingDeck = true);
     try {
-      final result = await ref.read(cloudFunctionsServiceProvider).seedSampleDeck();
+      final result =
+          await ref.read(cloudFunctionsServiceProvider).seedSampleDeck();
       if (!mounted) return;
       if (result['alreadySeeded'] == true) {
         _showSnackBar('Sample deck is already in your account.');
       } else {
         setState(() => _deckSeeded = true);
         final count = result['questionCount'] ?? 0;
-        _showSnackBar('Sample deck ready — $count high-yield questions loaded!', backgroundColor: const Color(0xFF059669));
+        _showSnackBar(
+          'Sample deck ready — $count high-yield questions loaded!',
+          backgroundColor: AppColors.success,
+        );
       }
     } catch (e) {
-      _showSnackBar('Failed to load sample deck. Please try again.', backgroundColor: const Color(0xFFDC2626));
+      _showSnackBar(
+        'Failed to load sample deck. Please try again.',
+        backgroundColor: AppColors.error,
+      );
     } finally {
       if (mounted) setState(() => _seedingDeck = false);
     }
@@ -82,10 +95,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Future<void> _runFixPlan(String courseId) async {
     setState(() => _fixingPlan = true);
     try {
-      await ref.read(cloudFunctionsServiceProvider).runFixPlan(courseId: courseId);
-      _showSnackBar('Remediation plan generated. Check your plan for updated tasks.', backgroundColor: const Color(0xFF059669));
+      await ref
+          .read(cloudFunctionsServiceProvider)
+          .runFixPlan(courseId: courseId);
+      _showSnackBar(
+        'Remediation plan generated. Check your plan for updated tasks.',
+        backgroundColor: AppColors.success,
+      );
     } catch (e) {
-      _showSnackBar('Failed to generate remediation plan. Please try again.', backgroundColor: const Color(0xFFDC2626));
+      _showSnackBar(
+        'Failed to generate remediation plan. Please try again.',
+        backgroundColor: AppColors.error,
+      );
     } finally {
       if (mounted) setState(() => _fixingPlan = false);
     }
@@ -98,10 +119,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final userAsync = ref.watch(userModelProvider);
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
+      backgroundColor:
+          isDark ? AppColors.darkBackground : AppColors.background,
       body: coursesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+        error: (e, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Text(
+              'Error loading courses: $e',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ),
         data: (courses) {
           if (courses.isEmpty) {
             return EmptyState(
@@ -116,10 +153,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           final storedId = ref.watch(activeCourseIdProvider);
           final activeCourse = storedId != null
               ? courses.cast<CourseModel?>().firstWhere(
-                    (c) => c!.id == storedId,
-                    orElse: () => null,
-                  ) ??
-                  courses.first
+                        (c) => c!.id == storedId,
+                        orElse: () => null,
+                      ) ??
+                    courses.first
               : courses.first;
           final activeCourseId = activeCourse.id;
 
@@ -134,9 +171,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           final isRealExam = _realExamTypes.contains(examType);
           final examShortLabel = _examShortLabels[examType] ?? examType;
 
-          // ── Dynamic CTA state ─────────────────────────────────────
+          // ── Dynamic CTA state ──────────────────────────────────────────
           final filesAsync = ref.watch(filesProvider(activeCourseId));
-          final sectionsAsync = ref.watch(courseSectionsProvider(activeCourseId));
+          final sectionsAsync =
+              ref.watch(courseSectionsProvider(activeCourseId));
           final statsAsync = ref.watch(courseStatsProvider(activeCourseId));
           final tasksAsync = ref.watch(todayTasksProvider(activeCourseId));
 
@@ -164,174 +202,150 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             primaryIcon = Icons.auto_stories_rounded;
             primaryRoute = '/library';
           } else if (!hasPlan) {
-            primaryLabel = 'Generate Plan';
+            primaryLabel = 'View Plan';
             primaryIcon = Icons.calendar_month_rounded;
             primaryRoute = '/planner';
           } else {
-            primaryLabel = 'Start Quiz';
-            primaryIcon = Icons.quiz_outlined;
-            primaryRoute = '/quiz/_all';
+            primaryLabel = 'Start Practising';
+            primaryIcon = Icons.play_arrow_rounded;
+            primaryRoute = '/practice';
           }
 
           return RefreshIndicator(
             color: AppColors.primary,
+            backgroundColor:
+                isDark ? AppColors.darkSurface : AppColors.surface,
             onRefresh: () async {
               ref.invalidate(todayTasksProvider(activeCourseId));
               ref.invalidate(filesProvider(activeCourseId));
               ref.invalidate(courseSectionsProvider(activeCourseId));
+              ref.invalidate(courseStatsProvider(activeCourseId));
             },
             child: CustomScrollView(
               slivers: [
+                // ── Gradient header ──────────────────────────────────────
                 SliverToBoxAdapter(
                   child: GradientHeader(
                     child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // ── Date ──────────────────────────────────────────
-                          Text(
-                            _formattedDate(),
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
-                                ?.copyWith(
-                                  color: isDark
-                                      ? AppColors.darkTextSecondary
-                                      : AppColors.textSecondary,
-                                  fontWeight: FontWeight.w500,
-                                  letterSpacing: 0.2,
-                                ),
-                          ),
-                          const SizedBox(height: 4),
-
-                          // ── Greeting ───────────────────────────────────────
-                          userAsync.when(
-                            data: (user) {
-                              final name =
-                                  user?.name.split(' ').first ?? '';
-                              return Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    '${_greeting()}${name.isNotEmpty ? ', $name' : ''}',
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headlineMedium
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: -0.5,
-                                        ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    activeCourse.title,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.copyWith(
-                                          color: isDark
-                                              ? AppColors.darkTextSecondary
-                                              : AppColors.textSecondary,
-                                          fontSize: 13,
-                                        ),
-                                  ),
-                                ],
-                              );
-                            },
-                            loading: () => Text(
-                              _greeting(),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .headlineMedium
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-                            error: (_, __) => Text(
-                              _greeting(),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .headlineMedium
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-                          ),
-
-                          const SizedBox(height: 14),
-
-                          // ── Action row ─────────────────────────────────────
-                          Row(
-                            children: [
-                              ElevatedButton.icon(
-                                onPressed: () =>
-                                    context.go(primaryRoute),
-                                icon: Icon(primaryIcon, size: 16),
-                                label: Text(primaryLabel),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppColors.primary,
-                                  foregroundColor: Colors.white,
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 16, vertical: 10),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius:
-                                        BorderRadius.circular(
-                                            AppSpacing.radiusMd),
-                                  ),
-                                  textStyle: const TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                height: 36,
-                                width: 36,
-                                decoration: BoxDecoration(
-                                  color: isDark
-                                      ? AppColors.darkSurfaceVariant.withValues(alpha: 0.6)
-                                      : Colors.white.withValues(alpha: 0.8),
-                                  border: Border.all(
-                                    color: isDark
-                                        ? AppColors.darkBorder
-                                        : AppColors.border,
-                                  ),
-                                  borderRadius:
-                                      BorderRadius.circular(
-                                          AppSpacing.radiusMd),
-                                ),
-                                child: InkWell(
-                                  borderRadius:
-                                      BorderRadius.circular(
-                                          AppSpacing.radiusMd),
-                                  onTap: () => CourseSelectorSheet.show(
-                                      context),
-                                  child: Icon(
-                                    Icons.more_horiz_rounded,
-                                    size: 18,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Date line
+                        Text(
+                          _formattedDate(),
+                          style:
+                              Theme.of(context).textTheme.labelSmall?.copyWith(
                                     color: isDark
                                         ? AppColors.darkTextSecondary
                                         : AppColors.textSecondary,
+                                    fontWeight: FontWeight.w500,
+                                    letterSpacing: 0.2,
                                   ),
+                        ),
+                        const SizedBox(height: 4),
+
+                        // Greeting + course title
+                        userAsync.when(
+                          data: (user) {
+                            final name =
+                                user?.name.split(' ').first ?? '';
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${_greeting()}${name.isNotEmpty ? ', $name' : ''}',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineMedium
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        letterSpacing: -0.5,
+                                      ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  activeCourse.title,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: isDark
+                                            ? AppColors.darkTextSecondary
+                                            : AppColors.textSecondary,
+                                        fontSize: 13,
+                                      ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            );
+                          },
+                          loading: () => Text(
+                            _greeting(),
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineMedium
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                          error: (_, __) => Text(
+                            _greeting(),
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineMedium
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        // Action row: primary CTA + course switcher
+                        Row(
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: () => context.go(primaryRoute),
+                              icon: Icon(primaryIcon, size: 16),
+                              label: Text(primaryLabel),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shadowColor: Colors.transparent,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 11,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                      AppSpacing.radiusMd),
+                                ),
+                                textStyle: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
                                 ),
                               ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-                        ],
-                      ),
+                            ),
+                            const SizedBox(width: 8),
+                            _CourseSwitcherButton(isDark: isDark),
+                          ],
+                        ),
+
+                        const SizedBox(height: 20),
+                      ],
+                    ),
                   ),
                 ),
 
+                // ── Content area ─────────────────────────────────────────
                 SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
-                      // ── Exam countdown ────────────────────────────────────
+                      // Exam countdown
                       if (activeCourse.examDate != null) ...[
                         ExamCountdown(examDate: activeCourse.examDate!),
                         AppSpacing.gapMd,
                       ],
 
-                      // ── Sample Deck CTA ───────────────────────────────────
+                      // Sample deck CTA
                       if (showSampleDeckCTA) ...[
                         _SampleDeckCard(
                           isDark: isDark,
@@ -341,31 +355,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         AppSpacing.gapMd,
                       ],
 
-                      // ── Exam bank card ────────────────────────────────────
+                      // Real exam bank card
                       if (isRealExam) ...[
                         _ExamBankCard(
                           examShortLabel: examShortLabel,
                           isDark: isDark,
-                          onTap: () => context.go('/exam-bank?exam=${Uri.encodeComponent(examType)}'),
+                          onTap: () => context.go(
+                              '/exam-bank?exam=${Uri.encodeComponent(examType)}'),
                         ),
                         AppSpacing.gapMd,
                       ],
 
-                      // ── Pipeline Progress ─────────────────────────────────
+                      // Pipeline progress (shown while processing)
                       PipelineProgress(courseId: activeCourseId),
                       AppSpacing.gapMd,
 
-                      // ── Performance ───────────────────────────────────────
+                      // Performance section
                       SectionLabel(
                         text: 'Performance',
-                        actionText: 'View analytics',
+                        actionText: 'Analytics',
                         onAction: () => context.go('/analytics'),
                       ),
                       const SizedBox(height: 10),
                       StatsCards(courseId: activeCourseId),
                       AppSpacing.gapMd,
 
-                      // ── Today's Plan ──────────────────────────────────────
+                      // Today's plan section
                       SectionLabel(
                         text: "Today's Plan",
                         actionText: 'View all',
@@ -375,10 +390,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       TodayChecklist(courseId: activeCourseId),
                       AppSpacing.gapMd,
 
-                      // ── Weak Areas ────────────────────────────────────────
+                      // Weak areas
                       WeakTopicsBanner(courseId: activeCourseId),
 
-                      // ── Remediation Plan button ───────────────────────────
+                      // Remediation plan button
                       if (weakTopics.isNotEmpty) ...[
                         AppSpacing.gapSm,
                         SizedBox(
@@ -396,11 +411,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       color: AppColors.primary,
                                     ),
                                   )
-                                : const Icon(Icons.build_outlined,
-                                    size: 14),
-                            label: Text(_fixingPlan
-                                ? 'Generating...'
-                                : 'Remediation Plan'),
+                                : const Icon(
+                                    Icons.construction_rounded,
+                                    size: 15,
+                                  ),
+                            label: Text(
+                              _fixingPlan
+                                  ? 'Generating...'
+                                  : 'Remediation Plan',
+                            ),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: isDark
                                   ? AppColors.darkTextPrimary
@@ -411,7 +430,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     : AppColors.border,
                               ),
                               padding:
-                                  const EdgeInsets.symmetric(vertical: 10),
+                                  const EdgeInsets.symmetric(vertical: 11),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(
                                     AppSpacing.radiusMd),
@@ -425,14 +444,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ],
 
-                      // ── Streak graph ──────────────────────────────────
-                      if (stats != null && (stats.streakDays) > 0) ...[
+                      // Streak graph
+                      if (stats != null && stats.streakDays > 0) ...[
                         AppSpacing.gapMd,
-                        StreakGraph(streakDays: stats.streakDays, isDark: isDark),
+                        StreakGraph(
+                          streakDays: stats.streakDays,
+                          isDark: isDark,
+                        ),
                       ],
 
-                      // ── Diagnostic directives ──────────────────────────
-                      if (stats != null && stats.diagnosticDirectives.isNotEmpty) ...[
+                      // AI diagnostic directives
+                      if (stats != null &&
+                          stats.diagnosticDirectives.isNotEmpty) ...[
                         AppSpacing.gapMd,
                         DiagnosticDirectives(
                           directives: stats.diagnosticDirectives,
@@ -440,7 +463,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                       ],
 
-                      AppSpacing.gapLg,
+                      AppSpacing.gapXl,
                     ]),
                   ),
                 ),
@@ -463,17 +486,65 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final now = DateTime.now();
     const days = [
       'Monday', 'Tuesday', 'Wednesday', 'Thursday',
-      'Friday', 'Saturday', 'Sunday'
+      'Friday', 'Saturday', 'Sunday',
     ];
     const months = [
       'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      'July', 'August', 'September', 'October', 'November', 'December',
     ];
     return '${days[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}';
   }
 }
 
-// ── Sample Deck Card ──────────────────────────────────────────────────────────
+// ── Course switcher icon button ──────────────────────────────────────────────
+
+class _CourseSwitcherButton extends StatelessWidget {
+  final bool isDark;
+
+  const _CourseSwitcherButton({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 38,
+      width: 38,
+      decoration: BoxDecoration(
+        color: isDark
+            ? AppColors.darkSurfaceVariant.withValues(alpha: 0.6)
+            : Colors.white.withValues(alpha: 0.85),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.border,
+        ),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 6,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          onTap: () => CourseSelectorSheet.show(context),
+          child: Icon(
+            Icons.more_horiz_rounded,
+            size: 18,
+            color: isDark
+                ? AppColors.darkTextSecondary
+                : AppColors.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Sample deck CTA card ─────────────────────────────────────────────────────
 
 class _SampleDeckCard extends StatelessWidget {
   final bool isDark;
@@ -494,22 +565,25 @@ class _SampleDeckCard extends StatelessWidget {
         color: isDark ? AppColors.darkSurface : AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         border: Border.all(
-          color: isDark ? AppColors.darkBorder : AppColors.border,
+          color: isDark
+              ? AppColors.primary.withValues(alpha: 0.25)
+              : AppColors.primary.withValues(alpha: 0.20),
         ),
+        boxShadow: isDark ? null : AppSpacing.shadowSm,
       ),
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
               color: AppColors.primary.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(11),
             ),
             child: const Icon(
               Icons.bolt_rounded,
               color: AppColors.primary,
-              size: 20,
+              size: 22,
             ),
           ),
           const SizedBox(width: 14),
@@ -524,7 +598,7 @@ class _SampleDeckCard extends StatelessWidget {
                         fontSize: 13,
                       ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   '10 pre-authored Cardiology & Pharmacology SBAs.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -545,10 +619,11 @@ class _SampleDeckCard extends StatelessWidget {
               foregroundColor: Colors.white,
               elevation: 0,
               padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
               minimumSize: Size.zero,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                borderRadius:
+                    BorderRadius.circular(AppSpacing.radiusMd),
               ),
               textStyle: const TextStyle(
                 fontSize: 12,
@@ -560,7 +635,9 @@ class _SampleDeckCard extends StatelessWidget {
                     width: 14,
                     height: 14,
                     child: CircularProgressIndicator(
-                        strokeWidth: 1.5, color: Colors.white),
+                      strokeWidth: 1.5,
+                      color: Colors.white,
+                    ),
                   )
                 : const Text('Try Sample'),
           ),
@@ -570,7 +647,7 @@ class _SampleDeckCard extends StatelessWidget {
   }
 }
 
-// ── Exam bank card ────────────────────────────────────────────────────────────
+// ── Exam bank card ───────────────────────────────────────────────────────────
 
 class _ExamBankCard extends StatelessWidget {
   final String examShortLabel;
@@ -591,31 +668,25 @@ class _ExamBankCard extends StatelessWidget {
         color: isDark ? AppColors.darkSurface : AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         border: Border.all(
-          color: isDark ? AppColors.darkBorder : AppColors.border,
+          color: isDark
+              ? const Color(0xFFD97706).withValues(alpha: 0.25)
+              : AppColors.border,
         ),
-        boxShadow: isDark
-            ? null
-            : [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 4,
-                  offset: const Offset(0, 1),
-                ),
-              ],
+        boxShadow: isDark ? null : AppSpacing.shadowSm,
       ),
       child: Row(
         children: [
           Container(
-            width: 40,
-            height: 40,
+            width: 42,
+            height: 42,
             decoration: BoxDecoration(
               color: const Color(0xFFFEF3C7),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(11),
             ),
             child: const Icon(
               Icons.emoji_events_rounded,
               color: Color(0xFFD97706),
-              size: 20,
+              size: 22,
             ),
           ),
           const SizedBox(width: 14),
@@ -625,12 +696,11 @@ class _ExamBankCard extends StatelessWidget {
               children: [
                 Text(
                   '$examShortLabel Question Bank',
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.w600),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Text(
                   'Practise with exam-specific questions and track weak topics.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -651,21 +721,22 @@ class _ExamBankCard extends StatelessWidget {
               foregroundColor: Colors.white,
               elevation: 0,
               padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
               minimumSize: Size.zero,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                borderRadius:
+                    BorderRadius.circular(AppSpacing.radiusMd),
               ),
               textStyle: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            child: Row(
+            child: const Row(
               mainAxisSize: MainAxisSize.min,
-              children: const [
+              children: [
                 Text('Open Bank'),
-                SizedBox(width: 4),
+                SizedBox(width: 3),
                 Icon(Icons.chevron_right_rounded, size: 14),
               ],
             ),

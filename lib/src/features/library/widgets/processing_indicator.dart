@@ -1,17 +1,22 @@
+// FILE: lib/src/features/library/widgets/processing_indicator.dart
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 
-/// Displays animated processing indicator with phase message and progress.
+/// Animated processing indicator with phase-aware labelling and progress.
 ///
 /// Phases:
-/// - EXTRACTING: Reading and parsing document
-/// - ANALYZING: Generating AI blueprint
-/// - GENERATING_QUESTIONS: Creating practice questions
+/// - EXTRACTING         → "Extracting content"
+/// - ANALYZING          → "Analyzing sections"
+/// - GENERATING_QUESTIONS → "Generating questions"
 class ProcessingIndicator extends StatefulWidget {
   final String? phase;
+
+  /// Show phase label alongside the spinner.
   final bool showLabel;
+
+  /// Compact inline row (spinner + label only).
   final bool compact;
 
   const ProcessingIndicator({
@@ -58,16 +63,38 @@ class _ProcessingIndicatorState extends State<ProcessingIndicator>
   }
 
   static const _phases = [
-    _PhaseInfo('Extracting', Icons.content_paste_search_rounded, AppColors.info),
-    _PhaseInfo('Analyzing', Icons.auto_awesome_rounded, AppColors.secondary),
-    _PhaseInfo('Generating', Icons.quiz_outlined, AppColors.accent),
+    _PhaseInfo(
+      label: 'Extracting content',
+      shortLabel: 'Extracting',
+      icon: Icons.content_paste_search_rounded,
+      color: AppColors.info,
+    ),
+    _PhaseInfo(
+      label: 'Analyzing sections',
+      shortLabel: 'Analyzing',
+      icon: Icons.auto_awesome_rounded,
+      color: AppColors.secondary,
+    ),
+    _PhaseInfo(
+      label: 'Generating questions',
+      shortLabel: 'Generating',
+      icon: Icons.quiz_outlined,
+      color: AppColors.accent,
+    ),
   ];
 
   String get _phaseLabel {
     if (_currentStep < _phases.length) {
-      return '${_phases[_currentStep].label}...';
+      return _phases[_currentStep].label;
     }
     return 'Processing...';
+  }
+
+  Color get _phaseColor {
+    if (_currentStep < _phases.length) {
+      return _phases[_currentStep].color;
+    }
+    return AppColors.primary;
   }
 
   @override
@@ -75,12 +102,12 @@ class _ProcessingIndicatorState extends State<ProcessingIndicator>
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (!widget.showLabel) {
-      return const SizedBox(
+      return SizedBox(
         width: 20,
         height: 20,
         child: CircularProgressIndicator(
           strokeWidth: 2,
-          color: AppColors.primary,
+          color: _phaseColor,
         ),
       );
     }
@@ -93,29 +120,35 @@ class _ProcessingIndicatorState extends State<ProcessingIndicator>
   }
 
   Widget _buildCompact(BuildContext context, bool isDark) {
-    final phase = _currentStep < _phases.length ? _phases[_currentStep] : null;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SizedBox(
-          width: 16,
-          height: 16,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: phase?.color ?? AppColors.primary,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Text(
-          _phaseLabel,
-          style: TextStyle(
-            fontSize: 12,
-            color: phase?.color ?? AppColors.textSecondary,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ],
+    return AnimatedBuilder(
+      animation: _pulseController,
+      builder: (context, child) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.8,
+                color: _phaseColor,
+              ),
+            ),
+            const SizedBox(width: 7),
+            Opacity(
+              opacity: 0.6 + (_pulseController.value * 0.4),
+              child: Text(
+                _phaseLabel,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: _phaseColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -127,7 +160,7 @@ class _ProcessingIndicatorState extends State<ProcessingIndicator>
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Progress bar with step dots
+        // Progress bar + counter
         Row(
           children: [
             Expanded(
@@ -145,7 +178,7 @@ class _ProcessingIndicatorState extends State<ProcessingIndicator>
                 return Opacity(
                   opacity: 0.5 + (_pulseController.value * 0.5),
                   child: Text(
-                    '${(_currentStep + 1)}/$totalSteps',
+                    '${_currentStep + 1}/$totalSteps',
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: AppColors.primary,
@@ -167,9 +200,10 @@ class _ProcessingIndicatorState extends State<ProcessingIndicator>
 
             return Expanded(
               child: Padding(
-                padding: EdgeInsets.only(right: i < _phases.length - 1 ? 4 : 0),
+                padding:
+                    EdgeInsets.only(right: i < _phases.length - 1 ? 4 : 0),
                 child: _PhaseChip(
-                  label: phase.label,
+                  label: phase.shortLabel,
                   icon: phase.icon,
                   color: phase.color,
                   isActive: isActive,
@@ -187,10 +221,16 @@ class _ProcessingIndicatorState extends State<ProcessingIndicator>
 
 class _PhaseInfo {
   final String label;
+  final String shortLabel;
   final IconData icon;
   final Color color;
 
-  const _PhaseInfo(this.label, this.icon, this.color);
+  const _PhaseInfo({
+    required this.label,
+    required this.shortLabel,
+    required this.icon,
+    required this.color,
+  });
 }
 
 class _SteppedProgressBar extends StatelessWidget {
@@ -290,7 +330,7 @@ class _PhaseChip extends StatelessWidget {
         children: [
           Icon(
             isComplete ? Icons.check_circle_rounded : icon,
-            size: 13,
+            size: 12,
             color: isComplete
                 ? AppColors.success
                 : isActive

@@ -95,10 +95,10 @@ class _AppShellState extends ConsumerState<_AppShell> {
       path: '/ai',
     ),
     _NavItem(
-      icon: Icons.calendar_today_outlined,
-      activeIcon: Icons.calendar_today_rounded,
-      label: 'Plan',
-      path: '/planner',
+      icon: Icons.person_outline_rounded,
+      activeIcon: Icons.person_rounded,
+      label: 'Profile',
+      path: '/profile',
     ),
   ];
 
@@ -233,9 +233,8 @@ class _AppShellState extends ConsumerState<_AppShell> {
     if (location.startsWith('/library')) return 1;
     if (location.startsWith('/practice')) return 2;
     if (location.startsWith('/ai')) return 3;
-    if (location.startsWith('/planner') || location.startsWith('/dashboard')) {
+    if (location.startsWith('/profile') || location.startsWith('/settings'))
       return 4;
-    }
     return 0;
   }
 
@@ -539,9 +538,9 @@ final _routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/file/:fileId',
-            builder: (context, state) => FileDetailScreen(
-              fileId: state.pathParameters['fileId']!,
-            ),
+            builder:
+                (context, state) =>
+                    FileDetailScreen(fileId: state.pathParameters['fileId']!),
           ),
           GoRoute(
             path: '/guide',
@@ -591,10 +590,11 @@ final _routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/quiz/:sectionId',
-        builder: (context, state) => QuizScreen(
-          sectionId: state.pathParameters['sectionId'],
-          mode: state.uri.queryParameters['mode'] ?? 'section',
-        ),
+        builder:
+            (context, state) => QuizScreen(
+              sectionId: state.pathParameters['sectionId'],
+              mode: state.uri.queryParameters['mode'] ?? 'section',
+            ),
       ),
     ],
   );
@@ -630,21 +630,42 @@ class MedQApp extends ConsumerWidget {
   }
 
   ThemeData _buildLightTheme() {
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: AppColors.primary,
+      brightness: Brightness.light,
+    ).copyWith(
+      primary: AppColors.primary,
+      secondary: AppColors.secondary,
+      tertiary: AppColors.accent,
+      surface: AppColors.surface,
+      onSurface: AppColors.textPrimary,
+      error: AppColors.error,
+      outline: AppColors.border,
+      outlineVariant: AppColors.borderLight,
+      surfaceTint: Colors.transparent,
+    );
+
     return ThemeData(
       useMaterial3: true,
-      colorSchemeSeed: AppColors.primary,
+      colorScheme: colorScheme,
       brightness: Brightness.light,
-      textTheme: AppTypography.textTheme,
+      textTheme: AppTypography.textTheme.apply(
+        bodyColor: AppColors.textPrimary,
+        displayColor: AppColors.textPrimary,
+      ),
       scaffoldBackgroundColor: AppColors.background,
-      splashFactory: InkSparkle.splashFactory,
+      canvasColor: AppColors.background,
+      splashFactory: InkRipple.splashFactory,
       cardTheme: CardThemeData(
         elevation: 0,
         margin: EdgeInsets.zero,
+        color: AppColors.surface,
+        shadowColor: Colors.black.withValues(alpha: 0.04),
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-          side: BorderSide(color: AppColors.border.withValues(alpha: 0.5)),
+          side: BorderSide(color: AppColors.border.withValues(alpha: 0.9)),
         ),
-        color: AppColors.surface,
       ),
       dividerTheme: const DividerThemeData(
         color: AppColors.divider,
@@ -653,18 +674,20 @@ class MedQApp extends ConsumerWidget {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.surfaceVariant.withValues(alpha: 0.5),
+        fillColor: AppColors.surface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
           borderSide: BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-          borderSide: BorderSide(color: AppColors.border),
+          borderSide: BorderSide(
+            color: AppColors.border.withValues(alpha: 0.95),
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.8),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
@@ -672,14 +695,15 @@ class MedQApp extends ConsumerWidget {
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-          borderSide: const BorderSide(color: AppColors.error, width: 2),
+          borderSide: const BorderSide(color: AppColors.error, width: 1.8),
         ),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
+          horizontal: 18,
+          vertical: 16,
         ),
         hintStyle: AppTypography.textTheme.bodyMedium?.copyWith(
           color: AppColors.textTertiary,
+          fontWeight: FontWeight.w600,
         ),
         labelStyle: AppTypography.textTheme.bodyMedium?.copyWith(
           color: AppColors.textSecondary,
@@ -698,10 +722,57 @@ class MedQApp extends ConsumerWidget {
         ),
         systemOverlayStyle: SystemUiOverlayStyle.dark,
       ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.45),
+          disabledForegroundColor: Colors.white70,
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          ),
+          textStyle: AppTypography.textTheme.labelLarge,
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          ),
+          textStyle: AppTypography.textTheme.labelLarge,
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.textPrimary,
+          side: BorderSide(color: AppColors.border),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          ),
+          textStyle: AppTypography.textTheme.labelLarge,
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.primary,
+          textStyle: AppTypography.textTheme.labelLarge,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          ),
+        ),
+      ),
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.surfaceVariant,
+        selectedColor: AppColors.primarySubtle,
         labelStyle: AppTypography.textTheme.labelMedium,
-        side: BorderSide.none,
+        side: BorderSide(color: AppColors.border.withValues(alpha: 0.9)),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
         ),
@@ -710,37 +781,50 @@ class MedQApp extends ConsumerWidget {
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        elevation: 3,
-        highlightElevation: 6,
+        elevation: 0,
+        highlightElevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         ),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: AppColors.surface,
+        backgroundColor: Colors.transparent,
         elevation: 0,
       ),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+        ),
+      ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: const Color(0xFF1E293B),
+        backgroundColor: const Color(0xFF102233),
         contentTextStyle: AppTypography.textTheme.bodyMedium?.copyWith(
           color: Colors.white,
         ),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         ),
         behavior: SnackBarBehavior.floating,
-        elevation: 4,
+        elevation: 0,
       ),
       dialogTheme: DialogThemeData(
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
         ),
-        elevation: 16,
-        titleTextStyle: AppTypography.textTheme.titleLarge,
-        contentTextStyle: AppTypography.textTheme.bodyMedium,
+        elevation: 0,
+        titleTextStyle: AppTypography.textTheme.titleLarge?.copyWith(
+          color: AppColors.textPrimary,
+        ),
+        contentTextStyle: AppTypography.textTheme.bodyMedium?.copyWith(
+          color: AppColors.textSecondary,
+        ),
       ),
       checkboxTheme: CheckboxThemeData(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       ),
       tabBarTheme: TabBarThemeData(
         labelColor: AppColors.primary,
@@ -749,13 +833,14 @@ class MedQApp extends ConsumerWidget {
         indicatorSize: TabBarIndicatorSize.label,
         labelStyle: AppTypography.textTheme.labelLarge,
         unselectedLabelStyle: AppTypography.textTheme.labelLarge?.copyWith(
-          fontWeight: FontWeight.w400,
+          fontWeight: FontWeight.w600,
         ),
       ),
       listTileTheme: ListTileThemeData(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+        iconColor: AppColors.textSecondary,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         ),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
@@ -775,21 +860,42 @@ class MedQApp extends ConsumerWidget {
   }
 
   ThemeData _buildDarkTheme() {
+    final colorScheme = ColorScheme.fromSeed(
+      seedColor: AppColors.primary,
+      brightness: Brightness.dark,
+    ).copyWith(
+      primary: AppColors.primaryLight,
+      secondary: AppColors.secondaryLight,
+      tertiary: AppColors.accentLight,
+      surface: AppColors.darkSurface,
+      onSurface: AppColors.darkTextPrimary,
+      error: AppColors.error,
+      outline: AppColors.darkBorder,
+      outlineVariant: AppColors.darkDivider,
+      surfaceTint: Colors.transparent,
+    );
+
     return ThemeData(
       useMaterial3: true,
-      colorSchemeSeed: AppColors.primary,
+      colorScheme: colorScheme,
       brightness: Brightness.dark,
-      textTheme: AppTypography.textTheme,
+      textTheme: AppTypography.textTheme.apply(
+        bodyColor: AppColors.darkTextPrimary,
+        displayColor: AppColors.darkTextPrimary,
+      ),
       scaffoldBackgroundColor: AppColors.darkBackground,
-      splashFactory: InkSparkle.splashFactory,
+      canvasColor: AppColors.darkBackground,
+      splashFactory: InkRipple.splashFactory,
       cardTheme: CardThemeData(
         elevation: 0,
         margin: EdgeInsets.zero,
+        color: AppColors.darkSurface,
+        shadowColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-          side: BorderSide(color: AppColors.darkBorder.withValues(alpha: 0.5)),
+          side: BorderSide(color: AppColors.darkBorder.withValues(alpha: 0.95)),
         ),
-        color: AppColors.darkSurface,
       ),
       dividerTheme: const DividerThemeData(
         color: AppColors.darkDivider,
@@ -798,36 +904,39 @@ class MedQApp extends ConsumerWidget {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.darkSurfaceVariant.withValues(alpha: 0.5),
+        fillColor: AppColors.darkSurfaceVariant.withValues(alpha: 0.78),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          borderSide: BorderSide(
-            color: AppColors.darkBorder.withValues(alpha: 0.6),
-          ),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          borderSide: BorderSide(color: AppColors.darkBorder),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
           borderSide: BorderSide(
-            color: AppColors.darkBorder.withValues(alpha: 0.6),
+            color: AppColors.darkBorder.withValues(alpha: 0.95),
           ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
           borderSide: const BorderSide(
             color: AppColors.primaryLight,
-            width: 1.5,
+            width: 1.7,
           ),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
           borderSide: const BorderSide(color: AppColors.error),
         ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          borderSide: const BorderSide(color: AppColors.error, width: 1.8),
+        ),
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
+          horizontal: 18,
+          vertical: 16,
         ),
         hintStyle: AppTypography.textTheme.bodyMedium?.copyWith(
           color: AppColors.darkTextTertiary,
+          fontWeight: FontWeight.w600,
         ),
         labelStyle: AppTypography.textTheme.bodyMedium?.copyWith(
           color: AppColors.darkTextSecondary,
@@ -846,10 +955,61 @@ class MedQApp extends ConsumerWidget {
         ),
         systemOverlayStyle: SystemUiOverlayStyle.light,
       ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: AppColors.primaryLight,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: AppColors.primaryLight.withValues(
+            alpha: 0.4,
+          ),
+          disabledForegroundColor: Colors.white70,
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          ),
+          textStyle: AppTypography.textTheme.labelLarge,
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: AppColors.primaryLight,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          ),
+          textStyle: AppTypography.textTheme.labelLarge,
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.darkTextPrimary,
+          side: BorderSide(color: AppColors.darkBorder),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          ),
+          textStyle: AppTypography.textTheme.labelLarge,
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: AppColors.primaryLight,
+          textStyle: AppTypography.textTheme.labelLarge,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          ),
+        ),
+      ),
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.darkSurfaceVariant,
-        labelStyle: AppTypography.textTheme.labelMedium,
-        side: BorderSide.none,
+        selectedColor: AppColors.primary.withValues(alpha: 0.2),
+        labelStyle: AppTypography.textTheme.labelMedium?.copyWith(
+          color: AppColors.darkTextPrimary,
+        ),
+        side: BorderSide(color: AppColors.darkBorder),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
         ),
@@ -861,25 +1021,34 @@ class MedQApp extends ConsumerWidget {
           color: AppColors.darkTextPrimary,
         ),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         ),
         behavior: SnackBarBehavior.floating,
+        elevation: 0,
       ),
-      dialogTheme: DialogThemeData(
+      bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: AppColors.darkSurface,
+        surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
         ),
-        elevation: 16,
+      ),
+      dialogTheme: DialogThemeData(
+        backgroundColor: AppColors.darkSurface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+        ),
+        elevation: 0,
       ),
       checkboxTheme: CheckboxThemeData(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: AppColors.primaryLight,
         foregroundColor: Colors.white,
-        elevation: 3,
-        highlightElevation: 6,
+        elevation: 0,
+        highlightElevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         ),
@@ -891,7 +1060,14 @@ class MedQApp extends ConsumerWidget {
         indicatorSize: TabBarIndicatorSize.label,
         labelStyle: AppTypography.textTheme.labelLarge,
         unselectedLabelStyle: AppTypography.textTheme.labelLarge?.copyWith(
-          fontWeight: FontWeight.w400,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      listTileTheme: ListTileThemeData(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+        iconColor: AppColors.darkTextSecondary,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
         ),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
