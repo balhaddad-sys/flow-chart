@@ -44,8 +44,16 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
             sectionId: sectionId,
             count: 10,
           );
-    } catch (_) {
-      // Firestore stream will update status
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e is Exception ? e.toString().replaceFirst('Exception: ', '') : 'Failed to generate questions. Please try again.'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: const Color(0xFFDC2626),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _generatingIds.remove(sectionId));
     }
@@ -307,7 +315,7 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
         iconBg: const Color(0xFFFEF3C7),
         darkIconColor: const Color(0xFFFBBF24),
         darkIconBg: const Color(0xFFFBBF24).withValues(alpha: 0.10),
-        route: '/quiz/_all',
+        route: '/quiz/_all?mode=mixed',
       ),
       _ModeCardData(
         icon: Icons.shuffle_rounded,
@@ -317,7 +325,7 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
         iconBg: const Color(0xFFEFF6FF),
         darkIconColor: const Color(0xFF60A5FA),
         darkIconBg: const Color(0xFF60A5FA).withValues(alpha: 0.10),
-        route: '/quiz/_all',
+        route: '/quiz/_all?mode=random',
       ),
       _ModeCardData(
         icon: Icons.psychology_rounded,
@@ -327,7 +335,7 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
         iconBg: const Color(0xFFF5F3FF),
         darkIconColor: const Color(0xFFA78BFA),
         darkIconBg: const Color(0xFFA78BFA).withValues(alpha: 0.10),
-        route: '/quiz/_all',
+        route: '/assessment',
       ),
     ];
 

@@ -28,6 +28,7 @@ class StatsModel with _$StatsModel {
     @Default(0) int weeklyStudyMinutes,
     @Default(0.0) double completionPercent,
     @Default([]) List<WeakTopic> weakestTopics,
+    @Default([]) List<String> diagnosticDirectives,
     @Default(0) int streakDays,
     @TimestampConverter() DateTime? lastStudiedAt,
     @TimestampConverter() DateTime? updatedAt,

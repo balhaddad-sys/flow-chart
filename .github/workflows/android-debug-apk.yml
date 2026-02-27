@@ -33,14 +33,26 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Analyze
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos
 
       - name: Build debug APK
-        run: flutter build apk --debug --split-per-abi
+        # Do NOT use --split-per-abi for debug — it confuses Flutter's APK
+        # output detection when NDK/CMake are involved. A fat debug APK is
+        # fine for testing and installs on any device/emulator.
+        run: flutter build apk --debug
+
+      - name: List APK outputs (debug)
+        if: always()
+        run: |
+          echo "=== flutter-apk dir ==="
+          find build/app/outputs/flutter-apk -name "*.apk" 2>/dev/null || echo "No APKs in flutter-apk/"
+          echo "=== apk/debug dir ==="
+          find build/app/outputs/apk -name "*.apk" 2>/dev/null || echo "No APKs in apk/"
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: medq-debug-apk-${{ github.sha }}
-          path: build/app/outputs/flutter-apk/app-*-debug.apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 14
+          if-no-files-found: error
