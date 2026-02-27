@@ -339,80 +339,82 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
       ),
     ];
 
-    // Vertical list of cards — works well on all screen widths
-    return Column(
+    // 3-column grid — matches web app sm:grid-cols-3 layout
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: List.generate(modes.length, (i) {
         final m = modes[i];
-        return Padding(
-          padding: EdgeInsets.only(bottom: i < modes.length - 1 ? 8 : 0),
-          child: Material(
-            color: isDark ? AppColors.darkSurface : AppColors.surface,
-            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-            child: InkWell(
+        return Expanded(
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: i == 0 ? 0 : 5,
+              right: i == modes.length - 1 ? 0 : 5,
+            ),
+            child: Material(
+              color: isDark ? AppColors.darkSurface : AppColors.surface,
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              onTap: () => context.go(m.route),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  borderRadius:
-                      BorderRadius.circular(AppSpacing.radiusMd),
-                  border: Border.all(
-                    color:
-                        isDark ? AppColors.darkBorder : AppColors.border,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                onTap: () => context.go(m.route),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 14),
+                  decoration: BoxDecoration(
+                    borderRadius:
+                        BorderRadius.circular(AppSpacing.radiusMd),
+                    border: Border.all(
+                      color:
+                          isDark ? AppColors.darkBorder : AppColors.border,
+                    ),
                   ),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: isDark ? m.darkIconBg : m.iconBg,
-                        borderRadius: BorderRadius.circular(10),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: isDark ? m.darkIconBg : m.iconBg,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(m.icon,
+                            size: 20,
+                            color:
+                                isDark ? m.darkIconColor : m.iconColor),
                       ),
-                      child: Icon(m.icon,
-                          size: 20,
-                          color:
-                              isDark ? m.darkIconColor : m.iconColor),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            m.label,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(fontWeight: FontWeight.w600),
-                          ),
-                          const SizedBox(height: 1),
-                          Text(
-                            m.description,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(
-                                  color: isDark
-                                      ? AppColors.darkTextSecondary
-                                      : AppColors.textSecondary,
-                                  fontSize: 12,
-                                ),
-                          ),
-                        ],
+                      const SizedBox(height: 8),
+                      Text(
+                        m.label,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
+                            ),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      size: 18,
-                      color: isDark
-                          ? AppColors.darkTextTertiary
-                          : AppColors.textTertiary,
-                    ),
-                  ],
+                      const SizedBox(height: 2),
+                      Text(
+                        m.description,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(
+                              color: isDark
+                                  ? AppColors.darkTextSecondary
+                                  : AppColors.textSecondary,
+                              fontSize: 10,
+                              height: 1.3,
+                            ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),

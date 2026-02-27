@@ -144,6 +144,8 @@ jobs:
 
       - name: Build release APK (direct install / sideload)
         run: |
+          set -euo pipefail
+
           flutter build apk --release \
             --split-per-abi \
             --build-name="${{ steps.meta.outputs.build_name }}" \
@@ -155,7 +157,25 @@ jobs:
             --dart-define=FIREBASE_ANDROID_STORAGE_BUCKET="$FIREBASE_ANDROID_STORAGE_BUCKET" \
             --dart-define=MEDQ_PRIVACY_URL="$MEDQ_PRIVACY_URL" \
             --dart-define=MEDQ_TERMS_URL="$MEDQ_TERMS_URL" \
-            --dart-define=MEDQ_SUPPORT_EMAIL="$MEDQ_SUPPORT_EMAIL"
+            --dart-define=MEDQ_SUPPORT_EMAIL="$MEDQ_SUPPORT_EMAIL" || true
+
+          mkdir -p build/app/outputs/flutter-apk
+          mapfile -t release_apks < <(
+            find . -type f \
+              \( -path "./build/*/outputs/flutter-apk/app-*-release.apk" -o -path "./build/*/outputs/apk/release/*-release.apk" -o -path "./android/build/*/outputs/flutter-apk/app-*-release.apk" -o -path "./android/build/*/outputs/apk/release/*-release.apk" \) \
+              2>/dev/null | sort -u
+          )
+
+          if [ "${#release_apks[@]}" -eq 0 ]; then
+            echo "No release APKs found. Directory snapshot:"
+            find build android/build -maxdepth 6 -type f -name "*.apk" 2>/dev/null || true
+            exit 1
+          fi
+
+          for apk in "${release_apks[@]}"; do
+            cp "$apk" "build/app/outputs/flutter-apk/$(basename "$apk")"
+            echo "Resolved release APK: $apk"
+          done
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
