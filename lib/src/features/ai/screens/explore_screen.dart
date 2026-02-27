@@ -93,7 +93,7 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         return;
       }
       setState(() =>
-          _quizQuestions = questions.cast<Map<String, dynamic>>());
+          _quizQuestions = questions.whereType<Map<String, dynamic>>().toList());
     } catch (e) {
       if (!mounted) return;
       setState(() => _errorText = 'Failed to generate quiz. Please try again.');

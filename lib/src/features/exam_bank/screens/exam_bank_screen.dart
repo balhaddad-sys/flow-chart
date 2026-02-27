@@ -61,7 +61,7 @@ class _ExamBankScreenState extends ConsumerState<ExamBankScreen> {
         examType: _selectedExam!,
         count: 10,
       );
-      final questions = (result['questions'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final questions = (result['questions'] as List?)?.whereType<Map<String, dynamic>>().toList() ?? [];
       if (!mounted) return;
       setState(() { _questions = questions; _loading = false; });
     } catch (e) {
