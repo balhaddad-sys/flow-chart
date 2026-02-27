@@ -58,34 +58,38 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Flutter may return non-zero even when Gradle produced an APK,
-          # if output paths are non-standard. Try build, then resolve artifact.
+          # Flutter may return non-zero even when Gradle produced the APK
+          # because our custom build-dir mapping puts outputs where Flutter
+          # doesn't expect them.  Build first, then locate the artifact.
           flutter build apk --debug || true
 
-          candidates=(
-            "build/app/outputs/flutter-apk/app-debug.apk"
-            "build/app/outputs/apk/debug/app-debug.apk"
-            "android/build/app/outputs/flutter-apk/app-debug.apk"
-            "android/build/app/outputs/apk/debug/app-debug.apk"
-          )
+          echo ""
+          echo "=== APK search ==="
+          mapfile -t found_apks < <(find . -type f -name "app-debug.apk" 2>/dev/null | sort)
 
-          found=""
-          for apk in "${candidates[@]}"; do
-            if [ -f "$apk" ]; then
-              found="$apk"
+          if [ "${#found_apks[@]}" -eq 0 ]; then
+            echo "ERROR: No app-debug.apk found anywhere. All *.apk files in workspace:"
+            find . -type f -name "*.apk" 2>/dev/null || echo "(none)"
+            exit 1
+          fi
+
+          echo "Found ${#found_apks[@]} candidate(s):"
+          for apk in "${found_apks[@]}"; do
+            echo "  $apk  ($(du -h "$apk" | cut -f1))"
+          done
+
+          # Prefer the flutter-apk output directory if present; otherwise take first hit
+          selected="${found_apks[0]}"
+          for apk in "${found_apks[@]}"; do
+            if [[ "$apk" == *"flutter-apk"* ]]; then
+              selected="$apk"
               break
             fi
           done
 
-          if [ -z "$found" ]; then
-            echo "No debug APK found. Directory snapshot:"
-            find build android/build -maxdepth 6 -type f -name "*.apk" 2>/dev/null || true
-            exit 1
-          fi
-
           mkdir -p build/app/outputs/flutter-apk
-          cp "$found" build/app/outputs/flutter-apk/app-debug.apk
-          echo "Resolved debug APK: $found"
+          cp "$selected" build/app/outputs/flutter-apk/app-debug.apk
+          echo "Resolved: $selected → build/app/outputs/flutter-apk/app-debug.apk"
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
