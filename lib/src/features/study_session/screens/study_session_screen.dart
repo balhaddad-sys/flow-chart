@@ -8,6 +8,7 @@ import '../../../core/providers/auth_provider.dart';
 import '../../../core/utils/error_handler.dart';
 import '../providers/session_provider.dart';
 import '../widgets/active_learning_panel.dart';
+import '../widgets/notes_tab.dart';
 import '../widgets/session_timer.dart';
 import '../widgets/session_controls.dart';
 
@@ -33,8 +34,9 @@ class _StudySessionScreenState extends ConsumerState<StudySessionScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       ref.read(sessionProvider.notifier).startSession(
             taskId: widget.taskId,
             sectionId: widget.sectionId,
@@ -83,7 +85,28 @@ class _StudySessionScreenState extends ConsumerState<StudySessionScreen>
         ),
         Expanded(
           flex: 35,
-          child: ActiveLearningPanel(sectionId: widget.sectionId),
+          child: DefaultTabController(
+            length: 2,
+            child: Column(
+              children: [
+                const TabBar(
+                  labelStyle: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                  tabs: [
+                    Tab(icon: Icon(Icons.menu_book_rounded, size: 16), text: 'Guide'),
+                    Tab(icon: Icon(Icons.lightbulb_outline_rounded, size: 16), text: 'Notes'),
+                  ],
+                ),
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      ActiveLearningPanel(sectionId: widget.sectionId),
+                      NotesTab(sectionId: widget.sectionId),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ],
     );
@@ -101,15 +124,11 @@ class _StudySessionScreenState extends ConsumerState<StudySessionScreen>
           ),
           child: TabBar(
             controller: _tabController,
+            labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
             tabs: const [
-              Tab(
-                icon: Icon(Icons.picture_as_pdf_rounded),
-                text: 'PDF',
-              ),
-              Tab(
-                icon: Icon(Icons.lightbulb_outline_rounded),
-                text: 'Study Guide',
-              ),
+              Tab(icon: Icon(Icons.picture_as_pdf_rounded, size: 18), text: 'PDF'),
+              Tab(icon: Icon(Icons.menu_book_rounded, size: 18), text: 'Guide'),
+              Tab(icon: Icon(Icons.lightbulb_outline_rounded, size: 18), text: 'Notes'),
             ],
           ),
         ),
@@ -119,6 +138,7 @@ class _StudySessionScreenState extends ConsumerState<StudySessionScreen>
             children: [
               _PdfViewerPanel(sectionId: widget.sectionId),
               ActiveLearningPanel(sectionId: widget.sectionId),
+              NotesTab(sectionId: widget.sectionId),
             ],
           ),
         ),

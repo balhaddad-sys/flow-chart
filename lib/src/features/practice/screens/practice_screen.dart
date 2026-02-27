@@ -33,6 +33,14 @@ class PracticeScreen extends ConsumerStatefulWidget {
 class _PracticeScreenState extends ConsumerState<PracticeScreen> {
   int _selectedTab = 0; // 0 = Ready, 1 = All
   final Set<String> _generatingIds = {};
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   Future<void> _handleGenerate(String sectionId) async {
     final courseId = ref.read(activeCourseIdProvider);
@@ -166,7 +174,14 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
         final ready = sections
             .where((s) => _getBucket(s) == _Bucket.ready)
             .toList();
-        final displayed = _selectedTab == 0 ? ready : sections;
+        final base = _selectedTab == 0 ? ready : sections;
+        final query = _searchQuery.trim().toLowerCase();
+        final displayed = query.isEmpty
+            ? base
+            : base
+                .where((s) => s.title.toLowerCase().contains(query) ||
+                    s.topicTags.any((t) => t.toLowerCase().contains(query)))
+                .toList();
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
@@ -193,7 +208,52 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
                     height: 1.5,
                   ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+
+            // ── Search ────────────────────────────────────────────────────
+            TextField(
+              controller: _searchController,
+              onChanged: (v) => setState(() => _searchQuery = v),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'Search sections…',
+                hintStyle: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? AppColors.darkTextTertiary : AppColors.textTertiary),
+                prefixIcon: Icon(Icons.search_rounded,
+                    size: 18,
+                    color: isDark ? AppColors.darkTextTertiary : AppColors.textTertiary),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear_rounded, size: 16),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                filled: true,
+                fillColor: isDark ? AppColors.darkSurface : AppColors.surface,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  borderSide: BorderSide(
+                      color: isDark ? AppColors.darkBorder : AppColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  borderSide: BorderSide(
+                      color: isDark ? AppColors.darkBorder : AppColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  borderSide:
+                      const BorderSide(color: AppColors.primary, width: 1.5),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
 
             // ── Mode cards (only if ready sections exist) ─────────────────
             if (ready.isNotEmpty) ...[
@@ -260,7 +320,9 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
                         padding: const EdgeInsets.all(24),
                         child: Center(
                           child: Text(
-                            'No sections are ready yet.\nGenerate questions from the All tab.',
+                            query.isNotEmpty
+                                ? 'No sections match "$query".'
+                                : 'No sections are ready yet.\nGenerate questions from the All tab.',
                             style: Theme.of(context)
                                 .textTheme
                                 .bodySmall

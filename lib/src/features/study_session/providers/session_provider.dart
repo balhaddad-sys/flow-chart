@@ -101,7 +101,7 @@ class SessionNotifier extends StateNotifier<SessionState> {
 }
 
 final sessionProvider =
-    StateNotifierProvider<SessionNotifier, SessionState>((ref) {
+    StateNotifierProvider.autoDispose<SessionNotifier, SessionState>((ref) {
   return SessionNotifier();
 });
 

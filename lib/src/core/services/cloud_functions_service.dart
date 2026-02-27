@@ -364,6 +364,18 @@ class CloudFunctionsService {
     return _call('deleteUserData', {});
   }
 
+  // --- Section Summary ---
+
+  Future<Map<String, dynamic>> generateSectionSummary({
+    required String title,
+    required String sectionText,
+  }) {
+    return _call('generateSectionSummary', {
+      'title': title,
+      'sectionText': sectionText,
+    });
+  }
+
   // --- Document Batch Processing ---
 
   /// Process multiple page images in parallel via Claude vision.

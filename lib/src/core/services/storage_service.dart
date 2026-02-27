@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -119,5 +121,14 @@ class StorageService {
   /// Delete a file from Cloud Storage.
   Future<void> deleteFile(String storagePath) async {
     await _storage.ref(storagePath).delete();
+  }
+
+  /// Download a text blob from Cloud Storage and decode it as a UTF-8 string.
+  /// Returns an empty string if the path is empty or download fails.
+  Future<String> getTextBlob(String storagePath) async {
+    if (storagePath.isEmpty) return '';
+    final data = await _storage.ref(storagePath).getData(50 * 1024);
+    if (data == null) return '';
+    return utf8.decode(data, allowMalformed: true);
   }
 }

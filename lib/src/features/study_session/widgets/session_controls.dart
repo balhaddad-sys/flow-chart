@@ -52,7 +52,7 @@ class SessionControls extends ConsumerWidget {
                       .completeTask(uid, taskId);
                 }
                 ref.read(sessionProvider.notifier).completeSession();
-                context.pop();
+                context.go('/today');
               },
             ),
             _ControlButton(
@@ -105,7 +105,7 @@ class SessionControls extends ConsumerWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('Task rescheduled')),
                     );
-                    context.pop();
+                    context.go('/today');
                   }
                 }
               },
