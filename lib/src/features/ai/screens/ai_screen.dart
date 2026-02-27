@@ -382,8 +382,8 @@ class _HubViewState extends ConsumerState<_HubView> {
                     description:
                         'Generate adaptive quizzes and teaching outlines for any medical topic.',
                     buttonLabel: 'Open Explore',
-                    enabled: hasActiveCourse,
-                    onTap: widget.onNewThread,
+                    enabled: true,
+                    onTap: () async { context.go('/ai/explore'); },
                   ),
                 ),
                 const SizedBox(width: 12),

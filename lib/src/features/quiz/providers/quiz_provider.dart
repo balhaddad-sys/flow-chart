@@ -95,6 +95,7 @@ class QuizNotifier extends StateNotifier<QuizState> {
         questions: validQuestions,
         currentIndex: 0,
         isLoading: false,
+        hasSubmitted: false,
         correctCount: 0,
         totalAnswered: 0,
       );
@@ -169,6 +170,6 @@ class QuizNotifier extends StateNotifier<QuizState> {
   }
 }
 
-final quizProvider = StateNotifierProvider<QuizNotifier, QuizState>((ref) {
+final quizProvider = StateNotifierProvider.autoDispose<QuizNotifier, QuizState>((ref) {
   return QuizNotifier(ref);
 });

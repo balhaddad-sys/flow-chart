@@ -329,7 +329,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         _ExamBankCard(
                           examShortLabel: examShortLabel,
                           isDark: isDark,
-                          onTap: () => context.go('/practice'),
+                          onTap: () => context.go('/exam-bank?exam=${Uri.encodeComponent(examType)}'),
                         ),
                         AppSpacing.gapMd,
                       ],
