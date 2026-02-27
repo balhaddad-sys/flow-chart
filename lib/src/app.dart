@@ -9,6 +9,8 @@ import 'core/constants/app_colors.dart';
 import 'core/constants/app_links.dart';
 import 'core/constants/app_spacing.dart';
 import 'core/constants/app_typography.dart';
+import 'core/services/haptic_service.dart';
+import 'core/widgets/connectivity_banner.dart';
 import 'core/widgets/medq_nav_bar.dart';
 import 'core/providers/auth_provider.dart';
 import 'core/utils/external_link.dart';
@@ -233,8 +235,9 @@ class _AppShellState extends ConsumerState<_AppShell> {
     if (location.startsWith('/library')) return 1;
     if (location.startsWith('/practice')) return 2;
     if (location.startsWith('/ai')) return 3;
-    if (location.startsWith('/profile') || location.startsWith('/settings'))
+    if (location.startsWith('/profile') || location.startsWith('/settings')) {
       return 4;
+    }
     return 0;
   }
 
@@ -677,7 +680,7 @@ class MedQApp extends ConsumerWidget {
         fillColor: AppColors.surface,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-          borderSide: BorderSide(color: AppColors.border),
+          borderSide: const BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
@@ -751,7 +754,7 @@ class MedQApp extends ConsumerWidget {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.textPrimary,
-          side: BorderSide(color: AppColors.border),
+          side: const BorderSide(color: AppColors.border),
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
@@ -907,7 +910,7 @@ class MedQApp extends ConsumerWidget {
         fillColor: AppColors.darkSurfaceVariant.withValues(alpha: 0.78),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-          borderSide: BorderSide(color: AppColors.darkBorder),
+          borderSide: const BorderSide(color: AppColors.darkBorder),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
@@ -986,7 +989,7 @@ class MedQApp extends ConsumerWidget {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.darkTextPrimary,
-          side: BorderSide(color: AppColors.darkBorder),
+          side: const BorderSide(color: AppColors.darkBorder),
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
@@ -1009,7 +1012,7 @@ class MedQApp extends ConsumerWidget {
         labelStyle: AppTypography.textTheme.labelMedium?.copyWith(
           color: AppColors.darkTextPrimary,
         ),
-        side: BorderSide(color: AppColors.darkBorder),
+        side: const BorderSide(color: AppColors.darkBorder),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
         ),

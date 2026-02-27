@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#1E40AF</color>
+    <color name="ic_launcher_background">#0F766E</color>
+    <color name="medq_background">#F3F7F8</color>
+    <color name="medq_background_dark">#08131D</color>
+    <color name="medq_primary">#0F766E</color>
 </resources>

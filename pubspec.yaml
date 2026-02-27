@@ -36,6 +36,8 @@ dependencies:
   file_picker: ^8.1.6
   uuid: ^4.5.1
   url_launcher: ^6.3.1
+  firebase_messaging: ^15.1.6
+  flutter_local_notifications: ^18.0.1
 
 dev_dependencies:
   flutter_test:
@@ -48,6 +50,30 @@ dev_dependencies:
   riverpod_generator: ^2.6.2
   mockito: ^5.4.4
   flutter_lints: ^5.0.0
+  flutter_native_splash: ^2.4.0
+  flutter_launcher_icons: ^0.14.3
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/icons/
+
+# ── Native Splash Screen ────────────────────────────────────────────────────
+flutter_native_splash:
+  color: "#F3F7F8"
+  color_dark: "#08131D"
+  image: assets/icons/splash_logo.png
+  image_dark: assets/icons/splash_logo_dark.png
+  android_12:
+    color: "#F3F7F8"
+    color_dark: "#08131D"
+    image: assets/icons/splash_logo.png
+    image_dark: assets/icons/splash_logo_dark.png
+
+# ── Launcher Icons ──────────────────────────────────────────────────────────
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/app_icon.png"
+  adaptive_icon_background: "#0F766E"
+  adaptive_icon_foreground: "assets/icons/app_icon_foreground.png"

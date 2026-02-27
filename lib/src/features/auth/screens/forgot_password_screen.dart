@@ -41,11 +41,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       await ref
           .read(authServiceProvider)
           .sendPasswordReset(_emailController.text.trim());
-      if (mounted)
+      if (mounted) {
         setState(() {
           _sent = true;
           _loading = false;
         });
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
