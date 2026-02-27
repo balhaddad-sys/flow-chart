@@ -5,18 +5,16 @@ allprojects {
     }
 }
 
-// Redirect subproject build dirs so the Flutter tool finds the APK at
-// build/app/outputs/... (its expected layout).
+// Flutter tool expects APK at <flutter_root>/build/app/outputs/flutter-apk/
+// The Gradle root is android/, so we must go up one level to reach <flutter_root>/build/.
 //
-// On Windows:  base = C:/Temp/medq-build  (outside OneDrive, avoids file-locks)
-// On Linux/Mac (CI): base = <root>/build   (the default project build dir)
-//
-// Either way, :app ends up at <base>/app/outputs/... which is what Flutter wants.
+// On Windows:  redirect to C:/Temp/medq-build to avoid OneDrive file-locks.
+// On Linux/Mac (CI): redirect to <flutter_root>/build/ so Flutter tool finds the APK.
 val buildBase: File =
     if (System.getProperty("os.name").lowercase().contains("windows"))
         file("C:/Temp/medq-build")
     else
-        rootProject.layout.buildDirectory.get().asFile
+        rootProject.projectDir.resolve("../build")  // android/../build = <flutter_root>/build
 
 subprojects {
     layout.buildDirectory.set(buildBase.resolve(project.name))

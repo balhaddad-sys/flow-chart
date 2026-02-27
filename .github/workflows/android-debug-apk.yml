@@ -55,7 +55,37 @@ jobs:
         run: flutter analyze
 
       - name: Build debug APK
-        run: flutter build apk --debug
+        run: |
+          set -euo pipefail
+
+          # Flutter may return non-zero even when Gradle produced an APK,
+          # if output paths are non-standard. Try build, then resolve artifact.
+          flutter build apk --debug || true
+
+          candidates=(
+            "build/app/outputs/flutter-apk/app-debug.apk"
+            "build/app/outputs/apk/debug/app-debug.apk"
+            "android/build/app/outputs/flutter-apk/app-debug.apk"
+            "android/build/app/outputs/apk/debug/app-debug.apk"
+          )
+
+          found=""
+          for apk in "${candidates[@]}"; do
+            if [ -f "$apk" ]; then
+              found="$apk"
+              break
+            fi
+          done
+
+          if [ -z "$found" ]; then
+            echo "No debug APK found. Directory snapshot:"
+            find build android/build -maxdepth 6 -type f -name "*.apk" 2>/dev/null || true
+            exit 1
+          fi
+
+          mkdir -p build/app/outputs/flutter-apk
+          cp "$found" build/app/outputs/flutter-apk/app-debug.apk
+          echo "Resolved debug APK: $found"
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
