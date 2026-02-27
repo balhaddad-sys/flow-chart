@@ -43,17 +43,16 @@ jobs:
         # Do NOT use --split-per-abi for debug — it confuses Flutter's APK
         # output detection when NDK/CMake are involved. A fat debug APK is
         # fine for testing and installs on any device/emulator.
-        run: flutter build apk --debug
+        run: flutter build apk --debug 2>&1 | tee /tmp/flutter-build-output.txt; exit ${PIPESTATUS[0]}
 
-      - name: Show Gradle build logs on failure
-        if: failure()
-        run: |
-          echo "=== Gradle exception logs ==="
-          find . -name "*.log" -path "*/build/*" 2>/dev/null | head -5 | xargs cat 2>/dev/null || true
-          echo "=== build/app/outputs/logs ==="
-          find build -name "*.txt" -o -name "*.log" 2>/dev/null | head -5 | xargs cat 2>/dev/null || true
-          echo "=== Last 100 lines of Gradle output ==="
-          find ~/.gradle -name "*.log" 2>/dev/null | tail -1 | xargs tail -100 2>/dev/null || true
+      - name: Upload build output (always)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output-${{ github.sha }}
+          path: /tmp/flutter-build-output.txt
+          retention-days: 7
+          if-no-files-found: ignore
 
       - name: List APK outputs (debug)
         if: always()
