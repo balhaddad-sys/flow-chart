@@ -9,6 +9,8 @@ on:
 jobs:
   build-debug-apk:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
@@ -45,6 +47,12 @@ jobs:
           echo "=== NDK dirs after install ==="
           ls "$ANDROID_HOME/ndk/" 2>/dev/null
 
+      - name: Show runner resources
+        run: |
+          echo "=== Memory ===" && free -h
+          echo "=== CPU ===" && nproc
+          echo "=== Disk ===" && df -h /
+
       - name: Resolve Flutter dependencies
         run: flutter pub get
 
@@ -56,9 +64,6 @@ jobs:
 
       - name: Build debug APK
         run: flutter build apk --debug 2>&1 | tee /tmp/flutter-build-output.txt; exit ${PIPESTATUS[0]}
-        env:
-          # Surface Gradle output for artifact upload on failure
-          GRADLE_OPTS: "-Dorg.gradle.logging.level=lifecycle"
 
       - name: Upload build output (always)
         if: always()
@@ -68,6 +73,26 @@ jobs:
           path: /tmp/flutter-build-output.txt
           retention-days: 7
           if-no-files-found: ignore
+
+      - name: Commit build error log for diagnosis
+        if: failure()
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "## Build failed at $(date -u)"
+            echo ""
+            echo "### flutter build apk --debug output (last 300 lines):"
+            echo '```'
+            tail -300 /tmp/flutter-build-output.txt 2>/dev/null || echo "(file not found)"
+            echo '```'
+          } > CI-BUILD-ERROR.log
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions CI"
+          git add -f CI-BUILD-ERROR.log
+          git commit -m "ci-debug: build error log [skip ci]" || echo "Nothing to commit"
+          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/balhaddad-sys/flow-chart.git" \
+            HEAD:"$GITHUB_REF_NAME" || echo "Push failed"
 
       - name: List APK outputs (debug)
         if: always()
