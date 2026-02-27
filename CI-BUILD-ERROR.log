@@ -1,4 +1,4 @@
-## Build failed at Fri Feb 27 12:42:32 UTC 2026
+## Build failed at Fri Feb 27 12:57:03 UTC 2026
 
 ### flutter build apk --debug output (last 300 lines):
 ```
@@ -10,33 +10,252 @@ Preparing "Install NDK (Side by side) 27.0.12077973 v.27.0.12077973".
 Installing NDK (Side by side) 27.0.12077973 in /usr/local/lib/android/sdk/ndk/27.0.12077973
 "Install NDK (Side by side) 27.0.12077973 v.27.0.12077973" complete.
 "Install NDK (Side by side) 27.0.12077973 v.27.0.12077973" finished.
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:43: error: package io.flutter.plugins.firebase.core does not exist
+import io.flutter.plugins.firebase.core.FlutterFirebasePlugin;
+                                       ^
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:44: error: package io.flutter.plugins.firebase.core does not exist
+import io.flutter.plugins.firebase.core.FlutterFirebasePluginRegistry;
+                                       ^
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:63: error: cannot find symbol
+    implements FlutterFirebasePlugin,
+               ^
+  symbol: class FlutterFirebasePlugin
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:176: error: cannot find symbol
+    FlutterFirebasePluginRegistry.registerPlugin(METHOD_CHANNEL_NAME, this);
+    ^
+  symbol:   variable FlutterFirebasePluginRegistry
+  location: class FlutterFirebaseFirestorePlugin
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:181: error: method does not override or implement a method from a supertype
+  @Override
+  ^
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:185: error: cannot find symbol
+    cachedThreadPool.execute(
+    ^
+  symbol:   variable cachedThreadPool
+  location: class FlutterFirebaseFirestorePlugin
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:197: error: method does not override or implement a method from a supertype
+  @Override
+  ^
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:201: error: cannot find symbol
+    cachedThreadPool.execute(
+    ^
+  symbol:   variable cachedThreadPool
+  location: class FlutterFirebaseFirestorePlugin
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:354: error: cannot find symbol
+    cachedThreadPool.execute(
+    ^
+  symbol:   variable cachedThreadPool
+  location: class FlutterFirebaseFirestorePlugin
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:385: error: cannot find symbol
+    cachedThreadPool.execute(
+    ^
+  symbol:   variable cachedThreadPool
+  location: class FlutterFirebaseFirestorePlugin
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:401: error: cannot find symbol
+    cachedThreadPool.execute(
+    ^
+  symbol:   variable cachedThreadPool
+  location: class FlutterFirebaseFirestorePlugin
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:417: error: cannot find symbol
+    cachedThreadPool.execute(
+    ^
+  symbol:   variable cachedThreadPool
+  location: class FlutterFirebaseFirestorePlugin
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:433: error: cannot find symbol
+    cachedThreadPool.execute(
+    ^
+  symbol:   variable cachedThreadPool
+  location: class FlutterFirebaseFirestorePlugin
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:450: error: cannot find symbol
+    cachedThreadPool.execute(
+    ^
+  symbol:   variable cachedThreadPool
+  location: class FlutterFirebaseFirestorePlugin
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:469: error: cannot find symbol
+    cachedThreadPool.execute(
+    ^
+  symbol:   variable cachedThreadPool
+  location: class FlutterFirebaseFirestorePlugin
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:487: error: cannot find symbol
+    cachedThreadPool.execute(
+    ^
+  symbol:   variable cachedThreadPool
+  location: class FlutterFirebaseFirestorePlugin
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:515: error: cannot find symbol
+    cachedThreadPool.execute(
+    ^
+  symbol:   variable cachedThreadPool
+  location: class FlutterFirebaseFirestorePlugin
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:580: error: cannot find symbol
+    cachedThreadPool.execute(
+    ^
+  symbol:   variable cachedThreadPool
+  location: class FlutterFirebaseFirestorePlugin
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:610: error: cannot find symbol
+    cachedThreadPool.execute(
+    ^
+  symbol:   variable cachedThreadPool
+  location: class FlutterFirebaseFirestorePlugin
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:644: error: cannot find symbol
+    cachedThreadPool.execute(
+    ^
+  symbol:   variable cachedThreadPool
+  location: class FlutterFirebaseFirestorePlugin
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:693: error: cannot find symbol
+    cachedThreadPool.execute(
+    ^
+  symbol:   variable cachedThreadPool
+  location: class FlutterFirebaseFirestorePlugin
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:720: error: cannot find symbol
+    cachedThreadPool.execute(
+    ^
+  symbol:   variable cachedThreadPool
+  location: class FlutterFirebaseFirestorePlugin
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:744: error: cannot find symbol
+    cachedThreadPool.execute(
+    ^
+  symbol:   variable cachedThreadPool
+  location: class FlutterFirebaseFirestorePlugin
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:813: error: cannot find symbol
+    cachedThreadPool.execute(
+    ^
+  symbol:   variable cachedThreadPool
+  location: class FlutterFirebaseFirestorePlugin
+/home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:871: error: cannot find symbol
+    cachedThreadPool.execute(
+    ^
+  symbol:   variable cachedThreadPool
+  location: class FlutterFirebaseFirestorePlugin
+25 errors
 
 FAILURE: Build failed with an exception.
 
 * What went wrong:
-Execution failed for task ':app:checkDebugAarMetadata'.
-> A failure occurred while executing com.android.build.gradle.internal.tasks.CheckAarMetadataWorkAction
-   > 3 issues were found when checking AAR metadata:
-
-       1.  Dependency 'androidx.browser:browser:1.9.0' requires Android Gradle plugin 8.9.1 or higher.
-
-           This build currently uses Android Gradle plugin 8.7.0.
-
-       2.  Dependency 'androidx.core:core-ktx:1.17.0' requires Android Gradle plugin 8.9.1 or higher.
-
-           This build currently uses Android Gradle plugin 8.7.0.
-
-       3.  Dependency 'androidx.core:core:1.17.0' requires Android Gradle plugin 8.9.1 or higher.
-
-           This build currently uses Android Gradle plugin 8.7.0.
+Execution failed for task ':cloud_firestore:compileDebugJavaWithJavac'.
+> Compilation failed; see the compiler output below.
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:176: error: cannot find symbol
+      FlutterFirebasePluginRegistry.registerPlugin(METHOD_CHANNEL_NAME, this);
+      ^
+    symbol:   variable FlutterFirebasePluginRegistry
+    location: class FlutterFirebaseFirestorePlugin
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:185: error: cannot find symbol
+      cachedThreadPool.execute(
+      ^
+    symbol:   variable cachedThreadPool
+    location: class FlutterFirebaseFirestorePlugin
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:201: error: cannot find symbol
+      cachedThreadPool.execute(
+      ^
+    symbol:   variable cachedThreadPool
+    location: class FlutterFirebaseFirestorePlugin
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:354: error: cannot find symbol
+      cachedThreadPool.execute(
+      ^
+    symbol:   variable cachedThreadPool
+    location: class FlutterFirebaseFirestorePlugin
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:385: error: cannot find symbol
+      cachedThreadPool.execute(
+      ^
+    symbol:   variable cachedThreadPool
+    location: class FlutterFirebaseFirestorePlugin
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:401: error: cannot find symbol
+      cachedThreadPool.execute(
+      ^
+    symbol:   variable cachedThreadPool
+    location: class FlutterFirebaseFirestorePlugin
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:417: error: cannot find symbol
+      cachedThreadPool.execute(
+      ^
+    symbol:   variable cachedThreadPool
+    location: class FlutterFirebaseFirestorePlugin
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:433: error: cannot find symbol
+      cachedThreadPool.execute(
+      ^
+    symbol:   variable cachedThreadPool
+    location: class FlutterFirebaseFirestorePlugin
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:450: error: cannot find symbol
+      cachedThreadPool.execute(
+      ^
+    symbol:   variable cachedThreadPool
+    location: class FlutterFirebaseFirestorePlugin
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:469: error: cannot find symbol
+      cachedThreadPool.execute(
+      ^
+    symbol:   variable cachedThreadPool
+    location: class FlutterFirebaseFirestorePlugin
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:487: error: cannot find symbol
+      cachedThreadPool.execute(
+      ^
+    symbol:   variable cachedThreadPool
+    location: class FlutterFirebaseFirestorePlugin
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:515: error: cannot find symbol
+      cachedThreadPool.execute(
+      ^
+    symbol:   variable cachedThreadPool
+    location: class FlutterFirebaseFirestorePlugin
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:580: error: cannot find symbol
+      cachedThreadPool.execute(
+      ^
+    symbol:   variable cachedThreadPool
+    location: class FlutterFirebaseFirestorePlugin
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:610: error: cannot find symbol
+      cachedThreadPool.execute(
+      ^
+    symbol:   variable cachedThreadPool
+    location: class FlutterFirebaseFirestorePlugin
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:644: error: cannot find symbol
+      cachedThreadPool.execute(
+      ^
+    symbol:   variable cachedThreadPool
+    location: class FlutterFirebaseFirestorePlugin
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:693: error: cannot find symbol
+      cachedThreadPool.execute(
+      ^
+    symbol:   variable cachedThreadPool
+    location: class FlutterFirebaseFirestorePlugin
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:720: error: cannot find symbol
+      cachedThreadPool.execute(
+      ^
+    symbol:   variable cachedThreadPool
+    location: class FlutterFirebaseFirestorePlugin
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:744: error: cannot find symbol
+      cachedThreadPool.execute(
+      ^
+    symbol:   variable cachedThreadPool
+    location: class FlutterFirebaseFirestorePlugin
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:813: error: cannot find symbol
+      cachedThreadPool.execute(
+      ^
+    symbol:   variable cachedThreadPool
+    location: class FlutterFirebaseFirestorePlugin
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:871: error: cannot find symbol
+      cachedThreadPool.execute(
+      ^
+    symbol:   variable cachedThreadPool
+    location: class FlutterFirebaseFirestorePlugin
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:181: error: method does not override or implement a method from a supertype
+    @Override
+    ^
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:197: error: method does not override or implement a method from a supertype
+    @Override
+    ^
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:63: error: cannot find symbol
+      implements FlutterFirebasePlugin,
+                 ^
+    symbol: class FlutterFirebasePlugin
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:43: error: package io.flutter.plugins.firebase.core does not exist
+  import io.flutter.plugins.firebase.core.FlutterFirebasePlugin;
+                                         ^
+  /home/runner/.pub-cache/hosted/pub.dev/cloud_firestore-5.6.12/android/src/main/java/io/flutter/plugins/firebase/firestore/FlutterFirebaseFirestorePlugin.java:44: error: package io.flutter.plugins.firebase.core does not exist
+  import io.flutter.plugins.firebase.core.FlutterFirebasePluginRegistry;
+                                         ^
+  25 errors
 
 * Try:
-> Run with --stacktrace option to get the stack trace.
-> Run with --info or --debug option to get more log output.
+> Check your code and dependencies to fix the compilation error(s)
 > Run with --scan to get full insights.
-> Get more help at https://help.gradle.org.
 
 BUILD FAILED in 9m 15s
-Running Gradle task 'assembleDebug'...                            557.2s
+Running Gradle task 'assembleDebug'...                            556.1s
 Gradle task assembleDebug failed with exit code 1
 ```
