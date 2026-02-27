@@ -55,36 +55,32 @@ jobs:
 
       - name: Apply Gradle init script — fix FlutterFire inter-plugin deps
         run: |
-          # AGP 8.8+ changed how android{ dependencies{} } is resolved, so
-          # FlutterFire plugins that declare `api firebaseCoreProject` inside
-          # android{} no longer get firebase_core on the compile classpath.
-          # This init script re-adds those project dependencies at the Gradle
-          # project level so javac can find them.
+          # FlutterFire plugins declare `api firebaseCoreProject` inside the
+          # android{} block, which is silently ignored by AGP 8.8+. This init
+          # script injects firebase_core as a top-level project dependency for
+          # each affected plugin so javac can find the core interfaces.
           mkdir -p ~/.gradle/init.d
           cat > ~/.gradle/init.d/fix-flutterfire-deps.gradle << 'GROOVY'
           gradle.projectsEvaluated {
-              rootProject.subprojects { subproject ->
-                  def coreProj = rootProject.findProject(':firebase_core')
-                  if (coreProj == null) return
-                  def needsCore = ['cloud_firestore', 'firebase_auth',
-                                   'firebase_crashlytics', 'firebase_storage',
-                                   'cloud_functions', 'firebase_messaging']
-                  if (subproject.name in needsCore) {
-                      subproject.configurations.matching { it.name == 'api' }.each { cfg ->
-                          def alreadyHas = cfg.dependencies.any {
-                              it instanceof org.gradle.api.artifacts.ProjectDependency &&
-                              it.dependencyProject == coreProj
-                          }
-                          if (!alreadyHas) {
-                              subproject.dependencies.add('api', subproject.dependencies.project(path: ':firebase_core'))
-                          }
+              def coreProj = rootProject.findProject(':firebase_core')
+              if (coreProj == null) return
+              def needsCore = [
+                  'cloud_firestore', 'firebase_auth', 'firebase_crashlytics',
+                  'firebase_storage', 'cloud_functions', 'firebase_messaging',
+                  'firebase_remote_config', 'firebase_analytics'
+              ]
+              rootProject.subprojects { sp ->
+                  if (sp.name in needsCore) {
+                      try {
+                          sp.dependencies.add('api', coreProj)
+                      } catch (Exception e) {
+                          println "[fix-flutterfire] Skipped ${sp.name}: ${e.message}"
                       }
                   }
               }
           }
           GROOVY
-          echo "Init script written:"
-          cat ~/.gradle/init.d/fix-flutterfire-deps.gradle
+          echo "Init script written to ~/.gradle/init.d/fix-flutterfire-deps.gradle"
 
       - name: Resolve Flutter dependencies
         run: flutter pub get
