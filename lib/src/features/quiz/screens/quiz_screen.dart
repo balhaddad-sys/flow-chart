@@ -15,8 +15,9 @@ import '../widgets/source_citation_drawer.dart';
 
 class QuizScreen extends ConsumerStatefulWidget {
   final String? sectionId;
+  final String mode;
 
-  const QuizScreen({super.key, this.sectionId});
+  const QuizScreen({super.key, this.sectionId, this.mode = 'section'});
 
   @override
   ConsumerState<QuizScreen> createState() => _QuizScreenState();
@@ -34,6 +35,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         ref.read(quizProvider.notifier).loadQuestions(
               courseId: courseId,
               sectionId: sectionId,
+              mode: widget.mode,
             );
       }
     });
@@ -60,6 +62,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
             ref.read(quizProvider.notifier).loadQuestions(
                   courseId: courseId,
                   sectionId: sectionId,
+                  mode: widget.mode,
                 );
           }
         },

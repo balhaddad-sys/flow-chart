@@ -71,6 +71,7 @@ class QuizNotifier extends StateNotifier<QuizState> {
   Future<void> loadQuestions({
     required String courseId,
     String? sectionId,
+    String mode = 'section',
     int count = 10,
   }) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
@@ -78,13 +79,18 @@ class QuizNotifier extends StateNotifier<QuizState> {
       final uid = _ref.read(uidProvider);
       if (uid == null) throw Exception('Not authenticated');
 
-      final firestoreService = _ref.read(firestoreServiceProvider);
-      final questions = await firestoreService.getQuestions(
-        uid,
+      final result = await _ref.read(cloudFunctionsServiceProvider).getQuiz(
         courseId: courseId,
         sectionId: sectionId,
-        limit: count,
+        mode: mode,
+        count: count,
       );
+
+      final rawQuestions = result['questions'] as List<dynamic>? ?? [];
+      final questions = rawQuestions
+          .whereType<Map>()
+          .map((q) => QuestionModel.fromJson(Map<String, dynamic>.from(q)))
+          .toList();
 
       // Filter out questions with invalid data (empty stem or no options)
       final validQuestions = questions

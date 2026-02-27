@@ -59,7 +59,14 @@ class _AiScreenState extends ConsumerState<AiScreen> {
           .createChatThread(uid, courseId: courseId, title: 'New conversation');
       _openThread(threadId, 'New conversation');
     } catch (_) {
-      // silently ignore
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to create conversation. Please try again.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _creating = false);
     }
