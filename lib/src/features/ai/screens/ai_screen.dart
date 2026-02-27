@@ -964,13 +964,13 @@ class _ChatViewState extends ConsumerState<_ChatView> {
                 color: isDark ? AppColors.darkBorder : AppColors.border,
               ),
             ),
-            child: Row(
+            child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 _Dot(delay: 0),
-                const SizedBox(width: 4),
+                SizedBox(width: 4),
                 _Dot(delay: 150),
-                const SizedBox(width: 4),
+                SizedBox(width: 4),
                 _Dot(delay: 300),
               ],
             ),

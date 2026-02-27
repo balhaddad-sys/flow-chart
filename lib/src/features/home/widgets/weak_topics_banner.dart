@@ -176,9 +176,9 @@ class WeakTopicsBanner extends ConsumerWidget {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        child: Row(
+                        child: const Row(
                           mainAxisSize: MainAxisSize.min,
-                          children: const [
+                          children: [
                             Icon(Icons.play_arrow_rounded, size: 12),
                             SizedBox(width: 2),
                             Text('Drill'),

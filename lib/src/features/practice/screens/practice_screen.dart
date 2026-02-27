@@ -610,7 +610,7 @@ class _SectionCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      SizedBox(
+                      const SizedBox(
                         width: 10,
                         height: 10,
                         child: CircularProgressIndicator(
@@ -762,7 +762,7 @@ class _ActionBtn extends StatelessWidget {
           ? Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(
+                const SizedBox(
                   width: 12,
                   height: 12,
                   child: CircularProgressIndicator(

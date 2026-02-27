@@ -233,7 +233,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.psychology_outlined, size: 56, color: AppColors.textTertiary),
+                const Icon(Icons.psychology_outlined, size: 56, color: AppColors.textTertiary),
                 const SizedBox(height: 16),
                 Text('No course selected', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: 8),
@@ -408,7 +408,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
               ),
               child: Text(
                 'Only $_selectedTopicAvailable validated questions available. Generate more section questions for stronger diversity.',
-                style: TextStyle(fontSize: 12, color: AppColors.warning),
+                style: const TextStyle(fontSize: 12, color: AppColors.warning),
               ),
             ),
           ],
@@ -479,12 +479,12 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
         const SizedBox(height: 6),
         Row(
           children: [
-            Icon(Icons.gps_fixed, size: 13, color: AppColors.textTertiary),
+            const Icon(Icons.gps_fixed, size: 13, color: AppColors.textTertiary),
             const SizedBox(width: 4),
             Text('${_answers.length} answered',
                 style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextTertiary : AppColors.textTertiary)),
             const SizedBox(width: 12),
-            Icon(Icons.timer_outlined, size: 13, color: AppColors.textTertiary),
+            const Icon(Icons.timer_outlined, size: 13, color: AppColors.textTertiary),
             const SizedBox(width: 4),
             Text('Target ${_targetTimeSec}s/question',
                 style: TextStyle(fontSize: 11, color: isDark ? AppColors.darkTextTertiary : AppColors.textTertiary)),
@@ -646,7 +646,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('KEY TAKEAWAY',
+                  const Text('KEY TAKEAWAY',
                       style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1, color: AppColors.primary)),
                   const SizedBox(height: 6),
                   Text(
@@ -853,7 +853,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.timer_outlined, size: 12, color: AppColors.textTertiary),
+                            const Icon(Icons.timer_outlined, size: 12, color: AppColors.textTertiary),
                             const SizedBox(width: 3),
                             Text('$mins min', style: const TextStyle(fontSize: 11)),
                           ],
@@ -907,7 +907,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.trending_up, size: 14, color: AppColors.primary),
+                          const Icon(Icons.trending_up, size: 14, color: AppColors.primary),
                           const SizedBox(width: 8),
                           Expanded(child: Text(tip, style: TextStyle(fontSize: 13, color: isDark ? AppColors.darkTextSecondary : AppColors.textSecondary))),
                         ],

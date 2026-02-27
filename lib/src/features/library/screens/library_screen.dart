@@ -202,7 +202,7 @@ class LibraryScreen extends ConsumerWidget {
     return Scaffold(
       body: coursesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => const Center(child: Text('Unable to load library. Please try again.')),
         data: (courses) {
           if (courses.isEmpty) {
             return Column(
@@ -660,7 +660,7 @@ class _CourseSection extends ConsumerWidget {
         AppSpacing.gapSm,
         filesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Text('Error: $e'),
+          error: (e, _) => const Text('Unable to load files. Please try again.'),
           data: (files) {
             if (files.isEmpty) {
               return Container(
