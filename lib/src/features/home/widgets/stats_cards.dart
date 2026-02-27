@@ -250,9 +250,9 @@ class StatsCards extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.baseline,
                     textBaseline: TextBaseline.alphabetic,
                     children: [
-                      Text(
+                      const Text(
                         '🔥',
-                        style: const TextStyle(fontSize: 18),
+                        style: TextStyle(fontSize: 18),
                       ),
                       const SizedBox(width: 6),
                       Text(

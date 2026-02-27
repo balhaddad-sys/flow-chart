@@ -454,7 +454,7 @@ class _ResultsView extends StatelessWidget {
                   if (q.options.isNotEmpty)
                     Text(
                       q.options[safeCorrect],
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: AppColors.success,

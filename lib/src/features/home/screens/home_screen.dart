@@ -693,9 +693,9 @@ class _ExamBankCard extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            child: Row(
+            child: const Row(
               mainAxisSize: MainAxisSize.min,
-              children: const [
+              children: [
                 Text('Open Bank'),
                 SizedBox(width: 4),
                 Icon(Icons.chevron_right_rounded, size: 14),

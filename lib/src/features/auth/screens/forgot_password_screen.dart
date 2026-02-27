@@ -141,7 +141,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                     color: AppColors.primary.withValues(alpha: 0.2),
                                   ),
                                 ),
-                                child: Icon(
+                                child: const Icon(
                                   Icons.lock_reset_rounded,
                                   size: 32,
                                   color: AppColors.primary,
@@ -179,7 +179,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                                 ),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.check_circle_outline_rounded, color: AppColors.success),
+                                    const Icon(Icons.check_circle_outline_rounded, color: AppColors.success),
                                     const SizedBox(width: 12),
                                     Expanded(
                                       child: Text(

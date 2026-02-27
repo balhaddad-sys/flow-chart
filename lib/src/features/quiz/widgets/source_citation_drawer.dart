@@ -162,7 +162,7 @@ class _DrawerBody extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: isDark ? AppColors.darkBackground : AppColors.background,
                       borderRadius: BorderRadius.circular(6),
-                      border: Border(
+                      border: const Border(
                         left: BorderSide(color: AppColors.primary, width: 3),
                       ),
                     ),
