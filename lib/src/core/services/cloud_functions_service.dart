@@ -8,7 +8,8 @@ import 'package:cloud_functions/cloud_functions.dart';
 ///   Error:   { "success": false, "error": { "code": "...", "message": "..." } }
 class CloudFunctionsService {
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
-  static const Duration _callTimeout = Duration(seconds: 45);
+  static const Duration _defaultCallTimeout = Duration(seconds: 45);
+  static const Duration _scheduleCallTimeout = Duration(seconds: 180);
   static const int _maxRetries = 2;
   static const int _baseRetryDelayMs = 800;
   static const Set<String> _transientCodes = {
@@ -35,12 +36,15 @@ class CloudFunctionsService {
   Future<Map<String, dynamic>> _call(
     String name,
     Map<String, dynamic> data,
+    {Duration? timeout}
   ) async {
     for (var attempt = 0; attempt <= _maxRetries; attempt++) {
       try {
         final callable = _functions.httpsCallable(
           name,
-          options: HttpsCallableOptions(timeout: _callTimeout),
+          options: HttpsCallableOptions(
+            timeout: timeout ?? _defaultCallTimeout,
+          ),
         );
         final result = await callable.call(data);
 
@@ -163,11 +167,15 @@ class CloudFunctionsService {
     required Map<String, dynamic> availability,
     required String revisionPolicy,
   }) {
-    return _call('generateSchedule', {
-      'courseId': courseId,
-      'availability': availability,
-      'revisionPolicy': revisionPolicy,
-    });
+    return _call(
+      'generateSchedule',
+      {
+        'courseId': courseId,
+        'availability': availability,
+        'revisionPolicy': revisionPolicy,
+      },
+      timeout: _scheduleCallTimeout,
+    );
   }
 
   Future<Map<String, dynamic>> regenSchedule({

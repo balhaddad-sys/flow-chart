@@ -73,6 +73,7 @@ class TaskRow extends ConsumerWidget {
       ),
       child: Container(
         margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: isDark ? AppColors.darkSurface : AppColors.surface,
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -80,9 +81,30 @@ class TaskRow extends ConsumerWidget {
             color: isInactive
                 ? (isDark ? AppColors.darkBorder : AppColors.borderLight)
                 : (isDark ? AppColors.darkBorder : AppColors.border),
+            width: 0.5,
           ),
+          boxShadow: isInactive || isDark
+              ? null
+              : [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 4,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
         ),
-        child: ListTile(
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(
+              left: BorderSide(
+                color: isInactive
+                    ? Colors.transparent
+                    : _taskAccentColor(task.type),
+                width: 3,
+              ),
+            ),
+          ),
+          child: ListTile(
           leading: _typeIcon(task.type, isDark),
           title: Text(
             task.title.isNotEmpty ? task.title : 'Untitled Task',
@@ -143,8 +165,19 @@ class TaskRow extends ConsumerWidget {
             },
           ),
         ),
+        ),
       ),
     );
+  }
+
+  Color _taskAccentColor(String type) {
+    return switch (type) {
+      'STUDY' => AppColors.primary,
+      'QUESTIONS' => AppColors.secondary,
+      'REVIEW' => AppColors.warning,
+      'MOCK' => AppColors.error,
+      _ => AppColors.textTertiary,
+    };
   }
 
   Widget _typeIcon(String type, bool isDark) {

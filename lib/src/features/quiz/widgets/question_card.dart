@@ -79,14 +79,15 @@ class QuestionCard extends StatelessWidget {
         ...List.generate(question.options.length, (i) {
           return Padding(
             padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: OptionButton(
-              index: i,
-              text: question.options[i],
-              isSelected: selectedIndex == i,
-              isCorrect:
-                  hasSubmitted ? i == safeCorrectIndex : null,
-              hasSubmitted: hasSubmitted,
-              onTap: () => onOptionSelected(i),
+            child: GestureDetector(
+              onTap: hasSubmitted ? null : () => onOptionSelected(i),
+              child: AnswerOption(
+                index: i,
+                text: question.options[i],
+                isSelected: selectedIndex == i,
+                isSubmitted: hasSubmitted,
+                isCorrect: i == safeCorrectIndex,
+              ),
             ),
           );
         }),

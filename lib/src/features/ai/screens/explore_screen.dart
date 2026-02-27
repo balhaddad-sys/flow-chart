@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/user_provider.dart';
-import '../../../core/utils/error_handler.dart';
+import '../../../core/widgets/formatted_text.dart';
 
 // ── Level options ─────────────────────────────────────────────────────────────
 
@@ -63,9 +63,8 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
           'No content returned.';
       setState(() => _insightText = insight);
     } catch (e) {
-      ErrorHandler.logError(e);
       if (!mounted) return;
-      setState(() => _errorText = e.toString());
+      setState(() => _errorText = 'Failed to get insight. Please try again.');
     } finally {
       if (mounted) setState(() => _loadingInsight = false);
     }
@@ -95,11 +94,10 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         return;
       }
       setState(() =>
-          _quizQuestions = questions.whereType<Map>().map((q) => Map<String, dynamic>.from(q)).toList());
+          _quizQuestions = questions.cast<Map<String, dynamic>>());
     } catch (e) {
-      ErrorHandler.logError(e);
       if (!mounted) return;
-      setState(() => _errorText = e.toString());
+      setState(() => _errorText = 'Failed to generate quiz. Please try again.');
     } finally {
       if (mounted) setState(() => _loadingQuiz = false);
     }
@@ -317,6 +315,19 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                           fontSize: 13, color: AppColors.error),
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: _getInsight,
+                    child: const Text(
+                      'Retry',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -341,9 +352,9 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                   color: isDark ? AppColors.darkBorder : AppColors.border,
                 ),
               ),
-              child: SelectableText(
-                _insightText!,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              child: FormattedText(
+                text: _insightText!,
+                baseStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
                       fontSize: 14,
                       height: 1.65,
                       color: isDark

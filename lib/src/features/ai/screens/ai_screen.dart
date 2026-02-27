@@ -6,6 +6,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
+import '../../../core/widgets/formatted_text.dart';
 import '../../home/providers/home_provider.dart';
 import '../providers/ai_provider.dart';
 
@@ -894,19 +895,26 @@ class _ChatViewState extends ConsumerState<_ChatView> {
                               isDark ? AppColors.darkBorder : AppColors.border,
                         ),
               ),
-              child: Text(
-                text,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color:
-                      isUser
-                          ? Colors.white
-                          : (isDark
-                              ? AppColors.darkTextPrimary
-                              : AppColors.textPrimary),
-                  fontSize: 14,
-                  height: 1.5,
-                ),
-              ),
+              child: isUser
+                  ? Text(
+                      text,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.white,
+                        fontSize: 14,
+                        height: 1.5,
+                      ),
+                    )
+                  : FormattedText(
+                      text: text,
+                      selectable: true,
+                      baseStyle: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.textPrimary,
+                        fontSize: 14,
+                        height: 1.5,
+                      ),
+                    ),
             ),
           ),
           if (isUser) ...[
@@ -964,13 +972,13 @@ class _ChatViewState extends ConsumerState<_ChatView> {
                 color: isDark ? AppColors.darkBorder : AppColors.border,
               ),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 _Dot(delay: 0),
-                SizedBox(width: 4),
+                const SizedBox(width: 4),
                 _Dot(delay: 150),
-                SizedBox(width: 4),
+                const SizedBox(width: 4),
                 _Dot(delay: 300),
               ],
             ),

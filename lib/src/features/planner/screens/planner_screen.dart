@@ -8,6 +8,7 @@ import '../../../core/utils/error_handler.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../models/task_model.dart';
 import '../../home/providers/home_provider.dart';
+import '../../library/providers/library_provider.dart';
 import '../../practice/providers/practice_provider.dart';
 import '../providers/planner_provider.dart';
 import '../widgets/task_row.dart';
@@ -50,6 +51,7 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
     final String courseId = activeCourseId;
     final tasksAsync = ref.watch(allTasksProvider(courseId));
     final sectionsAsync = ref.watch(courseSectionsProvider(courseId));
+    final filesAsync = ref.watch(filesProvider(courseId));
     final actionsState = ref.watch(plannerActionsProvider);
 
     ref.listen<AsyncValue<void>>(plannerActionsProvider, (prev, next) {
@@ -135,7 +137,7 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                   const SizedBox(width: 12),
                   if (tasks.isEmpty)
                     ElevatedButton.icon(
-                      onPressed: isLoading
+                      onPressed: isLoading || analyzedCount == 0
                           ? null
                           : () => ref
                               .read(plannerActionsProvider.notifier)
@@ -150,8 +152,11 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                               ),
                             )
                           : const Icon(Icons.add_rounded, size: 16),
-                      label:
-                          Text(isLoading ? 'Generating...' : 'Generate Plan'),
+                      label: Text(isLoading
+                          ? 'Generating...'
+                          : analyzedCount == 0
+                              ? 'No sections ready'
+                              : 'Generate Plan'),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         foregroundColor: Colors.white,
@@ -221,21 +226,76 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                 ),
                 data: (tasks) {
                   if (tasks.isEmpty) {
-                    return EmptyState(
-                      icon: Icons.calendar_today,
-                      title: isLoading
-                          ? 'Generating your plan…'
-                          : 'No plan generated yet',
-                      subtitle: isLoading
-                          ? 'This usually takes a few seconds.'
-                          : 'Upload materials and generate a study plan',
-                      actionLabel:
-                          isLoading ? null : 'Generate Plan',
-                      onAction: isLoading
-                          ? null
-                          : () => ref
+                    final hasError = actionsState.hasError;
+                    final errorMsg = hasError
+                        ? ErrorHandler.userMessage(actionsState.error!)
+                        : null;
+
+                    final String title;
+                    final String subtitle;
+                    final IconData icon;
+                    final String? actionLabel;
+                    final VoidCallback? onAction;
+
+                    if (isLoading) {
+                      title = 'Generating your plan…';
+                      subtitle = 'This usually takes a few seconds.';
+                      icon = Icons.calendar_today;
+                      actionLabel = null;
+                      onAction = null;
+                    } else if (hasError) {
+                      title = 'Generation failed';
+                      subtitle = errorMsg ??
+                          'An error occurred. Please try again.';
+                      icon = Icons.error_outline;
+                      actionLabel =
+                          analyzedCount > 0 ? 'Try Again' : null;
+                      onAction = analyzedCount > 0
+                          ? () => ref
                               .read(plannerActionsProvider.notifier)
-                              .generateSchedule(courseId),
+                              .generateSchedule(courseId)
+                          : null;
+                    } else if (analyzedCount == 0 && pendingCount > 0) {
+                      title = 'Analyzing your materials…';
+                      subtitle =
+                          '$pendingCount section${pendingCount > 1 ? 's' : ''} being analyzed. '
+                          'Come back in a few minutes.';
+                      icon = Icons.hourglass_top_rounded;
+                      actionLabel = null;
+                      onAction = null;
+                    } else if (analyzedCount == 0) {
+                      final hasFiles =
+                          filesAsync.valueOrNull?.isNotEmpty ?? false;
+                      title = hasFiles
+                          ? 'Materials still processing'
+                          : 'No materials uploaded';
+                      subtitle = hasFiles
+                          ? 'Your uploaded files are being processed. '
+                              'Check the Library tab for status.'
+                          : 'Upload study materials in the Library tab first.';
+                      icon = hasFiles
+                          ? Icons.hourglass_empty
+                          : Icons.upload_file_rounded;
+                      actionLabel = null;
+                      onAction = null;
+                    } else {
+                      title = 'No plan generated yet';
+                      subtitle =
+                          '$analyzedCount section${analyzedCount > 1 ? 's' : ''} ready. '
+                          'Tap "Generate Plan" to create your schedule.';
+                      icon = Icons.calendar_today;
+                      actionLabel = 'Generate Plan';
+                      onAction = () => ref
+                          .read(plannerActionsProvider.notifier)
+                          .generateSchedule(courseId);
+                    }
+
+                    return EmptyState(
+                      icon: icon,
+                      title: title,
+                      subtitle: subtitle,
+                      actionLabel: actionLabel,
+                      onAction: onAction,
                     );
                   }
 

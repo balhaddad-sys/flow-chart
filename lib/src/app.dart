@@ -9,6 +9,7 @@ import 'core/constants/app_colors.dart';
 import 'core/constants/app_links.dart';
 import 'core/constants/app_spacing.dart';
 import 'core/constants/app_typography.dart';
+import 'core/widgets/medq_nav_bar.dart';
 import 'core/providers/auth_provider.dart';
 import 'core/utils/external_link.dart';
 import 'features/ai/screens/ai_screen.dart';
@@ -94,10 +95,10 @@ class _AppShellState extends ConsumerState<_AppShell> {
       path: '/ai',
     ),
     _NavItem(
-      icon: Icons.person_outline_rounded,
-      activeIcon: Icons.person_rounded,
-      label: 'Settings',
-      path: '/profile',
+      icon: Icons.calendar_today_outlined,
+      activeIcon: Icons.calendar_today_rounded,
+      label: 'Plan',
+      path: '/planner',
     ),
   ];
 
@@ -232,7 +233,7 @@ class _AppShellState extends ConsumerState<_AppShell> {
     if (location.startsWith('/library')) return 1;
     if (location.startsWith('/practice')) return 2;
     if (location.startsWith('/ai')) return 3;
-    if (location.startsWith('/profile') || location.startsWith('/settings')) {
+    if (location.startsWith('/planner') || location.startsWith('/dashboard')) {
       return 4;
     }
     return 0;
@@ -240,7 +241,6 @@ class _AppShellState extends ConsumerState<_AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final location = GoRouterState.of(context).matchedLocation;
     final currentIndex = _indexFromLocation(location);
     final activeCourseId = ref.watch(activeCourseIdProvider);
@@ -274,41 +274,14 @@ class _AppShellState extends ConsumerState<_AppShell> {
           Expanded(child: widget.child),
         ],
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: (isDark ? AppColors.darkSurface : AppColors.surface)
-              .withValues(alpha: 0.97),
-          border: Border(
-            top: BorderSide(
-              color:
-                  isDark
-                      ? AppColors.darkBorder.withValues(alpha: 0.6)
-                      : AppColors.border.withValues(alpha: 0.6),
-              width: 0.5,
-            ),
-          ),
-        ),
-        child: SafeArea(
-          child: Row(
-            children: List.generate(_navItems.length, (i) {
-              final item = _navItems[i];
-              final isActive = i == currentIndex;
-              return Expanded(
-                child: _NavBarItem(
-                  icon: isActive ? item.activeIcon : item.icon,
-                  label: item.label,
-                  isActive: isActive,
-                  onTap: () {
-                    if (i != currentIndex) {
-                      ref.read(_shellNavIndexProvider.notifier).state = i;
-                      context.go(item.path);
-                    }
-                  },
-                ),
-              );
-            }),
-          ),
-        ),
+      bottomNavigationBar: MedQNavBar(
+        currentIndex: currentIndex,
+        onTap: (i) {
+          if (i != currentIndex) {
+            ref.read(_shellNavIndexProvider.notifier).state = i;
+            context.go(_navItems[i].path);
+          }
+        },
       ),
     );
   }
@@ -416,70 +389,6 @@ class _NavItem {
     required this.label,
     required this.path,
   });
-}
-
-class _NavBarItem extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool isActive;
-  final VoidCallback onTap;
-
-  const _NavBarItem({
-    required this.icon,
-    required this.label,
-    required this.isActive,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final color = isActive ? AppColors.primary : AppColors.navBarInactive;
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        height: 52,
-        child: Stack(
-          alignment: Alignment.topCenter,
-          children: [
-            // Top active indicator line
-            if (isActive)
-              Positioned(
-                top: 0,
-                child: Container(
-                  width: 24,
-                  height: 2,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
-              ),
-            // Icon + label
-            Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, size: 20, color: color),
-                  const SizedBox(height: 2),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w500,
-                      color: color,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 // ── Router ──────────────────────────────────────────────────────────────────
@@ -747,11 +656,11 @@ class MedQApp extends ConsumerWidget {
         fillColor: AppColors.surfaceVariant.withValues(alpha: 0.5),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppSpacing.radiusLg),

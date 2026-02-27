@@ -2,7 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
+import '../../../models/course_model.dart';
 import '../../../models/task_model.dart';
+import '../../home/providers/home_provider.dart';
 
 /// Streams all tasks for a course, ordered by dueDate and orderIndex.
 final allTasksProvider =
@@ -36,6 +38,45 @@ final groupedTasksProvider =
   );
 });
 
+Future<Map<String, dynamic>> loadScheduleAvailability(
+  Ref ref,
+  String courseId,
+) async {
+  final courses = ref.read(coursesProvider).valueOrNull ?? const <CourseModel>[];
+  CourseModel? course;
+
+  for (final item in courses) {
+    if (item.id == courseId) {
+      course = item;
+      break;
+    }
+  }
+
+  final uid = ref.read(uidProvider);
+  if (course == null && uid != null) {
+    course = await ref.read(firestoreServiceProvider).getCourse(uid, courseId);
+  }
+
+  final availability = course?.availability;
+  if (availability == null) {
+    return <String, dynamic>{};
+  }
+
+  final perDayOverrides =
+      availability.perDayOverrides.isNotEmpty
+          ? availability.perDayOverrides
+          : availability.perDay;
+
+  return <String, dynamic>{
+    if (availability.defaultMinutesPerDay != null)
+      'defaultMinutesPerDay': availability.defaultMinutesPerDay,
+    if (perDayOverrides.isNotEmpty)
+      'perDayOverrides': Map<String, int>.from(perDayOverrides),
+    if (availability.excludedDates.isNotEmpty)
+      'excludedDates': List<String>.from(availability.excludedDates),
+  };
+}
+
 /// Manages async schedule generation and regeneration actions.
 class PlannerActionsNotifier extends StateNotifier<AsyncValue<void>> {
   final Ref _ref;
@@ -45,10 +86,11 @@ class PlannerActionsNotifier extends StateNotifier<AsyncValue<void>> {
   Future<void> generateSchedule(String courseId) async {
     state = const AsyncLoading();
     try {
+      final availability = await loadScheduleAvailability(_ref, courseId);
       final result =
           await _ref.read(cloudFunctionsServiceProvider).generateSchedule(
                 courseId: courseId,
-                availability: {},
+                availability: availability,
                 revisionPolicy: 'standard',
               );
       _ref.invalidate(allTasksProvider(courseId));
@@ -77,6 +119,7 @@ class PlannerActionsNotifier extends StateNotifier<AsyncValue<void>> {
   Future<void> regenSchedule(String courseId) async {
     state = const AsyncLoading();
     try {
+      final availability = await loadScheduleAvailability(_ref, courseId);
       // Step 1: delete old non-completed tasks
       await _ref.read(cloudFunctionsServiceProvider).regenSchedule(
             courseId: courseId,
@@ -86,7 +129,7 @@ class PlannerActionsNotifier extends StateNotifier<AsyncValue<void>> {
       final result =
           await _ref.read(cloudFunctionsServiceProvider).generateSchedule(
                 courseId: courseId,
-                availability: {},
+                availability: availability,
                 revisionPolicy: 'standard',
               );
       _ref.invalidate(allTasksProvider(courseId));

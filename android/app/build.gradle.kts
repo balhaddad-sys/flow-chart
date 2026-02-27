@@ -66,3 +66,14 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // Compile against gRPC API that Firebase Firestore bundles at runtime.
+    // compileOnly means no duplicate classes in the final APK.
+    compileOnly("io.grpc:grpc-api:1.62.2")
+    compileOnly("io.grpc:grpc-core:1.62.2")
+
+    // Compile against OkHttp that Firebase Functions bundles at runtime.
+    // Needed to reference OkHttpClient / Dns in DoHOkHttpDns + DnsBypassInit.
+    compileOnly("com.squareup.okhttp3:okhttp:3.12.13")
+}

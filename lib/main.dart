@@ -1,8 +1,11 @@
+import 'dart:io';
+
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 
@@ -28,6 +31,17 @@ void main() async {
     androidProvider: AndroidProvider.debug,
     appleProvider: AppleProvider.debug,
   );
+
+  // Patch Firebase Functions OkHttpClient to use DoH DNS (Android only).
+  // Called here (after Firebase is fully initialized) so that the Dagger
+  // component for FirebaseFunctions is ready when we call getInstance().
+  if (!kIsWeb && Platform.isAndroid) {
+    try {
+      await const MethodChannel('io.medq.app/dns').invokeMethod('patchFunctions');
+    } catch (_) {
+      // Non-fatal — functions will still attempt the call, just via system DNS.
+    }
+  }
 
   // Production crash reporting via Firebase Crashlytics (mobile only)
   if (!kIsWeb) {

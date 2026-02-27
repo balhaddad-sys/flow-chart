@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/user_provider.dart';
+import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/course_selector_sheet.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../models/course_model.dart';
@@ -100,7 +101,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
       body: coursesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => const Center(child: Text('Unable to load courses. Please try again.')),
+        error: (e, _) => Center(child: Text('Error: $e')),
         data: (courses) {
           if (courses.isEmpty) {
             return EmptyState(
@@ -182,11 +183,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(
-                  child: SafeArea(
-                    bottom: false,
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                      child: Column(
+                  child: GradientHeader(
+                    child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // ── Date ──────────────────────────────────────────
@@ -288,6 +286,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 height: 36,
                                 width: 36,
                                 decoration: BoxDecoration(
+                                  color: isDark
+                                      ? AppColors.darkSurfaceVariant.withValues(alpha: 0.6)
+                                      : Colors.white.withValues(alpha: 0.8),
                                   border: Border.all(
                                     color: isDark
                                         ? AppColors.darkBorder
@@ -317,7 +318,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           const SizedBox(height: 20),
                         ],
                       ),
-                    ),
                   ),
                 ),
 
@@ -356,69 +356,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       AppSpacing.gapMd,
 
                       // ── Performance ───────────────────────────────────────
-                      Row(
-                        children: [
-                          Text(
-                            'PERFORMANCE',
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
-                                ?.copyWith(
-                                  color: isDark
-                                      ? AppColors.darkTextSecondary
-                                      : AppColors.textSecondary,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 1.0,
-                                  fontSize: 11,
-                                ),
-                          ),
-                          const Spacer(),
-                          GestureDetector(
-                            onTap: () => context.go('/analytics'),
-                            child: Text(
-                              'View analytics',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelSmall
-                                  ?.copyWith(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 12,
-                                  ),
-                            ),
-                          ),
-                        ],
+                      SectionLabel(
+                        text: 'Performance',
+                        actionText: 'View analytics',
+                        onAction: () => context.go('/analytics'),
                       ),
                       const SizedBox(height: 10),
                       StatsCards(courseId: activeCourseId),
                       AppSpacing.gapMd,
 
                       // ── Today's Plan ──────────────────────────────────────
-                      Row(
-                        children: [
-                          Text(
-                            'Today\'s Plan',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(fontWeight: FontWeight.w700),
-                          ),
-                          const Spacer(),
-                          GestureDetector(
-                            onTap: () => context.go('/planner'),
-                            child: Text(
-                              'View all',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .labelSmall
-                                  ?.copyWith(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 12,
-                                  ),
-                            ),
-                          ),
-                        ],
+                      SectionLabel(
+                        text: "Today's Plan",
+                        actionText: 'View all',
+                        onAction: () => context.go('/planner'),
                       ),
                       const SizedBox(height: 10),
                       TodayChecklist(courseId: activeCourseId),
@@ -710,9 +661,9 @@ class _ExamBankCard extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
-              children: [
+              children: const [
                 Text('Open Bank'),
                 SizedBox(width: 4),
                 Icon(Icons.chevron_right_rounded, size: 14),

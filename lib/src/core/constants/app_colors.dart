@@ -76,7 +76,45 @@ class AppColors {
   // ── Nav bar ───────────────────────────────────────────────────────────────────
   static const Color navBarBackground = Color(0xFFFFFFFF);
   static const Color navBarDarkBackground = Color(0xFF1C1917);
-  static const Color navBarInactive = Color(0xFF94A3B8);
+  static const Color navBarInactive = Color(0xFF78716C); // stone-500
+
+  // ── Teal scale (for design system) ──────────────────────────────────────────
+  static const Color teal50  = Color(0xFFF0FDFA);
+  static const Color teal100 = Color(0xFFCCFBF1);
+  static const Color teal200 = Color(0xFF99F6E4);
+  static const Color teal300 = Color(0xFF5EEAD4);
+  static const Color teal400 = Color(0xFF2DD4BF);
+  static const Color teal500 = Color(0xFF14B8A6);
+  static const Color teal600 = Color(0xFF0D9488);
+  static const Color teal700 = Color(0xFF0F766E);
+  static const Color teal800 = Color(0xFF115E59);
+  static const Color teal900 = Color(0xFF134E4A);
+
+  // ── Extra semantic ──────────────────────────────────────────────────────────
+  static const Color purple    = Color(0xFF8B5CF6);
+  static const Color purpleBg  = Color(0x0A8B5CF6);
+  static const Color successBg = Color(0x0A22C55E);
+  static const Color errorBg   = Color(0x0AEF4444);
+  static const Color warningBg = Color(0x0AD97706);
+  static const Color infoBg    = Color(0x0A3B82F6);
+
+  // ── Gradient shadow ──────────────────────────────────────────────────────
+  static const primaryGradientShadow = [
+    BoxShadow(
+      color: Color(0x4D0D9488),
+      blurRadius: 16,
+      offset: Offset(0, 4),
+    ),
+  ];
+
+  // ── Header gradient ──────────────────────────────────────────────────────
+  static LinearGradient headerGradient(bool isDark) => LinearGradient(
+    colors: isDark
+        ? [const Color(0xFF0F2928), const Color(0xFF11201F), darkBackground]
+        : [const Color(0xFFE0F7F5), const Color(0xFFEEFBFA), background],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
 
   // ── Gradients ─────────────────────────────────────────────────────────────────
   static const LinearGradient primaryGradient = LinearGradient(

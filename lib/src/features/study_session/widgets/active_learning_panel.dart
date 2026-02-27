@@ -16,10 +16,25 @@ class ActiveLearningPanel extends ConsumerWidget {
 
     return sectionAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => const Center(child: Text('Unable to load study content. Please try again.')),
+      error: (e, _) => Center(child: Text('Error: $e')),
       data: (section) {
         if (section == null) {
-          return const Center(child: Text('Section not found'));
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.info_outline_rounded, size: 48,
+                    color: AppColors.textTertiary),
+                AppSpacing.gapMd,
+                Text('Section not found',
+                    style: Theme.of(context).textTheme.titleMedium),
+                AppSpacing.gapXs,
+                Text('This section may still be processing.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary)),
+              ],
+            ),
+          );
         }
 
         final blueprint = section.blueprint;
@@ -54,6 +69,51 @@ class ActiveLearningPanel extends ConsumerWidget {
               ],
             ),
             AppSpacing.gapXl,
+
+            // Show a processing/unavailable state when blueprint is null
+            if (blueprint == null) ...[
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.infoLight.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  border: Border.all(color: AppColors.info.withValues(alpha: 0.2)),
+                ),
+                child: Column(
+                  children: [
+                    Icon(Icons.auto_fix_high_rounded, size: 32, color: AppColors.info),
+                    AppSpacing.gapSm,
+                    Text(
+                      section.aiStatus == 'PROCESSING'
+                          ? 'AI is analysing this section...'
+                          : section.aiStatus == 'FAILED'
+                              ? 'Analysis failed for this section'
+                              : 'AI analysis pending',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                      textAlign: TextAlign.center,
+                    ),
+                    AppSpacing.gapXs,
+                    Text(
+                      section.aiStatus == 'PROCESSING'
+                          ? 'Learning objectives, key concepts, and high-yield points will appear here shortly.'
+                          : section.aiStatus == 'FAILED'
+                              ? 'Try reprocessing from the library screen.'
+                              : 'Upload and process your materials to unlock the AI study guide.',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                      textAlign: TextAlign.center,
+                    ),
+                    if (section.aiStatus == 'PROCESSING') ...[
+                      AppSpacing.gapMd,
+                      const LinearProgressIndicator(minHeight: 3),
+                    ],
+                  ],
+                ),
+              ),
+            ],
 
             if (blueprint != null) ...[
               if (blueprint.learningObjectives.isNotEmpty) ...[
@@ -150,44 +210,6 @@ class ActiveLearningPanel extends ConsumerWidget {
                 ),
                 AppSpacing.gapLg,
               ],
-            ] else ...[
-              Center(
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: AppSpacing.xxl),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        width: 56,
-                        height: 56,
-                        decoration: const BoxDecoration(
-                          color: AppColors.secondarySurface,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.auto_awesome_rounded,
-                            color: AppColors.secondary, size: 28),
-                      ),
-                      AppSpacing.gapMd,
-                      Text(
-                        'Study guide generating...',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(color: AppColors.textSecondary),
-                      ),
-                      AppSpacing.gapXs,
-                      Text(
-                        'AI analysis is still processing this section',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: AppColors.textTertiary),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             ],
           ],
         );
