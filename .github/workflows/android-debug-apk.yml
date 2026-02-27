@@ -62,9 +62,14 @@ jobs:
           # the android{} block (it goes to DependenciesInfo, not DependencyHandler).
           # We move those declarations to a top-level dependencies{} block so javac
           # can find the firebase_core interfaces at compile time.
+          # Note: build.gradle.kts also applies this fix via subprojects.afterEvaluate.
+          echo "PUB_CACHE=${PUB_CACHE:-~/.pub-cache}"
+          CACHE="${PUB_CACHE:-$HOME/.pub-cache}/hosted/pub.dev"
+          echo "Scanning: $CACHE"
           python3 - << 'PYEOF'
-          import os, re, glob
-          cache = os.path.expanduser('~/.pub-cache/hosted/pub.dev')
+          import os, re, glob, sys
+          cache = os.environ.get('PUB_CACHE', os.path.expanduser('~/.pub-cache')) + '/hosted/pub.dev'
+          print('Cache dir: ' + cache + '  exists=' + str(os.path.exists(cache)))
           total = 0
           for path in glob.glob(os.path.join(cache, '*/android/build.gradle')):
               with open(path) as f:
@@ -79,7 +84,9 @@ jobs:
               patched = patched.rstrip('\n') + '\n\ndependencies {\n    api firebaseCoreProject\n}\n'
               with open(path, 'w') as f:
                   f.write(patched)
-              print('  -> patched: ' + path)
+              # Verify
+              tail = open(path).read()[-120:]
+              print('  tail: ' + repr(tail))
               total += 1
           print('Total patched: ' + str(total) + ' file(s)')
           PYEOF
