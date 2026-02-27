@@ -1,4 +1,4 @@
-## Build failed at Fri Feb 27 12:57:03 UTC 2026
+## Build failed at Fri Feb 27 13:17:01 UTC 2026
 
 ### flutter build apk --debug output (last 300 lines):
 ```
@@ -255,7 +255,7 @@ Execution failed for task ':cloud_firestore:compileDebugJavaWithJavac'.
 > Check your code and dependencies to fix the compilation error(s)
 > Run with --scan to get full insights.
 
-BUILD FAILED in 9m 15s
-Running Gradle task 'assembleDebug'...                            556.1s
+BUILD FAILED in 7m 53s
+Running Gradle task 'assembleDebug'...                            475.0s
 Gradle task assembleDebug failed with exit code 1
 ```
