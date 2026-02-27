@@ -1,127 +1,189 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
-import '../../../core/icons/medq_icons.dart';
-import '../../../core/theme/app_colors.dart';
+import '../../../core/constants/app_colors.dart';
 
-/// A single answer option row for the quiz.
-class AnswerOption extends StatelessWidget {
+/// Option button matching the web app's QuestionCard option layout exactly.
+///
+/// States:
+///   Default  → muted badge, subtle border, hover-able
+///   Pending  → primary border+badge, spinner in badge
+///   Correct  → emerald border+badge (check icon), check_circle trailing
+///   Wrong    → AMBER border+badge (close icon) — NOT red
+///   Dimmed   → opacity 0.45 for non-selected non-correct after submit
+class OptionButton extends StatelessWidget {
   final int index;
   final String text;
   final bool isSelected;
-  final bool isSubmitted;
-  final bool isCorrect;
+  final bool isCorrectOption;
+  final bool isAnswered;
+  final bool isPending;
+  final VoidCallback onTap;
 
-  const AnswerOption({
+  const OptionButton({
     super.key,
     required this.index,
     required this.text,
-    this.isSelected = false,
-    this.isSubmitted = false,
-    this.isCorrect = false,
+    required this.isSelected,
+    required this.isCorrectOption,
+    required this.isAnswered,
+    this.isPending = false,
+    required this.onTap,
   });
 
-  static const _letters = ['A', 'B', 'C', 'D', 'E'];
+  static const _labels = ['A', 'B', 'C', 'D', 'E', 'F'];
+
+  // Web colors
+  static const _emerald500 = Color(0xFF10B981);
+  static const _amber400 = Color(0xFFFBBF24);
+  static const _amber500 = Color(0xFFF59E0B);
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final tx = isDark ? AppColors.darkTextPrimary : AppColors.textPrimary;
-    final ts = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
 
-    // Determine visual state
-    Color bg, borderColor, labelBg, labelColor;
+    // ── Determine visual state (matches web's style variable) ──────────
+    Color borderColor;
+    Color bgColor;
+    Color badgeBg;
+    Color badgeText;
+    Widget badgeChild;
     Widget? trailing;
-    String? trailType;
-    double opacity = 1;
+    double opacity = 1.0;
 
-    if (isSubmitted) {
-      if (isCorrect) {
-        bg = AppColors.success.withValues(alpha: 0.06);
-        borderColor = AppColors.success.withValues(alpha: 0.4);
-        labelBg = AppColors.success;
-        labelColor = Colors.white;
-        trailType = 'check';
-        trailing = MedQIcon(MedQIcons.checkCircle, size: 20, color: AppColors.success);
+    if (isPending) {
+      // Pending: primary border, primary badge with spinner
+      borderColor = AppColors.primary;
+      bgColor = AppColors.primary.withValues(alpha: 0.05);
+      badgeBg = AppColors.primary;
+      badgeText = Colors.white;
+      badgeChild = const SizedBox(
+        width: 12,
+        height: 12,
+        child: CircularProgressIndicator(
+          strokeWidth: 1.5,
+          color: Colors.white,
+        ),
+      );
+    } else if (isAnswered) {
+      if (isCorrectOption) {
+        // Correct option: emerald
+        borderColor = _emerald500.withValues(alpha: 0.5);
+        bgColor = isDark
+            ? _emerald500.withValues(alpha: 0.10)
+            : const Color(0xFFECFDF5).withValues(alpha: 0.8);
+        badgeBg = _emerald500;
+        badgeText = Colors.white;
+        badgeChild = const Icon(Icons.check_rounded, size: 14, color: Colors.white);
+        trailing = Icon(Icons.check_circle, size: 18, color: _emerald500);
       } else if (isSelected) {
-        bg = AppColors.error.withValues(alpha: 0.06);
-        borderColor = AppColors.error.withValues(alpha: 0.4);
-        labelBg = AppColors.error;
-        labelColor = Colors.white;
-        trailType = 'x';
-        trailing = MedQIcon(MedQIcons.xCircle, size: 20, color: AppColors.error);
+        // Selected wrong: AMBER (not red — matches web exactly)
+        borderColor = _amber400.withValues(alpha: 0.5);
+        bgColor = isDark
+            ? _amber500.withValues(alpha: 0.10)
+            : const Color(0xFFFFFBEB).withValues(alpha: 0.8);
+        badgeBg = _amber500;
+        badgeText = Colors.white;
+        badgeChild = const Icon(Icons.close_rounded, size: 14, color: Colors.white);
       } else {
-        bg = isDark ? Colors.white.withValues(alpha: 0.01) : Colors.black.withValues(alpha: 0.01);
-        borderColor = isDark ? Colors.white.withValues(alpha: 0.03) : Colors.black.withValues(alpha: 0.03);
-        labelBg = isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant;
-        labelColor = isDark ? AppColors.darkTextTertiary : AppColors.textTertiary;
-        opacity = 0.4;
+        // Non-selected, non-correct after answer: dimmed
+        borderColor = isDark
+            ? Colors.white.withValues(alpha: 0.04)
+            : Colors.black.withValues(alpha: 0.04);
+        bgColor = isDark ? AppColors.darkSurface : AppColors.surface;
+        badgeBg = isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant;
+        badgeText = isDark ? AppColors.darkTextTertiary : AppColors.textTertiary;
+        badgeChild = _letterWidget(badgeText);
+        opacity = 0.45;
       }
-    } else if (isSelected) {
-      bg = isDark ? AppColors.teal600.withValues(alpha: 0.08) : AppColors.teal600.withValues(alpha: 0.05);
-      borderColor = AppColors.teal500.withValues(alpha: 0.5);
-      labelBg = AppColors.teal600;
-      labelColor = Colors.white;
     } else {
-      bg = isDark ? AppColors.darkSurface : AppColors.surface;
-      borderColor = isDark ? Colors.white.withValues(alpha: 0.06) : Colors.black.withValues(alpha: 0.05);
-      labelBg = isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant;
-      labelColor = ts;
+      // Default: subtle border, muted badge
+      borderColor = isDark
+          ? AppColors.darkBorder.withValues(alpha: 0.6)
+          : AppColors.border.withValues(alpha: 0.6);
+      bgColor = isDark ? AppColors.darkSurface : AppColors.surface;
+      badgeBg = isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant;
+      badgeText = isDark ? AppColors.darkTextSecondary : AppColors.textSecondary;
+      badgeChild = _letterWidget(badgeText);
     }
 
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: 300),
-      opacity: opacity,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeOutCubic,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: borderColor, width: 1.5),
-          boxShadow: isSelected && !isSubmitted
-              ? [BoxShadow(color: AppColors.teal500.withValues(alpha: 0.12), blurRadius: 12, offset: const Offset(0, 2))]
-              : null,
-        ),
-        child: Row(
-          children: [
-            // Letter badge
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: labelBg,
-                borderRadius: BorderRadius.circular(10),
+    // If not pending and not a special state, build letter badge
+    if (!isPending && !(isAnswered && (isCorrectOption || isSelected))) {
+      badgeChild = _letterWidget(badgeText);
+    }
+
+    return GestureDetector(
+      onTap: isAnswered
+          ? null
+          : () {
+              HapticFeedback.selectionClick();
+              onTap();
+            },
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 150),
+        opacity: opacity,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            color: bgColor,
+            border: Border.all(color: borderColor, width: 1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Letter badge — 24x24 rounded-lg (matches web h-6 w-6 rounded-lg)
+              Container(
+                width: 24,
+                height: 24,
+                margin: const EdgeInsets.only(top: 1),
+                decoration: BoxDecoration(
+                  color: badgeBg,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Center(child: badgeChild),
               ),
-              child: Center(
-                child: trailType == 'check'
-                    ? MedQIcon(MedQIcons.check, size: 16, color: labelColor)
-                    : trailType == 'x'
-                        ? MedQIcon(MedQIcons.x, size: 16, color: labelColor)
-                        : Text(
-                            index < _letters.length ? _letters[index] : '${index + 1}',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: labelColor),
-                          ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                text.isNotEmpty ? text : 'Option ${index + 1}',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                  color: tx,
-                  height: 1.4,
+              const SizedBox(width: 12),
+              // Option text
+              Expanded(
+                child: Text(
+                  text.isNotEmpty ? text : 'Option ${index + 1}',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w400,
+                    height: 1.5,
+                    color: isDark
+                        ? AppColors.darkTextPrimary
+                        : AppColors.textPrimary,
+                  ),
                 ),
               ),
-            ),
-            if (trailing != null) ...[const SizedBox(width: 8), trailing],
-          ],
+              // Trailing icon (check circle for correct)
+              if (trailing != null) ...[
+                const SizedBox(width: 8),
+                Padding(
+                  padding: const EdgeInsets.only(top: 1),
+                  child: trailing,
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
   }
-}
 
+  Widget _letterWidget(Color color) {
+    return Text(
+      index < _labels.length ? _labels[index] : '${index + 1}',
+      style: TextStyle(
+        color: color,
+        fontWeight: FontWeight.w700,
+        fontSize: 11,
+      ),
+    );
+  }
+}
