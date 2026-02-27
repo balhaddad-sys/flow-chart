@@ -144,3 +144,19 @@ jobs:
           path: build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 14
           if-no-files-found: error
+
+      - name: Publish GitHub Release with APK
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          SHORT_SHA=$(echo "$GITHUB_SHA" | head -c 8)
+          TAG="debug-$(date -u +%Y%m%d-%H%M%S)-${SHORT_SHA}"
+          gh release create "$TAG" \
+            build/app/outputs/flutter-apk/app-debug.apk#medq-debug.apk \
+            --title "MedQ Debug APK (${SHORT_SHA})" \
+            --notes "Debug APK built from commit \`$GITHUB_SHA\` on branch \`$GITHUB_REF_NAME\`." \
+            --prerelease
+          echo ""
+          echo "=== APK download link ==="
+          echo "https://github.com/${GH_REPO}/releases/tag/${TAG}"
