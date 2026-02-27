@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../core/services/haptic_service.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/error_banner.dart';
 import '../../../core/widgets/google_sign_in_button.dart';
@@ -60,12 +61,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   void _handleLogin() {
     if (!_formKey.currentState!.validate()) return;
+    HapticService.medium();
     ref
         .read(authScreenProvider.notifier)
         .signIn(_emailController.text.trim(), _passwordController.text);
   }
 
   void _handleGoogleSignIn() {
+    HapticService.medium();
     ref.read(authScreenProvider.notifier).signInWithGoogle();
   }
 

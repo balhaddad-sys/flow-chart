@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/user_provider.dart';
+import '../../../core/services/haptic_service.dart';
 import '../../../core/widgets/app_card.dart';
 import '../../../core/widgets/course_selector_sheet.dart';
 import '../../../core/widgets/empty_state.dart';
@@ -67,6 +68,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _seedSampleDeck() async {
+    HapticService.medium();
     setState(() => _seedingDeck = true);
     try {
       final result =
@@ -76,6 +78,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         _showSnackBar('Sample deck is already in your account.');
       } else {
         setState(() => _deckSeeded = true);
+        HapticService.success();
         final count = result['questionCount'] ?? 0;
         _showSnackBar(
           'Sample deck ready — $count high-yield questions loaded!',
@@ -83,6 +86,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         );
       }
     } catch (e) {
+      HapticService.error();
       _showSnackBar(
         'Failed to load sample deck. Please try again.',
         backgroundColor: AppColors.error,

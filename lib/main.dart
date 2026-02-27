@@ -11,6 +11,7 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 
 import 'firebase_options.dart';
 import 'src/app.dart';
+import 'src/core/services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,6 +42,11 @@ void main() async {
     } catch (_) {
       // Non-fatal — functions will still attempt the call, just via system DNS.
     }
+  }
+
+  // Initialize push notifications (mobile only).
+  if (!kIsWeb) {
+    await NotificationService.init();
   }
 
   // Production crash reporting via Firebase Crashlytics (mobile only)

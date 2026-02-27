@@ -10,6 +10,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
+import '../../../core/services/haptic_service.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../core/widgets/empty_state.dart';
@@ -60,6 +61,7 @@ class LibraryScreen extends ConsumerWidget {
 
   Future<void> _uploadFile(BuildContext context, WidgetRef ref) async {
     if (ref.read(_uploadStateProvider).isUploading) return;
+    HapticService.medium();
 
     final uid = ref.read(uidProvider);
     if (uid == null) return;

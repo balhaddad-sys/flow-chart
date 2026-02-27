@@ -8,6 +8,7 @@ import '../../../core/constants/app_links.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
+import '../../../core/services/haptic_service.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../core/utils/external_link.dart';
 import '../../home/providers/home_provider.dart';
@@ -75,6 +76,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _signOut() async {
+    HapticService.medium();
     try {
       await ref.read(authServiceProvider).signOut();
       if (mounted) context.go('/login');

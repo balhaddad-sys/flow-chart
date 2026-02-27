@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/user_provider.dart';
+import '../../../core/services/haptic_service.dart';
 import '../../home/providers/home_provider.dart';
 import '../../results/screens/results_screen.dart';
 import '../providers/quiz_provider.dart';
@@ -86,6 +87,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   void _handleAnswer(int optionIndex) {
+    HapticService.medium();
     // QuizNotifier tracks elapsed time internally via its own Stopwatch.
     ref.read(quizProvider.notifier).answerQuestion(optionIndex);
   }
@@ -101,6 +103,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   }
 
   void _finishQuiz() {
+    HapticService.success();
     _uiTimer?.cancel();
     final quiz = ref.read(quizProvider);
     // Gather weak topics from incorrectly answered questions

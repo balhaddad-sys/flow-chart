@@ -260,30 +260,33 @@ class _AppShellState extends ConsumerState<_AppShell> {
       });
     }
 
-    return Scaffold(
-      body: Column(
-        children: [
-          if (_showDisclaimer)
-            _MedicalDisclaimerBanner(
-              onDismiss: _dismissDisclaimer,
-              onLearnMore:
-                  () => openExternalLink(
-                    context,
-                    AppLinks.termsOfServiceUrl,
-                    label: 'Terms',
-                  ),
-            ),
-          Expanded(child: widget.child),
-        ],
-      ),
-      bottomNavigationBar: MedQNavBar(
-        currentIndex: currentIndex,
-        onTap: (i) {
-          if (i != currentIndex) {
-            ref.read(_shellNavIndexProvider.notifier).state = i;
-            context.go(_navItems[i].path);
-          }
-        },
+    return ConnectivityBanner(
+      child: Scaffold(
+        body: Column(
+          children: [
+            if (_showDisclaimer)
+              _MedicalDisclaimerBanner(
+                onDismiss: _dismissDisclaimer,
+                onLearnMore:
+                    () => openExternalLink(
+                      context,
+                      AppLinks.termsOfServiceUrl,
+                      label: 'Terms',
+                    ),
+              ),
+            Expanded(child: widget.child),
+          ],
+        ),
+        bottomNavigationBar: MedQNavBar(
+          currentIndex: currentIndex,
+          onTap: (i) {
+            if (i != currentIndex) {
+              HapticService.light();
+              ref.read(_shellNavIndexProvider.notifier).state = i;
+              context.go(_navItems[i].path);
+            }
+          },
+        ),
       ),
     );
   }
