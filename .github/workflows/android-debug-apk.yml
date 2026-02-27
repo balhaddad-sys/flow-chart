@@ -32,6 +32,9 @@ jobs:
       - name: Generate Freezed / JSON serialization code
         run: dart run build_runner build --delete-conflicting-outputs
 
+      - name: Apply lint auto-fixes
+        run: dart fix --apply
+
       - name: Analyze
         run: flutter analyze
 
