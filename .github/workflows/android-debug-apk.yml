@@ -30,6 +30,21 @@ jobs:
       - name: Flutter version info
         run: flutter --version
 
+      - name: Install Android NDK 28.2.13676358 (required by Flutter 3.41.2)
+        run: |
+          echo "ANDROID_HOME: $ANDROID_HOME"
+          echo "=== Currently installed NDK versions ==="
+          ls "$ANDROID_HOME/ndk/" 2>/dev/null || echo "(none)"
+          if [ -d "$ANDROID_HOME/ndk/28.2.13676358" ]; then
+            echo "NDK 28.2.13676358 already present — skipping install."
+          else
+            echo "Installing NDK 28.2.13676358 via sdkmanager..."
+            echo "y" | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358"
+            echo "Install complete."
+          fi
+          echo "=== NDK dirs after install ==="
+          ls "$ANDROID_HOME/ndk/" 2>/dev/null
+
       - name: Resolve Flutter dependencies
         run: flutter pub get
 
@@ -39,24 +54,11 @@ jobs:
       - name: Analyze
         run: flutter analyze --no-fatal-infos
 
-      - name: Check key dependency availability
-        run: |
-          echo "=== Checking AGP 8.11.1 on Google Maven ==="
-          AGP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://dl.google.com/android/maven2/com/android/tools/build/gradle/8.11.1/gradle-8.11.1.pom")
-          echo "AGP 8.11.1 HTTP status: $AGP_STATUS"
-          echo "=== Checking Kotlin 2.2.20 on Maven Central ==="
-          KT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-gradle-plugin/2.2.20/kotlin-gradle-plugin-2.2.20.pom")
-          echo "Kotlin 2.2.20 HTTP status: $KT_STATUS"
-          echo "=== Flutter version ==="
-          flutter --version
-          echo "=== Gradle wrapper URL ==="
-          cat android/gradle/wrapper/gradle-wrapper.properties
-
       - name: Build debug APK
-        # Do NOT use --split-per-abi for debug — it confuses Flutter's APK
-        # output detection when NDK/CMake are involved. A fat debug APK is
-        # fine for testing and installs on any device/emulator.
         run: flutter build apk --debug 2>&1 | tee /tmp/flutter-build-output.txt; exit ${PIPESTATUS[0]}
+        env:
+          # Surface Gradle output for artifact upload on failure
+          GRADLE_OPTS: "-Dorg.gradle.logging.level=lifecycle"
 
       - name: Upload build output (always)
         if: always()
