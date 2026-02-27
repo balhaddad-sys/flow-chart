@@ -5,24 +5,27 @@ allprojects {
     }
 }
 
-// On Windows, build outside OneDrive to avoid sync-lock failures.
-// On Linux/Mac (CI), use the default build directory.
-if (System.getProperty("os.name").lowercase().contains("windows")) {
-    val newBuildDir: Directory =
-        rootProject.layout.buildDirectory
-            .dir("C:/Temp/medq-build")
-            .get()
-    rootProject.layout.buildDirectory.value(newBuildDir)
+// Redirect subproject build dirs so the Flutter tool finds the APK at
+// build/app/outputs/... (its expected layout).
+//
+// On Windows:  base = C:/Temp/medq-build  (outside OneDrive, avoids file-locks)
+// On Linux/Mac (CI): base = <root>/build   (the default project build dir)
+//
+// Either way, :app ends up at <base>/app/outputs/... which is what Flutter wants.
+val buildBase: File =
+    if (System.getProperty("os.name").lowercase().contains("windows"))
+        file("C:/Temp/medq-build")
+    else
+        rootProject.layout.buildDirectory.get().asFile
 
-    subprojects {
-        val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
-        project.layout.buildDirectory.value(newSubprojectBuildDir)
-    }
+subprojects {
+    layout.buildDirectory.set(buildBase.resolve(project.name))
 }
+
 subprojects {
     project.evaluationDependsOn(":app")
 }
 
 tasks.register<Delete>("clean") {
-    delete(rootProject.layout.buildDirectory)
+    delete(buildBase)
 }
