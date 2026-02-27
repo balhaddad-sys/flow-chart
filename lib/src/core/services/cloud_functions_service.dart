@@ -35,9 +35,9 @@ class CloudFunctionsService {
 
   Future<Map<String, dynamic>> _call(
     String name,
-    Map<String, dynamic> data,
-    {Duration? timeout}
-  ) async {
+    Map<String, dynamic> data, {
+    Duration? timeout,
+  }) async {
     for (var attempt = 0; attempt <= _maxRetries; attempt++) {
       try {
         final callable = _functions.httpsCallable(
@@ -54,10 +54,7 @@ class CloudFunctionsService {
         if (raw is Map) {
           response = Map<String, dynamic>.from(raw);
         } else if (raw is String) {
-          throw CloudFunctionException(
-            code: 'INVALID_RESPONSE',
-            message: raw,
-          );
+          throw CloudFunctionException(code: 'INVALID_RESPONSE', message: raw);
         } else {
           throw CloudFunctionException(
             code: 'INVALID_RESPONSE',
@@ -100,10 +97,7 @@ class CloudFunctionsService {
           );
           continue;
         }
-        throw CloudFunctionException(
-          code: _uiCode(code),
-          message: message,
-        );
+        throw CloudFunctionException(code: _uiCode(code), message: message);
       } on TimeoutException {
         if (attempt < _maxRetries) {
           await Future.delayed(
@@ -135,10 +129,7 @@ class CloudFunctionsService {
   }
 
   /// Generic public callable for one-off function invocations (e.g. deleteUserData).
-  Future<Map<String, dynamic>> call(
-    String name,
-    Map<String, dynamic> data,
-  ) {
+  Future<Map<String, dynamic>> call(String name, Map<String, dynamic> data) {
     return _call(name, data);
   }
 
@@ -167,15 +158,11 @@ class CloudFunctionsService {
     required Map<String, dynamic> availability,
     required String revisionPolicy,
   }) {
-    return _call(
-      'generateSchedule',
-      {
-        'courseId': courseId,
-        'availability': availability,
-        'revisionPolicy': revisionPolicy,
-      },
-      timeout: _scheduleCallTimeout,
-    );
+    return _call('generateSchedule', {
+      'courseId': courseId,
+      'availability': availability,
+      'revisionPolicy': revisionPolicy,
+    }, timeout: _scheduleCallTimeout);
   }
 
   Future<Map<String, dynamic>> regenSchedule({
@@ -395,10 +382,7 @@ class CloudFunctionException implements Exception {
   final String code;
   final String message;
 
-  const CloudFunctionException({
-    required this.code,
-    required this.message,
-  });
+  const CloudFunctionException({required this.code, required this.message});
 
   @override
   String toString() => 'CloudFunctionException($code): $message';

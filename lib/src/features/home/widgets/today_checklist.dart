@@ -9,7 +9,9 @@ import '../../../core/providers/user_provider.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/utils/error_handler.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../models/course_model.dart';
 import '../../../models/task_model.dart';
+import '../../planner/providers/planner_provider.dart';
 import '../providers/home_provider.dart';
 
 class TodayChecklist extends ConsumerWidget {
@@ -32,7 +34,8 @@ class TodayChecklist extends ConsumerWidget {
           return EmptyState(
             icon: Icons.upload_file_outlined,
             title: 'Get started',
-            subtitle: 'Upload your first study material to generate a personalized plan',
+            subtitle:
+                'Upload your first study material to generate a personalized plan',
             actionLabel: 'Upload File',
             onAction: () {
               // Navigate to library upload
@@ -62,26 +65,54 @@ class TodayChecklist extends ConsumerWidget {
               try {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Generating study plan...')),
+                    const SnackBar(content: Text('Generating study plan...')),
                   );
                 }
-                await ref
+                final availability = await loadScheduleAvailability(
+                  courseId,
+                  courses:
+                      ref.read(coursesProvider).valueOrNull ??
+                      const <CourseModel>[],
+                  uid: ref.read(uidProvider),
+                  firestoreService: ref.read(firestoreServiceProvider),
+                );
+                final result = await ref
                     .read(cloudFunctionsServiceProvider)
                     .generateSchedule(
                       courseId: courseId,
-                      availability: {},
+                      availability: availability,
                       revisionPolicy: 'standard',
                     );
-                if (context.mounted) {
+
+                if (!context.mounted) return;
+
+                if (result['feasible'] == false) {
+                  final deficit = result['deficit'] ?? 0;
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Plan generated!')),
+                    SnackBar(
+                      content: Text(
+                        'Not enough study time to fit the plan ($deficit minutes over capacity).',
+                      ),
+                      behavior: SnackBarBehavior.floating,
+                    ),
                   );
+                  return;
                 }
+
+                ref.invalidate(todayTasksProvider(courseId));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Plan generated!'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
               } catch (e) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed: $e')),
+                    SnackBar(
+                      content: Text(ErrorHandler.userMessage(e)),
+                      behavior: SnackBarBehavior.floating,
+                    ),
                   );
                 }
               }
@@ -109,27 +140,27 @@ class _TaskRow extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       decoration: BoxDecoration(
-        color: isDone
-            ? AppColors.successSurface
-            : AppColors.surface,
+        color: isDone ? AppColors.successSurface : AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         border: Border.all(
-          color: isDone
-              ? AppColors.success.withValues(alpha: 0.2)
-              : AppColors.border,
+          color:
+              isDone
+                  ? AppColors.success.withValues(alpha: 0.2)
+                  : AppColors.border,
         ),
         boxShadow: isDone ? null : AppSpacing.shadowSm,
       ),
       child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
         leading: GestureDetector(
           onTap: () async {
             if (!isDone) {
               final uid = ref.read(uidProvider);
               if (uid != null) {
                 try {
-                  await ref.read(firestoreServiceProvider).completeTask(uid, task.id);
+                  await ref
+                      .read(firestoreServiceProvider)
+                      .completeTask(uid, task.id);
                   if (!context.mounted) return;
                 } catch (e) {
                   ErrorHandler.logError(e);
@@ -148,26 +179,27 @@ class _TaskRow extends ConsumerWidget {
             width: 28,
             height: 28,
             decoration: BoxDecoration(
-              color: isDone
-                  ? AppColors.success
-                  : AppColors.surface,
+              color: isDone ? AppColors.success : AppColors.surface,
               shape: BoxShape.circle,
-              border: isDone
-                  ? null
-                  : Border.all(color: AppColors.border, width: 2),
+              border:
+                  isDone ? null : Border.all(color: AppColors.border, width: 2),
             ),
-            child: isDone
-                ? const Icon(Icons.check_rounded,
-                    color: Colors.white, size: 16)
-                : null,
+            child:
+                isDone
+                    ? const Icon(
+                      Icons.check_rounded,
+                      color: Colors.white,
+                      size: 16,
+                    )
+                    : null,
           ),
         ),
         title: Text(
           task.title,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                decoration: isDone ? TextDecoration.lineThrough : null,
-                color: isDone ? AppColors.textTertiary : AppColors.textPrimary,
-              ),
+            decoration: isDone ? TextDecoration.lineThrough : null,
+            color: isDone ? AppColors.textTertiary : AppColors.textPrimary,
+          ),
         ),
         subtitle: Padding(
           padding: const EdgeInsets.only(top: 2),
@@ -182,14 +214,16 @@ class _TaskRow extends ConsumerWidget {
   }
 
   Widget _difficultyBadge(int difficulty) {
-    final label = difficulty <= 2
-        ? 'Easy'
-        : difficulty <= 3
+    final label =
+        difficulty <= 2
+            ? 'Easy'
+            : difficulty <= 3
             ? 'Med'
             : 'Hard';
-    final color = difficulty <= 2
-        ? AppColors.difficultyEasy
-        : difficulty <= 3
+    final color =
+        difficulty <= 2
+            ? AppColors.difficultyEasy
+            : difficulty <= 3
             ? AppColors.difficultyMedium
             : AppColors.difficultyHard;
     return Container(

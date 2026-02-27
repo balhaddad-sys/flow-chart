@@ -2,13 +2,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
+import '../../../core/services/firestore_service.dart';
 import '../../../models/course_model.dart';
 import '../../../models/task_model.dart';
 import '../../home/providers/home_provider.dart';
 
 /// Streams all tasks for a course, ordered by dueDate and orderIndex.
-final allTasksProvider =
-    StreamProvider.family<List<TaskModel>, String>((ref, courseId) {
+final allTasksProvider = StreamProvider.family<List<TaskModel>, String>((
+  ref,
+  courseId,
+) {
   final uid = ref.watch(uidProvider);
   if (uid == null) return const Stream.empty();
   return ref.watch(firestoreServiceProvider).watchAllTasks(uid, courseId);
@@ -17,32 +20,35 @@ final allTasksProvider =
 /// Groups tasks by due date for the planner view.
 /// Each day's tasks are sorted by orderIndex for consistent ordering.
 final groupedTasksProvider =
-    Provider.family<Map<DateTime, List<TaskModel>>, List<TaskModel>>(
-        (ref, tasks) {
-  final grouped = <DateTime, List<TaskModel>>{};
-  for (final task in tasks) {
-    final dateKey = DateTime(
-      task.dueDate.year,
-      task.dueDate.month,
-      task.dueDate.day,
-    );
-    grouped.putIfAbsent(dateKey, () => []).add(task);
-  }
+    Provider.family<Map<DateTime, List<TaskModel>>, List<TaskModel>>((
+      ref,
+      tasks,
+    ) {
+      final grouped = <DateTime, List<TaskModel>>{};
+      for (final task in tasks) {
+        final dateKey = DateTime(
+          task.dueDate.year,
+          task.dueDate.month,
+          task.dueDate.day,
+        );
+        grouped.putIfAbsent(dateKey, () => []).add(task);
+      }
 
-  for (final dayTasks in grouped.values) {
-    dayTasks.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
-  }
+      for (final dayTasks in grouped.values) {
+        dayTasks.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+      }
 
-  return Map.fromEntries(
-    grouped.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
-  );
-});
+      return Map.fromEntries(
+        grouped.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
+      );
+    });
 
 Future<Map<String, dynamic>> loadScheduleAvailability(
-  Ref ref,
-  String courseId,
-) async {
-  final courses = ref.read(coursesProvider).valueOrNull ?? const <CourseModel>[];
+  String courseId, {
+  required List<CourseModel> courses,
+  required String? uid,
+  required FirestoreService firestoreService,
+}) async {
   CourseModel? course;
 
   for (final item in courses) {
@@ -52,9 +58,8 @@ Future<Map<String, dynamic>> loadScheduleAvailability(
     }
   }
 
-  final uid = ref.read(uidProvider);
   if (course == null && uid != null) {
-    course = await ref.read(firestoreServiceProvider).getCourse(uid, courseId);
+    course = await firestoreService.getCourse(uid, courseId);
   }
 
   final availability = course?.availability;
@@ -86,13 +91,20 @@ class PlannerActionsNotifier extends StateNotifier<AsyncValue<void>> {
   Future<void> generateSchedule(String courseId) async {
     state = const AsyncLoading();
     try {
-      final availability = await loadScheduleAvailability(_ref, courseId);
-      final result =
-          await _ref.read(cloudFunctionsServiceProvider).generateSchedule(
-                courseId: courseId,
-                availability: availability,
-                revisionPolicy: 'standard',
-              );
+      final availability = await loadScheduleAvailability(
+        courseId,
+        courses:
+            _ref.read(coursesProvider).valueOrNull ?? const <CourseModel>[],
+        uid: _ref.read(uidProvider),
+        firestoreService: _ref.read(firestoreServiceProvider),
+      );
+      final result = await _ref
+          .read(cloudFunctionsServiceProvider)
+          .generateSchedule(
+            courseId: courseId,
+            availability: availability,
+            revisionPolicy: 'standard',
+          );
       _ref.invalidate(allTasksProvider(courseId));
 
       // Backend returns feasible: false when schedule doesn't fit
@@ -119,19 +131,26 @@ class PlannerActionsNotifier extends StateNotifier<AsyncValue<void>> {
   Future<void> regenSchedule(String courseId) async {
     state = const AsyncLoading();
     try {
-      final availability = await loadScheduleAvailability(_ref, courseId);
+      final availability = await loadScheduleAvailability(
+        courseId,
+        courses:
+            _ref.read(coursesProvider).valueOrNull ?? const <CourseModel>[],
+        uid: _ref.read(uidProvider),
+        firestoreService: _ref.read(firestoreServiceProvider),
+      );
       // Step 1: delete old non-completed tasks
-      await _ref.read(cloudFunctionsServiceProvider).regenSchedule(
-            courseId: courseId,
-          );
+      await _ref
+          .read(cloudFunctionsServiceProvider)
+          .regenSchedule(courseId: courseId);
 
       // Step 2: generate new schedule
-      final result =
-          await _ref.read(cloudFunctionsServiceProvider).generateSchedule(
-                courseId: courseId,
-                availability: availability,
-                revisionPolicy: 'standard',
-              );
+      final result = await _ref
+          .read(cloudFunctionsServiceProvider)
+          .generateSchedule(
+            courseId: courseId,
+            availability: availability,
+            revisionPolicy: 'standard',
+          );
       _ref.invalidate(allTasksProvider(courseId));
 
       if (result['feasible'] == false) {
@@ -156,5 +175,5 @@ class PlannerActionsNotifier extends StateNotifier<AsyncValue<void>> {
 
 final plannerActionsProvider =
     StateNotifierProvider<PlannerActionsNotifier, AsyncValue<void>>((ref) {
-  return PlannerActionsNotifier(ref);
-});
+      return PlannerActionsNotifier(ref);
+    });

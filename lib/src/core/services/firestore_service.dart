@@ -111,15 +111,14 @@ class FirestoreService {
     required String fileId,
   }) {
     // Single equality filter — no composite index needed. Sort client-side.
-    return _sections(uid)
-        .where('fileId', isEqualTo: fileId)
-        .snapshots()
-        .map((snap) {
-          final sections =
-              snap.docs.map((d) => SectionModel.fromFirestore(d)).toList();
-          sections.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
-          return sections;
-        });
+    return _sections(uid).where('fileId', isEqualTo: fileId).snapshots().map((
+      snap,
+    ) {
+      final sections =
+          snap.docs.map((d) => SectionModel.fromFirestore(d)).toList();
+      sections.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+      return sections;
+    });
   }
 
   Stream<List<SectionModel>> watchSectionsByCourse(
@@ -127,15 +126,14 @@ class FirestoreService {
     String courseId,
   ) {
     // Single equality filter — no composite index needed. Sort client-side.
-    return _sections(uid)
-        .where('courseId', isEqualTo: courseId)
-        .snapshots()
-        .map((snap) {
-          final sections =
-              snap.docs.map((d) => SectionModel.fromFirestore(d)).toList();
-          sections.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
-          return sections;
-        });
+    return _sections(
+      uid,
+    ).where('courseId', isEqualTo: courseId).snapshots().map((snap) {
+      final sections =
+          snap.docs.map((d) => SectionModel.fromFirestore(d)).toList();
+      sections.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+      return sections;
+    });
   }
 
   Future<SectionModel?> getSection(String uid, String sectionId) async {
@@ -163,11 +161,11 @@ class FirestoreService {
 
     // Filter by courseId only (single-field auto-index, no composite needed).
     // Date range and sort applied client-side.
-    return _tasks(uid)
-        .where('courseId', isEqualTo: courseId)
-        .snapshots()
-        .map((snap) {
-          final tasks = snap.docs
+    return _tasks(uid).where('courseId', isEqualTo: courseId).snapshots().map((
+      snap,
+    ) {
+      final tasks =
+          snap.docs
               .map((d) => TaskModel.fromFirestore(d))
               .where(
                 (t) =>
@@ -175,26 +173,24 @@ class FirestoreService {
                     t.dueDate.isBefore(endOfDay),
               )
               .toList();
-          tasks.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
-          return tasks;
-        });
+      tasks.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+      return tasks;
+    });
   }
 
   Stream<List<TaskModel>> watchAllTasks(String uid, String courseId) {
     // Single equality filter on courseId only — no composite index required.
     // Results are sorted client-side by dueDate then orderIndex.
-    return _tasks(uid)
-        .where('courseId', isEqualTo: courseId)
-        .snapshots()
-        .map((snap) {
-          final tasks =
-              snap.docs.map((d) => TaskModel.fromFirestore(d)).toList();
-          tasks.sort((a, b) {
-            final d = a.dueDate.compareTo(b.dueDate);
-            return d != 0 ? d : a.orderIndex.compareTo(b.orderIndex);
-          });
-          return tasks;
-        });
+    return _tasks(uid).where('courseId', isEqualTo: courseId).snapshots().map((
+      snap,
+    ) {
+      final tasks = snap.docs.map((d) => TaskModel.fromFirestore(d)).toList();
+      tasks.sort((a, b) {
+        final d = a.dueDate.compareTo(b.dueDate);
+        return d != 0 ? d : a.orderIndex.compareTo(b.orderIndex);
+      });
+      return tasks;
+    });
   }
 
   Future<void> updateTask(
