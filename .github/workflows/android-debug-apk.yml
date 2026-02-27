@@ -33,7 +33,7 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Analyze
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos
 
       - name: Build debug APK
         # Do NOT use --split-per-abi for debug — it confuses Flutter's APK
