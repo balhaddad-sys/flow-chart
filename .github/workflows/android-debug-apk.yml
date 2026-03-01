@@ -49,20 +49,42 @@ jobs:
         run: flutter analyze --no-fatal-infos
 
       - name: Build debug APK
-        # --verbose passes Gradle's stdout through so we can see the real
-        # error if the build fails, instead of Flutter's generic "Gradle
-        # build failed to produce an .apk file" wrapper message.
-        run: flutter build apk --debug --verbose 2>&1
+        # Gradle BUILD SUCCESSFUL but Flutter 3.41.x wrapper exits 1 because
+        # it expects the APK at build/app/outputs/flutter-apk/ while Gradle
+        # writes to android/app/build/outputs/apk/debug/. We handle this by
+        # letting the build run (set +e), then locating and staging the APK.
+        run: |
+          set +e
+          flutter build apk --debug 2>&1
+          BUILD_EXIT=$?
+          set -e
+
+          if [ -f "build/app/outputs/flutter-apk/app-debug.apk" ]; then
+            echo "APK at expected Flutter path — done."
+          elif [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
+            echo "APK at Gradle standard path — copying to Flutter-expected path."
+            mkdir -p build/app/outputs/flutter-apk/
+            cp android/app/build/outputs/apk/debug/app-debug.apk \
+               build/app/outputs/flutter-apk/app-debug.apk
+          else
+            APK=$(find . -name "app-debug.apk" -not -path "*/.git/*" 2>/dev/null | head -1)
+            if [ -n "$APK" ]; then
+              echo "APK found at $APK — copying to Flutter-expected path."
+              mkdir -p build/app/outputs/flutter-apk/
+              cp "$APK" build/app/outputs/flutter-apk/app-debug.apk
+            else
+              echo "No APK found — Gradle build truly failed (exit $BUILD_EXIT)."
+              exit 1
+            fi
+          fi
 
       - name: List APK outputs (debug)
         if: always()
         run: |
-          echo "=== ndkVersion after Flutter migration ==="
-          grep ndkVersion android/app/build.gradle.kts || echo "(not found)"
-          echo "=== flutter-apk dir ==="
-          find build/app/outputs/flutter-apk -name "*.apk" 2>/dev/null || echo "No APKs in flutter-apk/"
-          echo "=== apk/debug dir ==="
-          find build/app/outputs/apk -name "*.apk" 2>/dev/null || echo "No APKs in apk/"
+          echo "=== build/app/outputs/flutter-apk ==="
+          find build/app/outputs/flutter-apk -name "*.apk" 2>/dev/null || echo "No APKs"
+          echo "=== android/app/build/outputs (all .apk) ==="
+          find android/app/build/outputs -name "*.apk" 2>/dev/null || echo "No APKs"
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
