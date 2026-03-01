@@ -26,6 +26,19 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Install NDK 28.2.13676358
+        run: |
+          echo "=== Currently installed NDK versions ==="
+          ls "$ANDROID_HOME/ndk/" 2>/dev/null || echo "(none)"
+          if [ -d "$ANDROID_HOME/ndk/28.2.13676358" ]; then
+            echo "NDK 28.2.13676358 already present — skipping install."
+          else
+            echo "Installing NDK 28.2.13676358 via sdkmanager..."
+            echo "y" | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358"
+          fi
+          echo "=== NDK dirs after install ==="
+          ls "$ANDROID_HOME/ndk/" 2>/dev/null
+
       - name: Resolve Flutter dependencies
         run: flutter pub get
 
@@ -36,18 +49,42 @@ jobs:
         run: flutter analyze --no-fatal-infos
 
       - name: Build debug APK
-        # Do NOT use --split-per-abi for debug — it confuses Flutter's APK
-        # output detection when NDK/CMake are involved. A fat debug APK is
-        # fine for testing and installs on any device/emulator.
-        run: flutter build apk --debug
+        # Gradle BUILD SUCCESSFUL but Flutter 3.41.x wrapper exits 1 because
+        # it expects the APK at build/app/outputs/flutter-apk/ while Gradle
+        # writes to android/app/build/outputs/apk/debug/. We handle this by
+        # letting the build run (set +e), then locating and staging the APK.
+        run: |
+          set +e
+          flutter build apk --debug 2>&1
+          BUILD_EXIT=$?
+          set -e
+
+          if [ -f "build/app/outputs/flutter-apk/app-debug.apk" ]; then
+            echo "APK at expected Flutter path — done."
+          elif [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
+            echo "APK at Gradle standard path — copying to Flutter-expected path."
+            mkdir -p build/app/outputs/flutter-apk/
+            cp android/app/build/outputs/apk/debug/app-debug.apk \
+               build/app/outputs/flutter-apk/app-debug.apk
+          else
+            APK=$(find . -name "app-debug.apk" -not -path "*/.git/*" 2>/dev/null | head -1)
+            if [ -n "$APK" ]; then
+              echo "APK found at $APK — copying to Flutter-expected path."
+              mkdir -p build/app/outputs/flutter-apk/
+              cp "$APK" build/app/outputs/flutter-apk/app-debug.apk
+            else
+              echo "No APK found — Gradle build truly failed (exit $BUILD_EXIT)."
+              exit 1
+            fi
+          fi
 
       - name: List APK outputs (debug)
         if: always()
         run: |
-          echo "=== flutter-apk dir ==="
-          find build/app/outputs/flutter-apk -name "*.apk" 2>/dev/null || echo "No APKs in flutter-apk/"
-          echo "=== apk/debug dir ==="
-          find build/app/outputs/apk -name "*.apk" 2>/dev/null || echo "No APKs in apk/"
+          echo "=== build/app/outputs/flutter-apk ==="
+          find build/app/outputs/flutter-apk -name "*.apk" 2>/dev/null || echo "No APKs"
+          echo "=== android/app/build/outputs (all .apk) ==="
+          find android/app/build/outputs -name "*.apk" 2>/dev/null || echo "No APKs"
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4

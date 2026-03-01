@@ -71,13 +71,24 @@ async function maybeAutoGenerateSchedule(uid, courseId) {
       return;
     }
 
-    // ── Fetch course for exam date and availability ───────────────────
-    const courseDoc = await db.doc(`users/${uid}/courses/${courseId}`).get();
+    // ── Fetch course and user preferences ────────────────────────────
+    const [courseDoc, userDoc] = await Promise.all([
+      db.doc(`users/${uid}/courses/${courseId}`).get(),
+      db.doc(`users/${uid}`).get(),
+    ]);
     if (!courseDoc.exists) return;
 
     const courseData = courseDoc.data();
     const examDate = courseData.examDate?.toDate?.() || null;
-    const availability = courseData.availability || undefined;
+    const userPrefs = userDoc.exists ? (userDoc.data().preferences || {}) : {};
+    const revisionPolicy = userPrefs.revisionPolicy || "standard";
+
+    // Merge user default daily minutes with course-level availability overrides.
+    const availability = {
+      defaultMinutesPerDay: userPrefs.dailyMinutesDefault || 120,
+      catchUpBufferPercent: userPrefs.catchUpBufferPercent || 15,
+      ...(courseData.availability || {}),
+    };
 
     // ── Run the pure scheduling algorithm ─────────────────────────────
     const sections = sectionsSnap.docs
@@ -107,7 +118,7 @@ async function maybeAutoGenerateSchedule(uid, courseId) {
     });
 
     const startDate = new Date();
-    const tasks = buildWorkUnits(sections, courseId, "standard", srsCards);
+    const tasks = buildWorkUnits(sections, courseId, revisionPolicy, srsCards);
     const totalMinutes = computeTotalLoad(tasks);
     let days = buildDayCapacities(startDate, examDate, availability);
     const { feasible } = checkFeasibility(totalMinutes, days);

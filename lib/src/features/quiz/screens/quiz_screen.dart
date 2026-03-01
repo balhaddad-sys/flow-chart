@@ -70,7 +70,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
     }
 
     if (quiz.questions.isEmpty) {
-      return _EmptyView(onBack: () => context.pop());
+      return _EmptyView(onBack: () {
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/practice');
+        }
+      });
     }
 
     if (quiz.isComplete) {
@@ -471,7 +477,13 @@ class _ResultsView extends StatelessWidget {
           const SizedBox(height: 24),
           PrimaryButton(
             label: 'Done',
-            onPressed: () => context.pop(),
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/practice');
+              }
+            },
           ),
           const SizedBox(height: 32),
         ],

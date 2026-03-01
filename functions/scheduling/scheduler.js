@@ -163,6 +163,7 @@ function buildWorkUnits(sections, courseId, revisionPolicy = "standard", srsCard
   const policy = VALID_REVISION_POLICIES.has(revisionPolicy) ? revisionPolicy : "standard";
   const tasks = [];
   const srsMap = srsCards instanceof Map ? srsCards : (srsCards ? new Map(Object.entries(srsCards)) : null);
+  const reviewsEnabled = policy !== "off";
 
   for (const [sourceOrder, section] of sections.entries()) {
     const estMinutes = clampInt(section.estMinutes || 15, 5, 240);
@@ -188,7 +189,7 @@ function buildWorkUnits(sections, courseId, revisionPolicy = "standard", srsCard
     }
 
     // ── REVIEW tasks: use FSRS interval if available, else static policy ──
-    const srsCard = srsMap?.get(section.id);
+    const srsCard = reviewsEnabled ? srsMap?.get(section.id) : null;
     if (srsCard && srsCard.nextReview && srsCard.interval > 0) {
       // FSRS-driven: single review at the adaptive interval
       const reviewMinutes = Math.max(10, Math.min(30, Math.round(10 + (srsCard.difficulty / 10) * 20)));
@@ -337,7 +338,20 @@ function placeTasks(tasks, days) {
         targetDay++;
       }
 
-      if (targetDay >= days.length) continue;
+      if (targetDay >= days.length) {
+        // No day has exact capacity — fall back to the day with the most remaining,
+        // but only if it still has positive capacity (avoid overloading exhausted days).
+        let bestDay = -1;
+        let bestRemaining = 0;
+        for (let d = dayIndex; d < days.length; d++) {
+          if (days[d].remaining > bestRemaining) {
+            bestDay = d;
+            bestRemaining = days[d].remaining;
+          }
+        }
+        if (bestDay === -1) continue; // All days exhausted — skip task
+        targetDay = bestDay;
+      }
 
       if (targetDay !== dayIndex) {
         dayIndex = targetDay;
@@ -357,9 +371,17 @@ function placeTasks(tasks, days) {
     const studyDayIdx = days.findIndex((d) => d.date.getTime() === studyTask.dueDate.getTime());
     if (studyDayIdx === -1) continue;
 
-    const targetIdx = Math.min(studyDayIdx + (task._dayOffset || 1), days.length - 1);
+    let targetIdx = Math.min(studyDayIdx + (task._dayOffset || 1), days.length - 1);
+
+    // Find a day with enough remaining capacity, searching forward from the target.
+    while (targetIdx < days.length && days[targetIdx].remaining < task.estMinutes) {
+      targetIdx++;
+    }
+    if (targetIdx >= days.length) targetIdx = days.length - 1; // fallback: last day
+
     const { _dayOffset, ...cleanTask } = task;
     placed.push({ ...cleanTask, dueDate: days[targetIdx].date, orderIndex: 0 });
+    days[targetIdx].remaining -= task.estMinutes;
   }
 
   return placed;

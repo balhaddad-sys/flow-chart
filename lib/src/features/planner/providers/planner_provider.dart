@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../models/task_model.dart';
+import '../../../models/user_model.dart';
+import '../../home/providers/home_provider.dart';
 
 /// Streams all tasks for a course, ordered by dueDate and orderIndex.
 final allTasksProvider =
@@ -42,14 +44,31 @@ class PlannerActionsNotifier extends StateNotifier<AsyncValue<void>> {
 
   PlannerActionsNotifier(this._ref) : super(const AsyncData(null));
 
+  Map<String, dynamic> _buildAvailability(UserPreferences prefs, String courseId) {
+    final courses = _ref.read(coursesProvider).valueOrNull ?? [];
+    final course = courses.where((c) => c.id == courseId).firstOrNull;
+    return <String, dynamic>{
+      'defaultMinutesPerDay': prefs.dailyMinutesDefault,
+      'catchUpBufferPercent': prefs.catchUpBufferPercent,
+      if (course != null && course.availability.perDayOverrides.isNotEmpty)
+        'perDayOverrides': course.availability.perDayOverrides,
+      if (course != null && course.availability.perDay.isNotEmpty)
+        'perDay': course.availability.perDay,
+      if (course != null && course.availability.excludedDates.isNotEmpty)
+        'excludedDates': course.availability.excludedDates,
+    };
+  }
+
   Future<void> generateSchedule(String courseId) async {
     state = const AsyncLoading();
     try {
+      final user = await _ref.read(userModelProvider.future);
+      final prefs = user?.preferences ?? const UserPreferences();
       final result =
           await _ref.read(cloudFunctionsServiceProvider).generateSchedule(
                 courseId: courseId,
-                availability: {},
-                revisionPolicy: 'standard',
+                availability: _buildAvailability(prefs, courseId),
+                revisionPolicy: prefs.revisionPolicy,
               );
       _ref.invalidate(allTasksProvider(courseId));
 
@@ -83,11 +102,13 @@ class PlannerActionsNotifier extends StateNotifier<AsyncValue<void>> {
           );
 
       // Step 2: generate new schedule
+      final user = await _ref.read(userModelProvider.future);
+      final prefs = user?.preferences ?? const UserPreferences();
       final result =
           await _ref.read(cloudFunctionsServiceProvider).generateSchedule(
                 courseId: courseId,
-                availability: {},
-                revisionPolicy: 'standard',
+                availability: _buildAvailability(prefs, courseId),
+                revisionPolicy: prefs.revisionPolicy,
               );
       _ref.invalidate(allTasksProvider(courseId));
 

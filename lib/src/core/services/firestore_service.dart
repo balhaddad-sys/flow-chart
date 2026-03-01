@@ -148,21 +148,22 @@ class FirestoreService {
 
   Stream<List<TaskModel>> watchTodayTasks(String uid, String courseId) {
     final now = DateTime.now();
-    final startOfDay = DateTime(now.year, now.month, now.day);
-    final endOfDay = startOfDay.add(const Duration(days: 1));
+    final endOfDay =
+        DateTime(now.year, now.month, now.day).add(const Duration(days: 1));
 
+    // Include all tasks due up to end of today — this catches today's tasks
+    // AND any overdue tasks from previous days that haven't been completed.
     return _tasks(uid)
         .where('courseId', isEqualTo: courseId)
-        .where(
-          'dueDate',
-          isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay),
-        )
         .where('dueDate', isLessThan: Timestamp.fromDate(endOfDay))
         .orderBy('dueDate')
         .orderBy('orderIndex')
         .snapshots()
         .map(
-          (snap) => snap.docs.map((d) => TaskModel.fromFirestore(d)).toList(),
+          (snap) => snap.docs
+              .map((d) => TaskModel.fromFirestore(d))
+              .where((t) => t.status != 'DONE')
+              .toList(),
         );
   }
 

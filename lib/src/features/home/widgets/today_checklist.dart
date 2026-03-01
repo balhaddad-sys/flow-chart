@@ -9,6 +9,7 @@ import '../../../core/providers/user_provider.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../models/task_model.dart';
+import '../../../models/user_model.dart';
 import '../providers/home_provider.dart';
 
 class TodayChecklist extends ConsumerWidget {
@@ -65,12 +66,24 @@ class TodayChecklist extends ConsumerWidget {
                         content: Text('Generating study plan...')),
                   );
                 }
+                final user = await ref.read(userModelProvider.future);
+                final prefs = user?.preferences ?? const UserPreferences();
+                final courses = ref.read(coursesProvider).valueOrNull ?? [];
+                final course = courses.where((c) => c.id == courseId).firstOrNull;
                 await ref
                     .read(cloudFunctionsServiceProvider)
                     .generateSchedule(
                       courseId: courseId,
-                      availability: {},
-                      revisionPolicy: 'standard',
+                      availability: <String, dynamic>{
+                        'defaultMinutesPerDay': prefs.dailyMinutesDefault,
+                        if (course != null && course.availability.perDayOverrides.isNotEmpty)
+                          'perDayOverrides': course.availability.perDayOverrides,
+                        if (course != null && course.availability.perDay.isNotEmpty)
+                          'perDay': course.availability.perDay,
+                        if (course != null && course.availability.excludedDates.isNotEmpty)
+                          'excludedDates': course.availability.excludedDates,
+                      },
+                      revisionPolicy: prefs.revisionPolicy,
                     );
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
