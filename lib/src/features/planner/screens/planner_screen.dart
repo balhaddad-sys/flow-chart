@@ -229,11 +229,11 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                 ),
                 data: (tasks) {
                   if (tasks.isEmpty) {
-                    final hasError = actionsState is AsyncError;
-                    final errorMsg = hasError
-                        ? ErrorHandler.userMessage(
-                            (actionsState as AsyncError).error)
+                    final actionError = actionsState.asError;
+                    final errorMsg = actionError != null
+                        ? ErrorHandler.userMessage(actionError.error)
                         : null;
+                    final hasError = errorMsg != null;
 
                     // Determine contextual subtitle
                     String subtitle;
