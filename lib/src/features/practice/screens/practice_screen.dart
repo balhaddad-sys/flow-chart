@@ -350,7 +350,7 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
             borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             child: InkWell(
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              onTap: () => context.go(m.route),
+              onTap: () => context.push(m.route),
               child: Container(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 14, vertical: 12),
@@ -659,7 +659,7 @@ class _SectionCard extends StatelessWidget {
               label: 'Start Quiz',
               icon: Icons.help_outline_rounded,
               filled: true,
-              onTap: () => context.go('/quiz/${section.id}'),
+              onTap: () => context.push('/quiz/${section.id}'),
             )
           else if (canGenerate)
             _ActionBtn(

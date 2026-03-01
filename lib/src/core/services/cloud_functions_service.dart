@@ -12,6 +12,7 @@ class CloudFunctionsService {
   static const Duration _longRunningCallTimeout = Duration(seconds: 180);
   static const Set<String> _longRunningFunctionNames = {
     'generateQuestions',
+    'generateSchedule',
     'getTutorHelp',
     'sendChatMessage',
     'exploreQuiz',

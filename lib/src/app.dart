@@ -10,6 +10,7 @@ import 'core/constants/app_links.dart';
 import 'core/constants/app_spacing.dart';
 import 'core/constants/app_typography.dart';
 import 'core/providers/auth_provider.dart';
+import 'core/providers/user_provider.dart';
 import 'core/utils/external_link.dart';
 import 'features/ai/screens/ai_screen.dart';
 import 'features/ai/screens/explore_screen.dart';
@@ -35,6 +36,7 @@ import 'features/legal/screens/privacy_screen.dart';
 import 'features/legal/screens/terms_screen.dart';
 import 'features/study_session/screens/study_session_screen.dart';
 import 'models/file_model.dart';
+import 'models/user_model.dart';
 
 // ── Auth notifier for GoRouter ──────────────────────────────────────────────
 
@@ -140,10 +142,13 @@ class _AppShellState extends ConsumerState<_AppShell> {
     }
   }
 
+  bool _scheduleGenInProgress = false;
+
   void _resetFileNotifier({String? courseId}) {
     _statusCourseId = courseId;
     _statusInitialized = false;
     _previousStatuses = {};
+    _scheduleGenInProgress = false;
   }
 
   void _showStatusSnackBar(String message, {Color? backgroundColor}) {
@@ -158,6 +163,61 @@ class _AppShellState extends ConsumerState<_AppShell> {
         ),
       );
     });
+  }
+
+  /// Trigger schedule generation with retries to handle sections still being
+  /// analyzed after files become READY.
+  Future<void> _autoGenerateSchedule(String courseId) async {
+    if (_scheduleGenInProgress) return;
+    _scheduleGenInProgress = true;
+
+    const maxAttempts = 3;
+    const retryDelay = Duration(seconds: 10);
+
+    // Read user preferences for availability and revision policy.
+    final user = await ref.read(userModelProvider.future);
+    final prefs = user?.preferences ?? const UserPreferences();
+    final courses = ref.read(coursesProvider).valueOrNull ?? [];
+    final course = courses.where((c) => c.id == courseId).firstOrNull;
+    final availability = <String, dynamic>{
+      'defaultMinutesPerDay': prefs.dailyMinutesDefault,
+      if (course != null && course.availability.perDayOverrides.isNotEmpty)
+        'perDayOverrides': course.availability.perDayOverrides,
+      if (course != null && course.availability.perDay.isNotEmpty)
+        'perDay': course.availability.perDay,
+      if (course != null && course.availability.excludedDates.isNotEmpty)
+        'excludedDates': course.availability.excludedDates,
+    };
+
+    for (var attempt = 0; attempt < maxAttempts; attempt++) {
+      if (!mounted) return;
+      try {
+        final result =
+            await ref.read(cloudFunctionsServiceProvider).generateSchedule(
+                  courseId: courseId,
+                  availability: availability,
+                  revisionPolicy: prefs.revisionPolicy,
+                );
+        if (!mounted) return;
+        final int taskCount = (result['taskCount'] as int?) ?? 0;
+        if (taskCount > 0) {
+          // Force the today-tasks stream to re-evaluate with new data.
+          ref.invalidate(todayTasksProvider(courseId));
+          _showStatusSnackBar(
+            'Study plan ready — $taskCount tasks created.',
+            backgroundColor: AppColors.success,
+          );
+        }
+        _scheduleGenInProgress = false;
+        return;
+      } catch (_) {
+        // Sections may not be fully analyzed yet — retry after a delay.
+        if (attempt < maxAttempts - 1) {
+          await Future.delayed(retryDelay);
+        }
+      }
+    }
+    _scheduleGenInProgress = false;
   }
 
   void _handleFileStatusChange(
@@ -208,9 +268,10 @@ class _AppShellState extends ConsumerState<_AppShell> {
 
       if (allDone && anyReady) {
         _showStatusSnackBar(
-          'All files analysed. Study plan generation has started automatically.',
+          'All files analysed. Generating study plan…',
           backgroundColor: AppColors.success,
         );
+        _autoGenerateSchedule(courseId);
       } else if (newlyReadyCount == 1 && latestReadyFile != null) {
         _showStatusSnackBar(
           '${latestReadyFile.originalName} is fully analysed. Sections and questions are ready.',
