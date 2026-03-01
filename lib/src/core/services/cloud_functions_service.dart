@@ -8,7 +8,17 @@ import 'package:cloud_functions/cloud_functions.dart';
 ///   Error:   { "success": false, "error": { "code": "...", "message": "..." } }
 class CloudFunctionsService {
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
-  static const Duration _callTimeout = Duration(seconds: 45);
+  static const Duration _defaultCallTimeout = Duration(seconds: 45);
+  static const Duration _longRunningCallTimeout = Duration(seconds: 180);
+  static const Set<String> _longRunningFunctionNames = {
+    'generateQuestions',
+    'getTutorHelp',
+    'sendChatMessage',
+    'exploreQuiz',
+    'exploreTopicInsight',
+    'generateExamBankQuestions',
+    'processDocumentBatch',
+  };
   static const int _maxRetries = 2;
   static const int _baseRetryDelayMs = 800;
   static const Set<String> _transientCodes = {
@@ -32,6 +42,13 @@ class CloudFunctionsService {
     return _normaliseCode(code).toUpperCase().replaceAll('-', '_');
   }
 
+  Duration _timeoutFor(String functionName) {
+    if (_longRunningFunctionNames.contains(functionName)) {
+      return _longRunningCallTimeout;
+    }
+    return _defaultCallTimeout;
+  }
+
   Future<Map<String, dynamic>> _call(
     String name,
     Map<String, dynamic> data,
@@ -40,7 +57,7 @@ class CloudFunctionsService {
       try {
         final callable = _functions.httpsCallable(
           name,
-          options: HttpsCallableOptions(timeout: _callTimeout),
+          options: HttpsCallableOptions(timeout: _timeoutFor(name)),
         );
         final result = await callable.call(data);
 
