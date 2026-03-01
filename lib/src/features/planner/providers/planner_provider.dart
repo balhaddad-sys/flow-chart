@@ -49,6 +49,7 @@ class PlannerActionsNotifier extends StateNotifier<AsyncValue<void>> {
     final course = courses.where((c) => c.id == courseId).firstOrNull;
     return <String, dynamic>{
       'defaultMinutesPerDay': prefs.dailyMinutesDefault,
+      'catchUpBufferPercent': prefs.catchUpBufferPercent,
       if (course != null && course.availability.perDayOverrides.isNotEmpty)
         'perDayOverrides': course.availability.perDayOverrides,
       if (course != null && course.availability.perDay.isNotEmpty)

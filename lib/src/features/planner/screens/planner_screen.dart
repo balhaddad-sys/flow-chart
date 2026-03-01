@@ -21,6 +21,7 @@ class PlannerScreen extends ConsumerStatefulWidget {
 
 class _PlannerScreenState extends ConsumerState<PlannerScreen> {
   bool _autoGenTriggered = false;
+  String? _autoGenCourseId;
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +49,13 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
     }
 
     final String courseId = activeCourseId;
+
+    // Reset auto-gen flag when the active course changes
+    if (_autoGenCourseId != courseId) {
+      _autoGenCourseId = courseId;
+      _autoGenTriggered = false;
+    }
+
     final tasksAsync = ref.watch(allTasksProvider(courseId));
     final sectionsAsync = ref.watch(courseSectionsProvider(courseId));
     final actionsState = ref.watch(plannerActionsProvider);
@@ -221,17 +229,51 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                 ),
                 data: (tasks) {
                   if (tasks.isEmpty) {
+                    final hasError = actionsState is AsyncError;
+                    final errorMsg = hasError
+                        ? ErrorHandler.userMessage(
+                            (actionsState as AsyncError).error)
+                        : null;
+
+                    // Determine contextual subtitle
+                    String subtitle;
+                    if (isLoading) {
+                      subtitle = 'This usually takes a few seconds.';
+                    } else if (hasError) {
+                      subtitle = errorMsg!;
+                    } else if (sections.isEmpty) {
+                      subtitle =
+                          'Upload materials first, then generate a study plan.';
+                    } else if (analyzedCount == 0 && pendingCount > 0) {
+                      subtitle =
+                          'Your files are still being analysed ($pendingCount remaining). '
+                          'The plan will generate automatically when ready.';
+                    } else if (analyzedCount == 0) {
+                      final failedCount = sections
+                          .where((s) => s.aiStatus == 'FAILED')
+                          .length;
+                      subtitle = failedCount > 0
+                          ? '$failedCount section(s) failed analysis. '
+                              'Try re-uploading your files from the Library.'
+                          : 'No analysed sections found. Upload and process files first.';
+                    } else {
+                      subtitle = 'Tap Generate Plan to create your study schedule.';
+                    }
+
                     return EmptyState(
-                      icon: Icons.calendar_today,
+                      icon: hasError
+                          ? Icons.error_outline
+                          : Icons.calendar_today,
                       title: isLoading
                           ? 'Generating your plan…'
                           : 'No plan generated yet',
-                      subtitle: isLoading
-                          ? 'This usually takes a few seconds.'
-                          : 'Upload materials and generate a study plan',
-                      actionLabel:
-                          isLoading ? null : 'Generate Plan',
-                      onAction: isLoading
+                      subtitle: subtitle,
+                      actionLabel: isLoading
+                          ? null
+                          : analyzedCount > 0
+                              ? 'Generate Plan'
+                              : null,
+                      onAction: isLoading || analyzedCount == 0
                           ? null
                           : () => ref
                               .read(plannerActionsProvider.notifier)

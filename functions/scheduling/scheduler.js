@@ -163,6 +163,7 @@ function buildWorkUnits(sections, courseId, revisionPolicy = "standard", srsCard
   const policy = VALID_REVISION_POLICIES.has(revisionPolicy) ? revisionPolicy : "standard";
   const tasks = [];
   const srsMap = srsCards instanceof Map ? srsCards : (srsCards ? new Map(Object.entries(srsCards)) : null);
+  const reviewsEnabled = policy !== "off";
 
   for (const [sourceOrder, section] of sections.entries()) {
     const estMinutes = clampInt(section.estMinutes || 15, 5, 240);
@@ -188,7 +189,7 @@ function buildWorkUnits(sections, courseId, revisionPolicy = "standard", srsCard
     }
 
     // ── REVIEW tasks: use FSRS interval if available, else static policy ──
-    const srsCard = srsMap?.get(section.id);
+    const srsCard = reviewsEnabled ? srsMap?.get(section.id) : null;
     if (srsCard && srsCard.nextReview && srsCard.interval > 0) {
       // FSRS-driven: single review at the adaptive interval
       const reviewMinutes = Math.max(10, Math.min(30, Math.round(10 + (srsCard.difficulty / 10) * 20)));

@@ -181,6 +181,7 @@ class _AppShellState extends ConsumerState<_AppShell> {
     final course = courses.where((c) => c.id == courseId).firstOrNull;
     final availability = <String, dynamic>{
       'defaultMinutesPerDay': prefs.dailyMinutesDefault,
+      'catchUpBufferPercent': prefs.catchUpBufferPercent,
       if (course != null && course.availability.perDayOverrides.isNotEmpty)
         'perDayOverrides': course.availability.perDayOverrides,
       if (course != null && course.availability.perDay.isNotEmpty)

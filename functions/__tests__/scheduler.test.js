@@ -57,6 +57,19 @@ describe("scheduling/scheduler", () => {
       expect(reviews).toHaveLength(6); // standard = 3 reviews × 2 sections
     });
 
+    it("does not create FSRS review tasks when revision policy is off", () => {
+      const tasks = buildWorkUnits(
+        [{ id: "s1", title: "Cardiac Anatomy", questionsStatus: "COMPLETED" }],
+        "c1",
+        "off",
+        new Map([
+          ["s1", { nextReview: new Date("2025-01-04T00:00:00Z"), interval: 3, difficulty: 5 }],
+        ])
+      );
+
+      expect(tasks.filter((t) => t.type === "REVIEW")).toHaveLength(0);
+    });
+
     it("clamps estMinutes to [5, 240]", () => {
       const tiny = [{ id: "s1", title: "T", estMinutes: 1 }];
       const huge = [{ id: "s1", title: "T", estMinutes: 999 }];
