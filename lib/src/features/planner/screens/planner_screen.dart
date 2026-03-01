@@ -240,7 +240,7 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                     if (isLoading) {
                       subtitle = 'This usually takes a few seconds.';
                     } else if (hasError) {
-                      subtitle = errorMsg!;
+                      subtitle = errorMsg;
                     } else if (sections.isEmpty) {
                       subtitle =
                           'Upload materials first, then generate a study plan.';
