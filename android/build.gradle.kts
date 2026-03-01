@@ -7,15 +7,17 @@ allprojects {
 
 // Build outside OneDrive to avoid sync-lock failures on Windows.
 // Flutter picks up the AAB from the path printed at the end of the build.
-val newBuildDir: Directory =
-    rootProject.layout.buildDirectory
-        .dir("C:/Temp/medq-build")
-        .get()
-rootProject.layout.buildDirectory.value(newBuildDir)
+if (System.getProperty("os.name").lowercase().contains("windows")) {
+    val newBuildDir: Directory =
+        rootProject.layout.buildDirectory
+            .dir("C:/Temp/medq-build")
+            .get()
+    rootProject.layout.buildDirectory.value(newBuildDir)
 
-subprojects {
-    val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
-    project.layout.buildDirectory.value(newSubprojectBuildDir)
+    subprojects {
+        val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
+        project.layout.buildDirectory.value(newSubprojectBuildDir)
+    }
 }
 subprojects {
     project.evaluationDependsOn(":app")
