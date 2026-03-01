@@ -26,6 +26,19 @@ jobs:
           channel: stable
           cache: true
 
+      - name: Install NDK 28.2.13676358
+        run: |
+          echo "=== Currently installed NDK versions ==="
+          ls "$ANDROID_HOME/ndk/" 2>/dev/null || echo "(none)"
+          if [ -d "$ANDROID_HOME/ndk/28.2.13676358" ]; then
+            echo "NDK 28.2.13676358 already present — skipping install."
+          else
+            echo "Installing NDK 28.2.13676358 via sdkmanager..."
+            echo "y" | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358"
+          fi
+          echo "=== NDK dirs after install ==="
+          ls "$ANDROID_HOME/ndk/" 2>/dev/null
+
       - name: Resolve Flutter dependencies
         run: flutter pub get
 
