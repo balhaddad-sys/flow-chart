@@ -1,0 +1,87 @@
+{
+  "project_info": {
+    "project_number": "1061864749573",
+    "project_id": "medq-a6cc6",
+    "storage_bucket": "medq-a6cc6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1061864749573:android:dd188cf3706ba97b34ba6c",
+        "android_client_info": {
+          "package_name": "io.medq.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1061864749573-5gmt66gi4vsn1tqrfdj9nm3ag36hrkhb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "io.medq.app",
+            "certificate_hash": "13b7626836389e041784b46967b3ec19e2a4a349"
+          }
+        },
+        {
+          "client_id": "1061864749573-crbqvhr22fi3l7furgtke8mtofgmskif.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "io.medq.app",
+            "certificate_hash": "762a141fd427e88d943754f75dbbb071b831e2b9"
+          }
+        },
+        {
+          "client_id": "1061864749573-iuolmec37ch3leegfpf01rcvnld9ep74.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "io.medq.app",
+            "certificate_hash": "2c7308797ffe39db70ef7084555032e6f6281442"
+          }
+        },
+        {
+          "client_id": "1061864749573-ltt9ohrer7t7nua0gn5j2rigca246ul6.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "io.medq.app",
+            "certificate_hash": "8a420f87c63fefa67809bd6314a4815c01484415"
+          }
+        },
+        {
+          "client_id": "1061864749573-mk22khmeobco64i45oa72tvocssuc3p2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "io.medq.app",
+            "certificate_hash": "ed215ef18a71e0f344454e34662b2b8bcbfe0377"
+          }
+        },
+        {
+          "client_id": "1061864749573-to4tb9nuucb9ed7hjfv3ol4h93d2a73h.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "io.medq.app",
+            "certificate_hash": "1887d204e692366f9ae3d311b40af75e84c5bbfb"
+          }
+        },
+        {
+          "client_id": "1061864749573-m7cgqf2mse25tifjqe5ujtd7i4lh1r21.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBC9lKDLIrHCGnM87qoREgHYZeRWhVFtC8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1061864749573-m7cgqf2mse25tifjqe5ujtd7i4lh1r21.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
