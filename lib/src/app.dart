@@ -243,7 +243,10 @@ class _AppShellState extends ConsumerState<_AppShell> {
       final previous = _previousStatuses[file.id];
       if (previous == null || previous == file.status) continue;
 
-      if (file.status == 'PROCESSING' && previous == 'UPLOADED') {
+      if (previous == 'UPLOADED' &&
+          file.status != 'READY' &&
+          file.status != 'FAILED' &&
+          file.status != 'UPLOADED') {
         _showStatusSnackBar(
           'Analysing ${file.originalName} - running in background (usually 1-3 minutes).',
         );

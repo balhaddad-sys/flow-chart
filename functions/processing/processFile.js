@@ -279,18 +279,8 @@ exports.processUploadedFile = functions
 
       log.info("Extraction complete, AI analysis will begin", { uid, fileId, sectionCount: sections.length });
 
-      // Keep file in PROCESSING/ANALYZING status — processSection will
+      // Transition to question generation phase — processSection will
       // update to READY once ALL sections finish AI processing.
-      await fileRef.set(
-        {
-          status: "PROCESSING",
-          processingPhase: "ANALYZING",
-          sectionCount: sections.length,
-        },
-        { merge: true }
-      );
-
-      // Transition to question generation phase
       await fileRef.set(
         {
           status: "generating_questions",

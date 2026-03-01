@@ -13,7 +13,10 @@ class FileCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isProcessing = file.status == 'PROCESSING';
+    final isProcessing = file.status != 'READY' &&
+        file.status != 'COMPLETE' &&
+        file.status != 'FAILED' &&
+        file.status != 'UPLOADED';
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -89,7 +92,7 @@ class FileCard extends StatelessWidget {
 
   Widget _buildSubtitle(BuildContext context, bool isDark) {
     final sizeStr = _formatSize(file.sizeBytes);
-    final statusStr = file.status == 'PROCESSING'
+    final statusStr = isProcessing
         ? ' \u00b7 Processing'
         : file.status == 'READY' || file.status == 'COMPLETE'
             ? ' \u00b7 ${file.sectionCount} sections'

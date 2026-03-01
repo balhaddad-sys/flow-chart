@@ -372,10 +372,11 @@ function placeTasks(tasks, days) {
 
     let targetIdx = Math.min(studyDayIdx + (task._dayOffset || 1), days.length - 1);
 
-    // Find a day with enough remaining capacity, searching forward from the target
-    while (targetIdx < days.length - 1 && days[targetIdx].remaining < task.estMinutes) {
+    // Find a day with enough remaining capacity, searching forward from the target.
+    while (targetIdx < days.length && days[targetIdx].remaining < task.estMinutes) {
       targetIdx++;
     }
+    if (targetIdx >= days.length) targetIdx = days.length - 1; // fallback: last day
 
     const { _dayOffset, ...cleanTask } = task;
     placed.push({ ...cleanTask, dueDate: days[targetIdx].date, orderIndex: 0 });
