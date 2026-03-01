@@ -44,7 +44,7 @@ class FileCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            subtitle: _buildSubtitle(context, isDark),
+            subtitle: _buildSubtitle(context, isDark, isProcessing),
             trailing: isProcessing ? null : _statusIndicator(isDark),
           ),
           // Show expanded processing indicator when processing
@@ -90,7 +90,7 @@ class FileCard extends StatelessWidget {
     );
   }
 
-  Widget _buildSubtitle(BuildContext context, bool isDark) {
+  Widget _buildSubtitle(BuildContext context, bool isDark, bool isProcessing) {
     final sizeStr = _formatSize(file.sizeBytes);
     final statusStr = isProcessing
         ? ' \u00b7 Processing'
