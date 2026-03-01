@@ -49,30 +49,25 @@ jobs:
         run: flutter analyze --no-fatal-infos
 
       - name: Build debug APK
-        # Run Gradle directly to bypass Flutter's GradleProjectMigrator which
-        # resets ndkVersion to 27.0.12077973 during `flutter build apk`.
-        # The Flutter Gradle plugin handles Dart compilation internally, so
-        # running assembleDebug directly produces a fully functional APK.
-        # --stacktrace exposes the real Gradle error if compilation fails.
-        run: |
-          echo "=== ndkVersion in build.gradle.kts ==="
-          grep ndkVersion android/app/build.gradle.kts
-          echo "=== Running Gradle assembleDebug ==="
-          cd android
-          ./gradlew assembleDebug --stacktrace 2>&1
+        # --verbose passes Gradle's stdout through so we can see the real
+        # error if the build fails, instead of Flutter's generic "Gradle
+        # build failed to produce an .apk file" wrapper message.
+        run: flutter build apk --debug --verbose 2>&1
 
       - name: List APK outputs (debug)
         if: always()
         run: |
-          echo "=== android/app/build/outputs/apk/debug ==="
-          find android/app/build/outputs/apk -name "*.apk" 2>/dev/null || echo "No APKs in android/apk/"
-          echo "=== build/app/outputs/flutter-apk ==="
+          echo "=== ndkVersion after Flutter migration ==="
+          grep ndkVersion android/app/build.gradle.kts || echo "(not found)"
+          echo "=== flutter-apk dir ==="
           find build/app/outputs/flutter-apk -name "*.apk" 2>/dev/null || echo "No APKs in flutter-apk/"
+          echo "=== apk/debug dir ==="
+          find build/app/outputs/apk -name "*.apk" 2>/dev/null || echo "No APKs in apk/"
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: medq-debug-apk-${{ github.sha }}
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
           retention-days: 14
           if-no-files-found: error
