@@ -4,6 +4,7 @@ const {
   buildDayCapacities,
   checkFeasibility,
   placeTasks,
+  validateScheduleInputs,
 } = require("../scheduling/scheduler");
 
 describe("scheduling/scheduler", () => {
@@ -244,7 +245,7 @@ describe("scheduling/scheduler", () => {
         { date: new Date("2025-01-01"), usableCapacity: 60, remaining: 60 },
       ];
 
-      const placed = placeTasks(tasks, days);
+      const { placed } = placeTasks(tasks, days);
       expect(placed).toHaveLength(2);
       expect(placed[0].dueDate).toEqual(days[0].date);
     });
@@ -258,7 +259,7 @@ describe("scheduling/scheduler", () => {
         { date: new Date("2025-01-01"), usableCapacity: 60, remaining: 60 },
       ];
 
-      const placed = placeTasks(tasks, days);
+      const { placed } = placeTasks(tasks, days);
       expect(placed[0].sectionIds[0]).toBe("s1");
       expect(placed[1].sectionIds[0]).toBe("s2");
     });
@@ -273,7 +274,7 @@ describe("scheduling/scheduler", () => {
         { date: new Date("2025-01-02"), usableCapacity: 60, remaining: 60 },
       ];
 
-      const placed = placeTasks(tasks, days);
+      const { placed } = placeTasks(tasks, days);
       expect(placed).toHaveLength(2);
       expect(placed[0].dueDate.toISOString()).toContain("2025-01-01");
       expect(placed[1].dueDate.toISOString()).toContain("2025-01-02");
@@ -290,7 +291,7 @@ describe("scheduling/scheduler", () => {
         { date: new Date("2025-01-03"), usableCapacity: 60, remaining: 60 },
       ];
 
-      const placed = placeTasks(tasks, days);
+      const { placed } = placeTasks(tasks, days);
       const review = placed.find((t) => t.type === "REVIEW");
       expect(review.dueDate.toISOString()).toContain("2025-01-03"); // day 0 + offset 2
     });
@@ -305,7 +306,7 @@ describe("scheduling/scheduler", () => {
         { date: new Date("2025-01-02"), usableCapacity: 60, remaining: 60 },
       ];
 
-      const placed = placeTasks(tasks, days);
+      const { placed } = placeTasks(tasks, days);
       const review = placed.find((t) => t.type === "REVIEW");
       expect(review.dueDate.toISOString()).toContain("2025-01-02"); // clamped to last day
     });
@@ -320,7 +321,7 @@ describe("scheduling/scheduler", () => {
         { date: new Date("2025-01-02"), usableCapacity: 60, remaining: 60 },
       ];
 
-      const placed = placeTasks(tasks, days);
+      const { placed } = placeTasks(tasks, days);
       const review = placed.find((t) => t.type === "REVIEW");
       expect(review._dayOffset).toBeUndefined();
     });
@@ -333,10 +334,140 @@ describe("scheduling/scheduler", () => {
         { date: new Date("2025-01-01"), usableCapacity: 30, remaining: 30 },
       ];
 
-      const placed = placeTasks(tasks, days);
+      const { placed } = placeTasks(tasks, days);
       expect(placed).toHaveLength(1);
       expect(placed[0].estMinutes).toBe(30);
       expect(placed[0].dueDate).toEqual(new Date("2025-01-01"));
+    });
+
+    it("clamps reviews to exam boundary when examDate is provided", () => {
+      const examDate = new Date("2025-01-03");
+      const tasks = [
+        { type: "STUDY", sectionIds: ["s1"], estMinutes: 10, difficulty: 3 },
+        { type: "REVIEW", sectionIds: ["s1"], estMinutes: 10, difficulty: 3, _dayOffset: 10 },
+      ];
+      const days = [
+        { date: new Date("2025-01-01"), usableCapacity: 60, remaining: 60 },
+        { date: new Date("2025-01-02"), usableCapacity: 60, remaining: 60 },
+        { date: new Date("2025-01-03"), usableCapacity: 60, remaining: 60 },
+        { date: new Date("2025-01-04"), usableCapacity: 60, remaining: 60 },
+        { date: new Date("2025-01-05"), usableCapacity: 60, remaining: 60 },
+      ];
+
+      const { placed } = placeTasks(tasks, days, { examDate });
+      const review = placed.find((t) => t.type === "REVIEW");
+      // Review should be clamped to exam date (Jan 3), not spill to Jan 4/5
+      expect(review.dueDate.getTime()).toBeLessThanOrEqual(examDate.getTime());
+    });
+
+    it("tracks skipped tasks when all days are exhausted", () => {
+      const tasks = [
+        { type: "STUDY", sectionIds: ["s1"], estMinutes: 60, difficulty: 3 },
+        { type: "STUDY", sectionIds: ["s2"], estMinutes: 60, difficulty: 3 },
+      ];
+      const days = [
+        { date: new Date("2025-01-01"), usableCapacity: 60, remaining: 60 },
+      ];
+
+      const { placed, skipped } = placeTasks(tasks, days);
+      expect(placed).toHaveLength(1);
+      expect(skipped).toHaveLength(1);
+      expect(skipped[0].sectionIds[0]).toBe("s2");
+    });
+
+    it("skips review tasks when their study task is not placed", () => {
+      const tasks = [
+        { type: "REVIEW", sectionIds: ["s1"], estMinutes: 10, difficulty: 3, _dayOffset: 1 },
+      ];
+      const days = [
+        { date: new Date("2025-01-01"), usableCapacity: 60, remaining: 60 },
+      ];
+
+      const { placed, skipped } = placeTasks(tasks, days);
+      expect(placed).toHaveLength(0);
+      expect(skipped).toHaveLength(1);
+    });
+
+    it("assigns incrementing orderIndex to reviews sharing a day", () => {
+      const tasks = [
+        { type: "STUDY", sectionIds: ["s1"], estMinutes: 10, difficulty: 3 },
+        { type: "STUDY", sectionIds: ["s2"], estMinutes: 10, difficulty: 3 },
+        { type: "REVIEW", sectionIds: ["s1"], estMinutes: 10, difficulty: 3, _dayOffset: 1 },
+        { type: "REVIEW", sectionIds: ["s2"], estMinutes: 10, difficulty: 3, _dayOffset: 1 },
+      ];
+      const days = [
+        { date: new Date("2025-01-01"), usableCapacity: 120, remaining: 120 },
+        { date: new Date("2025-01-02"), usableCapacity: 120, remaining: 120 },
+      ];
+
+      const { placed } = placeTasks(tasks, days);
+      const reviews = placed.filter((t) => t.type === "REVIEW");
+      // Both reviews land on day 2 — they should have distinct orderIndex values
+      expect(reviews).toHaveLength(2);
+      expect(reviews[0].orderIndex).not.toBe(reviews[1].orderIndex);
+    });
+  });
+
+  // ── validateScheduleInputs ────────────────────────────────────────────────
+
+  describe("validateScheduleInputs", () => {
+    it("returns empty array for valid future exam date", () => {
+      const start = new Date("2025-01-01");
+      const exam = new Date("2025-02-01");
+      expect(validateScheduleInputs(start, exam)).toEqual([]);
+    });
+
+    it("returns error when exam date is in the past", () => {
+      const start = new Date("2025-02-01");
+      const exam = new Date("2025-01-01");
+      const errors = validateScheduleInputs(start, exam);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatch(/future/i);
+    });
+
+    it("returns error when exam date equals start date", () => {
+      const date = new Date("2025-01-01");
+      const errors = validateScheduleInputs(date, date);
+      expect(errors).toHaveLength(1);
+    });
+
+    it("returns empty array when no exam date provided", () => {
+      const start = new Date("2025-01-01");
+      expect(validateScheduleInputs(start, null)).toEqual([]);
+    });
+  });
+
+  // ── QUESTIONS time cap ──────────────────────────────────────────────────────
+
+  describe("QUESTIONS time cap", () => {
+    it("caps QUESTIONS time to not exceed STUDY time", () => {
+      const sections = [
+        { id: "s1", title: "Tiny Section", estMinutes: 10, questionsStatus: "COMPLETED" },
+      ];
+      const tasks = buildWorkUnits(sections, "c1", "off");
+      const study = tasks.find((t) => t.type === "STUDY");
+      const questions = tasks.find((t) => t.type === "QUESTIONS");
+      expect(questions.estMinutes).toBeLessThanOrEqual(study.estMinutes);
+    });
+
+    it("still applies 35% rule for normal-sized sections", () => {
+      const sections = [
+        { id: "s1", title: "Normal Section", estMinutes: 60, questionsStatus: "COMPLETED" },
+      ];
+      const tasks = buildWorkUnits(sections, "c1", "off");
+      const questions = tasks.find((t) => t.type === "QUESTIONS");
+      // 60 * 0.35 = 21, min(60, max(8, 21)) = 21
+      expect(questions.estMinutes).toBe(21);
+    });
+
+    it("uses minimum 8 minutes for very small sections", () => {
+      const sections = [
+        { id: "s1", title: "Tiny", estMinutes: 5, questionsStatus: "COMPLETED" },
+      ];
+      const tasks = buildWorkUnits(sections, "c1", "off");
+      const questions = tasks.find((t) => t.type === "QUESTIONS");
+      // min(5, max(8, round(5*0.35))) = min(5, 8) = 5  (capped at study time)
+      expect(questions.estMinutes).toBeLessThanOrEqual(5);
     });
   });
 });

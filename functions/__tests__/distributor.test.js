@@ -75,4 +75,80 @@ describe("scheduling/distributor", () => {
       expect(result[0].newDate.getTime()).toEqual(tomorrow.getTime());
     });
   });
+
+  describe("capacity-aware distribution", () => {
+    it("places tasks respecting day capacities", () => {
+      const dayCapacities = [
+        { date: new Date("2025-01-11"), remaining: 30 },
+        { date: new Date("2025-01-12"), remaining: 30 },
+        { date: new Date("2025-01-13"), remaining: 30 },
+      ];
+      const items = [
+        { ref: "a", estMinutes: 20 },
+        { ref: "b", estMinutes: 20 },
+        { ref: "c", estMinutes: 20 },
+      ];
+
+      const result = distributeOverdue(items, today, 5, dayCapacities);
+      expect(result).toHaveLength(3);
+      // First item fits day 1 (30 remaining), second spills to day 2 (30-20=10 left on day 1 < 20)
+      expect(result[0].newDate).toEqual(dayCapacities[0].date);
+      expect(result[1].newDate).toEqual(dayCapacities[1].date);
+      expect(result[2].newDate).toEqual(dayCapacities[2].date);
+    });
+
+    it("stacks tasks on same day when capacity allows", () => {
+      const dayCapacities = [
+        { date: new Date("2025-01-11"), remaining: 100 },
+        { date: new Date("2025-01-12"), remaining: 30 },
+      ];
+      const items = [
+        { ref: "a", estMinutes: 15 },
+        { ref: "b", estMinutes: 15 },
+        { ref: "c", estMinutes: 15 },
+      ];
+
+      const result = distributeOverdue(items, today, 5, dayCapacities);
+      // All 3 tasks (45 min total) fit on day 1 (100 remaining)
+      expect(result[0].newDate).toEqual(dayCapacities[0].date);
+      expect(result[1].newDate).toEqual(dayCapacities[0].date);
+      expect(result[2].newDate).toEqual(dayCapacities[0].date);
+    });
+
+    it("defaults estMinutes to 15 when not provided", () => {
+      const dayCapacities = [
+        { date: new Date("2025-01-11"), remaining: 20 },
+        { date: new Date("2025-01-12"), remaining: 20 },
+      ];
+      const items = [
+        { ref: "a" },
+        { ref: "b" },
+      ];
+
+      const result = distributeOverdue(items, today, 5, dayCapacities);
+      expect(result).toHaveLength(2);
+      // First item (15 min) fits day 1, second spills to day 2
+      expect(result[0].newDate).toEqual(dayCapacities[0].date);
+      expect(result[1].newDate).toEqual(dayCapacities[1].date);
+    });
+
+    it("falls back to simple split when dayCapacities is null", () => {
+      const items = [{ ref: "a" }, { ref: "b" }];
+      const result = distributeOverdue(items, today, 5, null);
+      expect(result).toHaveLength(2);
+      // Should use simple even-split (same as default behavior)
+      result.forEach((r) => {
+        expect(r.newDate.getTime()).toBeGreaterThan(today.getTime());
+      });
+    });
+
+    it("assigns priority 1 in capacity-aware mode", () => {
+      const dayCapacities = [
+        { date: new Date("2025-01-11"), remaining: 60 },
+      ];
+      const items = [{ ref: "a", estMinutes: 10 }];
+      const result = distributeOverdue(items, today, 5, dayCapacities);
+      expect(result[0].priority).toBe(1);
+    });
+  });
 });

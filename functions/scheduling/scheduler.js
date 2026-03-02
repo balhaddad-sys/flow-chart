@@ -10,7 +10,7 @@
  *   sections  →  buildWorkUnits  →  tasks
  *   tasks     →  computeTotalLoad →  minutes
  *   config    →  buildDayCapacities →  days[]
- *   (tasks, days) →  placeTasks  →  placedTasks[]
+ *   (tasks, days) →  placeTasks  →  { placed, skipped }
  */
 
 const {
@@ -185,7 +185,7 @@ function buildWorkUnits(sections, courseId, revisionPolicy = "standard", srsCard
 
     // CRITICAL: Only create QUESTIONS task if questions are actually generated
     if (section.questionsStatus === "COMPLETED") {
-      tasks.push({ ...base, type: "QUESTIONS", title: `Questions: ${title}`, estMinutes: Math.max(8, Math.round(estMinutes * 0.35)) });
+      tasks.push({ ...base, type: "QUESTIONS", title: `Questions: ${title}`, estMinutes: Math.min(estMinutes, Math.max(8, Math.round(estMinutes * 0.35))) });
     }
 
     // ── REVIEW tasks: use FSRS interval if available, else static policy ──
@@ -291,9 +291,11 @@ function checkFeasibility(totalMinutes, days) {
  *
  * @param {WorkUnit[]} tasks
  * @param {DaySlot[]}  days  - **Mutated**: `remaining` is decremented.
- * @returns {PlacedTask[]} Tasks with `dueDate` and `orderIndex` assigned.
+ * @param {Object}     [opts={}]
+ * @param {Date|null}  [opts.examDate] - Clamp reviews to this boundary.
+ * @returns {{ placed: PlacedTask[], skipped: WorkUnit[] }}
  */
-function placeTasks(tasks, days) {
+function placeTasks(tasks, days, { examDate } = {}) {
   const studyTasks = tasks.filter((t) => t.type === "STUDY" || t.type === "QUESTIONS");
   const reviewTasks = tasks.filter((t) => t.type === "REVIEW");
   const maxDayCapacity = days.reduce((max, d) => Math.max(max, d.usableCapacity), 0);
@@ -309,6 +311,7 @@ function placeTasks(tasks, days) {
   let dayIndex = 0;
   let orderIndex = 0;
   const placed = [];
+  const skipped = [];
 
   // Split oversized tasks so they can be distributed across multiple days.
   const expandTask = (task) => {
@@ -349,7 +352,10 @@ function placeTasks(tasks, days) {
             bestRemaining = days[d].remaining;
           }
         }
-        if (bestDay === -1) continue; // All days exhausted — skip task
+        if (bestDay === -1) {
+          skipped.push(task);
+          continue;
+        }
         targetDay = bestDay;
       }
 
@@ -363,28 +369,69 @@ function placeTasks(tasks, days) {
     }
   }
 
-  // Place review tasks at offset from their study task's day
+  // Build per-day order counter from placed study/question tasks.
+  const dayOrderMap = new Map();
+  for (const p of placed) {
+    const dayKey = p.dueDate.getTime();
+    const existing = dayOrderMap.get(dayKey) || 0;
+    dayOrderMap.set(dayKey, Math.max(existing, p.orderIndex + 1));
+  }
+
+  // Find last valid day index (respects exam boundary).
+  let lastValidIdx = days.length - 1;
+  if (examDate) {
+    while (lastValidIdx > 0 && days[lastValidIdx].date.getTime() > examDate.getTime()) {
+      lastValidIdx--;
+    }
+  }
+
+  // Place review tasks at offset from their study task's day.
   for (const task of reviewTasks) {
     const studyTask = placed.find((t) => t.type === "STUDY" && t.sectionIds[0] === task.sectionIds[0]);
-    if (!studyTask) continue;
+    if (!studyTask) {
+      skipped.push(task);
+      continue;
+    }
 
     const studyDayIdx = days.findIndex((d) => d.date.getTime() === studyTask.dueDate.getTime());
-    if (studyDayIdx === -1) continue;
+    if (studyDayIdx === -1) {
+      skipped.push(task);
+      continue;
+    }
 
-    let targetIdx = Math.min(studyDayIdx + (task._dayOffset || 1), days.length - 1);
+    let targetIdx = Math.min(studyDayIdx + (task._dayOffset || 1), lastValidIdx);
 
     // Find a day with enough remaining capacity, searching forward from the target.
-    while (targetIdx < days.length && days[targetIdx].remaining < task.estMinutes) {
+    while (targetIdx < days.length && targetIdx <= lastValidIdx && days[targetIdx].remaining < task.estMinutes) {
       targetIdx++;
     }
-    if (targetIdx >= days.length) targetIdx = days.length - 1; // fallback: last day
+    // Clamp to exam boundary, fall back to last valid day.
+    if (targetIdx > lastValidIdx) targetIdx = lastValidIdx;
 
     const { _dayOffset, ...cleanTask } = task;
-    placed.push({ ...cleanTask, dueDate: days[targetIdx].date, orderIndex: 0 });
+    const dayKey = days[targetIdx].date.getTime();
+    const nextOrder = dayOrderMap.get(dayKey) || 0;
+    dayOrderMap.set(dayKey, nextOrder + 1);
+    placed.push({ ...cleanTask, dueDate: days[targetIdx].date, orderIndex: nextOrder });
     days[targetIdx].remaining -= task.estMinutes;
   }
 
-  return placed;
+  return { placed, skipped };
+}
+
+/**
+ * Validate schedule generation inputs.
+ *
+ * @param {Date}      startDate
+ * @param {Date|null} examDate
+ * @returns {string[]} Array of validation error messages (empty = valid).
+ */
+function validateScheduleInputs(startDate, examDate) {
+  const errors = [];
+  if (examDate && examDate.getTime() <= startDate.getTime()) {
+    errors.push("Exam date must be in the future.");
+  }
+  return errors;
 }
 
 module.exports = {
@@ -393,4 +440,5 @@ module.exports = {
   buildDayCapacities,
   checkFeasibility,
   placeTasks,
+  validateScheduleInputs,
 };

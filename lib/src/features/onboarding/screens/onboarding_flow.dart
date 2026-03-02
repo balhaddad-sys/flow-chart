@@ -215,6 +215,14 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
                           .read(onboardingProvider.notifier)
                           .finishOnboarding();
                   if (success && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Course created! Your study plan will generate automatically once files are processed.',
+                        ),
+                        duration: Duration(seconds: 4),
+                      ),
+                    );
                     context.go('/today');
                   }
                 }

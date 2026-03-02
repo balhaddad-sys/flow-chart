@@ -17,8 +17,9 @@ const { checkRateLimit, RATE_LIMITS } = require("../middleware/rateLimit");
 const { db, batchUpdate } = require("../lib/firestore");
 const { ok, safeError } = require("../lib/errors");
 const log = require("../lib/logger");
-const { CATCH_UP_SPAN_DAYS } = require("../lib/constants");
+const { CATCH_UP_SPAN_DAYS, MS_PER_DAY } = require("../lib/constants");
 const { distributeOverdue } = require("./distributor");
+const { buildDayCapacities } = require("./scheduler");
 
 exports.catchUp = functions
   .runWith({ timeoutSeconds: 60 })
@@ -45,9 +46,25 @@ exports.catchUp = functions
         return ok({ redistributedCount: 0, message: "No overdue tasks." });
       }
 
-      // Pure algorithm
-      const items = overdueSnap.docs.map((doc) => ({ ref: doc.ref }));
-      const redistributed = distributeOverdue(items, today);
+      // Build capacity-aware day slots for catch-up window.
+      const [courseDoc, userDoc] = await Promise.all([
+        db.doc(`users/${uid}/courses/${courseId}`).get(),
+        db.doc(`users/${uid}`).get(),
+      ]);
+      const userPrefs = userDoc.exists ? (userDoc.data().preferences || {}) : {};
+      const catchUpEnd = new Date(today.getTime() + CATCH_UP_SPAN_DAYS * MS_PER_DAY);
+      const dayCapacities = buildDayCapacities(today, catchUpEnd, {
+        defaultMinutesPerDay: userPrefs.dailyMinutesDefault || 120,
+        catchUpBufferPercent: 0, // Use full capacity for catch-up.
+        ...(courseDoc.exists ? (courseDoc.data().availability || {}) : {}),
+      });
+
+      // Pure algorithm (capacity-aware).
+      const items = overdueSnap.docs.map((doc) => ({
+        ref: doc.ref,
+        estMinutes: doc.data().estMinutes || 15,
+      }));
+      const redistributed = distributeOverdue(items, today, CATCH_UP_SPAN_DAYS, dayCapacities);
 
       // Persist
       await batchUpdate(

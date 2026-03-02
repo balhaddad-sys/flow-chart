@@ -20,7 +20,7 @@ const { db, batchSet, batchDelete } = require("../lib/firestore");
 const { Errors, fail, ok, safeError } = require("../lib/errors");
 const log = require("../lib/logger");
 const { MS_PER_DAY, MAX_SCHEDULE_DAYS } = require("../lib/constants");
-const { buildWorkUnits, computeTotalLoad, buildDayCapacities, checkFeasibility, placeTasks } = require("./scheduler");
+const { buildWorkUnits, computeTotalLoad, buildDayCapacities, checkFeasibility, placeTasks, validateScheduleInputs } = require("./scheduler");
 
 exports.generateSchedule = functions
   .runWith({ timeoutSeconds: 120, memory: "512MB" })
@@ -76,6 +76,13 @@ exports.generateSchedule = functions
 
       // ── Pure algorithm ────────────────────────────────────────────────
       const startDate = new Date();
+
+      // Validate inputs before scheduling.
+      const validationErrors = validateScheduleInputs(startDate, examDate);
+      if (validationErrors.length > 0) {
+        return fail(Errors.INVALID_ARGUMENT, validationErrors.join(" "));
+      }
+
       const tasks = buildWorkUnits(sections, courseId, revisionPolicy, srsCards);
       const totalMinutes = computeTotalLoad(tasks);
       const requestedDays = buildDayCapacities(startDate, examDate, availability);
@@ -109,7 +116,7 @@ exports.generateSchedule = functions
         extendedWindow = true;
       }
 
-      const placed = placeTasks(tasks, days);
+      const { placed, skipped } = placeTasks(tasks, days, { examDate });
       let spillDays = 0;
       if (extendedWindow && examDate && placed.length > 0) {
         const latestDueDate = placed.reduce(
@@ -145,10 +152,15 @@ exports.generateSchedule = functions
         }))
       );
 
+      if (skipped.length > 0) {
+        log.warn("Some tasks could not be placed", { uid, courseId, skippedCount: skipped.length });
+      }
+
       log.info("Schedule generated", {
         uid,
         courseId,
         taskCount: placed.length,
+        skippedCount: skipped.length,
         totalDays: days.length,
         extendedWindow,
         spillDays,
@@ -157,6 +169,7 @@ exports.generateSchedule = functions
       return ok({
         feasible: true,
         taskCount: placed.length,
+        skippedCount: skipped.length,
         totalDays: days.length,
         ...(extendedWindow
           ? {

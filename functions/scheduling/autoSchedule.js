@@ -18,6 +18,7 @@ const {
   buildDayCapacities,
   checkFeasibility,
   placeTasks,
+  validateScheduleInputs,
 } = require("./scheduler");
 
 /**
@@ -118,6 +119,14 @@ async function maybeAutoGenerateSchedule(uid, courseId) {
     });
 
     const startDate = new Date();
+
+    // Validate inputs.
+    const validationErrors = validateScheduleInputs(startDate, examDate);
+    if (validationErrors.length > 0) {
+      log.warn("Auto-schedule skipped: invalid inputs", { uid, courseId, errors: validationErrors });
+      return;
+    }
+
     const tasks = buildWorkUnits(sections, courseId, revisionPolicy, srsCards);
     const totalMinutes = computeTotalLoad(tasks);
     let days = buildDayCapacities(startDate, examDate, availability);
@@ -138,8 +147,12 @@ async function maybeAutoGenerateSchedule(uid, courseId) {
       days = extendedDays;
     }
 
-    const placed = placeTasks(tasks, days);
+    const { placed, skipped } = placeTasks(tasks, days, { examDate });
     if (placed.length === 0) return;
+
+    if (skipped.length > 0) {
+      log.warn("Auto-schedule: some tasks could not be placed", { uid, courseId, skippedCount: skipped.length });
+    }
 
     // ── Persist tasks ─────────────────────────────────────────────────
     await batchSet(
@@ -157,6 +170,7 @@ async function maybeAutoGenerateSchedule(uid, courseId) {
       uid,
       courseId,
       taskCount: placed.length,
+      skippedCount: skipped.length,
       totalDays: days.length,
     });
   } catch (err) {

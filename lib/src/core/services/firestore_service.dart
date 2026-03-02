@@ -193,6 +193,13 @@ class FirestoreService {
     });
   }
 
+  Future<void> uncompleteTask(String uid, String taskId) async {
+    await _tasks(uid).doc(taskId).update({
+      'status': 'TODO',
+      'completedAt': null,
+    });
+  }
+
   // --- Questions ---
 
   CollectionReference _questions(String uid) =>

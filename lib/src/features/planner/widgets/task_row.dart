@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
@@ -9,6 +7,7 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../core/utils/date_utils.dart';
+import '../../../core/utils/error_handler.dart';
 import '../../../models/task_model.dart';
 
 class TaskRow extends ConsumerWidget {
@@ -35,16 +34,31 @@ class TaskRow extends ConsumerWidget {
                 firstDate: DateTime.now(),
                 lastDate: DateTime.now().add(const Duration(days: 365)),
               );
-              if (picked != null) {
+              if (picked != null && context.mounted) {
                 final uid = ref.read(uidProvider);
                 if (uid != null) {
-                  unawaited(
-                    ref.read(firestoreServiceProvider).updateTask(
+                  try {
+                    await ref.read(firestoreServiceProvider).updateTask(
                       uid,
                       task.id,
                       {'dueDate': picked},
-                    ),
-                  );
+                    );
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Task rescheduled')),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Failed to reschedule: ${ErrorHandler.userMessage(e)}',
+                          ),
+                        ),
+                      );
+                    }
+                  }
                 }
               }
             },
@@ -132,13 +146,16 @@ class TaskRow extends ConsumerWidget {
           trailing: Checkbox(
             value: isDone,
             onChanged: (checked) {
+              final uid = ref.read(uidProvider);
+              if (uid == null) return;
               if (checked == true) {
-                final uid = ref.read(uidProvider);
-                if (uid != null) {
-                  ref
-                      .read(firestoreServiceProvider)
-                      .completeTask(uid, task.id);
-                }
+                ref
+                    .read(firestoreServiceProvider)
+                    .completeTask(uid, task.id);
+              } else {
+                ref
+                    .read(firestoreServiceProvider)
+                    .uncompleteTask(uid, task.id);
               }
             },
           ),

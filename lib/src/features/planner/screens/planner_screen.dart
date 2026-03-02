@@ -63,6 +63,8 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
     ref.listen<AsyncValue<void>>(plannerActionsProvider, (prev, next) {
       next.whenOrNull(
         error: (e, _) {
+          // Reset auto-gen flag so it can retry on next rebuild.
+          _autoGenTriggered = false;
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(ErrorHandler.userMessage(e))),
@@ -95,7 +97,8 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
           tasks.isEmpty &&
           analyzedCount > 0 &&
           pendingCount == 0 &&
-          actionsState is! AsyncLoading) {
+          actionsState is! AsyncLoading &&
+          actionsState is! AsyncError) {
         _autoGenTriggered = true;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           ref
@@ -266,14 +269,18 @@ class _PlannerScreenState extends ConsumerState<PlannerScreen> {
                           : Icons.calendar_today,
                       title: isLoading
                           ? 'Generating your plan…'
-                          : 'No plan generated yet',
+                          : hasError
+                              ? 'Generation failed'
+                              : 'No plan generated yet',
                       subtitle: subtitle,
                       actionLabel: isLoading
                           ? null
-                          : analyzedCount > 0
-                              ? 'Generate Plan'
-                              : null,
-                      onAction: isLoading || analyzedCount == 0
+                          : hasError
+                              ? 'Retry'
+                              : analyzedCount > 0
+                                  ? 'Generate Plan'
+                                  : null,
+                      onAction: isLoading || (!hasError && analyzedCount == 0)
                           ? null
                           : () => ref
                               .read(plannerActionsProvider.notifier)
