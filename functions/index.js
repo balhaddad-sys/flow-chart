@@ -96,6 +96,10 @@ exports.reprocessBlueprints = reprocessBlueprints;
 const { sendChatMessage } = require("./chat/sendChatMessage");
 exports.sendChatMessage = sendChatMessage;
 
+// ── Groups ──────────────────────────────────────────────────────────────────
+const { joinGroupByInvite } = require("./groups/joinGroupByInvite");
+exports.joinGroupByInvite = joinGroupByInvite;
+
 // ── Consumer-ready additions ──────────────────────────────────────────────
 const { flagQuestion } = require("./analytics/flagQuestion");
 const { trackActivity } = require("./analytics/trackActivity");

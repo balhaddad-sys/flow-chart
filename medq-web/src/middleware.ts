@@ -25,25 +25,33 @@ const SKIP_PREFIXES = [
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const response = NextResponse.next();
+
+  // Generate a per-request nonce for CSP
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+
+  // Forward the nonce to Server Components via a request header
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-nonce", nonce);
+
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
 
   // Skip static assets and API routes
   if (SKIP_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
-    return withSecurityHeaders(response);
+    return withSecurityHeaders(response, nonce);
   }
 
   // Allow public pages
   if (PUBLIC_PATHS.has(pathname)) {
-    return withSecurityHeaders(response);
+    return withSecurityHeaders(response, nonce);
   }
 
   // Auth checks are enforced by client-side AuthGuard and backend Firestore rules.
   // This middleware adds security headers and handles basic routing
   // without introducing cookie-based false negatives.
-  return withSecurityHeaders(response);
+  return withSecurityHeaders(response, nonce);
 }
 
-function withSecurityHeaders(response: NextResponse) {
+function withSecurityHeaders(response: NextResponse, nonce: string) {
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("X-XSS-Protection", "1; mode=block");
@@ -58,7 +66,7 @@ function withSecurityHeaders(response: NextResponse) {
     "Content-Security-Policy",
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https://firebasestorage.googleapis.com https://*.googleusercontent.com",
       "font-src 'self'",

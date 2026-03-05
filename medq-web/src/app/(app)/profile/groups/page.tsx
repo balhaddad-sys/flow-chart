@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { collection, query, where, onSnapshot, addDoc, serverTimestamp, getDocs } from "firebase/firestore";
+import { collection, query, where, onSnapshot, addDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
+import { joinGroupByInvite } from "@/lib/firebase/functions";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -83,34 +84,18 @@ export default function GroupsPage() {
     setJoining(true);
     setJoinError(null);
     try {
-      const q = query(
-        collection(db, "studyGroups"),
-        where("inviteCode", "==", joinCode.trim().toUpperCase())
-      );
-      const snap = await getDocs(q);
-      if (snap.empty) {
-        setJoinError("Invalid invite code.");
-        return;
-      }
-      const groupDoc = snap.docs[0];
-      const groupData = groupDoc.data() as StudyGroup;
-      if (groupData.members.includes(uid)) {
-        router.push(`/profile/groups/${groupDoc.id}`);
-        return;
-      }
-      const { updateDoc, arrayUnion, increment } = await import("firebase/firestore");
-      await updateDoc(groupDoc.ref, {
-        members: arrayUnion(uid),
-        memberCount: increment(1),
-        updatedAt: serverTimestamp(),
-      });
+      const result = await joinGroupByInvite({ inviteCode: joinCode.trim() });
       setJoinCode("");
       setJoinOpen(false);
-      toast.success("Joined group!");
-      router.push(`/profile/groups/${groupDoc.id}`);
-    } catch {
-      setJoinError("Failed to join group.");
-      toast.error("Failed to join group.");
+      toast.success(result.alreadyMember ? "You're already a member!" : "Joined group!");
+      router.push(`/profile/groups/${result.groupId}`);
+    } catch (err) {
+      const message =
+        err instanceof Error && err.message.includes("not found")
+          ? "Invalid invite code."
+          : "Failed to join group.";
+      setJoinError(message);
+      toast.error(message);
     } finally {
       setJoining(false);
     }

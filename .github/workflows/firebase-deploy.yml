@@ -455,7 +455,7 @@ jobs:
 
           deploy_batch "Batch 2/4" "functions:exploreTopicInsight,functions:deleteUserData,functions:generateSchedule,functions:processExploreBackfillJob,functions:getTutorHelp,functions:reprocessBlueprints,functions:generateQuestions,functions:retryFailedSections" || failed=1
           deploy_batch "Batch 3/4" "functions:generateExamBankQuestions,functions:regenSchedule,functions:catchUp,functions:onReviewComplete,functions:computeWeakness,functions:finishAssessmentSession,functions:getQuiz,functions:createCourse,functions:submitAssessmentAnswer" || failed=1
-          deploy_batch "Batch 4/4" "functions:healthCheck,functions:getAssessmentCatalog,functions:startAssessmentSession,functions:flagQuestion,functions:submitAttempt,functions:runFixPlan,functions:seedSampleDeck,functions:trackActivity" || failed=1
+          deploy_batch "Batch 4/4" "functions:healthCheck,functions:getAssessmentCatalog,functions:startAssessmentSession,functions:flagQuestion,functions:submitAttempt,functions:runFixPlan,functions:seedSampleDeck,functions:trackActivity,functions:joinGroupByInvite" || failed=1
 
           if [ "$failed" = "1" ]; then
             echo ""

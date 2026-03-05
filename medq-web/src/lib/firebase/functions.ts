@@ -614,3 +614,11 @@ export function seedSampleDeck() {
     alreadySeeded: boolean;
   }>("seedSampleDeck", {});
 }
+
+/** Join a study group by invite code (server-side lookup). */
+export function joinGroupByInvite(params: { inviteCode: string }) {
+  return callFunction<{ groupId: string; alreadyMember: boolean }>(
+    "joinGroupByInvite",
+    params
+  );
+}

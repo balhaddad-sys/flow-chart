@@ -179,8 +179,8 @@ class _ExamBankScreenState extends ConsumerState<ExamBankScreen> with TickerProv
               await firestore.clearExamBankQuestions(uid, _selectedExam!);
             }
           }
-        } catch (_) {
-          // Permission or network error clearing cache — continue anyway
+        } catch (e) {
+          debugPrint('[ExamBank] clearStaleCache failed: $e');
         }
         if (!mounted) return;
       }
@@ -285,7 +285,8 @@ class _ExamBankScreenState extends ConsumerState<ExamBankScreen> with TickerProv
       if (!mounted) return;
       _addNewQuestions(moreQuestions);
       setState(() => _isGeneratingMore = false);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[ExamBank] background generation failed: $e');
       if (mounted) setState(() => _isGeneratingMore = false);
     }
   }
