@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/user_provider.dart';
+import '../../../core/widgets/error_state_view.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../home/providers/home_provider.dart';
 
@@ -75,7 +76,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
         )['id'] as String? ?? '';
       });
     } catch (e) {
-      setState(() => _catalogError = e.toString());
+      setState(() => _catalogError = ErrorHandler.userMessage(e));
     } finally {
       setState(() => _catalogLoading = false);
     }
@@ -95,6 +96,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
           .startAssessmentSession(
         assessmentId: _selectedTopic,
         courseId: courseId,
+        questionCount: _questionCount,
       );
       final questions = List<Map<String, dynamic>>.from(
         (result['questions'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)) ?? [],
@@ -110,7 +112,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
         _answers.clear();
       });
     } catch (e) {
-      setState(() => _runtimeError = e.toString());
+      setState(() => _runtimeError = ErrorHandler.userMessage(e));
     } finally {
       setState(() => _starting = false);
     }
@@ -144,7 +146,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
         await _finishAssessment();
       }
     } catch (e) {
-      setState(() => _runtimeError = e.toString());
+      setState(() => _runtimeError = ErrorHandler.userMessage(e));
     } finally {
       setState(() => _submitting = false);
     }
@@ -162,7 +164,7 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
           .finishAssessmentSession(sessionId: _sessionId!);
       setState(() => _report = result);
     } catch (e) {
-      setState(() => _runtimeError = e.toString());
+      setState(() => _runtimeError = ErrorHandler.userMessage(e));
     } finally {
       setState(() => _finishing = false);
     }
@@ -249,22 +251,51 @@ class _AssessmentScreenState extends ConsumerState<AssessmentScreen> {
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Adaptive Assessment'),
-        actions: [
-          if (_sessionId != null && _report == null)
-            TextButton(
-              onPressed: _finishing ? null : () => _finishAssessment(),
-              child: Text(_finishing ? 'Finishing...' : 'End now'),
+    final isQuizPhase = _sessionId != null && _report == null;
+
+    return PopScope(
+      canPop: !isQuizPhase,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: const Text('Quit Assessment?'),
+              content: const Text('Your progress will be lost.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Continue'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    context.pop();
+                  },
+                  child: const Text('Quit'),
+                ),
+              ],
             ),
-        ],
+          );
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Adaptive Assessment'),
+          actions: [
+            if (_sessionId != null && _report == null)
+              TextButton(
+                onPressed: _finishing ? null : () => _finishAssessment(),
+                child: Text(_finishing ? 'Finishing...' : 'End now'),
+              ),
+          ],
+        ),
+        body: _report != null
+            ? _buildReport(context, isDark)
+            : _sessionId != null && _currentQuestion != null
+                ? _buildQuiz(context, isDark)
+                : _buildSetup(context, isDark),
       ),
-      body: _report != null
-          ? _buildReport(context, isDark)
-          : _sessionId != null && _currentQuestion != null
-              ? _buildQuiz(context, isDark)
-              : _buildSetup(context, isDark),
     );
   }
 
@@ -1000,7 +1031,7 @@ class _MiniStat extends StatelessWidget {
         child: Column(
           children: [
             Text(label.toUpperCase(),
-                style: TextStyle(fontSize: 9, letterSpacing: 0.8, color: isDark ? AppColors.darkTextTertiary : AppColors.textTertiary)),
+                style: TextStyle(fontSize: 10, letterSpacing: 0.8, color: isDark ? AppColors.darkTextTertiary : AppColors.textTertiary)),
             const SizedBox(height: 2),
             Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
           ],

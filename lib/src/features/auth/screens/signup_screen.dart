@@ -8,6 +8,7 @@ import '../../../core/widgets/error_banner.dart';
 import '../../../core/widgets/google_sign_in_button.dart';
 import '../providers/auth_state_provider.dart';
 import '../widgets/auth_layout.dart';
+import '../widgets/field_label.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -26,6 +27,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   late final Animation<double> _fadeIn;
   late final Animation<Offset> _slideUp;
 
+  bool _obscurePassword = true;
   bool _goHomeAfterSuccess = false;
 
   @override
@@ -157,7 +159,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                   ],
                 ),
                 const SizedBox(height: 20),
-                Form(
+                AutofillGroup(
+                  child: Form(
                   key: _formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -173,17 +176,18 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                         ),
                         const SizedBox(height: 12),
                       ],
-                      const _FieldLabel(text: 'Full Name'),
+                      const FieldLabel(text: 'Full Name'),
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: _nameController,
                         decoration: const InputDecoration(hintText: 'John Doe'),
                         textInputAction: TextInputAction.next,
+                        autofillHints: const [AutofillHints.name],
                         validator:
                             (value) => Validators.required(value, 'Name'),
                       ),
                       const SizedBox(height: 14),
-                      const _FieldLabel(text: 'Email'),
+                      const FieldLabel(text: 'Email'),
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: _emailController,
@@ -192,18 +196,27 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                           hintText: 'you@example.com',
                         ),
                         textInputAction: TextInputAction.next,
+                        autofillHints: const [AutofillHints.email],
                         validator: Validators.email,
                       ),
                       const SizedBox(height: 14),
-                      const _FieldLabel(text: 'Password'),
+                      const FieldLabel(text: 'Password'),
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: _passwordController,
-                        obscureText: true,
-                        decoration: const InputDecoration(
+                        obscureText: _obscurePassword,
+                        decoration: InputDecoration(
                           hintText: 'At least 6 characters',
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                              size: 20,
+                            ),
+                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          ),
                         ),
                         textInputAction: TextInputAction.done,
+                        autofillHints: const [AutofillHints.newPassword],
                         onFieldSubmitted: (_) => _handleSignUp(),
                         validator: _passwordValidator,
                         onChanged: (_) => setState(() {}),
@@ -281,6 +294,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                     ],
                   ),
                 ),
+                ),
                 const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -310,22 +324,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
           ),
         ),
       ),
-    );
-  }
-}
-
-class _FieldLabel extends StatelessWidget {
-  final String text;
-
-  const _FieldLabel({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: Theme.of(
-        context,
-      ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w500),
     );
   }
 }

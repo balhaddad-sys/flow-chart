@@ -3,13 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../../../core/providers/auth_provider.dart';
-import '../../../core/utils/error_handler.dart';
 import '../../../core/utils/validators.dart';
 import '../../../core/widgets/error_banner.dart';
 import '../../../core/widgets/google_sign_in_button.dart';
 import '../providers/auth_state_provider.dart';
 import '../widgets/auth_layout.dart';
+import '../widgets/field_label.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -23,6 +22,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
   late final AnimationController _animController;
   late final Animation<double> _fadeIn;
   late final Animation<Offset> _slideUp;
@@ -68,38 +68,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     ref.read(authScreenProvider.notifier).signInWithGoogle();
   }
 
-  Future<void> _handleForgotPassword() async {
-    final email = _emailController.text.trim();
-    if (Validators.email(email) != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Enter a valid email first.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
-    try {
-      await ref.read(authServiceProvider).sendPasswordReset(email);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Password reset email sent.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ErrorHandler.logError(e);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(ErrorHandler.userMessage(e)),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -174,7 +142,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   ],
                 ),
                 const SizedBox(height: 20),
-                Form(
+                AutofillGroup(
+                  child: Form(
                   key: _formKey,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -190,7 +159,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         ),
                         const SizedBox(height: 12),
                       ],
-                      const _FieldLabel(text: 'Email'),
+                      const FieldLabel(text: 'Email'),
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: _emailController,
@@ -199,15 +168,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         ),
                         keyboardType: TextInputType.emailAddress,
                         textInputAction: TextInputAction.next,
+                        autofillHints: const [AutofillHints.email],
                         validator: Validators.email,
                       ),
                       const SizedBox(height: 14),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const _FieldLabel(text: 'Password'),
+                          const FieldLabel(text: 'Password'),
                           TextButton(
-                            onPressed: _handleForgotPassword,
+                            onPressed: () => context.push('/forgot-password'),
                             style: TextButton.styleFrom(
                               minimumSize: Size.zero,
                               padding: const EdgeInsets.symmetric(
@@ -227,11 +197,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       const SizedBox(height: 6),
                       TextFormField(
                         controller: _passwordController,
-                        obscureText: true,
-                        decoration: const InputDecoration(
+                        obscureText: _obscurePassword,
+                        decoration: InputDecoration(
                           hintText: 'Your password',
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                              size: 20,
+                            ),
+                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          ),
                         ),
                         textInputAction: TextInputAction.done,
+                        autofillHints: const [AutofillHints.password],
                         onFieldSubmitted: (_) => _handleLogin(),
                         validator: _passwordRequired,
                       ),
@@ -271,6 +249,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     ],
                   ),
                 ),
+                ),
                 const SizedBox(height: 20),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -304,18 +283,3 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 }
 
-class _FieldLabel extends StatelessWidget {
-  final String text;
-
-  const _FieldLabel({required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: Theme.of(
-        context,
-      ).textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w500),
-    );
-  }
-}

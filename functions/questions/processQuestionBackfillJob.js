@@ -1,6 +1,17 @@
 /**
  * @module questions/processQuestionBackfillJob
- * @description Firestore-triggered worker for chained background question backfill jobs.
+ * @description Firestore-triggered worker for background question generation.
+ *
+ * ARCHITECTURE (v2 — single-shot loop):
+ *
+ *  Instead of chaining N Firestore job documents (one per retry), this worker
+ *  runs an internal loop within a single invocation. Each iteration generates
+ *  a batch of questions and checks progress. This eliminates:
+ *    - Excessive Firestore job documents
+ *    - Redundant question re-fetches between chained jobs
+ *    - Trigger propagation latency between job documents
+ *
+ *  The function has a 300s timeout — enough for 5+ Gemini calls (~10s each).
  */
 
 const functions = require("firebase-functions");
@@ -10,21 +21,29 @@ const { updateQuestionGenStats } = require("../ai/selfTuningCostEngine");
 const log = require("../lib/logger");
 const {
   QUESTION_BACKFILL_JOB_TYPE,
-  BACKFILL_STEP_COUNT,
   MAX_NO_PROGRESS_STREAK,
   fetchExistingQuestionState,
   resolveSourceFileName,
-  queueQuestionBackfillJob,
+  resolveExamType,
   generateAndPersistBatch,
 } = require("./generationPipeline");
 
-const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
+const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
+
+/** Maximum AI calls per single invocation. */
+const MAX_ITERATIONS = 5;
+
+/** Safety margin: stop looping if we're within this many ms of the function timeout. */
+const TIMEOUT_BUFFER_MS = 30_000;
+
+/** Function timeout in ms (must match runWith config). */
+const FUNCTION_TIMEOUT_MS = 300_000;
 
 exports.processQuestionBackfillJob = functions
   .runWith({
     timeoutSeconds: 300,
     memory: "512MB",
-    secrets: [geminiApiKey],
+    secrets: [anthropicApiKey],
   })
   .firestore.document("users/{uid}/jobs/{jobId}")
   .onCreate(async (snap, context) => {
@@ -32,10 +51,9 @@ exports.processQuestionBackfillJob = functions
     const { uid, jobId } = context.params;
     const job = snap.data() || {};
 
-    if (job.type !== QUESTION_BACKFILL_JOB_TYPE) {
-      return null;
-    }
+    if (job.type !== QUESTION_BACKFILL_JOB_TYPE) return null;
 
+    // ── Claim job via transaction ───────────────────────────────────────
     const claimed = await db.runTransaction(async (tx) => {
       const current = await tx.get(snap.ref);
       if (!current.exists) return false;
@@ -48,16 +66,11 @@ exports.processQuestionBackfillJob = functions
       return true;
     });
 
-    if (!claimed) {
-      return null;
-    }
+    if (!claimed) return null;
 
     const courseId = String(job.courseId || "");
     const sectionId = String(job.sectionId || "");
     const targetCount = Math.max(1, Math.min(30, Number(job.targetCount || 10)));
-    const attempt = Math.max(1, Number(job.attempt || 1));
-    const maxAttempts = Math.max(attempt, Number(job.maxAttempts || 30));
-    const noProgressStreak = Math.max(0, Number(job.noProgressStreak || 0));
     const sectionRef = db.doc(`users/${uid}/sections/${sectionId}`);
 
     if (!courseId || !sectionId) {
@@ -71,240 +84,168 @@ exports.processQuestionBackfillJob = functions
     }
 
     try {
+      // ── Validate section ──────────────────────────────────────────────
       const sectionDoc = await sectionRef.get();
       if (!sectionDoc.exists) {
-        await snap.ref.update({
-          status: "FAILED",
-          finishedAt: admin.firestore.FieldValue.serverTimestamp(),
-          durationMs: Date.now() - t0,
-          error: "Section not found for question backfill.",
-        });
+        await _failJob(snap.ref, t0, "Section not found for question backfill.");
         return null;
       }
 
       const section = sectionDoc.data();
       if (section.courseId !== courseId || !section.blueprint) {
-        await snap.ref.update({
-          status: "FAILED",
-          finishedAt: admin.firestore.FieldValue.serverTimestamp(),
-          durationMs: Date.now() - t0,
-          error: "Section is invalid for question backfill.",
-        });
+        await _failJob(snap.ref, t0, "Section is invalid for question backfill.");
         return null;
       }
 
-      const existingState = await fetchExistingQuestionState({ uid, courseId, sectionId });
-      const existingDistinctCount = existingState.distinctCount || existingState.count;
+      // Resolve metadata once (not per iteration)
+      const [sourceFileName, examType] = await Promise.all([
+        resolveSourceFileName(uid, section.fileId),
+        resolveExamType(uid, courseId),
+      ]);
 
-      if (existingDistinctCount >= targetCount) {
-        await Promise.all([
-          sectionRef.update({
-            questionsStatus: "COMPLETED",
-            questionsCount: existingState.count,
-            questionsErrorMessage: admin.firestore.FieldValue.delete(),
-            activeQuestionJobId: admin.firestore.FieldValue.delete(),
-            lastQuestionsDurationMs: Date.now() - t0,
-          }),
-          snap.ref.update({
-            status: "COMPLETED",
-            finishedAt: admin.firestore.FieldValue.serverTimestamp(),
-            finalCount: existingState.count,
-            durationMs: Date.now() - t0,
-            message: "Target already satisfied.",
-          }),
-        ]);
-        return null;
-      }
+      // ── Generation loop ───────────────────────────────────────────────
+      let totalGenerated = 0;
+      let totalSkipped = 0;
+      let totalAiRequests = 0;
+      let noProgressStreak = 0;
+      let iterations = 0;
+      let lastBatchStats = null;
 
-      if (attempt > maxAttempts || noProgressStreak >= MAX_NO_PROGRESS_STREAK) {
-        const fallbackStatus = existingDistinctCount > 0 ? "COMPLETED" : "FAILED";
-        await Promise.all([
-          sectionRef.update({
-            questionsStatus: fallbackStatus,
-            questionsCount: existingState.count,
-            activeQuestionJobId: admin.firestore.FieldValue.delete(),
-            questionsErrorMessage: fallbackStatus === "COMPLETED" ?
-              admin.firestore.FieldValue.delete() :
-              "Question backfill stopped before reaching the requested count.",
-            lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
-          }),
-          snap.ref.update({
-            status: "FAILED",
-            finishedAt: admin.firestore.FieldValue.serverTimestamp(),
-            finalCount: existingState.count,
-            durationMs: Date.now() - t0,
-            error: "Backfill stopped after too many attempts with limited progress.",
-          }),
-        ]);
-        return null;
-      }
+      for (let i = 0; i < MAX_ITERATIONS; i++) {
+        iterations++;
 
-      const sourceFileName = await resolveSourceFileName(uid, section.fileId);
-      const stepTarget = Math.min(targetCount, existingDistinctCount + BACKFILL_STEP_COUNT);
-      const batch = await generateAndPersistBatch({
-        uid,
-        courseId,
-        sectionId,
-        section,
-        sourceFileName,
-        existingCount: existingDistinctCount,
-        existingStems: existingState.stems,
-        existingStemList: existingState.stemList,
-        targetCount: stepTarget,
-      });
-
-      if (!batch.success) {
-        const nextNoProgressStreak = noProgressStreak + 1;
-        const shouldStop = attempt >= maxAttempts || nextNoProgressStreak >= MAX_NO_PROGRESS_STREAK;
-
-        if (shouldStop) {
-          const fallbackStatus = existingDistinctCount > 0 ? "COMPLETED" : "FAILED";
-          await Promise.all([
-            sectionRef.update({
-              questionsStatus: fallbackStatus,
-              questionsCount: existingState.count,
-              activeQuestionJobId: admin.firestore.FieldValue.delete(),
-              questionsErrorMessage: fallbackStatus === "COMPLETED" ?
-                admin.firestore.FieldValue.delete() :
-                batch.error || "Question backfill failed.",
-              lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
-            }),
-            snap.ref.update({
-              status: "FAILED",
-              finishedAt: admin.firestore.FieldValue.serverTimestamp(),
-              finalCount: existingState.count,
-              durationMs: Date.now() - t0,
-              error: batch.error || "Question backfill failed.",
-            }),
-          ]);
-          return null;
+        // Safety: stop if we're running low on time
+        if (Date.now() - t0 > FUNCTION_TIMEOUT_MS - TIMEOUT_BUFFER_MS) {
+          log.warn("Backfill loop stopping — approaching timeout", {
+            uid, sectionId, jobId,
+            elapsedMs: Date.now() - t0,
+            iterations,
+          });
+          break;
         }
 
-        const nextJobId = await queueQuestionBackfillJob({
+        // Refresh existing question state
+        const existingState = await fetchExistingQuestionState({ uid, courseId, sectionId });
+        const currentDistinct = existingState.distinctCount || existingState.count;
+
+        // Target reached — we're done!
+        if (currentDistinct >= targetCount) break;
+
+        // Too many failed attempts — stop
+        if (noProgressStreak >= MAX_NO_PROGRESS_STREAK) {
+          log.warn("Backfill stalled — no progress streak limit reached", {
+            uid, sectionId, jobId, noProgressStreak,
+          });
+          break;
+        }
+
+        // Generate a batch
+        const batch = await generateAndPersistBatch({
           uid,
           courseId,
           sectionId,
+          section,
+          sourceFileName,
+          existingCount: currentDistinct,
+          existingStems: existingState.stems,
+          existingStemList: existingState.stemList,
           targetCount,
-          attempt: attempt + 1,
-          maxAttempts,
-          noProgressStreak: nextNoProgressStreak,
-          parentJobId: jobId,
+          examType,
         });
 
-        await Promise.all([
-          sectionRef.update({
-            questionsStatus: "GENERATING",
-            questionsCount: existingState.count,
-            activeQuestionJobId: nextJobId,
-            lastQuestionsDurationMs: Date.now() - t0,
-          }),
-          snap.ref.update({
-            status: "COMPLETED",
-            finishedAt: admin.firestore.FieldValue.serverTimestamp(),
-            finalCount: existingState.count,
-            durationMs: Date.now() - t0,
-            generatedNow: 0,
-            nextJobId,
-            message: "Retry queued after failed backfill step.",
-          }),
-        ]);
-        return null;
+        lastBatchStats = batch;
+
+        if (!batch.success || (batch.generatedNow || 0) === 0) {
+          noProgressStreak++;
+          continue;
+        }
+
+        // Progress made — accumulate stats and reset streak
+        totalGenerated += batch.generatedNow;
+        totalSkipped += batch.skippedCount || 0;
+        totalAiRequests += batch.aiRequestCount || 0;
+        noProgressStreak = 0;
+
+        // Update section progress (so frontend can see count growing)
+        await sectionRef.update({
+          questionsStatus: "GENERATING",
+          questionsCount: existingState.count + batch.generatedNow,
+        });
       }
 
-      const finalCount = existingState.count + batch.generatedNow;
-      const finalDistinctCount = existingDistinctCount + batch.generatedNow;
-      const reachedTarget = finalDistinctCount >= targetCount;
-      const nextNoProgressStreak = batch.generatedNow > 0 ? 0 : noProgressStreak + 1;
-      const outOfAttempts = attempt >= maxAttempts;
-      const stalled = nextNoProgressStreak >= MAX_NO_PROGRESS_STREAK;
-      const questionGenStats = updateQuestionGenStats(section.questionGenStats, {
-        aiRequestCount: batch.aiRequestCount,
-        validProduced: batch.generatedNow,
-        duplicateSkipped: batch.duplicateStemSkipped,
-        latencyMs: batch.durationMs,
-        tokenBudget: batch.tokenBudget,
-      });
+      // ── Finalize ──────────────────────────────────────────────────────
+      const finalState = await fetchExistingQuestionState({ uid, courseId, sectionId });
+      const finalDistinct = finalState.distinctCount || finalState.count;
+      const reachedTarget = finalDistinct >= targetCount;
+      const finalStatus = reachedTarget ? "COMPLETED" : (finalDistinct > 0 ? "COMPLETED" : "FAILED");
 
-      if (reachedTarget || outOfAttempts || stalled) {
-        const fallbackStatus = finalDistinctCount > 0 ? "COMPLETED" : "FAILED";
-        await Promise.all([
-          sectionRef.update({
-            questionsStatus: reachedTarget ? "COMPLETED" : fallbackStatus,
-            questionsCount: finalCount,
-            questionGenStats,
-            lastQuestionsDurationMs: batch.durationMs,
-            activeQuestionJobId: admin.firestore.FieldValue.delete(),
-            questionsErrorMessage: reachedTarget || fallbackStatus === "COMPLETED" ?
-              admin.firestore.FieldValue.delete() :
-              "Question backfill stopped before reaching the requested count.",
-            lastErrorAt: reachedTarget ? admin.firestore.FieldValue.delete() : admin.firestore.FieldValue.serverTimestamp(),
-          }),
-          snap.ref.update({
-            status: reachedTarget || fallbackStatus === "COMPLETED" ? "COMPLETED" : "FAILED",
-            finishedAt: admin.firestore.FieldValue.serverTimestamp(),
-            finalCount,
-            durationMs: Date.now() - t0,
-            generatedNow: batch.generatedNow,
-            skippedCount: batch.skippedCount,
-            aiRequestCount: batch.aiRequestCount,
-            message: reachedTarget ?
-              "Backfill completed and target count reached." :
-              "Backfill stopped before target count was reached.",
-          }),
-        ]);
-        return null;
+      // Update self-tuning stats if we have batch data
+      let questionGenStats = section.questionGenStats || {};
+      if (lastBatchStats && lastBatchStats.success) {
+        questionGenStats = updateQuestionGenStats(questionGenStats, {
+          aiRequestCount: totalAiRequests,
+          validProduced: totalGenerated,
+          duplicateSkipped: totalSkipped,
+          latencyMs: Date.now() - t0,
+          tokenBudget: lastBatchStats.tokenBudget || 0,
+        });
       }
-
-      const nextJobId = await queueQuestionBackfillJob({
-        uid,
-        courseId,
-        sectionId,
-        targetCount,
-        attempt: attempt + 1,
-        maxAttempts,
-        noProgressStreak: nextNoProgressStreak,
-        parentJobId: jobId,
-      });
 
       await Promise.all([
         sectionRef.update({
-          questionsStatus: "GENERATING",
-          questionsCount: finalCount,
+          questionsStatus: finalStatus,
+          questionsCount: finalState.count,
           questionGenStats,
-          lastQuestionsDurationMs: batch.durationMs,
-          activeQuestionJobId: nextJobId,
-          questionsErrorMessage: admin.firestore.FieldValue.delete(),
+          lastQuestionsDurationMs: Date.now() - t0,
+          activeQuestionJobId: admin.firestore.FieldValue.delete(),
+          questionsErrorMessage: finalStatus === "COMPLETED"
+            ? admin.firestore.FieldValue.delete()
+            : "Question backfill did not reach target count.",
+          lastErrorAt: finalStatus === "COMPLETED"
+            ? admin.firestore.FieldValue.delete()
+            : admin.firestore.FieldValue.serverTimestamp(),
         }),
         snap.ref.update({
-          status: "COMPLETED",
+          status: finalStatus === "FAILED" ? "FAILED" : "COMPLETED",
           finishedAt: admin.firestore.FieldValue.serverTimestamp(),
-          finalCount,
+          finalCount: finalState.count,
+          totalGenerated,
+          totalSkipped,
+          totalAiRequests,
+          iterations,
+          noProgressStreak,
           durationMs: Date.now() - t0,
-          generatedNow: batch.generatedNow,
-          skippedCount: batch.skippedCount,
-          aiRequestCount: batch.aiRequestCount,
-          nextJobId,
-          message: "Backfill step completed; next step queued.",
+          message: reachedTarget
+            ? "Backfill completed — target reached."
+            : finalDistinct > 0
+              ? "Backfill completed with partial results."
+              : "Backfill failed — no questions could be generated.",
         }),
       ]);
+
+      log.info("Backfill job finished", {
+        uid, sectionId, jobId,
+        status: finalStatus,
+        targetCount,
+        finalCount: finalState.count,
+        totalGenerated,
+        iterations,
+        durationMs: Date.now() - t0,
+      });
 
       return null;
     } catch (error) {
       log.error("Question backfill job failed", {
-        uid,
-        jobId,
-        courseId,
-        sectionId,
+        uid, jobId, courseId, sectionId,
         error: error.message,
       });
 
+      // Recover: count whatever questions exist and set appropriate status
       let fallbackCount = 0;
       try {
-        const existingState = await fetchExistingQuestionState({ uid, courseId, sectionId, limit: 40 });
-        fallbackCount = existingState.count;
-      } catch {
-        // Ignore lookup failure and proceed with default fallback.
-      }
+        const state = await fetchExistingQuestionState({ uid, courseId, sectionId, limit: 40 });
+        fallbackCount = state.count;
+      } catch (err) { console.warn("fetchExistingQuestionState fallback failed:", err.message); }
 
       try {
         await sectionRef.set(
@@ -312,17 +253,16 @@ exports.processQuestionBackfillJob = functions
             questionsStatus: fallbackCount > 0 ? "COMPLETED" : "FAILED",
             questionsCount: fallbackCount,
             activeQuestionJobId: admin.firestore.FieldValue.delete(),
-            questionsErrorMessage: fallbackCount > 0 ?
-              admin.firestore.FieldValue.delete() :
-              (error.message || "Unexpected backfill error."),
+            questionsErrorMessage: fallbackCount > 0
+              ? admin.firestore.FieldValue.delete()
+              : (error.message || "Unexpected backfill error."),
             lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
           },
           { merge: true }
         );
       } catch (sectionUpdateError) {
         log.error("Failed to update section after backfill crash", {
-          uid,
-          sectionId,
+          uid, sectionId,
           error: sectionUpdateError.message,
         });
       }
@@ -334,6 +274,17 @@ exports.processQuestionBackfillJob = functions
         finalCount: fallbackCount,
         error: error.message || "Unexpected backfill error.",
       });
+
       return null;
     }
   });
+
+/** Helper: mark a job as failed with a message. */
+async function _failJob(jobRef, t0, errorMessage) {
+  await jobRef.update({
+    status: "FAILED",
+    finishedAt: admin.firestore.FieldValue.serverTimestamp(),
+    durationMs: Date.now() - t0,
+    error: errorMessage,
+  });
+}

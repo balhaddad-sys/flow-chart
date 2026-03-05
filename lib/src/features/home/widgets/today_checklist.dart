@@ -4,12 +4,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
-import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
-import '../../../core/utils/date_utils.dart';
 import '../../../core/widgets/empty_state.dart';
-import '../../../models/task_model.dart';
 import '../../../models/user_model.dart';
+import '../../planner/widgets/task_row.dart';
 import '../providers/home_provider.dart';
 
 class TodayChecklist extends ConsumerWidget {
@@ -23,188 +21,310 @@ class TodayChecklist extends ConsumerWidget {
 
     return tasksAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) {
-        // Parse common errors for user-friendly messages
-        final errorStr = e.toString().toLowerCase();
-
-        if (errorStr.contains('no_sections') ||
-            errorStr.contains('no analyzed sections')) {
-          return EmptyState(
-            icon: Icons.upload_file_outlined,
-            title: 'Get started',
-            subtitle: 'Upload your first study material to generate a personalized plan',
-            actionLabel: 'Upload File',
-            onAction: () {
-              // Navigate to library upload
-              final router = GoRouter.of(context);
-              router.go('/library');
-            },
-          );
-        }
-
-        // Generic error fallback
-        return EmptyState(
-          icon: Icons.error_outline,
-          title: 'Unable to load plan',
-          subtitle: 'Please try again or check your connection',
-          actionLabel: 'Retry',
-          onAction: () => ref.invalidate(todayTasksProvider(courseId)),
-        );
-      },
+      error: (e, _) => _buildError(context, ref, e),
       data: (tasks) {
         if (tasks.isEmpty) {
-          return EmptyState(
-            icon: Icons.check_circle_outline,
-            title: 'No tasks for today',
-            subtitle: 'Generate a plan to get started',
-            actionLabel: 'Generate Plan',
-            onAction: () async {
-              try {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Generating study plan...')),
-                  );
-                }
-                final user = await ref.read(userModelProvider.future);
-                final prefs = user?.preferences ?? const UserPreferences();
-                final courses = ref.read(coursesProvider).valueOrNull ?? [];
-                final course = courses.where((c) => c.id == courseId).firstOrNull;
-                await ref
-                    .read(cloudFunctionsServiceProvider)
-                    .generateSchedule(
-                      courseId: courseId,
-                      availability: <String, dynamic>{
-                        'defaultMinutesPerDay': prefs.dailyMinutesDefault,
-                        if (course != null && course.availability.perDayOverrides.isNotEmpty)
-                          'perDayOverrides': course.availability.perDayOverrides,
-                        if (course != null && course.availability.perDay.isNotEmpty)
-                          'perDay': course.availability.perDay,
-                        if (course != null && course.availability.excludedDates.isNotEmpty)
-                          'excludedDates': course.availability.excludedDates,
-                      },
-                      revisionPolicy: prefs.revisionPolicy,
-                    );
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Plan generated!')),
-                  );
-                }
-              } catch (e) {
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Failed: $e')),
-                  );
-                }
-              }
-            },
-          );
+          return _buildEmpty(context, ref);
         }
 
+        final doneCount = tasks.where((t) => t.status == 'DONE').length;
+        final allDone = doneCount == tasks.length;
+
         return Column(
-          children: tasks.map((task) => _TaskRow(task: task)).toList(),
+          children: [
+            // Progress header
+            _ProgressHeader(
+              done: doneCount,
+              total: tasks.length,
+            ),
+            const SizedBox(height: 8),
+
+            // Celebration or task list
+            if (allDone)
+              _CelebrationCard()
+            else
+              ...tasks.map(
+                (task) => TaskRow(task: task, compact: true),
+              ),
+          ],
         );
       },
     );
+  }
+
+  Widget _buildError(BuildContext context, WidgetRef ref, Object e) {
+    final errorStr = e.toString().toLowerCase();
+
+    if (errorStr.contains('no_sections') ||
+        errorStr.contains('no analyzed sections')) {
+      return EmptyState(
+        icon: Icons.upload_file_outlined,
+        title: 'Get started',
+        subtitle:
+            'Upload your first study material to generate a personalized plan',
+        actionLabel: 'Upload File',
+        onAction: () => GoRouter.of(context).go('/library'),
+      );
+    }
+
+    return EmptyState(
+      icon: Icons.error_outline,
+      title: 'Unable to load plan',
+      subtitle: 'Please try again or check your connection',
+      actionLabel: 'Retry',
+      onAction: () => ref.invalidate(todayTasksProvider(courseId)),
+    );
+  }
+
+  Widget _buildEmpty(BuildContext context, WidgetRef ref) {
+    return EmptyState(
+      icon: Icons.check_circle_outline,
+      title: 'No tasks for today',
+      subtitle: 'Generate a plan to get started',
+      actionLabel: 'Generate Plan',
+      onAction: () => _generatePlan(context, ref),
+    );
+  }
+
+  Future<void> _generatePlan(BuildContext context, WidgetRef ref) async {
+    try {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Generating study plan...')),
+        );
+      }
+      final user = await ref.read(userModelProvider.future);
+      final prefs = user?.preferences ?? const UserPreferences();
+      final courses = ref.read(coursesProvider).valueOrNull ?? [];
+      final course = courses.where((c) => c.id == courseId).firstOrNull;
+      await ref.read(cloudFunctionsServiceProvider).generateSchedule(
+            courseId: courseId,
+            availability: <String, dynamic>{
+              'defaultMinutesPerDay': prefs.dailyMinutesDefault,
+              if (course != null &&
+                  course.availability.perDayOverrides.isNotEmpty)
+                'perDayOverrides': course.availability.perDayOverrides,
+              if (course != null && course.availability.perDay.isNotEmpty)
+                'perDay': course.availability.perDay,
+              if (course != null &&
+                  course.availability.excludedDates.isNotEmpty)
+                'excludedDates': course.availability.excludedDates,
+            },
+            revisionPolicy: prefs.revisionPolicy,
+          );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Plan generated!')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: $e')),
+        );
+      }
+    }
   }
 }
 
-class _TaskRow extends ConsumerWidget {
-  final TaskModel task;
+// ---------------------------------------------------------------------------
+// Progress header with gradient bar + motivational message
+// ---------------------------------------------------------------------------
+class _ProgressHeader extends StatelessWidget {
+  final int done;
+  final int total;
 
-  const _TaskRow({required this.task});
+  const _ProgressHeader({required this.done, required this.total});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final isDone = task.status == 'DONE';
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final pct = total > 0 ? done / total : 0.0;
+    final message = _motivationalMessage(done, total);
 
     return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
-        color: isDone
-            ? AppColors.successSurface
-            : AppColors.surface,
+        color: isDark ? AppColors.darkSurface : AppColors.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
         border: Border.all(
-          color: isDone
-              ? AppColors.success.withValues(alpha: 0.2)
-              : AppColors.border,
+          color: isDark ? AppColors.darkBorder : AppColors.border,
         ),
-        boxShadow: isDone ? null : AppSpacing.shadowSm,
+        boxShadow: AppSpacing.shadowSm,
       ),
-      child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-        leading: GestureDetector(
-          onTap: () async {
-            if (!isDone) {
-              final uid = ref.read(uidProvider);
-              if (uid != null) {
-                await ref.read(firestoreServiceProvider).completeTask(uid, task.id);
-              }
-            }
-          },
-          child: Container(
-            width: 28,
-            height: 28,
-            decoration: BoxDecoration(
-              color: isDone
-                  ? AppColors.success
-                  : AppColors.surface,
-              shape: BoxShape.circle,
-              border: isDone
-                  ? null
-                  : Border.all(color: AppColors.border, width: 2),
-            ),
-            child: isDone
-                ? const Icon(Icons.check_rounded,
-                    color: Colors.white, size: 16)
-                : null,
-          ),
-        ),
-        title: Text(
-          task.title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                decoration: isDone ? TextDecoration.lineThrough : null,
-                color: isDone ? AppColors.textTertiary : AppColors.textPrimary,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row
+          Row(
+            children: [
+              Icon(
+                Icons.today_rounded,
+                size: 18,
+                color: AppColors.primary,
               ),
-        ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 2),
-          child: Text(
-            '${AppDateUtils.formatDuration(task.estMinutes)} | ${task.type}',
-            style: Theme.of(context).textTheme.bodySmall,
+              const SizedBox(width: 8),
+              Text(
+                "Today's Progress",
+                style: TextStyle(
+                  color: isDark
+                      ? AppColors.darkTextPrimary
+                      : AppColors.textPrimary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '$done/$total',
+                style: TextStyle(
+                  color: isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.textSecondary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
-        ),
-        trailing: _difficultyBadge(task.difficulty),
+          const SizedBox(height: 12),
+
+          // Gradient progress bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: pct),
+              duration: AppSpacing.animSlow,
+              curve: Curves.easeOutCubic,
+              builder: (_, value, __) => Stack(
+                children: [
+                  // Track
+                  Container(
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.08)
+                          : AppColors.primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                  // Fill
+                  FractionallySizedBox(
+                    widthFactor: value.clamp(0, 1),
+                    child: Container(
+                      height: 8,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.primary,
+                            AppColors.primary.withValues(alpha: 0.7),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Motivational message
+          Text(
+            message,
+            style: TextStyle(
+              color: isDark
+                  ? AppColors.darkTextSecondary
+                  : AppColors.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _difficultyBadge(int difficulty) {
-    final label = difficulty <= 2
-        ? 'Easy'
-        : difficulty <= 3
-            ? 'Med'
-            : 'Hard';
-    final color = difficulty <= 2
-        ? AppColors.difficultyEasy
-        : difficulty <= 3
-            ? AppColors.difficultyMedium
-            : AppColors.difficultyHard;
+  String _motivationalMessage(int done, int total) {
+    if (total == 0) return 'No tasks scheduled';
+    final pct = done / total;
+    if (pct >= 1.0) return 'All done for today!';
+    if (pct >= 0.75) return 'Almost there! Just ${total - done} left';
+    if (pct >= 0.5) return 'Halfway through! Keep it up';
+    if (done > 0) return 'Good start! ${total - done} tasks remaining';
+    return '$total tasks waiting. Let\'s begin!';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Celebration card when all tasks are done
+// ---------------------------------------------------------------------------
+class _CelebrationCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 24),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isDark
+              ? [
+                  AppColors.success.withValues(alpha: 0.15),
+                  AppColors.primary.withValues(alpha: 0.08),
+                ]
+              : [
+                  AppColors.success.withValues(alpha: 0.08),
+                  AppColors.primary.withValues(alpha: 0.04),
+                ],
         ),
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        border: Border.all(
+          color: AppColors.success.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Column(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: AppColors.success.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.celebration_rounded,
+              color: AppColors.success,
+              size: 28,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Great work today!',
+            style: TextStyle(
+              color: isDark
+                  ? AppColors.darkTextPrimary
+                  : AppColors.textPrimary,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'All tasks completed. Time to relax or review.',
+            style: TextStyle(
+              color: isDark
+                  ? AppColors.darkTextSecondary
+                  : AppColors.textSecondary,
+              fontSize: 13,
+            ),
+          ),
+        ],
       ),
     );
   }

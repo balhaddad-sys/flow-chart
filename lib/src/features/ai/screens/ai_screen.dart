@@ -6,6 +6,8 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
+import '../../../core/widgets/error_banner.dart';
+import '../../../core/widgets/error_state_view.dart';
 import '../../home/providers/home_provider.dart';
 import '../providers/ai_provider.dart';
 
@@ -352,11 +354,8 @@ class _HubViewState extends ConsumerState<_HubView> {
             // ── Thread list ─────────────────────────────────────────────────
             threadsAsync.when(
               loading:
-                  () => const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 24),
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-              error: (_, __) => const SizedBox.shrink(),
+                  () => _ThreadListSkeleton(isDark: isDark),
+              error: (e, _) => ErrorStateView(error: e),
               data: (_) {
                 if (filtered.isEmpty) {
                   return _EmptyThreads(
@@ -376,40 +375,28 @@ class _HubViewState extends ConsumerState<_HubView> {
             const SizedBox(height: 24),
 
             // ── Feature cards at bottom ──────────────────────────────────────
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: _FeatureCard(
-                    isDark: isDark,
-                    iconColor: AppColors.primary,
-                    iconBg: AppColors.primary.withValues(alpha: 0.10),
-                    icon: Icons.explore_rounded,
-                    title: 'Explore AI Tutor',
-                    description:
-                        'Generate adaptive quizzes and teaching outlines for any medical topic.',
-                    buttonLabel: 'Open Explore',
-                    enabled: true,
-                    onTap: () async { context.go('/ai/explore'); },
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _FeatureCard(
-                    isDark: isDark,
-                    iconColor: const Color(0xFF7C3AED),
-                    iconBg: const Color(0xFF7C3AED).withValues(alpha: 0.10),
-                    icon: Icons.chat_bubble_outline_rounded,
-                    title: 'Course Chat',
-                    description:
-                        'Keep persistent conversations tied to your active course.',
-                    buttonLabel: 'Create Thread',
-                    buttonIcon: Icons.auto_awesome_rounded,
-                    enabled: hasActiveCourse,
-                    onTap: widget.onNewThread,
-                  ),
-                ),
-              ],
+            _FeatureCardRow(
+              isDark: isDark,
+              iconColor: AppColors.primary,
+              iconBg: AppColors.primary.withValues(alpha: 0.10),
+              icon: Icons.explore_rounded,
+              title: 'Explore AI Tutor',
+              description:
+                  'Generate adaptive quizzes and teaching outlines for any medical topic.',
+              buttonLabel: 'Open Explore',
+              onTap: () => context.go('/ai/explore'),
+            ),
+            const SizedBox(height: 8),
+            _FeatureCardRow(
+              isDark: isDark,
+              iconColor: const Color(0xFF7C3AED),
+              iconBg: const Color(0xFF7C3AED).withValues(alpha: 0.10),
+              icon: Icons.chat_bubble_outline_rounded,
+              title: 'Course Chat',
+              description:
+                  'Keep persistent conversations tied to your active course.',
+              buttonLabel: hasActiveCourse ? 'New Chat' : 'Select a course first',
+              onTap: hasActiveCourse ? () => widget.onNewThread() : null,
             ),
           ],
         ),
@@ -797,8 +784,8 @@ class _ChatViewState extends ConsumerState<_ChatView> {
         children: [
           Expanded(
             child: messagesAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => const SizedBox.shrink(),
+              loading: () => _ChatLoadingSkeleton(isDark: isDark),
+              error: (e, _) => Center(child: ErrorBanner(message: ErrorHandler.userMessage(e))),
               data: (messages) {
                 return ListView.builder(
                   controller: _scrollController,
@@ -1092,9 +1079,9 @@ class _ChatViewState extends ConsumerState<_ChatView> {
   }
 }
 
-// ── Feature card ──────────────────────────────────────────────────────────────
+// ── Feature card (row layout) ────────────────────────────────────────────────
 
-class _FeatureCard extends StatelessWidget {
+class _FeatureCardRow extends StatelessWidget {
   final bool isDark;
   final Color iconColor;
   final Color iconBg;
@@ -1102,11 +1089,9 @@ class _FeatureCard extends StatelessWidget {
   final String title;
   final String description;
   final String buttonLabel;
-  final IconData? buttonIcon;
-  final bool enabled;
-  final Future<void> Function() onTap;
+  final VoidCallback? onTap;
 
-  const _FeatureCard({
+  const _FeatureCardRow({
     required this.isDark,
     required this.iconColor,
     required this.iconBg,
@@ -1114,100 +1099,73 @@ class _FeatureCard extends StatelessWidget {
     required this.title,
     required this.description,
     required this.buttonLabel,
-    this.buttonIcon,
-    required this.enabled,
-    required this.onTap,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: enabled ? () => onTap() : null,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isDark ? AppColors.darkSurface : AppColors.surface,
-          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          border: Border.all(
-            color: isDark ? AppColors.darkBorder : AppColors.border,
+    return Material(
+      color: isDark ? AppColors.darkSurface : AppColors.surface,
+      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+            border: Border.all(
+              color: isDark ? AppColors.darkBorder : AppColors.border,
+            ),
           ),
-          boxShadow:
-              isDark
-                  ? null
-                  : [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 4,
-                      offset: const Offset(0, 1),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 20, color: iconColor),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodyMedium
+                          ?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 1),
+                    Text(
+                      description,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: iconBg,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, size: 18, color: iconColor),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              description,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color:
-                    isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.textSecondary,
-                fontSize: 11,
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 10),
-            OutlinedButton(
-              onPressed: enabled ? () => onTap() : null,
-              style: OutlinedButton.styleFrom(
-                foregroundColor:
-                    isDark ? AppColors.darkTextPrimary : AppColors.textPrimary,
-                side: BorderSide(
-                  color: isDark ? AppColors.darkBorder : AppColors.border,
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                minimumSize: Size.zero,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                ),
-                textStyle: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
                 ),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (buttonIcon != null) ...[
-                    Icon(buttonIcon, size: 12),
-                    const SizedBox(width: 4),
-                  ],
-                  Text(buttonLabel),
-                ],
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: isDark
+                    ? AppColors.darkTextTertiary
+                    : AppColors.textTertiary,
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1258,6 +1216,133 @@ class _DotState extends State<_Dot> with SingleTickerProviderStateMixin {
           color: AppColors.textTertiary,
           shape: BoxShape.circle,
         ),
+      ),
+    );
+  }
+}
+
+// ── Thread list skeleton ────────────────────────────────────────────────────
+
+class _ThreadListSkeleton extends StatelessWidget {
+  final bool isDark;
+  const _ThreadListSkeleton({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: List.generate(3, (i) => Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isDark ? AppColors.darkSurface : AppColors.surface,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          border: Border.all(
+            color: isDark ? AppColors.darkBorder : AppColors.border,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant,
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    height: 12,
+                    width: 120.0 + (i * 20),
+                    decoration: BoxDecoration(
+                      color: isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    height: 10,
+                    width: 180.0 + (i * 10),
+                    decoration: BoxDecoration(
+                      color: (isDark ? AppColors.darkSurfaceVariant : AppColors.surfaceVariant)
+                          .withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      )),
+    );
+  }
+}
+
+// ── Chat loading skeleton ───────────────────────────────────────────────────
+
+class _ChatLoadingSkeleton extends StatelessWidget {
+  final bool isDark;
+  const _ChatLoadingSkeleton({required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 8),
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.auto_awesome_rounded,
+                    size: 16, color: AppColors.primary),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isDark ? AppColors.darkSurface : AppColors.surface,
+                    borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                    border: Border.all(
+                      color: isDark ? AppColors.darkBorder : AppColors.border,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: List.generate(3, (i) => Padding(
+                      padding: EdgeInsets.only(
+                        bottom: i < 2 ? 8 : 0,
+                        right: i == 2 ? 60 : 0,
+                      ),
+                      child: Container(
+                        height: 11,
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? AppColors.darkSurfaceVariant
+                              : AppColors.surfaceVariant,
+                          borderRadius: BorderRadius.circular(5),
+                        ),
+                      ),
+                    )),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 38),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -28,6 +28,17 @@ const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
 const MAX_STORED_QUESTIONS = 100;
 const DEFAULT_COUNT = 10;
 
+/**
+ * Generation version — bumped whenever prompts, AI model, or evidence-based
+ * approach changes significantly.  The client checks this field on the stored
+ * exam bank document and auto-clears stale questions when a newer version is
+ * deployed.
+ *
+ * v1 = Gemini-primary, no evidence mandate
+ * v2 = Claude-primary, evidence-based + recency mandates
+ */
+const GENERATION_VERSION = 2;
+
 /** Maps each exam type to its default MedQ assessment level. */
 const EXAM_DEFAULT_LEVELS = {
   PLAB1:       "MD3",
@@ -100,8 +111,8 @@ exports.generateExamBankQuestions = functions
   .runWith({
     timeoutSeconds: 180,
     memory: "512MB",
-    // Gemini = primary generator; Claude = fallback (both secrets needed)
-    secrets: [geminiApiKey, anthropicApiKey],
+    // Claude = primary generator; Gemini = fallback (both secrets needed)
+    secrets: [anthropicApiKey, geminiApiKey],
   })
   .https.onCall(async (data, context) => {
     const t0 = Date.now();
@@ -171,25 +182,27 @@ exports.generateExamBankQuestions = functions
         excludeStems,
       });
 
-      // Primary: Gemini (fast, low latency). Claude guides via learnedContext in prompt.
-      const geminiOpts = {
-        maxTokens: 3800,
-        retries: 1,
-        temperature: 0.12,
-        rateLimitMaxRetries: 1,
-        rateLimitRetryDelayMs: 2500,
-      };
-      let generationResult = await geminiGenerate(EXPLORE_QUESTIONS_SYSTEM, userPrompt, geminiOpts);
-      let modelUsed = "gemini";
+      // Primary: Claude (more surgical with evidence-based guidelines and citations)
+      // Token budget must accommodate full evidence-based explanations with
+      // guideline citations, trial references, and per-option reasoning.
+      const claudeOpts = { maxTokens: 8192, retries: 2, usePrefill: true };
+      let generationResult = await claudeGenerate(EXPLORE_QUESTIONS_SYSTEM, userPrompt, claudeOpts);
+      let modelUsed = "claude";
 
-      // Fallback: Claude if Gemini fails or returns nothing
+      // Fallback: Gemini if Claude fails or returns nothing
       if (!generationResult.success || !Array.isArray(generationResult.data?.questions) || generationResult.data.questions.length === 0) {
-        log.warn("Gemini exam bank generation failed, falling back to Claude", {
-          uid, examType, domain, geminiError: generationResult.error,
+        log.warn("Claude exam bank generation failed, falling back to Gemini", {
+          uid, examType, domain, claudeError: generationResult.error,
         });
-        const claudeOpts = { maxTokens: 4200, retries: 1, usePrefill: false };
-        generationResult = await claudeGenerate(EXPLORE_QUESTIONS_SYSTEM, userPrompt, claudeOpts);
-        modelUsed = "claude-fallback";
+        const geminiOpts = {
+          maxTokens: 8192,
+          retries: 1,
+          temperature: 0.12,
+          rateLimitMaxRetries: 2,
+          rateLimitRetryDelayMs: 8000,
+        };
+        generationResult = await geminiGenerate(EXPLORE_QUESTIONS_SYSTEM, userPrompt, geminiOpts);
+        modelUsed = "gemini-fallback";
       }
 
       const rawQuestions = Array.isArray(generationResult.data?.questions) ? generationResult.data.questions : [];
@@ -246,6 +259,7 @@ exports.generateExamBankQuestions = functions
           examType,
           totalCount: merged.length,
           domainsGenerated: updatedDomains,
+          generationVersion: GENERATION_VERSION,
           lastGeneratedAt: now,
           updatedAt: now,
           ...(existingDoc ? {} : { createdAt: now }),

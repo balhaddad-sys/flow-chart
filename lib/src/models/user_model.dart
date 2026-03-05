@@ -51,7 +51,15 @@ class TimestampConverter implements JsonConverter<DateTime?, dynamic> {
   DateTime? fromJson(dynamic json) {
     if (json == null) return null;
     if (json is Timestamp) return json.toDate();
-    if (json is String) return DateTime.parse(json);
+    if (json is String) return DateTime.tryParse(json);
+    // Handle {_seconds, _nanoseconds} from callable function responses
+    if (json is Map && json.containsKey('_seconds')) {
+      final seconds = json['_seconds'];
+      if (seconds is int) {
+        return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+      }
+    }
+    if (json is int) return DateTime.fromMillisecondsSinceEpoch(json);
     return null;
   }
 

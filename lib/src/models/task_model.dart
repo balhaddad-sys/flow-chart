@@ -30,7 +30,7 @@ class TaskModel with _$TaskModel {
     @SafeIntConverter() @Default(15) int estMinutes,
     @SafeNullableIntConverter() int? actualMinutes,
     @SafeIntConverter() @Default(3) int difficulty,
-    @TimestampConverter() required DateTime dueDate,
+    @RequiredTimestampConverter() required DateTime dueDate,
     TimeWindow? timeWindow,
     @SafeStringConverter() @Default('TODO') String status,
     @TimestampConverter() DateTime? completedAt,
@@ -48,6 +48,16 @@ class TaskModel with _$TaskModel {
 
   factory TaskModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>? ?? {};
-    return TaskModel.fromJson({...data, 'id': doc.id});
+    final json = Map<String, dynamic>.from(data);
+    json['id'] = doc.id;
+    // Fix: codegen generates DateTime.parse(... as String) for required DateTime
+    // fields because TimestampConverter returns DateTime? (nullable) which doesn't
+    // match the non-nullable field type. Convert Timestamp → ISO string here so
+    // the generated DateTime.parse() works.
+    final dueDate = json['dueDate'];
+    if (dueDate is Timestamp) {
+      json['dueDate'] = dueDate.toDate().toIso8601String();
+    }
+    return TaskModel.fromJson(json);
   }
 }

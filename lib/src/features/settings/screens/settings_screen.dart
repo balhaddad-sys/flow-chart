@@ -274,7 +274,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         isDark: isDark,
                         onTap: () => ref
                             .read(themeModeProvider.notifier)
-                            .state = ThemeMode.light,
+                            .mode = ThemeMode.light,
                       ),
                       const SizedBox(width: 8),
                       _ThemeButton(
@@ -284,7 +284,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         isDark: isDark,
                         onTap: () => ref
                             .read(themeModeProvider.notifier)
-                            .state = ThemeMode.dark,
+                            .mode = ThemeMode.dark,
                       ),
                       const SizedBox(width: 8),
                       _ThemeButton(
@@ -294,7 +294,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         isDark: isDark,
                         onTap: () => ref
                             .read(themeModeProvider.notifier)
-                            .state = ThemeMode.system,
+                            .mode = ThemeMode.system,
                       ),
                     ],
                   ),

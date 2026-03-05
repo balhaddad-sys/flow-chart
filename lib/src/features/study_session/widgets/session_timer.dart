@@ -1,7 +1,8 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_spacing.dart';
 
 class SessionTimer extends StatelessWidget {
   final int elapsedSeconds;
@@ -13,6 +14,7 @@ class SessionTimer extends StatelessWidget {
     final hours = elapsedSeconds ~/ 3600;
     final minutes = (elapsedSeconds % 3600) ~/ 60;
     final seconds = elapsedSeconds % 60;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final timeStr = hours > 0
         ? '${hours.toString().padLeft(2, '0')}:'
@@ -22,25 +24,33 @@ class SessionTimer extends StatelessWidget {
             '${seconds.toString().padLeft(2, '0')}';
 
     return Container(
-      margin: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: 14,
-        vertical: 6,
-      ),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.primarySurface,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+        color: AppColors.primary.withValues(alpha: isDark ? 0.15 : 0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppColors.primary.withValues(alpha: isDark ? 0.25 : 0.15),
+        ),
       ),
-      child: Text(
-        timeStr,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: AppColors.primary,
-              fontWeight: FontWeight.w700,
-              fontFeatures: [const FontFeature.tabularFigures()],
-            ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.timer_rounded,
+            size: 16,
+            color: AppColors.primary,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            timeStr,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w700,
+                  fontFeatures: [const FontFeature.tabularFigures()],
+                ),
+          ),
+        ],
       ),
     );
   }

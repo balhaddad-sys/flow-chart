@@ -12,6 +12,7 @@ import { useCourseStore } from "@/lib/stores/course-store";
 export function FileUploadZone() {
   const { uid } = useAuth();
   const courseId = useCourseStore((s) => s.activeCourseId);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploads, setUploads] = useState<
     Map<string, { name: string; progress: UploadProgress | null; error?: string }>
@@ -130,18 +131,24 @@ export function FileUploadZone() {
         </div>
         <p className="text-sm font-semibold">Drag and drop files here</p>
         <p className="mt-1 text-[12px] text-muted-foreground">PDF, PPTX, or DOCX (max 100MB)</p>
-        <label className="mt-4">
-          <Button variant="outline" size="sm" asChild>
-            <span>Browse Files</span>
-          </Button>
-          <input
-            type="file"
-            className="hidden"
-            accept=".pdf,.pptx,.docx"
-            multiple
-            onChange={(e) => e.target.files && handleFiles(e.target.files)}
-          />
-        </label>
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-4"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          Browse Files
+        </Button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          className="sr-only"
+          aria-hidden="true"
+          tabIndex={-1}
+          accept=".pdf,.pptx,.docx"
+          multiple
+          onChange={(e) => e.target.files && handleFiles(e.target.files)}
+        />
       </div>
 
       {uploads.size > 0 && (

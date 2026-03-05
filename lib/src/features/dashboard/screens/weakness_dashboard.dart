@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/error_state_view.dart';
 import '../../../core/widgets/primary_button.dart';
 import '../../home/providers/home_provider.dart';
 import '../providers/dashboard_provider.dart';
 import '../widgets/topic_weakness_row.dart';
+import '../../../core/widgets/skeleton_screens.dart';
 import '../widgets/fix_plan_card.dart';
 
 class WeaknessDashboard extends ConsumerWidget {
@@ -44,8 +46,8 @@ class WeaknessDashboard extends ConsumerWidget {
 
     return Scaffold(
       body: statsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        loading: () => const ListScreenSkeleton(itemCount: 4, itemHeight: 64),
+        error: (e, _) => ErrorStateView(error: e, onRetry: () => ref.invalidate(courseStatsProvider(courseId))),
         data: (stats) {
           if (stats == null || stats.weakestTopics.isEmpty) {
             return const EmptyState(

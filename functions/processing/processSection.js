@@ -21,12 +21,12 @@ const { DEFAULT_QUESTION_COUNT } = require("../lib/constants");
 const { computeSectionQuestionDifficultyCounts } = require("../lib/difficulty");
 const { normaliseBlueprint, normaliseQuestion } = require("../lib/serialize");
 const { stripOCRNoise } = require("../lib/sanitize");
-const { generateBlueprint, generateQuestions: aiGenerateQuestions } = require("../ai/geminiClient");
+const { generateBlueprint, generateQuestions: aiGenerateQuestions } = require("../ai/aiClient");
 const { BLUEPRINT_SYSTEM, blueprintUserPrompt, QUESTIONS_FROM_TEXT_SYSTEM, questionsFromTextUserPrompt } = require("../ai/prompts");
 const { maybeAutoGenerateSchedule } = require("../scheduling/autoSchedule");
 
 // Define the secret so the function can access it
-const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
+const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
 
 exports.processSection = functions
   .runWith({
@@ -34,7 +34,7 @@ exports.processSection = functions
     memory: "512MB",
     maxInstances: 20, // Higher concurrency safe with parallel calls (each instance finishes faster)
     minInstances: 1, // Keep warm to eliminate cold start latency
-    secrets: [geminiApiKey], // Grant access to the secret
+    secrets: [anthropicApiKey], // Grant access to the secret
   })
   .firestore.document("users/{uid}/sections/{sectionId}")
   .onCreate(async (snap, context) => {
@@ -149,6 +149,28 @@ exports.processSection = functions
 
       if (bpOk) {
         normalised = normaliseBlueprint(blueprintResult.value.data);
+
+        // Validate blueprint has actual content — empty arrays mean AI returned garbage
+        const bp = normalised.blueprint;
+        const hasContent = (bp.learningObjectives.length + bp.keyConcepts.length +
+          bp.highYieldPoints.length + bp.commonTraps.length + bp.termsToDefine.length) > 0;
+
+        if (!hasContent) {
+          log.warn("Blueprint normalised but all arrays empty — treating as failure", {
+            uid,
+            sectionId,
+            rawKeys: Object.keys(blueprintResult.value.data || {}),
+            durationMs: Date.now() - t0,
+          });
+          await snap.ref.update({
+            aiStatus: "FAILED",
+            questionsErrorMessage: "Blueprint analysis returned no content. Please retry.",
+            lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+          await maybeMarkFileReady(uid, sectionData.fileId);
+          return null;
+        }
+
         await snap.ref.update({
           aiStatus: "ANALYZED",
           title: normalised.title || sectionData.title,
@@ -160,6 +182,13 @@ exports.processSection = functions
         log.info("Blueprint generated", {
           uid,
           sectionId,
+          contentCounts: {
+            objectives: bp.learningObjectives.length,
+            concepts: bp.keyConcepts.length,
+            highYield: bp.highYieldPoints.length,
+            traps: bp.commonTraps.length,
+            terms: bp.termsToDefine.length,
+          },
           durationMs: Date.now() - t0,
           model: blueprintResult.value.model,
           tokens: blueprintResult.value.tokensUsed || null,
@@ -171,7 +200,6 @@ exports.processSection = functions
         log.error("Blueprint generation failed", { uid, sectionId, error: bpError, durationMs: Date.now() - t0 });
         await snap.ref.update({
           aiStatus: "FAILED",
-          questionsStatus: "FAILED",
           questionsErrorMessage: bpError || "Blueprint generation failed",
           lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
         });

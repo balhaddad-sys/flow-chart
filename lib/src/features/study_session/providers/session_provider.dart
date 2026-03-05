@@ -46,10 +46,11 @@ class SessionState {
 }
 
 class SessionNotifier extends StateNotifier<SessionState> {
+  final Ref _ref;
   Timer? _timer;
   bool _disposed = false;
 
-  SessionNotifier() : super(const SessionState());
+  SessionNotifier(this._ref) : super(const SessionState());
 
   void startSession({required String taskId, required String sectionId}) {
     state = SessionState(
@@ -59,6 +60,28 @@ class SessionNotifier extends StateNotifier<SessionState> {
       isTimerRunning: true,
     );
     _startTimer();
+    _preWarmQuestions(sectionId);
+  }
+
+  /// Fire-and-forget: if questions haven't been generated yet, trigger it
+  /// so they're ready by the time the user finishes studying.
+  Future<void> _preWarmQuestions(String sectionId) async {
+    try {
+      final uid = _ref.read(uidProvider);
+      if (uid == null) return;
+      final db = _ref.read(firestoreServiceProvider);
+      final section = await db.getSection(uid, sectionId);
+      if (section == null) return;
+      final status = section.questionsStatus;
+      if (status == 'PENDING' || status == 'FAILED') {
+        await _ref.read(cloudFunctionsServiceProvider).generateQuestions(
+              courseId: section.courseId,
+              sectionId: sectionId,
+            );
+      }
+    } catch (_) {
+      // Best-effort — don't disrupt the study session
+    }
   }
 
   void pauseSession() {
@@ -102,17 +125,16 @@ class SessionNotifier extends StateNotifier<SessionState> {
 
 final sessionProvider =
     StateNotifierProvider<SessionNotifier, SessionState>((ref) {
-  return SessionNotifier();
+  return SessionNotifier(ref);
 });
 
-/// Looks up a [SectionModel] by its document ID across all user sections.
+/// Streams a [SectionModel] by its document ID so blueprint updates arrive in real-time.
 final sectionForSessionProvider =
-    FutureProvider.family<SectionModel?, String>((ref, sectionId) async {
+    StreamProvider.family<SectionModel?, String>((ref, sectionId) {
   final uid = ref.watch(uidProvider);
-  if (uid == null) return null;
+  if (uid == null) return Stream.value(null);
   final db = ref.watch(firestoreServiceProvider);
-  final doc = await db.getSection(uid, sectionId);
-  return doc;
+  return db.streamSection(uid, sectionId);
 });
 
 /// Resolves a download URL for a file given its Firestore file ID.

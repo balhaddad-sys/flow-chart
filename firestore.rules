@@ -123,7 +123,13 @@ service cloud.firestore {
 
       match /examBank/{examId} {
         allow read: if isOwner(userId);
-        // Only Cloud Functions (Admin SDK) can write exam bank data
+        // Questions are created by Cloud Functions (Admin SDK).
+        // Client can create (save progress when doc doesn't exist yet),
+        // update (save progress), and delete (clear stale data).
+        allow create: if isOwner(userId)
+          && request.resource.data.keys().hasOnly(['progress']);
+        allow update: if isOwner(userId);
+        allow delete: if isOwner(userId);
       }
 
       match /jobs/{jobId} {
@@ -166,7 +172,8 @@ service cloud.firestore {
     // Read allowed for any signed-in user (needed for join-by-invite-code lookup)
     // Write restricted to members / creator
     match /studyGroups/{groupId} {
-      allow read: if isSignedIn();
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && request.auth.uid in resource.data.members;
       allow create: if isSignedIn()
         && hasRequiredFields(['name', 'inviteCode', 'createdBy', 'members'])
         && request.auth.uid == request.resource.data.createdBy

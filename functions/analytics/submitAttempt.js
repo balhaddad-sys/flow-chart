@@ -104,6 +104,7 @@ exports.submitAttempt = functions
       await attemptRef.set({
         questionId,
         courseId: question.courseId,
+        topicTag: (question.topicTags?.[0]) || null,
         taskId: null,
         answeredIndex: answerIndex,
         correct,
@@ -116,9 +117,18 @@ exports.submitAttempt = functions
       // ── Update question stats atomically ──────────────────────────────
       // Use Firestore increment to prevent race conditions with concurrent attempts
       if (questionRef) {
+        // Compute running average for avgTimeSec before incrementing timesAnswered
+        const questionData = question.stats || {};
+        const currentAvg = questionData.avgTimeSec || 0;
+        const currentCount = questionData.timesAnswered || 0;
+        const newAvg = currentCount > 0
+          ? Math.round((currentAvg * currentCount + timeSpentSec) / (currentCount + 1))
+          : timeSpentSec;
+
         await questionRef.update({
           "stats.timesAnswered": admin.firestore.FieldValue.increment(1),
           "stats.timesCorrect": admin.firestore.FieldValue.increment(correct ? 1 : 0),
+          "stats.avgTimeSec": newAvg,
         });
       }
 

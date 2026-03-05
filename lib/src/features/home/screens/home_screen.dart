@@ -7,16 +7,19 @@ import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../core/widgets/course_selector_sheet.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/error_state_view.dart';
 import '../../../models/course_model.dart';
 import '../../home/providers/home_provider.dart';
 import '../../library/providers/library_provider.dart';
 import '../../practice/providers/practice_provider.dart';
+import '../../quiz/widgets/quiz_setup_sheet.dart';
 import '../widgets/exam_countdown.dart';
 import '../widgets/diagnostic_directives.dart';
 import '../widgets/pipeline_progress.dart';
 import '../widgets/stats_cards.dart';
 import '../widgets/streak_graph.dart';
 import '../widgets/today_checklist.dart';
+import '../../../core/widgets/skeleton_screens.dart';
 import '../widgets/weak_topics_banner.dart';
 
 // Real exam types — matches web app REAL_EXAM_TYPES set
@@ -69,10 +72,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       } else {
         setState(() => _deckSeeded = true);
         final count = result['questionCount'] ?? 0;
-        _showSnackBar('Sample deck ready — $count high-yield questions loaded!', backgroundColor: const Color(0xFF059669));
+        _showSnackBar('Sample deck ready — $count high-yield questions loaded!', backgroundColor: AppColors.success);
       }
     } catch (e) {
-      _showSnackBar('Failed to load sample deck. Please try again.', backgroundColor: const Color(0xFFDC2626));
+      _showSnackBar('Failed to load sample deck. Please try again.', backgroundColor: AppColors.error);
     } finally {
       if (mounted) setState(() => _seedingDeck = false);
     }
@@ -82,9 +85,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     setState(() => _fixingPlan = true);
     try {
       await ref.read(cloudFunctionsServiceProvider).runFixPlan(courseId: courseId);
-      _showSnackBar('Remediation plan generated. Check your plan for updated tasks.', backgroundColor: const Color(0xFF059669));
+      _showSnackBar('Remediation plan generated. Check your plan for updated tasks.', backgroundColor: AppColors.success);
     } catch (e) {
-      _showSnackBar('Failed to generate remediation plan. Please try again.', backgroundColor: const Color(0xFFDC2626));
+      _showSnackBar('Failed to generate remediation plan. Please try again.', backgroundColor: AppColors.error);
     } finally {
       if (mounted) setState(() => _fixingPlan = false);
     }
@@ -99,8 +102,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Scaffold(
       backgroundColor: isDark ? AppColors.darkBackground : AppColors.background,
       body: coursesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        loading: () => const HomeScreenSkeleton(),
+        error: (e, _) => ErrorStateView(error: e, onRetry: () => ref.invalidate(coursesProvider)),
         data: (courses) {
           if (courses.isEmpty) {
             return EmptyState(
@@ -262,8 +265,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           Row(
                             children: [
                               ElevatedButton.icon(
-                                onPressed: () =>
-                                    context.go(primaryRoute),
+                                onPressed: () async {
+                                    if (primaryRoute == '/quiz/_all') {
+                                      final count = await QuizSetupSheet.show(
+                                        context,
+                                        sectionTitle: 'Quick Quiz',
+                                      );
+                                      if (count != null && context.mounted) {
+                                        context.push('/quiz/_all?mode=mixed&count=$count');
+                                      }
+                                    } else {
+                                      context.go(primaryRoute);
+                                    }
+                                  },
                                 icon: Icon(primaryIcon, size: 16),
                                 label: Text(primaryLabel),
                                 style: ElevatedButton.styleFrom(
@@ -658,12 +672,12 @@ class _ExamBankCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: const Color(0xFFFEF3C7),
+              color: AppColors.warningLight,
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(
               Icons.emoji_events_rounded,
-              color: Color(0xFFD97706),
+              color: AppColors.warning,
               size: 20,
             ),
           ),

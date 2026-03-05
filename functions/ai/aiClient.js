@@ -23,6 +23,7 @@
  */
 
 const Anthropic = require("@anthropic-ai/sdk");
+const { jsonrepair } = require("jsonrepair");
 
 // Model identifiers — update here to roll out a new model globally.
 const MODELS = {
@@ -67,17 +68,24 @@ function getClient() {
 
 /**
  * Robust JSON extraction: handles code fences, leading/trailing text,
- * and other common Claude output quirks.
+ * truncated output, and other common Claude output quirks.
+ *
+ * Layers (in order):
+ *  1. Direct JSON.parse
+ *  2. Strip code fences + parse
+ *  3. Brace-match extraction + parse
+ *  4. jsonrepair (handles truncated/malformed JSON from token limits)
+ *
  * @param {string} text - Raw model output
- * @returns {string} Extracted JSON string
+ * @returns {string} Extracted JSON string (guaranteed parseable)
  */
 function extractJsonFromText(text) {
-  // Try direct parse first (fast path)
+  // Layer 1: Try direct parse (fast path)
   try {
     JSON.parse(text);
     return text;
   } catch {
-    // continue to cleanup
+    // continue
   }
 
   // Strip markdown code fences and trim
@@ -86,15 +94,15 @@ function extractJsonFromText(text) {
     .replace(/```\s*/g, "")
     .trim();
 
-  // Try direct parse after cleaning
+  // Layer 2: Try direct parse after cleaning
   try {
     JSON.parse(cleaned);
     return cleaned;
   } catch {
-    // continue to brace-matching
+    // continue
   }
 
-  // Find first JSON object or array boundaries
+  // Layer 3: Brace-match extraction
   const firstOpen = Math.min(
     cleaned.indexOf("{") === -1 ? Infinity : cleaned.indexOf("{"),
     cleaned.indexOf("[") === -1 ? Infinity : cleaned.indexOf("[")
@@ -107,11 +115,33 @@ function extractJsonFromText(text) {
   const closeChar = isArray ? "]" : "}";
   const lastClose = cleaned.lastIndexOf(closeChar);
 
-  if (lastClose <= firstOpen) {
-    throw new Error("Malformed JSON boundaries in model output.");
+  if (lastClose > firstOpen) {
+    const extracted = cleaned.slice(firstOpen, lastClose + 1);
+    try {
+      JSON.parse(extracted);
+      return extracted;
+    } catch {
+      // continue to repair
+    }
+
+    // Layer 4: jsonrepair — handles truncated JSON from token limits
+    try {
+      const repaired = jsonrepair(extracted);
+      JSON.parse(repaired); // validate
+      return repaired;
+    } catch {
+      // continue
+    }
   }
 
-  return cleaned.slice(firstOpen, lastClose + 1);
+  // Layer 4b: jsonrepair on full cleaned text (last resort)
+  try {
+    const repaired = jsonrepair(cleaned);
+    JSON.parse(repaired);
+    return repaired;
+  } catch {
+    throw new Error("Failed to parse or repair JSON from model output.");
+  }
 }
 
 /**

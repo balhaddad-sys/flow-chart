@@ -44,6 +44,11 @@ class PlannerActionsNotifier extends StateNotifier<AsyncValue<void>> {
 
   PlannerActionsNotifier(this._ref) : super(const AsyncData(null));
 
+  /// Clear any stale error/loading state (e.g. on course change).
+  void reset() {
+    state = const AsyncData(null);
+  }
+
   Map<String, dynamic> _buildAvailability(UserPreferences prefs, String courseId) {
     final courses = _ref.read(coursesProvider).valueOrNull ?? [];
     final course = courses.where((c) => c.id == courseId).firstOrNull;
@@ -130,9 +135,47 @@ class PlannerActionsNotifier extends StateNotifier<AsyncValue<void>> {
       state = AsyncError(e, st);
     }
   }
+
+  Future<void> catchUp(String courseId) async {
+    state = const AsyncLoading();
+    try {
+      await _ref.read(cloudFunctionsServiceProvider).catchUp(courseId: courseId);
+      _ref.invalidate(allTasksProvider(courseId));
+      state = const AsyncData(null);
+    } catch (e, st) {
+      state = AsyncError(e, st);
+    }
+  }
 }
 
 final plannerActionsProvider =
     StateNotifierProvider<PlannerActionsNotifier, AsyncValue<void>>((ref) {
   return PlannerActionsNotifier(ref);
 });
+
+/// Calendar density — how many tasks per day.
+final taskDensityProvider =
+    Provider.family<Map<DateTime, int>, List<TaskModel>>((ref, tasks) {
+  final density = <DateTime, int>{};
+  for (final task in tasks) {
+    final key = DateTime(task.dueDate.year, task.dueDate.month, task.dueDate.day);
+    density[key] = (density[key] ?? 0) + 1;
+  }
+  return density;
+});
+
+/// Overdue TODO tasks (dueDate before today).
+final overdueTasksProvider =
+    Provider.family<List<TaskModel>, List<TaskModel>>((ref, tasks) {
+  final today = DateTime.now();
+  final todayKey = DateTime(today.year, today.month, today.day);
+  return tasks
+      .where((t) =>
+          DateTime(t.dueDate.year, t.dueDate.month, t.dueDate.day)
+              .isBefore(todayKey) &&
+          t.status == 'TODO')
+      .toList();
+});
+
+/// Currently selected date in the calendar strip.
+final selectedDateProvider = StateProvider<DateTime?>((ref) => null);

@@ -528,51 +528,53 @@ exports.exploreTopicInsight = functions
     });
 
     try {
-      const geminiT0 = Date.now();
-      const geminiResult = await withTimeout(
-        geminiGenerate(EXPLORE_TOPIC_INSIGHT_SYSTEM, prompt, {
-          maxTokens: 6_000,
+      // Claude is primary — more surgical with evidence-based content and citations
+      const claudeT0 = Date.now();
+      const claudeResult = await withTimeout(
+        claudeGenerate(EXPLORE_TOPIC_INSIGHT_SYSTEM, prompt, {
+          maxTokens: 7_000,
           retries: 1,
-          temperature: 0.15,
-          rateLimitMaxRetries: 1,
-          rateLimitRetryDelayMs: 2500,
+          usePrefill: true,
         }).catch((error) => ({ success: false, error: error.message })),
-        GEMINI_TIMEOUT_MS,
-        "Gemini topic insight"
+        CLAUDE_TIMEOUT_MS,
+        "Claude topic insight"
       );
-      const geminiDurationMs = Date.now() - geminiT0;
+      const claudeDurationMs = Date.now() - claudeT0;
 
-      let payload = geminiResult.success && geminiResult.data ?
-        normaliseInsightPayload(geminiResult.data, topic) :
+      let payload = claudeResult.success && claudeResult.data ?
+        normaliseInsightPayload(claudeResult.data, topic) :
         null;
-      let modelUsed = "gemini";
+      let modelUsed = "claude";
 
       if (!payload) {
-        const claudeT0 = Date.now();
-        const claudeResult = await withTimeout(
-          claudeGenerate(EXPLORE_TOPIC_INSIGHT_SYSTEM, prompt, {
-            maxTokens: 7_000,
+        // Gemini fallback if Claude fails
+        const geminiT0 = Date.now();
+        const geminiResult = await withTimeout(
+          geminiGenerate(EXPLORE_TOPIC_INSIGHT_SYSTEM, prompt, {
+            maxTokens: 6_000,
             retries: 1,
-            usePrefill: false,
+            temperature: 0.15,
+            rateLimitMaxRetries: 1,
+            rateLimitRetryDelayMs: 2500,
           }).catch((error) => ({ success: false, error: error.message })),
-          CLAUDE_TIMEOUT_MS,
-          "Claude topic insight fallback"
+          GEMINI_TIMEOUT_MS,
+          "Gemini topic insight fallback"
         );
-        const claudeDurationMs = Date.now() - claudeT0;
+        const geminiDurationMs = Date.now() - geminiT0;
 
-        payload = claudeResult.success && claudeResult.data ?
-          normaliseInsightPayload(claudeResult.data, topic) :
+        payload = geminiResult.success && geminiResult.data ?
+          normaliseInsightPayload(geminiResult.data, topic) :
           null;
-        modelUsed = "claude-fallback";
+        modelUsed = "gemini-fallback";
 
         log.info("Explore topic insight generated with fallback", {
           uid,
           topic,
           level: levelProfile.id,
-          geminiSuccess: geminiResult.success,
-          geminiDurationMs,
           claudeSuccess: claudeResult.success,
           claudeDurationMs,
+          geminiSuccess: geminiResult.success,
+          geminiDurationMs,
         });
       } else {
         log.info("Explore topic insight generated", {
@@ -580,7 +582,7 @@ exports.exploreTopicInsight = functions
           topic,
           level: levelProfile.id,
           modelUsed,
-          geminiDurationMs,
+          claudeDurationMs,
         });
       }
 

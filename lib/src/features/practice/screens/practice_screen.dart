@@ -6,7 +6,10 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../models/section_model.dart';
+import '../../../core/widgets/error_state_view.dart';
 import '../../home/providers/home_provider.dart';
+import '../../../core/widgets/skeleton_screens.dart';
+import '../../quiz/widgets/quiz_setup_sheet.dart';
 import '../providers/practice_provider.dart';
 
 // ── Bucket helpers ────────────────────────────────────────────────────────────
@@ -44,6 +47,14 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
             sectionId: sectionId,
             count: 10,
           );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Questions are generating in the background. You can navigate away.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -141,27 +152,8 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
     final sectionsAsync = ref.watch(courseSectionsProvider(courseId));
 
     return sectionsAsync.when(
-      loading: () => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Practice',
-              style: Theme.of(context)
-                  .textTheme
-                  .headlineMedium
-                  ?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.5,
-                  ),
-            ),
-            const SizedBox(height: 32),
-            const Center(child: CircularProgressIndicator()),
-          ],
-        ),
-      ),
-      error: (_, __) => const SizedBox.shrink(),
+      loading: () => const ListScreenSkeleton(),
+      error: (e, _) => ErrorStateView(error: e, onRetry: () => ref.invalidate(courseSectionsProvider(courseId))),
       data: (sections) {
         final ready = sections
             .where((s) => _getBucket(s) == _Bucket.ready)
@@ -350,7 +342,20 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
             borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             child: InkWell(
               borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-              onTap: () => context.push(m.route),
+              onTap: () async {
+                if (m.route.startsWith('/quiz/')) {
+                  final count = await QuizSetupSheet.show(
+                    context,
+                    sectionTitle: m.label,
+                  );
+                  if (count != null && context.mounted) {
+                    final separator = m.route.contains('?') ? '&' : '?';
+                    context.push('${m.route}${separator}count=$count');
+                  }
+                } else {
+                  context.push(m.route);
+                }
+              },
               child: Container(
                 padding: const EdgeInsets.symmetric(
                     horizontal: 14, vertical: 12),
@@ -655,11 +660,32 @@ class _SectionCard extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           if (canStartQuiz)
-            _ActionBtn(
-              label: 'Start Quiz',
-              icon: Icons.help_outline_rounded,
-              filled: true,
-              onTap: () => context.push('/quiz/${section.id}'),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _ActionBtn(
+                  label: 'Study',
+                  icon: Icons.auto_stories_rounded,
+                  filled: false,
+                  onTap: () => context.push('/study/_direct/${section.id}'),
+                ),
+                const SizedBox(width: 6),
+                _ActionBtn(
+                  label: 'Quiz',
+                  icon: Icons.quiz_outlined,
+                  filled: true,
+                  onTap: () async {
+                    final count = await QuizSetupSheet.show(
+                      context,
+                      sectionTitle: section.title,
+                      availableCount: section.questionsCount,
+                    );
+                    if (count != null && context.mounted) {
+                      context.push('/quiz/${section.id}?count=$count');
+                    }
+                  },
+                ),
+              ],
             )
           else if (canGenerate)
             _ActionBtn(
@@ -851,7 +877,7 @@ class _StatusBadge extends StatelessWidget {
         label,
         style: TextStyle(
           color: fg,
-          fontSize: 9,
+          fontSize: 10,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.2,
         ),

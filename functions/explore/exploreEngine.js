@@ -4,8 +4,8 @@
  */
 
 const { normaliseQuestion } = require("../lib/serialize");
-const { generateQuestions: geminiGenerate } = require("../ai/geminiClient");
 const { generateQuestions: claudeGenerate } = require("../ai/aiClient");
+const { generateQuestions: geminiGenerate } = require("../ai/geminiClient");
 const { EXPLORE_QUESTIONS_SYSTEM, exploreQuestionsUserPrompt } = require("../ai/prompts");
 
 const ADVANCED_LEVELS = new Set(["MD4", "MD5", "INTERN", "RESIDENT", "POSTGRADUATE"]);
@@ -14,10 +14,11 @@ const EXPERT_LEVELS = new Set(["RESIDENT", "POSTGRADUATE"]);
 const MAX_PRIMARY_REQUEST_COUNT_ADVANCED = 12;
 const MAX_SUPPLEMENT_REQUEST_COUNT = 10;
 
-const FAST_GEMINI_TIMEOUT_MS = 25_000;
-const FAST_CLAUDE_TIMEOUT_MS = 25_000;
-const FULL_GEMINI_TIMEOUT_MS = 45_000;
-const FULL_CLAUDE_TIMEOUT_MS = 45_000;
+// Claude is primary (more surgical with evidence-based content)
+const FAST_PRIMARY_TIMEOUT_MS = 30_000;
+const FAST_FALLBACK_TIMEOUT_MS = 25_000;
+const FULL_PRIMARY_TIMEOUT_MS = 55_000;
+const FULL_FALLBACK_TIMEOUT_MS = 45_000;
 
 function buildExploreTargets(levelProfile, requestedCount) {
   const safeCount = Math.max(3, requestedCount);
@@ -53,9 +54,10 @@ function buildExploreTargets(levelProfile, requestedCount) {
 
 function buildTokenBudget(requestCount, { advanced = false, rescue = false, fast = false } = {}) {
   const safeCount = Math.max(3, Math.min(20, Number(requestCount) || 10));
-  const base = fast ? 560 : advanced ? 900 : 700;
-  const perQuestion = fast ? 170 : advanced ? 240 : 210;
-  const hardCap = rescue ? 4200 : fast ? 2600 : advanced ? 4600 : 3800;
+  // Evidence-based responses with guideline citations need more tokens per question
+  const base = fast ? 700 : advanced ? 1100 : 900;
+  const perQuestion = fast ? 280 : advanced ? 380 : 320;
+  const hardCap = rescue ? 6000 : fast ? 4500 : advanced ? 8192 : 6500;
   return Math.min(hardCap, base + safeCount * perQuestion);
 }
 
@@ -261,65 +263,65 @@ async function generateFastStartQuestions({
     });
 
   const prompt = buildPrompt({ requestCount: primaryRequestCount });
-  const geminiOpts = {
+  const claudeOpts = {
     maxTokens: buildTokenBudget(primaryRequestCount, { advanced: isAdvanced, fast: true }),
     retries: 0,
-    temperature: isAdvanced ? 0.1 : 0.12,
-    rateLimitMaxRetries: 1,
-    rateLimitRetryDelayMs: 2500,
+    usePrefill: true,
   };
 
-  const geminiT0 = Date.now();
-  const geminiResult = await withTimeout(
-    geminiGenerate(EXPLORE_QUESTIONS_SYSTEM, prompt, geminiOpts).catch((error) => ({
+  const claudeT0 = Date.now();
+  const claudeResult = await withTimeout(
+    claudeGenerate(EXPLORE_QUESTIONS_SYSTEM, prompt, claudeOpts).catch((error) => ({
       success: false,
       error: error.message,
     })),
-    FAST_GEMINI_TIMEOUT_MS,
-    "Gemini fast generation"
+    FAST_PRIMARY_TIMEOUT_MS,
+    "Claude fast generation"
   );
-  phaseDurationsMs.geminiFast = Date.now() - geminiT0;
+  phaseDurationsMs.claudeFast = Date.now() - claudeT0;
 
   let questions =
-    geminiResult.success && geminiResult.data?.questions
+    claudeResult.success && claudeResult.data?.questions
       ? normaliseExploreQuestions(
-        geminiResult.data.questions,
+        claudeResult.data.questions,
         topic,
         levelProfile,
         primaryRequestCount,
         excludeStemSet
       )
       : [];
-  let modelUsed = "gemini-fast";
+  let modelUsed = "claude-fast";
 
   if (questions.length === 0) {
     const fallbackPrompt = buildPrompt({ requestCount: primaryRequestCount });
-    const claudeOpts = {
+    const geminiOpts = {
       maxTokens: buildTokenBudget(primaryRequestCount, { advanced: isAdvanced, fast: true }),
       retries: 0,
-      usePrefill: false,
+      temperature: isAdvanced ? 0.1 : 0.12,
+      rateLimitMaxRetries: 1,
+      rateLimitRetryDelayMs: 2500,
     };
 
-    const claudeT0 = Date.now();
-    const claudeResult = await withTimeout(
-      claudeGenerate(EXPLORE_QUESTIONS_SYSTEM, fallbackPrompt, claudeOpts).catch((error) => ({
+    const geminiT0 = Date.now();
+    const geminiResult = await withTimeout(
+      geminiGenerate(EXPLORE_QUESTIONS_SYSTEM, fallbackPrompt, geminiOpts).catch((error) => ({
         success: false,
         error: error.message,
       })),
-      FAST_CLAUDE_TIMEOUT_MS,
-      "Claude fast fallback generation"
+      FAST_FALLBACK_TIMEOUT_MS,
+      "Gemini fast fallback generation"
     );
-    phaseDurationsMs.claudeFastFallback = Date.now() - claudeT0;
+    phaseDurationsMs.geminiFastFallback = Date.now() - geminiT0;
 
-    if (claudeResult.success && claudeResult.data?.questions) {
+    if (geminiResult.success && geminiResult.data?.questions) {
       questions = normaliseExploreQuestions(
-        claudeResult.data.questions,
+        geminiResult.data.questions,
         topic,
         levelProfile,
         primaryRequestCount,
         excludeStemSet
       );
-      modelUsed = "claude-fast-fallback";
+      modelUsed = "gemini-fast-fallback";
     }
   }
 
@@ -371,29 +373,28 @@ async function generateFullQuestions({
     requestCount: primaryRequestCount,
     excludeStems: Array.from(excludeStemSet).slice(0, 8),
   });
-  const geminiPrimaryOpts = {
+  // Claude is primary — more surgical with evidence-based guidelines and citations
+  const claudePrimaryOpts = {
     maxTokens: buildTokenBudget(primaryRequestCount, { advanced: isAdvanced }),
     retries: 1,
-    temperature: isAdvanced ? 0.1 : 0.12,
-    rateLimitMaxRetries: 1,
-    rateLimitRetryDelayMs: 2500,
+    usePrefill: true,
   };
 
-  const geminiPrimaryT0 = Date.now();
-  const geminiPrimaryResult = await withTimeout(
-    geminiGenerate(EXPLORE_QUESTIONS_SYSTEM, primaryPrompt, geminiPrimaryOpts).catch((error) => ({
+  const claudePrimaryT0 = Date.now();
+  const claudePrimaryResult = await withTimeout(
+    claudeGenerate(EXPLORE_QUESTIONS_SYSTEM, primaryPrompt, claudePrimaryOpts).catch((error) => ({
       success: false,
       error: error.message,
     })),
-    FULL_GEMINI_TIMEOUT_MS,
-    "Gemini primary generation"
+    FULL_PRIMARY_TIMEOUT_MS,
+    "Claude primary generation"
   );
-  phaseDurationsMs.geminiPrimary = Date.now() - geminiPrimaryT0;
+  phaseDurationsMs.claudePrimary = Date.now() - claudePrimaryT0;
 
-  const geminiPrimaryQs =
-    geminiPrimaryResult.success && geminiPrimaryResult.data?.questions
+  const claudePrimaryQs =
+    claudePrimaryResult.success && claudePrimaryResult.data?.questions
       ? normaliseExploreQuestions(
-        geminiPrimaryResult.data.questions,
+        claudePrimaryResult.data.questions,
         topic,
         levelProfile,
         primaryRequestCount,
@@ -403,42 +404,42 @@ async function generateFullQuestions({
 
   let questions = [];
   let metrics = qualityMetrics([], levelProfile);
-  let modelUsed = "gemini";
+  let modelUsed = "claude";
 
   if (isAdvanced) {
-    let geminiAggregate = [...geminiPrimaryQs];
-    modelUsed = "gemini-primary";
+    let claudeAggregate = [...claudePrimaryQs];
+    modelUsed = "claude-primary";
 
-    if (geminiAggregate.length < requestedCount) {
-      const missing = Math.max(0, requestedCount - geminiAggregate.length);
+    if (claudeAggregate.length < requestedCount) {
+      const missing = Math.max(0, requestedCount - claudeAggregate.length);
       const supplementRequestCount = Math.min(MAX_SUPPLEMENT_REQUEST_COUNT, Math.max(3, missing + 1));
 
       if (supplementRequestCount >= 3) {
         const supplementPrompt = buildPrompt({
           requestCount: supplementRequestCount,
-          excludeStems: extractStemHints(geminiAggregate).concat(Array.from(excludeStemSet).slice(0, 4)),
+          excludeStems: extractStemHints(claudeAggregate).concat(Array.from(excludeStemSet).slice(0, 4)),
         });
-        const geminiSupplementOpts = {
-          ...geminiPrimaryOpts,
+        const claudeSupplementOpts = {
+          ...claudePrimaryOpts,
           maxTokens: buildTokenBudget(supplementRequestCount, { advanced: true }),
           retries: 0,
         };
 
-        const geminiSupplementT0 = Date.now();
-        const geminiSupplementResult = await withTimeout(
-          geminiGenerate(EXPLORE_QUESTIONS_SYSTEM, supplementPrompt, geminiSupplementOpts).catch((error) => ({
+        const claudeSupplementT0 = Date.now();
+        const claudeSupplementResult = await withTimeout(
+          claudeGenerate(EXPLORE_QUESTIONS_SYSTEM, supplementPrompt, claudeSupplementOpts).catch((error) => ({
             success: false,
             error: error.message,
           })),
-          FULL_GEMINI_TIMEOUT_MS,
-          "Gemini supplement generation"
+          FULL_PRIMARY_TIMEOUT_MS,
+          "Claude supplement generation"
         );
-        phaseDurationsMs.geminiSupplement = Date.now() - geminiSupplementT0;
+        phaseDurationsMs.claudeSupplement = Date.now() - claudeSupplementT0;
 
-        const geminiSupplementQs =
-          geminiSupplementResult.success && geminiSupplementResult.data?.questions
+        const claudeSupplementQs =
+          claudeSupplementResult.success && claudeSupplementResult.data?.questions
             ? normaliseExploreQuestions(
-              geminiSupplementResult.data.questions,
+              claudeSupplementResult.data.questions,
               topic,
               levelProfile,
               supplementRequestCount,
@@ -446,18 +447,18 @@ async function generateFullQuestions({
             )
             : [];
 
-        if (geminiSupplementQs.length > 0) {
-          geminiAggregate = mergeQuestionSets(
-            [geminiAggregate, geminiSupplementQs],
+        if (claudeSupplementQs.length > 0) {
+          claudeAggregate = mergeQuestionSets(
+            [claudeAggregate, claudeSupplementQs],
             levelProfile,
             Math.max(requestedCount, primaryRequestCount)
           );
-          modelUsed = "gemini-primary+supplement";
+          modelUsed = "claude-primary+supplement";
         }
       }
     }
 
-    questions = prioritiseQuestions(geminiAggregate, levelProfile, requestedCount);
+    questions = prioritiseQuestions(claudeAggregate, levelProfile, requestedCount);
     metrics = qualityMetrics(questions, levelProfile);
 
     const elapsed = Date.now() - startedAt;
@@ -472,6 +473,7 @@ async function generateFullQuestions({
         targets,
       })
     ) {
+      // Use Gemini as rescue when Claude supplement wasn't enough
       const rescueRequestCount = computeRescueRequestCount({
         requestedCount,
         currentCount: questions.length,
@@ -486,27 +488,29 @@ async function generateFullQuestions({
           strictMode: true,
           conciseMode: true,
         });
-        const claudeRescueOpts = {
+        const geminiRescueOpts = {
           maxTokens: buildTokenBudget(rescueRequestCount, { advanced: true, rescue: true }),
           retries: 0,
-          usePrefill: false,
+          temperature: 0.1,
+          rateLimitMaxRetries: 1,
+          rateLimitRetryDelayMs: 2500,
         };
 
-        const claudeRescueT0 = Date.now();
-        const claudeRescueResult = await withTimeout(
-          claudeGenerate(EXPLORE_QUESTIONS_SYSTEM, rescuePrompt, claudeRescueOpts).catch((error) => ({
+        const geminiRescueT0 = Date.now();
+        const geminiRescueResult = await withTimeout(
+          geminiGenerate(EXPLORE_QUESTIONS_SYSTEM, rescuePrompt, geminiRescueOpts).catch((error) => ({
             success: false,
             error: error.message,
           })),
-          FULL_CLAUDE_TIMEOUT_MS,
-          "Claude rescue generation"
+          FULL_FALLBACK_TIMEOUT_MS,
+          "Gemini rescue generation"
         );
-        phaseDurationsMs.claudeRescue = Date.now() - claudeRescueT0;
+        phaseDurationsMs.geminiRescue = Date.now() - geminiRescueT0;
 
-        const claudeRescueQs =
-          claudeRescueResult.success && claudeRescueResult.data?.questions
+        const geminiRescueQs =
+          geminiRescueResult.success && geminiRescueResult.data?.questions
             ? normaliseExploreQuestions(
-              claudeRescueResult.data.questions,
+              geminiRescueResult.data.questions,
               topic,
               levelProfile,
               rescueRequestCount,
@@ -514,51 +518,54 @@ async function generateFullQuestions({
             )
             : [];
 
-        if (claudeRescueQs.length > 0) {
-          questions = mergeQuestionSets([questions, claudeRescueQs], levelProfile, requestedCount);
+        if (geminiRescueQs.length > 0) {
+          questions = mergeQuestionSets([questions, geminiRescueQs], levelProfile, requestedCount);
           metrics = qualityMetrics(questions, levelProfile);
-          modelUsed = `${modelUsed}+claude-rescue`;
+          modelUsed = `${modelUsed}+gemini-rescue`;
         }
       }
     }
   } else {
-    questions = [...geminiPrimaryQs];
+    questions = [...claudePrimaryQs];
     metrics = qualityMetrics(questions, levelProfile);
-    modelUsed = "gemini";
+    modelUsed = "claude";
 
     if (questions.length === 0) {
-      const claudeFallbackPrompt = buildPrompt({
+      // Gemini fallback for non-advanced levels
+      const geminiFallbackPrompt = buildPrompt({
         requestCount: primaryRequestCount,
         strictMode: false,
         conciseMode: false,
       });
-      const claudeFallbackOpts = {
+      const geminiFallbackOpts = {
         maxTokens: buildTokenBudget(primaryRequestCount, { advanced: false }),
         retries: 1,
-        usePrefill: false,
+        temperature: 0.12,
+        rateLimitMaxRetries: 1,
+        rateLimitRetryDelayMs: 2500,
       };
 
-      const claudeFallbackT0 = Date.now();
-      const claudeFallbackResult = await withTimeout(
-        claudeGenerate(EXPLORE_QUESTIONS_SYSTEM, claudeFallbackPrompt, claudeFallbackOpts).catch((error) => ({
+      const geminiFallbackT0 = Date.now();
+      const geminiFallbackResult = await withTimeout(
+        geminiGenerate(EXPLORE_QUESTIONS_SYSTEM, geminiFallbackPrompt, geminiFallbackOpts).catch((error) => ({
           success: false,
           error: error.message,
         })),
-        FULL_CLAUDE_TIMEOUT_MS,
-        "Claude fallback generation"
+        FULL_FALLBACK_TIMEOUT_MS,
+        "Gemini fallback generation"
       );
-      phaseDurationsMs.claudeFallback = Date.now() - claudeFallbackT0;
+      phaseDurationsMs.geminiFallback = Date.now() - geminiFallbackT0;
 
-      if (claudeFallbackResult.success && claudeFallbackResult.data?.questions) {
+      if (geminiFallbackResult.success && geminiFallbackResult.data?.questions) {
         questions = normaliseExploreQuestions(
-          claudeFallbackResult.data.questions,
+          geminiFallbackResult.data.questions,
           topic,
           levelProfile,
           requestedCount,
           excludeStemSet
         );
         metrics = qualityMetrics(questions, levelProfile);
-        modelUsed = "claude-fallback";
+        modelUsed = "gemini-fallback";
       }
     }
   }

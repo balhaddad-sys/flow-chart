@@ -2,14 +2,17 @@
  * @module questions/generateQuestions
  * @description Callable function that generates exam-style SBA questions.
  *
- * Uses the {@link module:lib/serialize} module to normalise AI output into
- * the Firestore schema, ensuring the transformation is defined in one place.
+ * ARCHITECTURE (v2 — hybrid inline + async):
  *
- * @param {Object} data
- * @param {string} data.courseId
- * @param {string} data.sectionId
- * @param {number} [data.count=10] - Number of questions to generate (1–30).
- * @returns {{ success: true, data: { questionCount: number, skippedCount: number } }}
+ *  1. For small requests (≤15 questions): generate INLINE in this function call.
+ *     The user gets questions back in the response instantly (~8-15 seconds).
+ *
+ *  2. For large requests (>15 questions): queue a background job for batch
+ *     generation. Return immediately with a job ID for polling.
+ *
+ *  3. If inline generation fails (rate limit, AI error): fall back to async.
+ *
+ * This eliminates the 30-second blind-polling loop for 90%+ of use cases.
  */
 
 const functions = require("firebase-functions");
@@ -23,17 +26,25 @@ const {
   computeFastStartCounts,
   computeMaxBackfillAttempts,
   fetchExistingQuestionState,
+  resolveSourceFileName,
+  resolveExamType,
   queueQuestionBackfillJob,
+  generateAndPersistBatch,
 } = require("./generationPipeline");
 
-// Define the secret so the function can access it
-const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
+const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
+
+/**
+ * Questions at or below this threshold are generated synchronously in-request.
+ * Above this, we queue a background job. 15 questions ≈ one Claude call (~15s).
+ */
+const INLINE_THRESHOLD = 15;
 
 exports.generateQuestions = functions
   .runWith({
     timeoutSeconds: 120,
     memory: "512MB",
-    secrets: [geminiApiKey], // Grant access to the secret
+    secrets: [anthropicApiKey],
   })
   .https.onCall(async (data, context) => {
     const t0 = Date.now();
@@ -50,30 +61,33 @@ exports.generateQuestions = functions
     const sectionRef = db.doc(`users/${uid}/sections/${sectionId}`);
 
     try {
-      // ── Fetch & validate section ────────────────────────────────────────
+      // ── 1. Fetch & validate section ───────────────────────────────────
       const sectionDoc = await sectionRef.get();
       if (!sectionDoc.exists) return fail(Errors.NOT_FOUND, "Section not found.");
 
       const section = sectionDoc.data();
-      if (section.courseId !== courseId) return fail(Errors.INVALID_ARGUMENT, "Section does not belong to this course.");
+      if (section.courseId !== courseId) {
+        return fail(Errors.INVALID_ARGUMENT, "Section does not belong to this course.");
+      }
       if (!section.blueprint) return fail(Errors.NOT_ANALYZED);
 
-      // Fast-path: if generation is already running, avoid duplicate expensive calls.
-      if (section.questionsStatus === "GENERATING") {
-        return ok({
-          questionCount: section.questionsCount || 0,
-          skippedCount: 0,
-          inProgress: true,
-          backgroundQueued: true,
-          message: "Question generation is already in progress.",
-        });
+      const bp = section.blueprint;
+      const bpContentCount =
+        (bp.learningObjectives?.length || 0) +
+        (bp.keyConcepts?.length || 0) +
+        (bp.highYieldPoints?.length || 0) +
+        (bp.commonTraps?.length || 0) +
+        (bp.termsToDefine?.length || 0);
+      if (bpContentCount === 0) {
+        return fail(Errors.NOT_ANALYZED, "Section blueprint has no content. Please retry the section analysis first.");
       }
 
-      // Count existing questions first. If we already have enough, return instantly.
+      // ── 2. Count existing questions ───────────────────────────────────
       const existingState = await fetchExistingQuestionState({ uid, courseId, sectionId });
       const effectiveCount = existingState.distinctCount || existingState.count;
       const { targetCount, missingCount } = computeFastStartCounts(count, effectiveCount);
 
+      // ── 3. Already have enough → instant return ───────────────────────
       if (effectiveCount >= targetCount) {
         await sectionRef.set(
           {
@@ -86,79 +100,233 @@ exports.generateQuestions = functions
         return ok({
           questionCount: existingState.count,
           effectiveQuestionCount: effectiveCount,
-          skippedCount: 0,
+          generatedNow: 0,
           fromCache: true,
           backgroundQueued: false,
-          remainingCount: 0,
           targetCount,
           durationMs: Date.now() - t0,
-          message: "Existing questions reused.",
         });
       }
 
-      // ── Fully async: queue background job, return instantly ────────────
-      await sectionRef.update({
-        questionsStatus: "GENERATING",
-        questionsErrorMessage: admin.firestore.FieldValue.delete(),
-      });
+      // ── 4. Already generating → check if stale ────────────────────────
+      if (section.questionsStatus === "GENERATING") {
+        // Detect stale GENERATING state: if stuck for > 3 minutes, reset and regenerate.
+        const STALE_THRESHOLD_MS = 3 * 60 * 1000;
+        const lastUpdate = section.lastErrorAt?.toMillis?.()
+          || section.updatedAt?.toMillis?.()
+          || 0;
+        const isStale = lastUpdate > 0 && (Date.now() - lastUpdate > STALE_THRESHOLD_MS);
 
-      const backfillJobId = await queueQuestionBackfillJob({
-        uid,
-        courseId,
-        sectionId,
-        targetCount,
-        attempt: 1,
-        maxAttempts: computeMaxBackfillAttempts(targetCount),
-      });
+        if (!isStale) {
+          log.info("Generation already in progress", {
+            uid, courseId, sectionId,
+            questionsCount: section.questionsCount || 0,
+          });
+          return ok({
+            questionCount: section.questionsCount || 0,
+            inProgress: true,
+            backgroundQueued: true,
+            message: "Question generation is already in progress.",
+          });
+        }
 
-      await sectionRef.update({ activeQuestionJobId: backfillJobId });
+        // Stale — reset and fall through to re-generate
+        log.warn("Resetting stale GENERATING status", {
+          uid, courseId, sectionId,
+          staleSinceMs: lastUpdate > 0 ? Date.now() - lastUpdate : "unknown",
+        });
+        await sectionRef.update({
+          questionsStatus: "FAILED",
+          questionsErrorMessage: "Previous generation stalled. Retrying.",
+          activeQuestionJobId: admin.firestore.FieldValue.delete(),
+        });
+        // Fall through to inline/async generation below
+      }
 
-      log.info("Questions queued (async)", {
-        uid,
-        courseId,
-        sectionId,
-        requested: targetCount,
-        existingCount: existingState.count,
-        effectiveCount,
-        missingCount,
-        jobId: backfillJobId,
-        durationMs: Date.now() - t0,
-      });
+      // ── 5. INLINE GENERATION (≤15 missing) ───────────────────────────
+      //    Generate right here, right now. Return questions in the response.
+      if (missingCount <= INLINE_THRESHOLD) {
+        return await _generateInline({
+          uid, courseId, sectionId, section, sectionRef,
+          existingState, effectiveCount, targetCount, missingCount, t0,
+        });
+      }
 
-      return ok({
-        questionCount: existingState.count,
-        effectiveQuestionCount: effectiveCount,
-        generatedNow: 0,
-        skippedCount: 0,
-        backgroundQueued: true,
-        remainingCount: missingCount,
-        targetCount,
-        readyNow: existingState.count,
-        jobId: backfillJobId,
-        durationMs: Date.now() - t0,
-        message: `Generating ${missingCount} questions in the background.`,
+      // ── 6. ASYNC: queue background job (>15 missing) ──────────────────
+      return await _queueAsync({
+        uid, courseId, sectionId, sectionRef,
+        existingState, effectiveCount, targetCount, missingCount, t0,
       });
     } catch (error) {
       // CRITICAL: Roll back questionsStatus to avoid a stuck GENERATING state.
-      try {
-        let existingCount = 0;
-        try {
-          const existingState = await fetchExistingQuestionState({ uid, courseId, sectionId, limit: 40 });
-          existingCount = existingState.count;
-        } catch {
-          // Ignore lookup failures and fall back to FAILED.
-        }
-        await sectionRef.update({
-          questionsStatus: existingCount > 0 ? "COMPLETED" : "FAILED",
-          questionsCount: existingCount,
-          questionsErrorMessage: error.message || "Unexpected error during question generation",
-          lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
-          lastQuestionsDurationMs: Date.now() - t0,
-          activeQuestionJobId: admin.firestore.FieldValue.delete(),
-        });
-      } catch (updateError) {
-        log.error("Failed to update section status after error", { uid, sectionId, updateError: updateError.message });
-      }
+      await _rollbackSectionStatus({ uid, courseId, sectionId, sectionRef, error, t0 });
       return safeError(error, "question generation");
     }
   });
+
+// ── Inline generation path ──────────────────────────────────────────────────
+
+async function _generateInline({
+  uid, courseId, sectionId, section, sectionRef,
+  existingState, effectiveCount, targetCount, missingCount, t0,
+}) {
+  // Mark as generating (optimistic — rolled back on failure)
+  await sectionRef.update({
+    questionsStatus: "GENERATING",
+    questionsErrorMessage: admin.firestore.FieldValue.delete(),
+  });
+
+  let batch;
+  try {
+    const [sourceFileName, examType] = await Promise.all([
+      resolveSourceFileName(uid, section.fileId),
+      resolveExamType(uid, courseId),
+    ]);
+
+    batch = await generateAndPersistBatch({
+      uid,
+      courseId,
+      sectionId,
+      section,
+      sourceFileName,
+      existingCount: effectiveCount,
+      existingStems: existingState.stems,
+      existingStemList: existingState.stemList,
+      targetCount,
+      examType,
+    });
+  } catch (inlineError) {
+    // Inline failed — fall back to async instead of failing entirely
+    log.warn("Inline generation failed, falling back to async", {
+      uid, courseId, sectionId,
+      error: inlineError.message,
+    });
+
+    return await _queueAsync({
+      uid, courseId, sectionId, sectionRef,
+      existingState, effectiveCount, targetCount, missingCount: targetCount - effectiveCount, t0,
+    });
+  }
+
+  // If AI returned nothing, try async fallback
+  if (!batch.success && effectiveCount === 0) {
+    log.warn("Inline generation produced no questions, falling back to async", {
+      uid, courseId, sectionId,
+      error: batch.error,
+    });
+
+    return await _queueAsync({
+      uid, courseId, sectionId, sectionRef,
+      existingState, effectiveCount, targetCount, missingCount: targetCount - effectiveCount, t0,
+    });
+  }
+
+  const generatedNow = batch.generatedNow || 0;
+  const finalCount = existingState.count + generatedNow;
+  const finalDistinct = effectiveCount + generatedNow;
+  const status = finalDistinct > 0 ? "COMPLETED" : "FAILED";
+
+  await sectionRef.update({
+    questionsStatus: status,
+    questionsCount: finalCount,
+    lastQuestionsDurationMs: Date.now() - t0,
+    activeQuestionJobId: admin.firestore.FieldValue.delete(),
+    questionsErrorMessage: status === "COMPLETED"
+      ? admin.firestore.FieldValue.delete()
+      : "AI generation produced no valid questions.",
+  });
+
+  log.info("Questions generated inline", {
+    uid, courseId, sectionId,
+    requested: targetCount,
+    generated: generatedNow,
+    duplicatesSkipped: batch.duplicateStemSkipped || 0,
+    totalNow: finalCount,
+    durationMs: Date.now() - t0,
+  });
+
+  return ok({
+    questionCount: finalCount,
+    effectiveQuestionCount: finalDistinct,
+    generatedNow,
+    skippedCount: batch.skippedCount || 0,
+    backgroundQueued: false,
+    fromCache: false,
+    targetCount,
+    durationMs: Date.now() - t0,
+    // Return the generated question docs so frontend can show them immediately
+    questions: batch.docs || [],
+  });
+}
+
+// ── Async queue path ────────────────────────────────────────────────────────
+
+async function _queueAsync({
+  uid, courseId, sectionId, sectionRef,
+  existingState, effectiveCount, targetCount, missingCount, t0,
+}) {
+  await sectionRef.update({
+    questionsStatus: "GENERATING",
+    questionsErrorMessage: admin.firestore.FieldValue.delete(),
+  });
+
+  const backfillJobId = await queueQuestionBackfillJob({
+    uid,
+    courseId,
+    sectionId,
+    targetCount,
+    attempt: 1,
+    maxAttempts: computeMaxBackfillAttempts(targetCount),
+  });
+
+  await sectionRef.update({ activeQuestionJobId: backfillJobId });
+
+  log.info("Questions queued (async)", {
+    uid, courseId, sectionId,
+    requested: targetCount,
+    existingCount: existingState.count,
+    effectiveCount,
+    missingCount,
+    jobId: backfillJobId,
+    durationMs: Date.now() - t0,
+  });
+
+  return ok({
+    questionCount: existingState.count,
+    effectiveQuestionCount: effectiveCount,
+    generatedNow: 0,
+    skippedCount: 0,
+    backgroundQueued: true,
+    remainingCount: missingCount,
+    targetCount,
+    readyNow: existingState.count,
+    jobId: backfillJobId,
+    durationMs: Date.now() - t0,
+  });
+}
+
+// ── Error rollback ──────────────────────────────────────────────────────────
+
+async function _rollbackSectionStatus({ uid, courseId, sectionId, sectionRef, error, t0 }) {
+  try {
+    let existingCount = 0;
+    try {
+      const state = await fetchExistingQuestionState({ uid, courseId, sectionId, limit: 40 });
+      existingCount = state.count;
+    } catch (err) { console.warn("fetchExistingQuestionState lookup failed:", err.message); }
+
+    await sectionRef.update({
+      questionsStatus: existingCount > 0 ? "COMPLETED" : "FAILED",
+      questionsCount: existingCount,
+      questionsErrorMessage: error.message || "Unexpected error during question generation",
+      lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastQuestionsDurationMs: Date.now() - t0,
+      activeQuestionJobId: admin.firestore.FieldValue.delete(),
+    });
+  } catch (updateError) {
+    log.error("Failed to update section status after error", {
+      uid, sectionId,
+      updateError: updateError.message,
+    });
+  }
+}

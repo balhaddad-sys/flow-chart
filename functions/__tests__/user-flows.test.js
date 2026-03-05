@@ -126,7 +126,8 @@ describe("FLOW 1: Onboarding → File Processing → Schedule Generation", () =>
     const feasibility = checkFeasibility(totalMinutes, days);
     expect(feasibility.feasible).toBe(true);
 
-    const placed = placeTasks(tasks, days);
+    const result = placeTasks(tasks, days);
+    const placed = result.placed || result;
     expect(placed.length).toBe(tasks.length);
 
     // Verify study tasks come before their reviews
@@ -587,7 +588,8 @@ describe("FLOW 8: Schedule Edge Cases", () => {
     expect(tasks).toHaveLength(2); // STUDY + QUESTIONS
 
     const days = buildDayCapacities(new Date("2025-06-01"), new Date("2025-06-03"));
-    const placed = placeTasks(tasks, days);
+    const result = placeTasks(tasks, days);
+    const placed = result.placed || result;
     expect(placed).toHaveLength(2);
   });
 
@@ -616,7 +618,8 @@ describe("FLOW 8: Schedule Edge Cases", () => {
     const feasibility = checkFeasibility(total, days);
     expect(feasibility.feasible).toBe(true);
 
-    const placed = placeTasks(tasks, days);
+    const result = placeTasks(tasks, days);
+    const placed = result.placed || result;
     expect(placed.length).toBeGreaterThan(0);
   });
 

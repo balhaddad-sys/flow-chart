@@ -35,7 +35,7 @@ class StatsCards extends ConsumerWidget {
             crossAxisCount: 2,
             crossAxisSpacing: 10,
             mainAxisSpacing: 10,
-            childAspectRatio: 1.7,
+            childAspectRatio: 1.45,
           ),
           children: [
             // Study Time
@@ -300,7 +300,7 @@ class StatsCards extends ConsumerWidget {
         crossAxisCount: 2,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
-        childAspectRatio: 1.7,
+        childAspectRatio: 1.45,
       ),
       children: List.generate(
         4,

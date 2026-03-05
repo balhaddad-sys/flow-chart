@@ -9,7 +9,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 class CloudFunctionsService {
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
   static const Duration _defaultCallTimeout = Duration(seconds: 45);
-  static const Duration _longRunningCallTimeout = Duration(seconds: 180);
+  static const Duration _longRunningCallTimeout = Duration(seconds: 300);
   static const Set<String> _longRunningFunctionNames = {
     'generateQuestions',
     'generateSchedule',
@@ -19,6 +19,7 @@ class CloudFunctionsService {
     'exploreTopicInsight',
     'generateExamBankQuestions',
     'processDocumentBatch',
+    'retryFailedSections',
   };
   static const int _maxRetries = 2;
   static const int _baseRetryDelayMs = 800;
@@ -329,10 +330,12 @@ class CloudFunctionsService {
   Future<Map<String, dynamic>> startAssessmentSession({
     required String assessmentId,
     required String courseId,
+    int? questionCount,
   }) {
     return _call('startAssessmentSession', {
       'assessmentId': assessmentId,
       'courseId': courseId,
+      if (questionCount != null) 'questionCount': questionCount,
     });
   }
 
@@ -364,6 +367,16 @@ class CloudFunctionsService {
       'questionId': questionId,
       if (reason != null) 'reason': reason,
     });
+  }
+
+  // --- Processing Retry ---
+
+  /// Retries AI processing for failed sections in a course.
+  /// Re-creates section documents to trigger processSection again.
+  Future<Map<String, dynamic>> retryFailedSections({
+    required String courseId,
+  }) {
+    return _call('retryFailedSections', {'courseId': courseId});
   }
 
   // --- File / Deck ---

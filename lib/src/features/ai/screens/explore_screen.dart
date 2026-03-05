@@ -88,8 +88,10 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
         setState(() => _errorText = 'No questions generated. Try a different topic.');
         return;
       }
-      setState(() =>
-          _quizQuestions = questions.cast<Map<String, dynamic>>());
+      setState(() => _quizQuestions = questions
+          .whereType<Map>()
+          .map((m) => _deepCastMap(m))
+          .toList());
     } catch (e) {
       if (!mounted) return;
       setState(() => _errorText = 'Failed to generate quiz. Please try again.');
@@ -312,6 +314,15 @@ class _ExploreScreenState extends ConsumerState<ExploreScreen> {
                   ),
                 ],
               ),
+            ),
+          ],
+
+          // ── Loading skeleton ────────────────────────────────────────────
+          if (_loadingInsight || _loadingQuiz) ...[
+            AppSpacing.gapLg,
+            _LoadingCard(
+              isDark: isDark,
+              label: _loadingInsight ? 'Generating teaching outline...' : 'Generating quiz questions...',
             ),
           ],
 
@@ -1733,4 +1744,135 @@ class _ExploreQuizCardState extends State<_ExploreQuizCard> {
       ),
     );
   }
+}
+
+// ── Loading Card ──────────────────────────────────────────────────────────────
+
+class _LoadingCard extends StatefulWidget {
+  final bool isDark;
+  final String label;
+
+  const _LoadingCard({required this.isDark, required this.label});
+
+  @override
+  State<_LoadingCard> createState() => _LoadingCardState();
+}
+
+class _LoadingCardState extends State<_LoadingCard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: widget.isDark ? AppColors.darkSurface : AppColors.surface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+        border: Border.all(
+          color: widget.isDark ? AppColors.darkBorder : AppColors.border,
+        ),
+      ),
+      child: Column(
+        children: [
+          FadeTransition(
+            opacity: Tween<double>(begin: 0.4, end: 1.0).animate(_ctrl),
+            child: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [
+                    AppColors.primary.withValues(alpha: 0.15),
+                    AppColors.secondary.withValues(alpha: 0.10),
+                  ],
+                ),
+              ),
+              child: const Icon(
+                Icons.auto_awesome_rounded,
+                color: AppColors.primary,
+                size: 28,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            widget.label,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'This usually takes 10–20 seconds. AI is working in the background.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: widget.isDark
+                      ? AppColors.darkTextSecondary
+                      : AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: 160,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: const LinearProgressIndicator(
+                backgroundColor: Color(0x1A6366F1),
+                color: AppColors.primary,
+              ),
+            ),
+          ),
+          // Shimmer lines
+          const SizedBox(height: 20),
+          ...List.generate(4, (i) => Padding(
+            padding: EdgeInsets.only(bottom: 10, right: i == 3 ? 80 : (i == 1 ? 40 : 0)),
+            child: FadeTransition(
+              opacity: Tween<double>(begin: 0.15, end: 0.35).animate(_ctrl),
+              child: Container(
+                height: 12,
+                decoration: BoxDecoration(
+                  color: widget.isDark
+                      ? AppColors.darkSurfaceVariant
+                      : AppColors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+            ),
+          )),
+        ],
+      ),
+    );
+  }
+}
+
+/// Recursively cast nested Maps from Firebase callable responses.
+Map<String, dynamic> _deepCastMap(Map map) {
+  return map.map<String, dynamic>((key, value) {
+    return MapEntry(key.toString(), _deepCastValue(value));
+  });
+}
+
+dynamic _deepCastValue(dynamic value) {
+  if (value is Map) return _deepCastMap(value);
+  if (value is List) return value.map(_deepCastValue).toList();
+  return value;
 }

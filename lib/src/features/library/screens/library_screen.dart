@@ -11,8 +11,11 @@ import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/widgets/empty_state.dart';
+import '../../../core/widgets/error_banner.dart';
+import '../../../core/widgets/error_state_view.dart';
 import '../../home/providers/home_provider.dart';
 import '../providers/library_provider.dart';
+import '../../../core/widgets/skeleton_screens.dart';
 import '../widgets/file_card.dart';
 
 const _uuid = Uuid();
@@ -199,8 +202,8 @@ class LibraryScreen extends ConsumerWidget {
 
     return Scaffold(
       body: coursesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        loading: () => const ListScreenSkeleton(),
+        error: (e, _) => ErrorStateView(error: e, onRetry: () => ref.invalidate(coursesProvider)),
         data: (courses) {
           if (courses.isEmpty) {
             return Column(
@@ -657,8 +660,8 @@ class _CourseSection extends ConsumerWidget {
         ),
         AppSpacing.gapSm,
         filesAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Text('Error: $e'),
+          loading: () => const ListScreenSkeleton(itemCount: 3, itemHeight: 56),
+          error: (e, _) => ErrorBanner(message: ErrorHandler.userMessage(e)),
           data: (files) {
             if (files.isEmpty) {
               return Container(

@@ -82,11 +82,31 @@ function normaliseCitationSource(rawSource) {
 }
 
 /**
- * Build a working search URL for a given source and topic.
- * Always uses search endpoints so links are guaranteed to work.
+ * Extract a PMID from a citation title if present.
+ * Supports formats like "Article Title (PMID: 12345678)", "PMID: 12345678", "PMID 12345678"
+ */
+function extractPmid(title) {
+  const match = String(title || "").match(/PMID[:\s]*(\d{6,9})/i);
+  return match ? match[1] : null;
+}
+
+/**
+ * Build a working URL for a given source and topic.
+ * Uses direct PMID links when a valid PMID is found in the title.
+ * Otherwise falls back to search endpoints so links are guaranteed to work.
  */
 function buildSearchUrl(source, topic) {
-  const query = encodeURIComponent(String(topic || "medical topic").slice(0, 120));
+  const topicStr = String(topic || "medical topic");
+
+  // If source is PubMed and a PMID is embedded, link directly to the article
+  if (source === "PubMed" || !source) {
+    const pmid = extractPmid(topicStr);
+    if (pmid) {
+      return `https://pubmed.ncbi.nlm.nih.gov/${pmid}/`;
+    }
+  }
+
+  const query = encodeURIComponent(topicStr.slice(0, 120));
   switch (source) {
     case "UpToDate":
       return `https://www.uptodate.com/contents/search?search=${query}`;
@@ -120,8 +140,17 @@ function buildCitationMeta(citations) {
   );
   const trustedSourceCount = uniqueSources.length;
 
+  // Check if any citations have real PMIDs (indicates high-quality specific references)
+  const hasPmid = safe.some((c) => extractPmid(c?.title));
+
+  // Check if citations reference named guidelines or trials (evidence of specificity)
+  const guidelinePattern = /\b(NICE|AHA|ACC|ESC|BTS|SIGN|WHO|RCOG|USPSTF|Cochrane|BMJ|NEJM|Lancet)\b/i;
+  const hasNamedGuideline = safe.some((c) => guidelinePattern.test(String(c?.title || "")));
+
   let evidenceQuality = "LOW";
   if (!fallbackUsed && safe.length >= 3 && trustedSourceCount >= 2) {
+    evidenceQuality = "HIGH";
+  } else if (!fallbackUsed && (hasPmid || hasNamedGuideline) && safe.length >= 2) {
     evidenceQuality = "HIGH";
   } else if (safe.length >= 2) {
     evidenceQuality = "MODERATE";
@@ -132,6 +161,8 @@ function buildCitationMeta(citations) {
     uniqueSources,
     citationCount: safe.length,
     fallbackUsed,
+    hasPmid,
+    hasNamedGuideline,
     evidenceQuality,
   };
 }
@@ -173,20 +204,33 @@ function normaliseCitations(rawCitations, { stem, topicTags }) {
  * @returns {{ title: string, difficulty: number, estMinutes: number, topicTags: string[], blueprint: object }}
  */
 function normaliseBlueprint(raw) {
-  const topicTags = sanitizeArray(raw.topic_tags || raw.topicTags || []);
+  // Unwrap if Gemini returned an array instead of an object
+  // e.g. [{ title: ..., learning_objectives: [...] }]
+  let unwrapped = raw;
+  if (Array.isArray(raw)) {
+    unwrapped = raw[0] && typeof raw[0] === "object" ? raw[0] : {};
+  }
+
+  // Unwrap if Gemini wrapped the response in an extra object
+  // e.g. { blueprint: { title: ..., learning_objectives: [...] } }
+  const data = unwrapped.blueprint && typeof unwrapped.blueprint === "object" && !Array.isArray(unwrapped.blueprint)
+    ? unwrapped.blueprint
+    : unwrapped;
+
+  const topicTags = sanitizeArray(data.topic_tags || data.topicTags || unwrapped.topic_tags || unwrapped.topicTags || []);
   const blueprint = {
-    learningObjectives: sanitizeArray(raw.learning_objectives || raw.learningObjectives || []),
-    keyConcepts:        sanitizeArray(raw.key_concepts || raw.keyConcepts || []),
-    highYieldPoints:    sanitizeArray(raw.high_yield_points || raw.highYieldPoints || []),
-    commonTraps:        sanitizeArray(raw.common_traps || raw.commonTraps || []),
-    termsToDefine:      sanitizeArray(raw.terms_to_define || raw.termsToDefine || []),
+    learningObjectives: sanitizeArray(data.learning_objectives || data.learningObjectives || []),
+    keyConcepts:        sanitizeArray(data.key_concepts || data.keyConcepts || []),
+    highYieldPoints:    sanitizeArray(data.high_yield_points || data.highYieldPoints || []),
+    commonTraps:        sanitizeArray(data.common_traps || data.commonTraps || []),
+    termsToDefine:      sanitizeArray(data.terms_to_define || data.termsToDefine || []),
   };
 
   // Handle both snake_case (prompt schema) and camelCase (Gemini sometimes returns)
   return {
-    title: deriveBlueprintTitle(raw.title, topicTags, blueprint),
-    difficulty: raw.difficulty || 3,
-    estMinutes: raw.estimated_minutes || raw.estimatedMinutes || 15,
+    title: deriveBlueprintTitle(data.title || unwrapped.title, topicTags, blueprint),
+    difficulty: data.difficulty || unwrapped.difficulty || 3,
+    estMinutes: data.estimated_minutes || data.estimatedMinutes || unwrapped.estimated_minutes || unwrapped.estimatedMinutes || 15,
     topicTags,
     blueprint,
   };

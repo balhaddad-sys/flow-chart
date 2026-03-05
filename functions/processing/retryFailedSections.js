@@ -14,17 +14,17 @@ const { db, batchSet } = require("../lib/firestore");
 const log = require("../lib/logger");
 const { computeSectionQuestionDifficultyCounts } = require("../lib/difficulty");
 const { normaliseQuestion } = require("../lib/serialize");
-const { generateQuestions: aiGenerateQuestions } = require("../ai/geminiClient");
+const { generateQuestions: aiGenerateQuestions } = require("../ai/aiClient");
 const { QUESTIONS_SYSTEM, questionsUserPrompt } = require("../ai/prompts");
 
 // Define the secret so the function can access it
-const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
+const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
 
 exports.retryFailedSections = functions
   .runWith({
     timeoutSeconds: 300,
     memory: "512MB",
-    secrets: [geminiApiKey],
+    secrets: [anthropicApiKey],
   })
   .https.onCall(async (data, context) => {
     if (!context.auth) {
@@ -32,28 +32,51 @@ exports.retryFailedSections = functions
     }
 
     const uid = context.auth.uid;
-    const { fileId } = data;
+    const { fileId, courseId } = data;
 
-    if (!fileId) {
-      throw new functions.https.HttpsError("invalid-argument", "fileId is required.");
+    if (!fileId && !courseId) {
+      throw new functions.https.HttpsError("invalid-argument", "fileId or courseId is required.");
     }
 
-    // Find all FAILED sections for this file (aiStatus or questionsStatus)
+    // Build query base: filter by fileId or courseId
+    const filterField = fileId ? "fileId" : "courseId";
+    const filterValue = fileId || courseId;
+
+    // Find all FAILED sections (aiStatus or questionsStatus)
     const [aiFailedSnap, qFailedSnap] = await Promise.all([
       db.collection(`users/${uid}/sections`)
-        .where("fileId", "==", fileId)
+        .where(filterField, "==", filterValue)
         .where("aiStatus", "==", "FAILED")
         .get(),
       db.collection(`users/${uid}/sections`)
-        .where("fileId", "==", fileId)
+        .where(filterField, "==", filterValue)
         .where("questionsStatus", "==", "FAILED")
         .get(),
     ]);
 
-    // Deduplicate (a section could match both queries)
+    // Also find ANALYZED sections with empty blueprints (silent failures)
+    const analyzedSnap = await db.collection(`users/${uid}/sections`)
+      .where(filterField, "==", filterValue)
+      .where("aiStatus", "==", "ANALYZED")
+      .get();
+
+    // Deduplicate (a section could match multiple queries)
     const sectionMap = new Map();
     for (const doc of aiFailedSnap.docs) sectionMap.set(doc.id, doc);
     for (const doc of qFailedSnap.docs) sectionMap.set(doc.id, doc);
+    // Include ANALYZED sections with empty blueprints
+    for (const doc of analyzedSnap.docs) {
+      const bp = doc.data().blueprint;
+      if (!bp) {
+        sectionMap.set(doc.id, doc);
+      } else {
+        const contentCount = (bp.learningObjectives?.length || 0) + (bp.keyConcepts?.length || 0) +
+          (bp.highYieldPoints?.length || 0) + (bp.commonTraps?.length || 0) + (bp.termsToDefine?.length || 0);
+        if (contentCount === 0) {
+          sectionMap.set(doc.id, doc);
+        }
+      }
+    }
 
     if (sectionMap.size === 0) {
       return { success: true, data: { retriedCount: 0, message: "No failed sections found." } };
@@ -65,9 +88,14 @@ exports.retryFailedSections = functions
       const sectionData = sectionDoc.data();
 
       try {
-        // If only questions failed (blueprint is fine), regenerate questions in-place
+        // Check if blueprint has actual content
+        const bpData = sectionData.blueprint;
+        const bpHasContent = bpData && ((bpData.learningObjectives?.length || 0) + (bpData.keyConcepts?.length || 0) +
+          (bpData.highYieldPoints?.length || 0) + (bpData.commonTraps?.length || 0) + (bpData.termsToDefine?.length || 0)) > 0;
+
+        // If only questions failed AND blueprint has content, regenerate questions in-place
         // without re-running the expensive blueprint AI
-        if (sectionData.aiStatus === "ANALYZED" && sectionData.questionsStatus === "FAILED") {
+        if (sectionData.aiStatus === "ANALYZED" && bpHasContent && sectionData.questionsStatus === "FAILED") {
           // Delete old questions for this section
           const oldQSnap = await db
             .collection(`users/${uid}/questions`)
@@ -86,7 +114,7 @@ exports.retryFailedSections = functions
           });
 
           // Generate questions directly from existing blueprint
-          const count = 8;
+          const count = sectionData.targetQuestionCount || sectionData.questionsCount || 10;
           const { easyCount, mediumCount, hardCount } = computeSectionQuestionDifficultyCounts(
             count,
             sectionData.difficulty || 3

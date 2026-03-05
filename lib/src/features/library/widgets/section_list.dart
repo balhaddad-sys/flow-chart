@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../core/widgets/error_banner.dart';
+import '../../../core/widgets/error_state_view.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../core/utils/date_utils.dart';
 import '../../../models/section_model.dart';
@@ -25,7 +27,7 @@ class SectionList extends ConsumerWidget {
       ),
       error: (e, _) => Padding(
         padding: const EdgeInsets.all(16),
-        child: Text('Error: $e'),
+        child: ErrorBanner(message: ErrorHandler.userMessage(e)),
       ),
       data: (sections) {
         if (sections.isEmpty) {

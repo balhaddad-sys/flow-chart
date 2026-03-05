@@ -35,6 +35,7 @@ import 'features/guide/screens/guide_screen.dart';
 import 'features/legal/screens/privacy_screen.dart';
 import 'features/legal/screens/terms_screen.dart';
 import 'features/study_session/screens/study_session_screen.dart';
+import 'core/widgets/error_state_view.dart';
 import 'models/file_model.dart';
 import 'models/user_model.dart';
 
@@ -52,8 +53,34 @@ final _authNotifierProvider = Provider<_AuthNotifier>((ref) {
   return _AuthNotifier(ref);
 });
 
-/// Theme mode state provider
-final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
+/// Theme mode with SharedPreferences persistence
+class ThemeModeNotifier extends StateNotifier<ThemeMode> {
+  static const _key = 'medq_theme_mode';
+  ThemeModeNotifier() : super(ThemeMode.system) {
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getString(_key);
+    if (value != null) {
+      state = ThemeMode.values.firstWhere(
+        (m) => m.name == value,
+        orElse: () => ThemeMode.system,
+      );
+    }
+  }
+
+  set mode(ThemeMode mode) {
+    state = mode;
+    SharedPreferences.getInstance().then((p) => p.setString(_key, mode.name));
+  }
+}
+
+final themeModeProvider =
+    StateNotifierProvider<ThemeModeNotifier, ThemeMode>((ref) {
+  return ThemeModeNotifier();
+});
 
 // ── Shell Navigation ────────────────────────────────────────────────────────
 
@@ -549,10 +576,14 @@ class _NavBarItem extends StatelessWidget {
 
 // ── Router ──────────────────────────────────────────────────────────────────
 
+final _rootNavigatorKey = GlobalKey<NavigatorState>();
+final _shellNavigatorKey = GlobalKey<NavigatorState>();
+
 final _routerProvider = Provider<GoRouter>((ref) {
   final authNotifier = ref.watch(_authNotifierProvider);
 
   return GoRouter(
+    navigatorKey: _rootNavigatorKey,
     initialLocation: '/login',
     refreshListenable: authNotifier,
     redirect: (context, state) {
@@ -566,6 +597,13 @@ final _routerProvider = Provider<GoRouter>((ref) {
       if (isLoggedIn && isAuthRoute) return '/today';
       return null;
     },
+    errorBuilder: (context, state) => Scaffold(
+      body: ErrorStateView(
+        customMessage: 'Page not found.',
+        onRetry: () => context.go('/today'),
+        retryLabel: 'Go Home',
+      ),
+    ),
     routes: [
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
@@ -581,6 +619,7 @@ final _routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const OnboardingFlow(),
       ),
       ShellRoute(
+        navigatorKey: _shellNavigatorKey,
         builder: (context, state, child) => _AppShell(child: child),
         routes: [
           GoRoute(
@@ -738,6 +777,7 @@ final _routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
       GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
         path: '/study/:taskId/:sectionId',
         builder:
             (context, state) => StudySessionScreen(
@@ -746,10 +786,13 @@ final _routerProvider = Provider<GoRouter>((ref) {
             ),
       ),
       GoRoute(
+        parentNavigatorKey: _rootNavigatorKey,
         path: '/quiz/:sectionId',
         builder: (context, state) => QuizScreen(
           sectionId: state.pathParameters['sectionId'],
+          courseId: state.uri.queryParameters['courseId'],
           mode: state.uri.queryParameters['mode'] ?? 'section',
+          count: int.tryParse(state.uri.queryParameters['count'] ?? '') ?? 10,
         ),
       ),
     ],
@@ -778,6 +821,7 @@ class MedQApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'MedQ',
       debugShowCheckedModeBanner: false,
+      showPerformanceOverlay: false,
       themeMode: themeMode,
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),
@@ -811,23 +855,23 @@ class MedQApp extends ConsumerWidget {
         filled: true,
         fillColor: AppColors.surfaceVariant.withValues(alpha: 0.5),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           borderSide: BorderSide(color: AppColors.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           borderSide: BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           borderSide: const BorderSide(color: AppColors.error),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
           borderSide: const BorderSide(color: AppColors.error, width: 2),
         ),
         contentPadding: const EdgeInsets.symmetric(

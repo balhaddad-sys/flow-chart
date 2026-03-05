@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../core/widgets/error_banner.dart';
+import '../../../core/widgets/error_state_view.dart';
 import '../../../core/providers/auth_provider.dart';
 import '../../../core/providers/user_provider.dart';
 import '../../../models/file_model.dart';
 import '../../../models/section_model.dart';
+import '../../../core/widgets/skeleton_screens.dart';
 import '../../library/widgets/processing_indicator.dart';
 
 /// Provider that streams sections belonging to a given file.
@@ -45,8 +48,8 @@ class FileDetailScreen extends ConsumerWidget {
         ),
       ),
       body: fileAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        loading: () => const ListScreenSkeleton(itemCount: 3, itemHeight: 56),
+        error: (e, _) => ErrorStateView(error: e),
         data: (file) {
           if (file == null) {
             return const Center(child: Text('File not found'));
@@ -141,8 +144,8 @@ class FileDetailScreen extends ConsumerWidget {
 
               // ── Section list ────────────────────────────────────────────
               sectionsAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Text('Error loading sections: $e'),
+                loading: () => const ListScreenSkeleton(itemCount: 3, itemHeight: 56),
+                error: (e, _) => ErrorBanner(message: ErrorHandler.userMessage(e)),
                 data: (sections) {
                   if (sections.isEmpty) {
                     return Container(

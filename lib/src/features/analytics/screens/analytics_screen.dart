@@ -4,6 +4,7 @@ import 'package:percent_indicator/circular_percent_indicator.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
+import '../../../core/widgets/error_state_view.dart';
 import '../../../core/widgets/shimmer_loading.dart';
 import '../../home/providers/home_provider.dart';
 
@@ -40,7 +41,7 @@ class AnalyticsScreen extends ConsumerWidget {
       ),
       body: statsAsync.when(
         loading: () => const _AnalyticsSkeleton(),
-        error: (e, _) => Center(child: Text('Error loading analytics: $e')),
+        error: (e, _) => ErrorStateView(error: e, onRetry: () => ref.invalidate(courseStatsProvider(courseId))),
         data: (stats) {
           if (stats == null) {
             return _EmptyAnalytics(isDark: isDark);

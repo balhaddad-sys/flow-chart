@@ -14,9 +14,9 @@ final cloudFunctionsServiceProvider =
   return CloudFunctionsService();
 });
 
-final userModelProvider = FutureProvider<UserModel?>((ref) async {
+final userModelProvider = StreamProvider<UserModel?>((ref) {
   final uid = ref.watch(uidProvider);
-  if (uid == null) return null;
+  if (uid == null) return Stream.value(null);
   final firestoreService = ref.watch(firestoreServiceProvider);
-  return firestoreService.getUser(uid);
+  return firestoreService.streamUser(uid);
 });

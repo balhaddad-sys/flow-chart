@@ -21,6 +21,13 @@ class FirestoreService {
     return UserModel.fromFirestore(doc);
   }
 
+  Stream<UserModel?> streamUser(String uid) {
+    return _userDoc(uid).snapshots().map((doc) {
+      if (!doc.exists) return null;
+      return UserModel.fromFirestore(doc);
+    });
+  }
+
   Future<void> createUser(String uid, Map<String, dynamic> data) async {
     await _userDoc(uid).set({
       ...data,
@@ -134,6 +141,13 @@ class FirestoreService {
     return SectionModel.fromFirestore(doc);
   }
 
+  /// Streams a single section document for real-time updates.
+  Stream<SectionModel?> streamSection(String uid, String sectionId) {
+    return _sections(uid).doc(sectionId).snapshots().map(
+          (doc) => doc.exists ? SectionModel.fromFirestore(doc) : null,
+        );
+  }
+
   // --- Files (single) ---
 
   Future<FileModel?> getFile(String uid, String fileId) async {
@@ -217,18 +231,6 @@ class FirestoreService {
     }
     final snap = await query.limit(limit).get();
     return snap.docs.map((d) => QuestionModel.fromFirestore(d)).toList();
-  }
-
-  // --- Attempts ---
-
-  CollectionReference _attempts(String uid) =>
-      _db.collection('users/$uid/attempts');
-
-  Future<String> createAttempt(String uid, Map<String, dynamic> data) async {
-    final ref = await _attempts(
-      uid,
-    ).add({...data, 'createdAt': FieldValue.serverTimestamp()});
-    return ref.id;
   }
 
   // --- Stats ---
@@ -319,5 +321,71 @@ class FirestoreService {
       );
       return messages;
     });
+  }
+
+  // --- Exam Bank ---
+
+  /// Reads the exam bank document for a given exam type.
+  /// Returns the raw question list stored at `users/{uid}/examBank/{examType}`.
+  Future<List<Map<String, dynamic>>> getExamBankQuestions(
+    String uid,
+    String examType,
+  ) async {
+    final doc = await _db.doc('users/$uid/examBank/$examType').get();
+    if (!doc.exists) return [];
+    final data = doc.data() as Map<String, dynamic>?;
+    if (data == null) return [];
+    final questions = data['questions'] as List?;
+    if (questions == null) return [];
+    return questions
+        .whereType<Map>()
+        .map((q) => Map<String, dynamic>.from(q))
+        .toList();
+  }
+
+  /// Saves exam bank progress (which questions have been answered).
+  /// Stores a map of questionId → {answerIndex, isCorrect, timeSpentSec}.
+  /// Uses set(merge: true) so progress is saved even if the doc doesn't exist yet.
+  Future<void> saveExamBankProgress(
+    String uid,
+    String examType,
+    Map<String, Map<String, dynamic>> progress,
+  ) async {
+    final ref = _db.doc('users/$uid/examBank/$examType');
+    await ref.set({'progress': progress}, SetOptions(merge: true));
+  }
+
+  /// Reads exam bank progress for a given exam type.
+  Future<Map<String, Map<String, dynamic>>> getExamBankProgress(
+    String uid,
+    String examType,
+  ) async {
+    final doc = await _db.doc('users/$uid/examBank/$examType').get();
+    if (!doc.exists) return {};
+    final data = doc.data() as Map<String, dynamic>?;
+    final progress = data?['progress'] as Map?;
+    if (progress == null) return {};
+    return progress.map(
+      (k, v) => MapEntry(
+        k.toString(),
+        v is Map ? Map<String, dynamic>.from(v) : <String, dynamic>{},
+      ),
+    );
+  }
+
+  /// Returns the generation version of the stored exam bank document.
+  /// Returns 0 if not found or no version field (pre-evidence-based).
+  Future<int> getExamBankVersion(String uid, String examType) async {
+    final doc = await _db.doc('users/$uid/examBank/$examType').get();
+    if (!doc.exists) return 0;
+    final data = doc.data() as Map<String, dynamic>?;
+    return (data?['generationVersion'] as num?)?.toInt() ?? 0;
+  }
+
+  /// Deletes the cached exam bank document, forcing fresh generation
+  /// on the next load. Used when prompts or AI model changes require
+  /// re-generation of all questions.
+  Future<void> clearExamBankQuestions(String uid, String examType) async {
+    await _db.doc('users/$uid/examBank/$examType').delete();
   }
 }

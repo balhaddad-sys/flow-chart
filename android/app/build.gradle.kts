@@ -29,7 +29,7 @@ android {
 
     defaultConfig {
         applicationId = "io.medq.app"
-        minSdk = 23
+        minSdk = flutter.minSdkVersion
         targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -51,7 +51,10 @@ android {
             signingConfig = if (keystorePropertiesFile.exists()) {
                 signingConfigs.getByName("release")
             } else {
-                signingConfigs.getByName("debug")
+                throw GradleException(
+                    "Release signing requires key.properties. " +
+                    "See README for keystore setup."
+                )
             }
             isMinifyEnabled = false
             isShrinkResources = false

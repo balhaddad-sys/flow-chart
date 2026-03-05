@@ -227,24 +227,44 @@ class SafeNullableStringConverter implements JsonConverter<String?, dynamic> {
   dynamic toJson(String? object) => object;
 }
 
-class EnumConverter<T> implements JsonConverter<T, String> {
-  final List<T> values;
-  final T defaultValue;
-
-  const EnumConverter(this.values, this.defaultValue);
+/// Non-nullable Timestamp converter for `required DateTime` fields.
+///
+/// The standard [TimestampConverter] in user_model.dart returns `DateTime?`,
+/// which causes json_serializable to ignore it for non-nullable fields and
+/// fall back to `DateTime.parse(... as String)` — crashing on Firestore
+/// Timestamp objects. This converter returns a non-nullable `DateTime`.
+///
+/// Handles:
+/// - Firestore Timestamp → DateTime
+/// - ISO 8601 String → DateTime
+/// - int (ms since epoch) → DateTime
+/// - null / unknown → DateTime.now() (safe fallback)
+class RequiredTimestampConverter implements JsonConverter<DateTime, dynamic> {
+  const RequiredTimestampConverter();
 
   @override
-  T fromJson(String json) {
+  DateTime fromJson(dynamic json) {
+    if (json == null) return DateTime.now();
+    // Firestore Timestamp (has toDate method via cloud_firestore)
+    if (json is Map && json.containsKey('_seconds')) {
+      final seconds = json['_seconds'] as int;
+      return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
+    }
+    if (json is String) {
+      return DateTime.tryParse(json) ?? DateTime.now();
+    }
+    if (json is int) {
+      return DateTime.fromMillisecondsSinceEpoch(json);
+    }
+    // Try duck-typing toDate() for Firestore Timestamp at runtime
     try {
-      return values.firstWhere(
-        (v) => v.toString().split('.').last.toLowerCase() == json.toLowerCase(),
-        orElse: () => defaultValue,
-      );
+      // ignore: avoid_dynamic_calls
+      return (json as dynamic).toDate() as DateTime;
     } catch (_) {
-      return defaultValue;
+      return DateTime.now();
     }
   }
 
   @override
-  String toJson(T object) => object.toString().split('.').last;
+  dynamic toJson(DateTime object) => object.toIso8601String();
 }

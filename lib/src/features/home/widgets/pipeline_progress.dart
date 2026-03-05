@@ -126,7 +126,7 @@ class PipelineProgress extends ConsumerWidget {
                           '$progressPercent%',
                           style: const TextStyle(
                             color: AppColors.primary,
-                            fontSize: 9,
+                            fontSize: 10,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
