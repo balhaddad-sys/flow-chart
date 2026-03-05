@@ -227,6 +227,9 @@ const QUESTION_QUALITY = Object.freeze({
 /** AI confidence score below which a question is auto-labelled DRAFT. */
 const QUESTION_CONFIDENCE_THRESHOLD = 0.72;
 
+/** Flag count at which a question is quarantined from quiz serving. */
+const FLAG_QUARANTINE_THRESHOLD = 2;
+
 /** Valid reason codes for the flagQuestion callable. */
 const FLAG_REASONS = ["incorrect", "ambiguous", "bad_explanation", "source_mismatch", "duplicate", "other"];
 
@@ -287,6 +290,7 @@ module.exports = {
   QUICK_REVIEW_MIN_QUESTIONS,
   QUESTION_QUALITY,
   QUESTION_CONFIDENCE_THRESHOLD,
+  FLAG_QUARANTINE_THRESHOLD,
   FLAG_REASONS,
   STREAK_HISTORY_DAYS,
   CACHE_MAX_QUESTIONS_PER_TOPIC,

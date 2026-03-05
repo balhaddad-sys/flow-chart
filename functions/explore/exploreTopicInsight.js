@@ -22,6 +22,7 @@ const {
 } = require("../ai/prompts");
 const { buildExamPlaybookPrompt } = require("../ai/examPlaybooks");
 const { lookupInsight, writeInsight } = require("../cache/knowledgeCache");
+const { extractPmid } = require("../lib/serialize");
 
 const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
 const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
@@ -184,6 +185,7 @@ function normaliseGuidelineUpdates(rawUpdates) {
       strength,
       impactScore,
       url: buildSearchUrl(source, year ? `${title} ${year}` : title),
+      verified: false,
     });
   }
 
@@ -214,6 +216,7 @@ function normaliseCitations(rawCitations, topic) {
       source,
       title,
       url: buildSearchUrl(source, title),
+      verified: !!extractPmid(title),
     });
     if (citations.length >= 8) break;
   }
@@ -226,16 +229,19 @@ function normaliseCitations(rawCitations, topic) {
       source: "PubMed",
       title: `PubMed: ${fallbackTopic}`,
       url: buildSearchUrl("PubMed", fallbackTopic),
+      verified: false,
     },
     {
       source: "UpToDate",
       title: `UpToDate: ${fallbackTopic}`,
       url: buildSearchUrl("UpToDate", fallbackTopic),
+      verified: false,
     },
     {
       source: "Medscape",
       title: `Medscape: ${fallbackTopic}`,
       url: buildSearchUrl("Medscape", fallbackTopic),
+      verified: false,
     },
   ];
 }

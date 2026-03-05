@@ -52,6 +52,7 @@ class QuestionCitation with _$QuestionCitation {
     @SafeStringConverter() @Default('') String source,
     @SafeStringConverter() @Default('') String title,
     @SafeStringConverter() @Default('') String url,
+    @Default(false) bool verified,
   }) = _QuestionCitation;
 
   factory QuestionCitation.fromJson(Map<String, dynamic> json) =>

@@ -10,6 +10,7 @@ const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const { db } = require("../lib/firestore");
 const { callClaude } = require("../ai/aiClient");
+const { normaliseCitationSource, buildSearchUrl, normaliseGuidelineYear } = require("../lib/serialize");
 const { defineSecret } = require("firebase-functions/params");
 const { checkRateLimit, RATE_LIMITS } = require("../middleware/rateLimit");
 const log = require("../lib/logger");
@@ -24,7 +25,8 @@ Rules:
 - Be accurate and evidence-based. If unsure, say so.
 - Reference the provided study material when relevant.
 - Keep explanations clear and concise, suitable for medical students.
-- When citing material, reference the section title.
+- When citing material, reference the section title in citations.
+- When referencing clinical guidelines, landmark trials, or evidence-based sources, include them in evidenceReferences with the source database (PubMed, UpToDate, or Medscape) and a specific article/guideline title.
 - Output STRICT JSON only.`;
 
 const MAX_THREAD_ID_LEN = 128;
@@ -104,6 +106,13 @@ Return this exact JSON schema:
     {
       "sectionTitle": "string — title of the referenced section",
       "relevance": "string — brief note on why this section is relevant"
+    }
+  ],
+  "evidenceReferences": [
+    {
+      "source": "PUBMED | UPTODATE | MEDSCAPE",
+      "title": "string — specific guideline/article title, optionally with PMID",
+      "year": "integer or null — publication year if known"
     }
   ]
 }`;
@@ -243,6 +252,23 @@ exports.sendChatMessage = functions
             }))
         : [];
 
+      // Normalize external evidence references (guidelines, trials, articles)
+      const evidenceReferences = Array.isArray(result.data.evidenceReferences)
+        ? result.data.evidenceReferences
+            .filter((r) => r && typeof r.title === "string" && r.title.trim())
+            .slice(0, 4)
+            .map((r) => {
+              const source = normaliseCitationSource(r.source);
+              const title = String(r.title).trim().slice(0, 200);
+              return {
+                source,
+                title,
+                url: buildSearchUrl(source, title),
+                year: normaliseGuidelineYear(r.year),
+              };
+            })
+        : [];
+
       // Save assistant message
       await db
         .collection("users")
@@ -253,6 +279,7 @@ exports.sendChatMessage = functions
           role: "assistant",
           content: responseText,
           citations,
+          evidenceReferences,
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
 
@@ -282,6 +309,7 @@ exports.sendChatMessage = functions
           userMessageId: userMsgRef.id,
           response: responseText,
           citations,
+          evidenceReferences,
         },
       };
     } catch (err) {

@@ -223,6 +223,11 @@ EVIDENCE-BASED EXPLANATION RULES:
 - why_others_wrong must explain the specific clinical reason each option fails, referencing evidence where relevant. Example: "While ACE inhibitors reduce mortality post-MI (SAVE trial), they are not first-line for stable angina symptom control."
 - key_takeaway should include the guideline/trial name as a memory anchor. Example: "NICE CG181: Stable angina first-line = GTN + beta-blocker/CCB; add aspirin + statin for secondary prevention."
 
+SOURCE TRACEABILITY RULES:
+- For each question, include 1-2 source_quotes — verbatim excerpts from the study material that this question tests.
+- Each quote must specify the page or slide number it comes from and a short verbatim passage (1-2 sentences).
+- These quotes allow students to trace each question back to the original material for verification.
+
 Return this exact JSON schema:
 {
   "questions": [
@@ -251,6 +256,12 @@ Return this exact JSON schema:
         {
           "source": "PUBMED | UPTODATE | MEDSCAPE",
           "title": "string — specific article/guideline title, optionally with PMID"
+        }
+      ],
+      "source_quotes": [
+        {
+          "page_or_slide": "integer — page or slide number from the source material",
+          "quote": "string — verbatim 1-2 sentence excerpt from the source material that supports this question"
         }
       ]
     }

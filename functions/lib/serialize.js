@@ -12,6 +12,7 @@
 
 const { sanitizeText, sanitizeArray } = require("./sanitize");
 const { truncate } = require("./utils");
+const { QUESTION_QUALITY, QUESTION_CONFIDENCE_THRESHOLD } = require("./constants");
 
 const GENERIC_BLUEPRINT_TITLE_RE =
   /\b(?:pages?|slides?|section|chapter|part)\s*\d+(?:\s*(?:-|–|—|to)\s*\d+)?\b|\b(?:untitled|unknown\s+section)\b/i;
@@ -124,10 +125,54 @@ function buildCitationFallbacks(stem, topicTags) {
     .trim()
     .slice(0, 90);
   return [
-    { source: "PubMed", title: `PubMed: ${topic}`, url: buildSearchUrl("PubMed", topic) },
-    { source: "UpToDate", title: `UpToDate: ${topic}`, url: buildSearchUrl("UpToDate", topic) },
-    { source: "Medscape", title: `Medscape: ${topic}`, url: buildSearchUrl("Medscape", topic) },
+    { source: "PubMed", title: `PubMed: ${topic}`, url: buildSearchUrl("PubMed", topic), verified: false },
+    { source: "UpToDate", title: `UpToDate: ${topic}`, url: buildSearchUrl("UpToDate", topic), verified: false },
+    { source: "Medscape", title: `Medscape: ${topic}`, url: buildSearchUrl("Medscape", topic), verified: false },
   ];
+}
+
+/**
+ * Normalise a raw year value into a valid 4-digit year or null.
+ */
+function normaliseGuidelineYear(rawYear) {
+  if (rawYear == null) return null;
+  const currentYear = new Date().getFullYear();
+  const minYear = Math.max(1990, currentYear - 30);
+  const maxYear = currentYear + 1;
+
+  if (typeof rawYear === "number" && Number.isFinite(rawYear)) {
+    const year = Math.floor(rawYear);
+    return year >= minYear && year <= maxYear ? year : null;
+  }
+
+  const rawText = String(rawYear || "").trim();
+  const match = rawText.match(/\b(19|20)\d{2}\b/);
+  if (!match) return null;
+  const year = Number(match[0]);
+  return year >= minYear && year <= maxYear ? year : null;
+}
+
+/**
+ * Compute a 0–1 confidence score based on citation quality and evidence references.
+ */
+function computeConfidenceScore(citationMeta, raw) {
+  let score = 0.5;
+  if (citationMeta.evidenceQuality === "HIGH") score += 0.15;
+  else if (citationMeta.evidenceQuality === "MODERATE") score += 0.08;
+  if (citationMeta.hasPmid) score += 0.10;
+  if (citationMeta.hasNamedGuideline) score += 0.08;
+  if (!citationMeta.fallbackUsed) score += 0.07;
+
+  // Check if explanations reference named guidelines/trials
+  const expl = raw.explanation || {};
+  const explText = [
+    expl.correct_why || expl.correctWhy || "",
+    expl.key_takeaway || expl.keyTakeaway || "",
+  ].join(" ");
+  const guidelinePattern = /\b(NICE|AHA|ACC|ESC|BTS|SIGN|WHO|RCOG|USPSTF|Cochrane|BMJ|NEJM|Lancet|CRASH|PARADIGM|SPRINT|HOPE|SAVE)\b/i;
+  if (guidelinePattern.test(explText)) score += 0.05;
+
+  return Math.min(1, Math.round(score * 100) / 100);
 }
 
 function buildCitationMeta(citations) {
@@ -188,6 +233,7 @@ function normaliseCitations(rawCitations, { stem, topicTags }) {
       source,
       title,
       url: buildSearchUrl(source, rawTitle),
+      verified: !!extractPmid(rawTitle),
     });
 
     if (citations.length >= 3) break;
@@ -284,6 +330,24 @@ function normaliseQuestion(raw, defaults) {
   });
   const citationMeta = buildCitationMeta(citations);
 
+  // Compute evidence-based confidence score and quality tier
+  const confidenceScore = computeConfidenceScore(citationMeta, raw);
+  const quality = confidenceScore >= QUESTION_CONFIDENCE_THRESHOLD
+    ? QUESTION_QUALITY.NORMAL
+    : QUESTION_QUALITY.DRAFT;
+
+  // Extract source-level quotes from the AI response
+  const sourceCitations = (raw.source_quotes || raw.sourceQuotes || [])
+    .slice(0, 3)
+    .map((sq) => ({
+      fileId: defaults.fileId,
+      chunkId: defaults.sectionId,
+      pageNumber: Number.isInteger(sq?.page_or_slide ?? sq?.pageOrSlide) ? (sq.page_or_slide ?? sq.pageOrSlide) : null,
+      slideIndex: null,
+      quote: truncate(sanitizeText(sq?.quote || ""), 300),
+    }))
+    .filter((sc) => sc.quote);
+
   return {
     topicTags,
     difficulty:   Math.min(5, Math.max(1, raw.difficulty || 3)),
@@ -302,8 +366,11 @@ function normaliseQuestion(raw, defaults) {
       sectionId: defaults.sectionId,
       label:     truncate(sanitizeText(raw.source_ref?.sectionLabel || raw.sourceRef?.sectionLabel || defaults.sectionTitle), 200),
     },
+    sourceCitations,
     citations,
     citationMeta,
+    confidenceScore,
+    quality,
     stats: { timesAnswered: 0, timesCorrect: 0, avgTimeSec: 0 },
   };
 }
@@ -330,4 +397,12 @@ function normaliseTutorResponse(raw) {
   };
 }
 
-module.exports = { normaliseBlueprint, normaliseQuestion, normaliseTutorResponse };
+module.exports = {
+  normaliseBlueprint,
+  normaliseQuestion,
+  normaliseTutorResponse,
+  normaliseCitationSource,
+  buildSearchUrl,
+  extractPmid,
+  normaliseGuidelineYear,
+};

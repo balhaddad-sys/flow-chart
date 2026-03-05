@@ -15,7 +15,7 @@ const functions = require("firebase-functions");
 const { requireAuth, requireStrings, requireInt } = require("../middleware/validate");
 const { checkRateLimit, RATE_LIMITS } = require("../middleware/rateLimit");
 const { db } = require("../lib/firestore");
-const { VALID_QUIZ_MODES } = require("../lib/constants");
+const { VALID_QUIZ_MODES, QUESTION_QUALITY, FLAG_QUARANTINE_THRESHOLD } = require("../lib/constants");
 const { Errors, fail, ok, safeError } = require("../lib/errors");
 const { shuffleArray } = require("../lib/utils");
 const { weightedSelect, computeWeaknessScore } = require("./questionSelection");
@@ -54,6 +54,13 @@ exports.getQuiz = functions.https.onCall(async (data, context) => {
     if (snap.empty) return ok({ questions: [] });
 
     let questions = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    // Filter out draft-quality and quarantined (heavily-flagged) questions
+    questions = questions.filter((q) => {
+      if (q.quality === QUESTION_QUALITY.DRAFT) return false;
+      if ((q.flagCount || 0) >= FLAG_QUARANTINE_THRESHOLD) return false;
+      return true;
+    });
 
     if (mode === "mixed") {
       // Weakness-weighted selection: bias towards weaker topics
