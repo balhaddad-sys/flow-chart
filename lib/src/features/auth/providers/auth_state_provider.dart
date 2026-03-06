@@ -22,7 +22,24 @@ class AuthScreenNotifier extends StateNotifier<AuthScreenData> {
     state = state.copyWith(state: AuthScreenState.loading, errorMessage: null);
     try {
       final authService = _ref.read(authServiceProvider);
-      await authService.signInWithEmail(email, password);
+      final credential = await authService.signInWithEmail(email, password);
+
+      // Ensure user doc exists (may be missing if created on another platform)
+      final user = credential.user;
+      if (user != null) {
+        final firestoreService = _ref.read(firestoreServiceProvider);
+        final existingUser = await firestoreService.getUser(user.uid);
+        if (existingUser == null) {
+          await firestoreService.createUser(user.uid, {
+            'name': user.displayName ?? user.email?.split('@').first ?? 'User',
+            'email': user.email ?? email,
+            'timezone': 'UTC',
+            'preferences': _defaultPreferences,
+            'subscriptionTier': 'free',
+          });
+        }
+      }
+
       state = state.copyWith(state: AuthScreenState.success);
     } catch (e) {
       ErrorHandler.logError(e);

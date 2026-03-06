@@ -175,10 +175,30 @@ class QuizNotifier extends StateNotifier<QuizState> {
         return;
       }
 
-      // sectionId is null (all-sections quiz) — can't generate without a section
+      // sectionId is null (all-sections quiz) — find first analyzed section
+      // and auto-generate questions from it
+      final firestoreService = _ref.read(firestoreServiceProvider);
+      final sections = await firestoreService
+          .watchSectionsByCourse(uid, courseId)
+          .first;
+      final analyzedSection = sections
+          .where((s) => s.aiStatus == 'ANALYZED')
+          .toList();
+
+      if (analyzedSection.isNotEmpty) {
+        await _triggerGeneration(
+          courseId: courseId,
+          sectionId: analyzedSection.first.id,
+          count: count,
+        );
+        return;
+      }
+
       state = state.copyWith(
         isLoading: false,
-        errorMessage: 'No questions generated yet. Go to Practice and generate questions for your sections first.',
+        errorMessage: sections.isEmpty
+            ? 'No sections processed yet. Upload files and wait for processing to complete.'
+            : 'Sections are still being analyzed. Please try again shortly.',
       );
     } catch (e) {
       ErrorHandler.logError(e);
@@ -198,8 +218,8 @@ class QuizNotifier extends StateNotifier<QuizState> {
     state = state.copyWith(isLoading: false, isGenerating: true, errorMessage: null);
 
     try {
-      final result =
-          await _ref.read(cloudFunctionsServiceProvider).generateQuestions(
+      final functionsService = _ref.read(cloudFunctionsServiceProvider);
+      final result = await functionsService.generateQuestions(
         courseId: courseId,
         sectionId: sectionId,
         count: count,
@@ -215,44 +235,65 @@ class QuizNotifier extends StateNotifier<QuizState> {
         }
       }
 
-      // Check if background job was queued
+      // If background job was queued, wait a few seconds then fetch
       final backgroundQueued = result['backgroundQueued'] as bool? ?? false;
-      final readyNow = result['questionCount'] as int? ?? 0;
-
       if (backgroundQueued) {
-        state = state.copyWith(
-          isGenerating: true,
-          generationProgress: readyNow,
-        );
-        return;
-      }
-
-      // Generation completed but questions not in response — fetch them
-      if ((result['generatedNow'] as int? ?? 0) > 0) {
-        state = state.copyWith(isGenerating: false, isLoading: true);
-        final fetchResult =
-            await _ref.read(cloudFunctionsServiceProvider).getQuiz(
-          courseId: courseId,
-          sectionId: sectionId,
-          mode: 'section',
-          count: count,
-        );
-        final fetched =
-            _parseQuestions(fetchResult['questions'] as List<dynamic>? ?? []);
-        if (fetched.isNotEmpty) {
-          _startQuiz(fetched);
-          return;
+        // Poll up to 3 times with increasing delay for background generation
+        for (var attempt = 0; attempt < 3; attempt++) {
+          await Future.delayed(Duration(seconds: 5 + attempt * 5));
+          final pollResult = await functionsService.getQuiz(
+            courseId: courseId,
+            sectionId: sectionId,
+            mode: 'section',
+            count: count,
+          );
+          final polled = _parseQuestions(
+              pollResult['questions'] as List<dynamic>? ?? []);
+          if (polled.isNotEmpty) {
+            _startQuiz(polled);
+            return;
+          }
         }
       }
 
+      // Always try to fetch questions — they may exist from cache or
+      // from a previous generation that the inline response didn't include
+      state = state.copyWith(isGenerating: false, isLoading: true);
+      final fetchResult = await functionsService.getQuiz(
+        courseId: courseId,
+        sectionId: sectionId,
+        mode: 'section',
+        count: count,
+      );
+      final fetched =
+          _parseQuestions(fetchResult['questions'] as List<dynamic>? ?? []);
+      if (fetched.isNotEmpty) {
+        _startQuiz(fetched);
+        return;
+      }
+
+      // Also try mixed mode (all sections) as fallback
+      final mixedResult = await functionsService.getQuiz(
+        courseId: courseId,
+        mode: 'mixed',
+        count: count,
+      );
+      final mixed =
+          _parseQuestions(mixedResult['questions'] as List<dynamic>? ?? []);
+      if (mixed.isNotEmpty) {
+        _startQuiz(mixed);
+        return;
+      }
+
       state = state.copyWith(
-        isGenerating: false,
-        errorMessage: 'Failed to generate questions. Please try again.',
+        isLoading: false,
+        errorMessage: 'Questions are still being generated. Please try again in a moment.',
       );
     } catch (e) {
       ErrorHandler.logError(e);
       state = state.copyWith(
         isGenerating: false,
+        isLoading: false,
         errorMessage: ErrorHandler.userMessage(e),
       );
     }

@@ -319,7 +319,7 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
         children: [
           Expanded(
             child: ListView(
-              padding: AppSpacing.screenPadding,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               children: [
                 QuestionCard(
                   question: question,
@@ -336,13 +336,13 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
                     selectedIndex: quiz.selectedOptionIndex!,
                     tutorResponse: quiz.tutorResponse,
                   ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
               ],
             ),
           ),
           // ── Bottom action bar ──
           Container(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
             decoration: BoxDecoration(
               color: isDark ? AppColors.darkSurface : AppColors.surface,
               border: Border(

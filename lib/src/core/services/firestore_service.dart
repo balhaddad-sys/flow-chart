@@ -37,9 +37,10 @@ class FirestoreService {
   }
 
   Future<void> updateUser(String uid, Map<String, dynamic> data) async {
-    await _userDoc(
-      uid,
-    ).update({...data, 'updatedAt': FieldValue.serverTimestamp()});
+    await _userDoc(uid).set(
+      {...data, 'updatedAt': FieldValue.serverTimestamp()},
+      SetOptions(merge: true),
+    );
   }
 
   // --- Courses ---

@@ -272,7 +272,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                         sectionTitle: 'Quick Quiz',
                                       );
                                       if (count != null && context.mounted) {
-                                        context.push('/quiz/_all?mode=mixed&count=$count');
+                                        context.push('/quiz/_all?mode=mixed&count=$count&courseId=${Uri.encodeComponent(activeCourseId)}');
                                       }
                                     } else {
                                       context.go(primaryRoute);

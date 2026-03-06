@@ -208,19 +208,23 @@ class OnboardingNotifier extends StateNotifier<OnboardingData> {
         }
       }
 
-      // 3. Update user preferences
-      await firestoreService.updateUser(uid, {
-        'preferences': {
-          'pomodoroStyle': state.pomodoroStyle,
-          'revisionPolicy': state.revisionPolicy,
-          'dailyMinutesDefault': state.dailyMinutes,
-        },
-      });
+      // 3. Update user preferences (non-blocking — preferences are
+      //    nice-to-have and should not block course creation)
+      try {
+        await firestoreService.updateUser(uid, {
+          'preferences': {
+            'pomodoroStyle': state.pomodoroStyle,
+            'revisionPolicy': state.revisionPolicy,
+            'dailyMinutesDefault': state.dailyMinutes,
+          },
+        });
+      } catch (prefsError) {
+        ErrorHandler.logError(prefsError);
+      }
 
       // 4. Try to generate the study schedule (non-blocking — files
       //    may not be processed yet, schedule can be generated later)
       try {
-        final functionsService = _ref.read(cloudFunctionsServiceProvider);
         await functionsService.generateSchedule(
           courseId: courseId,
           availability: {

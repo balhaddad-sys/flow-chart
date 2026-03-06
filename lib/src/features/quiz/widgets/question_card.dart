@@ -42,85 +42,53 @@ class QuestionCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ── Type + metadata bar ─────────────────────────────────────
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: isDark
-                  ? [
-                      AppColors.primary.withValues(alpha: 0.12),
-                      AppColors.accent.withValues(alpha: 0.06),
-                    ]
-                  : [
-                      AppColors.primary.withValues(alpha: 0.08),
-                      AppColors.accent.withValues(alpha: 0.04),
-                    ],
-            ),
-            borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-            border: Border.all(
-              color: AppColors.primary.withValues(alpha: isDark ? 0.15 : 0.1),
-            ),
-          ),
-          child: Row(
-            children: [
-              // SBA badge
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
+        // ── Type + metadata bar (compact) ──────────────────────────
+        Row(
+          children: [
+            // SBA badge
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(5),
+              ),
+              child: Text(
+                question.type.isNotEmpty ? question.type : 'SBA',
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
                 ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            _DifficultyBadge(difficulty: question.difficulty),
+            const Spacer(),
+            if (question.topicTags.isNotEmpty)
+              Flexible(
                 child: Text(
-                  question.type.isNotEmpty ? question.type : 'SBA',
-                  style: const TextStyle(
-                    color: AppColors.primary,
+                  question.topicTags.first,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
                     fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.textSecondary,
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              // Difficulty
-              _DifficultyBadge(difficulty: question.difficulty),
-              const Spacer(),
-              // Topic tag
-              if (question.topicTags.isNotEmpty)
-                Flexible(
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? AppColors.darkSurfaceVariant
-                          : AppColors.surfaceVariant,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      question.topicTags.first,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: isDark
-                            ? AppColors.darkTextSecondary
-                            : AppColors.textSecondary,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
+          ],
         ),
 
-        const SizedBox(height: 20),
+        const SizedBox(height: 6),
 
         // ── Clinical vignette / stem ────────────────────────────────
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             color: isDark
                 ? AppColors.darkSurface
@@ -129,75 +97,23 @@ class QuestionCard extends StatelessWidget {
             border: Border.all(
               color: isDark ? AppColors.darkBorder : AppColors.border,
             ),
-            boxShadow: isDark ? null : AppSpacing.shadowSm,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // "Clinical Vignette" or "Question" label
-              Row(
-                children: [
-                  Icon(
-                    question.stem.length > 200
-                        ? Icons.description_rounded
-                        : Icons.help_outline_rounded,
-                    size: 15,
-                    color: isDark
-                        ? AppColors.darkTextTertiary
-                        : AppColors.textTertiary,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    question.stem.length > 200
-                        ? 'Clinical Vignette'
-                        : 'Question Stem',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: isDark
-                          ? AppColors.darkTextTertiary
-                          : AppColors.textTertiary,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(
-                question.stem,
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w500,
-                      height: 1.6,
-                      letterSpacing: 0.1,
-                    ),
-              ),
-            ],
+          child: Text(
+            question.stem,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w500,
+                  height: 1.45,
+                  fontSize: 13,
+                ),
           ),
         ),
 
-        const SizedBox(height: 20),
-
-        // ── "Select the single best answer" instruction ─────────────
-        if (!hasSubmitted)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12, left: 2),
-            child: Text(
-              'Select the single best answer:',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: isDark
-                    ? AppColors.darkTextTertiary
-                    : AppColors.textTertiary,
-                letterSpacing: 0.2,
-              ),
-            ),
-          ),
+        const SizedBox(height: 8),
 
         // ── Options ─────────────────────────────────────────────────
         ...List.generate(question.options.length, (i) {
           return Padding(
-            padding: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.only(bottom: 6),
             child: OptionButton(
               index: i,
               text: question.options[i],

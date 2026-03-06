@@ -107,7 +107,7 @@ class _OptionButtonState extends State<OptionButton>
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOut,
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             color: bgColor,
             border: Border.all(
@@ -130,11 +130,11 @@ class _OptionButtonState extends State<OptionButton>
               // Letter badge
               AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                width: 30,
-                height: 30,
+                width: 26,
+                height: 26,
                 decoration: BoxDecoration(
                   color: labelBg,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(7),
                 ),
                 child: Center(
                   child: Text(
@@ -144,12 +144,12 @@ class _OptionButtonState extends State<OptionButton>
                     style: TextStyle(
                       color: labelText,
                       fontWeight: FontWeight.w700,
-                      fontSize: 13,
+                      fontSize: 12,
                     ),
                   ),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
 
               // Option text
               Expanded(
@@ -159,7 +159,8 @@ class _OptionButtonState extends State<OptionButton>
                     widget.text.isNotEmpty
                         ? widget.text
                         : 'Option ${widget.index + 1}',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontSize: 13,
                           fontWeight: widget.isSelected
                               ? FontWeight.w600
                               : FontWeight.w400,
@@ -167,7 +168,7 @@ class _OptionButtonState extends State<OptionButton>
                               isThisWrong ? TextDecoration.lineThrough : null,
                           decorationColor:
                               AppColors.error.withValues(alpha: 0.5),
-                          height: 1.4,
+                          height: 1.35,
                         ),
                   ),
                 ),
