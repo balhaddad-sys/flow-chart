@@ -17,7 +17,7 @@ interface ErrorEntry {
   userAgent: string;
 }
 
-let buffer: ErrorEntry[] = [];
+const buffer: ErrorEntry[] = [];
 let timer: ReturnType<typeof setTimeout> | null = null;
 
 function scheduleFlush() {
