@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useThemeStore } from "@/lib/stores/theme-store";
+import { installGlobalErrorHandlers } from "@/lib/utils/error-reporter";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -17,6 +18,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
       })
   );
   const mode = useThemeStore((s) => s.mode);
+
+  useEffect(() => { installGlobalErrorHandlers(); }, []);
 
   useEffect(() => {
     const root = document.documentElement;

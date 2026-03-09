@@ -22,7 +22,13 @@ const {
 } = require("../ai/prompts");
 const { buildExamPlaybookPrompt } = require("../ai/examPlaybooks");
 const { lookupInsight, writeInsight } = require("../cache/knowledgeCache");
-const { extractPmid } = require("../lib/serialize");
+const {
+  extractPmid,
+  normaliseCitationSource,
+  buildSearchUrl,
+  normaliseGuidelineYear: sharedNormaliseGuidelineYear,
+} = require("../lib/serialize");
+const { withTimeout } = require("../lib/utils");
 
 const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
 const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
@@ -40,39 +46,6 @@ const MAX_ALGORITHM_STEPS = 15;
 const GEMINI_TIMEOUT_MS = 55_000;
 const CLAUDE_TIMEOUT_MS = 65_000;
 
-function withTimeout(taskPromise, timeoutMs, timeoutLabel) {
-  return Promise.race([
-    taskPromise,
-    new Promise((resolve) => {
-      setTimeout(
-        () => resolve({ success: false, error: `${timeoutLabel} timed out after ${timeoutMs}ms` }),
-        timeoutMs
-      );
-    }),
-  ]);
-}
-
-function normaliseCitationSource(rawSource) {
-  const source = String(rawSource || "").toLowerCase().trim();
-  if (source.includes("pubmed")) return "PubMed";
-  if (source.includes("uptodate") || source.includes("up to date")) return "UpToDate";
-  if (source.includes("medscape")) return "Medscape";
-  return "PubMed";
-}
-
-function buildSearchUrl(source, topic) {
-  const query = encodeURIComponent(String(topic || "medical topic").slice(0, 120));
-  switch (source) {
-    case "UpToDate":
-      return `https://www.uptodate.com/contents/search?search=${query}`;
-    case "Medscape":
-      return `https://www.medscape.com/search?queryText=${query}`;
-    case "PubMed":
-    default:
-      return `https://pubmed.ncbi.nlm.nih.gov/?term=${query}`;
-  }
-}
-
 function normaliseStringList(input, { maxItems = MAX_LIST_ITEMS, maxLen = 260 } = {}) {
   if (!Array.isArray(input)) return [];
   return input
@@ -81,23 +54,8 @@ function normaliseStringList(input, { maxItems = MAX_LIST_ITEMS, maxLen = 260 } 
     .slice(0, maxItems);
 }
 
-function normaliseGuidelineYear(rawYear) {
-  if (rawYear == null) return null;
-  const currentYear = new Date().getFullYear();
-  const minYear = Math.max(1990, currentYear - 30);
-  const maxYear = currentYear + 1;
-
-  if (typeof rawYear === "number" && Number.isFinite(rawYear)) {
-    const year = Math.floor(rawYear);
-    return year >= minYear && year <= maxYear ? year : null;
-  }
-
-  const rawText = String(rawYear || "").trim();
-  const match = rawText.match(/\b(19|20)\d{2}\b/);
-  if (!match) return null;
-  const year = Number(match[0]);
-  return year >= minYear && year <= maxYear ? year : null;
-}
+// Use the shared normaliseGuidelineYear from serialize.js
+const normaliseGuidelineYear = sharedNormaliseGuidelineYear;
 
 function normaliseGuidelineStrength(rawStrength) {
   const text = String(rawStrength || "").toLowerCase().trim();

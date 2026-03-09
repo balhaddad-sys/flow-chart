@@ -4,13 +4,14 @@
  */
 
 const { clampInt } = require("../lib/utils");
+const { MAX_QUESTIONS_PER_SECTION } = require("../lib/constants");
 
 const FAST_READY_COUNT = 3;
 const BACKFILL_STEP_COUNT = 30;
 const MAX_NO_PROGRESS_STREAK = 4;
 
 function computeFastStartCounts(requestedCount, existingCount) {
-  const targetCount = clampInt(requestedCount || 10, 1, 30);
+  const targetCount = clampInt(requestedCount || 10, 1, MAX_QUESTIONS_PER_SECTION);
   const safeExisting = clampInt(existingCount || 0, 0, 1000);
   const missingCount = Math.max(0, targetCount - safeExisting);
   const immediateCount = Math.min(FAST_READY_COUNT, missingCount);
@@ -24,8 +25,8 @@ function computeFastStartCounts(requestedCount, existingCount) {
 }
 
 function computeMaxBackfillAttempts(targetCount) {
-  const safeTarget = clampInt(targetCount || 10, 1, 30);
-  return clampInt(safeTarget * 3, 18, 60);
+  const safeTarget = clampInt(targetCount || 10, 1, MAX_QUESTIONS_PER_SECTION);
+  return clampInt(safeTarget * 3, 18, 200);
 }
 
 module.exports = {

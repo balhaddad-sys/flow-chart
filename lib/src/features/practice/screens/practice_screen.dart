@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/providers/user_provider.dart';
+import '../../../core/services/cloud_functions_service.dart';
 import '../../../models/section_model.dart';
 import '../../../core/widgets/error_state_view.dart';
 import '../../home/providers/home_provider.dart';
@@ -59,7 +60,7 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(e is Exception ? e.toString().replaceFirst('Exception: ', '') : 'Failed to generate questions. Please try again.'),
+            content: Text(e is CloudFunctionException ? e.message : 'Failed to generate questions. Please try again.'),
             behavior: SnackBarBehavior.floating,
             backgroundColor: const Color(0xFFDC2626),
           ),

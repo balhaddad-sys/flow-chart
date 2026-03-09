@@ -89,6 +89,11 @@ const LEVEL_ALIASES = Object.freeze({
   POSTGRAD: "POSTGRADUATE",
   PG: "POSTGRADUATE",
   RESIDENCY: "RESIDENT",
+  // Flutter explore screen level names
+  MEDICALSTUDENT: "MD3",
+  FOUNDATIONYEAR: "MD4",
+  CORETRAINEE: "MD5",
+  REGISTRAR: "RESIDENT",
 });
 
 const ASSESSMENT_TOPIC_LIBRARY = Object.freeze([

@@ -95,7 +95,10 @@ export default function StudySessionPage({
   const { taskId, sectionId } = use(params);
   const router = useRouter();
   const { user, uid } = useAuth();
-  const { seconds, isRunning, start, pause, reset, getFormatted } = useTimerStore();
+  const { seconds, isRunning, start, pause, reset, cleanup, getFormatted } = useTimerStore();
+
+  // Clean up timer interval when leaving the study page
+  useEffect(() => cleanup, [cleanup]);
   const [task, setTask] = useState<TaskModel | null>(null);
   const [section, setSection] = useState<SectionModel | null>(null);
   const [sectionNotFound, setSectionNotFound] = useState(false);

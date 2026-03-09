@@ -4,6 +4,9 @@
  */
 
 const { normaliseQuestion } = require("../lib/serialize");
+const { withTimeout } = require("../lib/utils");
+const { verifyQuestionEvidenceBatch } = require("../lib/citationVerification");
+const { isNearDuplicateStem, normaliseStem } = require("../lib/stemUtils");
 const { generateQuestions: claudeGenerate } = require("../ai/aiClient");
 const { generateQuestions: geminiGenerate } = require("../ai/geminiClient");
 const { EXPLORE_QUESTIONS_SYSTEM, exploreQuestionsUserPrompt } = require("../ai/prompts");
@@ -59,18 +62,6 @@ function buildTokenBudget(requestCount, { advanced = false, rescue = false, fast
   const perQuestion = fast ? 280 : advanced ? 380 : 320;
   const hardCap = rescue ? 6000 : fast ? 4500 : advanced ? 8192 : 6500;
   return Math.min(hardCap, base + safeCount * perQuestion);
-}
-
-function withTimeout(taskPromise, timeoutMs, timeoutLabel) {
-  return Promise.race([
-    taskPromise,
-    new Promise((resolve) => {
-      setTimeout(
-        () => resolve({ success: false, error: `${timeoutLabel} timed out after ${timeoutMs}ms` }),
-        timeoutMs
-      );
-    }),
-  ]);
 }
 
 function normaliseStemKey(stem) {
@@ -146,6 +137,14 @@ function qualityMetrics(questions, levelProfile) {
   };
 }
 
+function verifiedCitationCount(question) {
+  const fromCitationArray = Array.isArray(question?.citations)
+    ? question.citations.filter((c) => c?.verified).length
+    : 0;
+  const fromMeta = Number(question?.citationMeta?.verifiedCount || 0);
+  return Math.max(fromCitationArray, fromMeta);
+}
+
 function qualityScore(metrics, targets) {
   const inBandScore = Math.min(1, metrics.inBandRatio / Math.max(targets.inBandRatio, 0.01));
   const hardScore = targets.hardFloorCount > 0 ? Math.min(1, metrics.hardCount / targets.hardFloorCount) : 1;
@@ -179,12 +178,14 @@ function shouldFallbackToClaude({ generatedCount, requestedCount, levelProfile, 
 }
 
 function prioritiseQuestions(questions, levelProfile, requestedCount) {
-  const seenStems = new Set();
+  // Fuzzy dedup: reject questions whose stems are near-duplicates of already-accepted ones
+  const acceptedStems = [];
   const unique = [];
   for (const q of questions) {
-    const key = normaliseStemKey(q?.stem);
-    if (!key || seenStems.has(key)) continue;
-    seenStems.add(key);
+    const stem = normaliseStem(q?.stem);
+    if (!stem) continue;
+    if (acceptedStems.some((existing) => isNearDuplicateStem(stem, existing))) continue;
+    acceptedStems.push(stem);
     unique.push(q);
   }
 
@@ -197,8 +198,9 @@ function prioritiseQuestions(questions, levelProfile, requestedCount) {
     const inBand = q.difficulty >= min && q.difficulty <= max ? 100 : 0;
     const distancePenalty = Math.abs(q.difficulty - midpoint) * 12;
     const hardBonus = highPriority ? q.difficulty * 9 : q.difficulty * 4;
-    const citationBonus = Math.min(3, Array.isArray(q.citations) ? q.citations.length : 0) * 3;
-    return inBand + hardBonus + citationBonus - distancePenalty;
+    const citationBonus = Math.min(3, verifiedCitationCount(q)) * 4;
+    const fallbackPenalty = q?.citationMeta?.fallbackUsed ? 2 : 0;
+    return inBand + hardBonus + citationBonus - fallbackPenalty - distancePenalty;
   };
 
   return unique
@@ -216,13 +218,20 @@ function normaliseExploreQuestions(rawQuestions, topic, levelProfile, requestedC
   };
 
   const valid = [];
-  const blocked = excludeStemSet instanceof Set ? excludeStemSet : new Set();
+  const blockedExact = excludeStemSet instanceof Set ? excludeStemSet : new Set();
+  // Build a list of normalised exclude stems for fuzzy comparison
+  const blockedStems = Array.from(blockedExact).map((s) => normaliseStem(s)).filter(Boolean);
 
   for (const raw of rawQuestions || []) {
     const normalised = normaliseQuestion(raw, defaults);
     if (!normalised) continue;
+    const stem = normaliseStem(normalised.stem);
+    if (!stem) continue;
+    // Exact match against the blocked set
     const key = normaliseStemKey(normalised.stem);
-    if (!key || blocked.has(key)) continue;
+    if (key && blockedExact.has(key)) continue;
+    // Fuzzy match against blocked stems
+    if (blockedStems.some((existing) => isNearDuplicateStem(stem, existing))) continue;
     valid.push(normalised);
   }
 
@@ -325,6 +334,7 @@ async function generateFastStartQuestions({
     }
   }
 
+  questions = await verifyQuestionEvidenceBatch(questions, { maxRemoteChecks: 2 });
   questions = prioritiseQuestions(questions, levelProfile, requestedCount);
   const evaluation = evaluateQuestionSet(questions, levelProfile, requestedCount);
 
@@ -568,6 +578,12 @@ async function generateFullQuestions({
         modelUsed = "gemini-fallback";
       }
     }
+  }
+
+  if (questions.length > 0) {
+    questions = await verifyQuestionEvidenceBatch(questions, { maxRemoteChecks: 2 });
+    questions = prioritiseQuestions(questions, levelProfile, requestedCount);
+    metrics = qualityMetrics(questions, levelProfile);
   }
 
   if (questions.length === 0) {

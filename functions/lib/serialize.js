@@ -156,12 +156,16 @@ function normaliseGuidelineYear(rawYear) {
  * Compute a 0–1 confidence score based on citation quality and evidence references.
  */
 function computeConfidenceScore(citationMeta, raw) {
-  let score = 0.5;
+  let score = 0.42;
   if (citationMeta.evidenceQuality === "HIGH") score += 0.15;
   else if (citationMeta.evidenceQuality === "MODERATE") score += 0.08;
-  if (citationMeta.hasPmid) score += 0.10;
-  if (citationMeta.hasNamedGuideline) score += 0.08;
-  if (!citationMeta.fallbackUsed) score += 0.07;
+  if (citationMeta.verifiedCount >= 2) score += 0.15;
+  else if (citationMeta.verifiedCount === 1) score += 0.08;
+  if (citationMeta.verifiedSourceCount >= 2) score += 0.05;
+  if (citationMeta.hasPmid) score += 0.05;
+  if (citationMeta.hasNamedGuideline) score += 0.05;
+  if (!citationMeta.fallbackUsed) score += 0.05;
+  if (citationMeta.fallbackUsed) score -= 0.05;
 
   // Check if explanations reference named guidelines/trials
   const expl = raw.explanation || {};
@@ -172,7 +176,7 @@ function computeConfidenceScore(citationMeta, raw) {
   const guidelinePattern = /\b(NICE|AHA|ACC|ESC|BTS|SIGN|WHO|RCOG|USPSTF|Cochrane|BMJ|NEJM|Lancet|CRASH|PARADIGM|SPRINT|HOPE|SAVE)\b/i;
   if (guidelinePattern.test(explText)) score += 0.05;
 
-  return Math.min(1, Math.round(score * 100) / 100);
+  return Math.max(0, Math.min(1, Math.round(score * 100) / 100));
 }
 
 function buildCitationMeta(citations) {
@@ -184,6 +188,13 @@ function buildCitationMeta(citations) {
     /^(PubMed|UpToDate|Medscape):/i.test(String(c?.title || ""))
   );
   const trustedSourceCount = uniqueSources.length;
+  const verifiedCount = safe.filter((c) => Boolean(c?.verified)).length;
+  const verifiedSourceCount = new Set(
+    safe
+      .filter((c) => Boolean(c?.verified))
+      .map((c) => String(c?.source || "").trim())
+      .filter(Boolean)
+  ).size;
 
   // Check if any citations have real PMIDs (indicates high-quality specific references)
   const hasPmid = safe.some((c) => extractPmid(c?.title));
@@ -193,9 +204,9 @@ function buildCitationMeta(citations) {
   const hasNamedGuideline = safe.some((c) => guidelinePattern.test(String(c?.title || "")));
 
   let evidenceQuality = "LOW";
-  if (!fallbackUsed && safe.length >= 3 && trustedSourceCount >= 2) {
+  if (verifiedCount >= 2 || (!fallbackUsed && safe.length >= 3 && trustedSourceCount >= 2)) {
     evidenceQuality = "HIGH";
-  } else if (!fallbackUsed && (hasPmid || hasNamedGuideline) && safe.length >= 2) {
+  } else if (verifiedCount >= 1 || (!fallbackUsed && (hasPmid || hasNamedGuideline) && safe.length >= 2)) {
     evidenceQuality = "HIGH";
   } else if (safe.length >= 2) {
     evidenceQuality = "MODERATE";
@@ -205,6 +216,8 @@ function buildCitationMeta(citations) {
     trustedSourceCount,
     uniqueSources,
     citationCount: safe.length,
+    verifiedCount,
+    verifiedSourceCount,
     fallbackUsed,
     hasPmid,
     hasNamedGuideline,
@@ -233,7 +246,7 @@ function normaliseCitations(rawCitations, { stem, topicTags }) {
       source,
       title,
       url: buildSearchUrl(source, rawTitle),
-      verified: !!extractPmid(rawTitle),
+      verified: false,
     });
 
     if (citations.length >= 3) break;
@@ -241,6 +254,28 @@ function normaliseCitations(rawCitations, { stem, topicTags }) {
 
   if (citations.length > 0) return citations;
   return buildCitationFallbacks(stem, topicTags);
+}
+
+/**
+ * Recompute evidence-derived quality fields from citations.
+ * This is reused after server-side citation verification.
+ */
+function applyEvidenceQuality(question) {
+  const safeQuestion = question || {};
+  const citations = Array.isArray(safeQuestion.citations) ? safeQuestion.citations : [];
+  const citationMeta = buildCitationMeta(citations);
+  const confidenceScore = computeConfidenceScore(citationMeta, safeQuestion);
+  const quality = confidenceScore >= QUESTION_CONFIDENCE_THRESHOLD
+    ? QUESTION_QUALITY.NORMAL
+    : QUESTION_QUALITY.DRAFT;
+
+  return {
+    ...safeQuestion,
+    citations,
+    citationMeta,
+    confidenceScore,
+    quality,
+  };
 }
 
 /**
@@ -328,14 +363,6 @@ function normaliseQuestion(raw, defaults) {
     stem: raw.stem,
     topicTags,
   });
-  const citationMeta = buildCitationMeta(citations);
-
-  // Compute evidence-based confidence score and quality tier
-  const confidenceScore = computeConfidenceScore(citationMeta, raw);
-  const quality = confidenceScore >= QUESTION_CONFIDENCE_THRESHOLD
-    ? QUESTION_QUALITY.NORMAL
-    : QUESTION_QUALITY.DRAFT;
-
   // Extract source-level quotes from the AI response
   const sourceCitations = (raw.source_quotes || raw.sourceQuotes || [])
     .slice(0, 3)
@@ -348,7 +375,7 @@ function normaliseQuestion(raw, defaults) {
     }))
     .filter((sc) => sc.quote);
 
-  return {
+  return applyEvidenceQuality({
     topicTags,
     difficulty:   Math.min(5, Math.max(1, raw.difficulty || 3)),
     type:         "SBA",
@@ -368,11 +395,8 @@ function normaliseQuestion(raw, defaults) {
     },
     sourceCitations,
     citations,
-    citationMeta,
-    confidenceScore,
-    quality,
     stats: { timesAnswered: 0, timesCorrect: 0, avgTimeSec: 0 },
-  };
+  });
 }
 
 /**
@@ -405,4 +429,7 @@ module.exports = {
   buildSearchUrl,
   extractPmid,
   normaliseGuidelineYear,
+  buildCitationMeta,
+  computeConfidenceScore,
+  applyEvidenceQuality,
 };

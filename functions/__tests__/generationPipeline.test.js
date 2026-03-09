@@ -33,7 +33,8 @@ describe("questions/generationPipeline", () => {
 
     it("enforces lower and upper bounds", () => {
       expect(computeMaxBackfillAttempts(1)).toBe(18);
-      expect(computeMaxBackfillAttempts(30)).toBe(60);
+      expect(computeMaxBackfillAttempts(30)).toBe(90);
+      expect(computeMaxBackfillAttempts(100)).toBe(200);
     });
   });
 });

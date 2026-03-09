@@ -6,8 +6,10 @@
 const admin = require("firebase-admin");
 const { db, batchSet } = require("../lib/firestore");
 const { clampInt } = require("../lib/utils");
+const { MAX_QUESTIONS_PER_SECTION } = require("../lib/constants");
 const { computeSectionQuestionDifficultyCounts } = require("../lib/difficulty");
 const { normaliseQuestion } = require("../lib/serialize");
+const { verifyQuestionEvidenceBatch } = require("../lib/citationVerification");
 const { generateQuestions: aiGenerateQuestions } = require("../ai/aiClient");
 const { buildQuestionGenPlan } = require("../ai/selfTuningCostEngine");
 const { QUESTIONS_SYSTEM, questionsUserPrompt } = require("../ai/prompts");
@@ -76,7 +78,7 @@ async function queueQuestionBackfillJob({
     status: "PENDING",
     courseId,
     sectionId,
-    targetCount: clampInt(targetCount || 10, 1, 30),
+    targetCount: clampInt(targetCount || 10, 1, MAX_QUESTIONS_PER_SECTION),
     attempt: clampInt(attempt || 1, 1, 200),
     maxAttempts: clampInt(maxAttempts || 30, 1, 200),
     noProgressStreak: clampInt(noProgressStreak || 0, 0, 200),
@@ -108,7 +110,7 @@ async function generateAndPersistBatch({
   targetCount,
   examType,
 }) {
-  const target = clampInt(targetCount || 10, 1, 30);
+  const target = clampInt(targetCount || 10, 1, MAX_QUESTIONS_PER_SECTION);
   const safeExisting = clampInt(existingCount || 0, 0, 1000);
   const currentStems = existingStems instanceof Set ? existingStems : new Set();
   const currentStemList = Array.isArray(existingStemList)
@@ -201,8 +203,7 @@ async function generateAndPersistBatch({
     topicTags: section.topicTags,
   };
 
-  const validItems = [];
-  const clientDocs = [];
+  const stagedQuestions = [];
   let duplicateStemSkipped = 0;
   for (const raw of result.data.questions) {
     const normalised = normaliseQuestion(raw, defaults);
@@ -222,17 +223,32 @@ async function generateAndPersistBatch({
     }
 
     const docRef = db.collection(`users/${uid}/questions`).doc();
+    stagedQuestions.push({ docRef, question: normalised });
+  }
+
+  const verifiedQuestions = stagedQuestions.length > 0
+    ? await verifyQuestionEvidenceBatch(
+      stagedQuestions.map((item) => item.question),
+      { maxRemoteChecks: 2 }
+    )
+    : [];
+
+  const validItems = [];
+  const clientDocs = [];
+  for (let i = 0; i < stagedQuestions.length; i++) {
+    const docRef = stagedQuestions[i].docRef;
+    const question = verifiedQuestions[i] || stagedQuestions[i].question;
     validItems.push({
       ref: docRef,
       data: {
         courseId,
         sectionId,
-        ...normalised,
+        ...question,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       },
     });
     // Keep a client-safe copy (no serverTimestamp sentinel) for inline return
-    clientDocs.push({ id: docRef.id, courseId, sectionId, ...normalised });
+    clientDocs.push({ id: docRef.id, courseId, sectionId, ...question });
   }
 
   if (validItems.length > 0) {

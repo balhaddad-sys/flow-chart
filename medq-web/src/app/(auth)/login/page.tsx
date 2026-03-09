@@ -96,7 +96,7 @@ export default function LoginPage() {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (
-            <div role="alert" aria-live="polite" className="animate-in-up rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
+            <div id="login-error" role="alert" aria-live="polite" className="animate-in-up rounded-xl bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive">
               {error}
             </div>
           )}
@@ -111,6 +111,8 @@ export default function LoginPage() {
               placeholder="you@example.com"
               className="h-11 rounded-xl"
               required
+              aria-invalid={!!error}
+              aria-describedby={error ? "login-error" : undefined}
             />
           </div>
 
@@ -132,6 +134,8 @@ export default function LoginPage() {
               placeholder="Your password"
               className="h-11 rounded-xl"
               required
+              aria-invalid={!!error}
+              aria-describedby={error ? "login-error" : undefined}
             />
           </div>
 

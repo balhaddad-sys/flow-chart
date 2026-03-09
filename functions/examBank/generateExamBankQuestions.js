@@ -20,6 +20,7 @@ const { generateQuestions: geminiGenerate } = require("../ai/geminiClient");
 const { generateQuestions: claudeGenerate } = require("../ai/aiClient");
 const { EXPLORE_QUESTIONS_SYSTEM, exploreQuestionsUserPrompt } = require("../ai/prompts");
 const { normaliseQuestion } = require("../lib/serialize");
+const { verifyQuestionEvidenceBatch } = require("../lib/citationVerification");
 const { EXAM_PLAYBOOKS, buildExamPlaybookPrompt, normalizeExamType } = require("../ai/examPlaybooks");
 
 const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
@@ -224,8 +225,12 @@ exports.generateExamBankQuestions = functions
         .map((q) => normaliseQuestion(q, defaults))
         .filter((q) => q && q.stem && Array.isArray(q.options) && q.options.length >= 4);
 
+      const verifiedQuestions = normalised.length > 0
+        ? await verifyQuestionEvidenceBatch(normalised, { maxRemoteChecks: 2 })
+        : [];
+
       // Stamp unique IDs (normaliseQuestion does not add an id field)
-      const stamped = normalised.map((q, i) => ({
+      const stamped = verifiedQuestions.map((q, i) => ({
         ...q,
         id: `exambank_${examType}_${stamp}_${i}`,
       }));

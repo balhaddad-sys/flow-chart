@@ -559,7 +559,7 @@ export function ExploreAskAiWidget() {
                   variant="outline"
                   className="h-10 w-10 shrink-0 self-end"
                   onClick={handleStopRequest}
-                  title="Stop generation"
+                  aria-label="Stop generation"
                 >
                   <CircleStop className="h-4 w-4" />
                 </Button>
@@ -569,6 +569,7 @@ export function ExploreAskAiWidget() {
                   size="icon"
                   disabled={!input.trim()}
                   className="h-10 w-10 shrink-0 self-end"
+                  aria-label="Send message"
                 >
                   <Send className="h-4 w-4" />
                 </Button>

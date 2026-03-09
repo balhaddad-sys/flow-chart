@@ -7,6 +7,8 @@ interface TimerStore {
   start: () => void;
   pause: () => void;
   reset: () => void;
+  /** Stop interval and reset — safe to call from cleanup effects. */
+  cleanup: () => void;
   getFormatted: () => string;
 }
 
@@ -30,6 +32,12 @@ export const useTimerStore = create<TimerStore>((set, get) => ({
   },
 
   reset: () => {
+    const { intervalId } = get();
+    if (intervalId) clearInterval(intervalId);
+    set({ seconds: 0, isRunning: false, intervalId: null });
+  },
+
+  cleanup: () => {
     const { intervalId } = get();
     if (intervalId) clearInterval(intervalId);
     set({ seconds: 0, isRunning: false, intervalId: null });

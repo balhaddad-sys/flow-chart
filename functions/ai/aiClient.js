@@ -28,7 +28,7 @@ const { jsonrepair } = require("jsonrepair");
 // Model identifiers — update here to roll out a new model globally.
 const MODELS = {
   LIGHT: "claude-haiku-4-5-20251001", // Blueprints, question generation, task planning
-  HEAVY: "claude-haiku-4-5-20251001", // Tutoring, fix plans, chat (cost-optimized)
+  HEAVY: "claude-sonnet-4-6", // Tutoring, fix plans, chat (quality-optimized)
 };
 
 // Max tokens per prompt type — tuned for speed vs completeness

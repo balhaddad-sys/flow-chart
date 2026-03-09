@@ -1180,7 +1180,7 @@ class _GeneratingViewState extends State<_GeneratingView>
     return Scaffold(
       appBar: AppBar(title: const Text('Quiz')),
       body: Center(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: AppSpacing.screenPadding,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,

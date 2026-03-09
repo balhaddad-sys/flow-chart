@@ -52,14 +52,17 @@ export function TaskRow({ task, sectionMap }: TaskRowProps) {
     >
       <div
         onClick={toggleDone}
+        onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); toggleDone(e as unknown as React.MouseEvent); } }}
         role="checkbox"
+        tabIndex={0}
         aria-checked={isDone}
+        aria-label={isDone ? "Mark task incomplete" : "Mark task complete"}
         className="shrink-0 rounded-full p-0.5 transition-colors hover:bg-accent"
       >
         {isDone ? (
           <CheckCircle2 className="h-5 w-5 text-green-500" />
         ) : (
-          <Circle className="h-5 w-5 text-muted-foreground/40" />
+          <Circle className="h-5 w-5 text-muted-foreground/60" />
         )}
       </div>
 
@@ -87,7 +90,7 @@ export function TaskRow({ task, sectionMap }: TaskRowProps) {
         </div>
       </div>
 
-      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/30 transition-transform group-hover:translate-x-0.5" />
+      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
     </button>
   );
 }

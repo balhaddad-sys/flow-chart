@@ -258,6 +258,7 @@ export function StudyAskAiWidget({
             size="icon"
             disabled={!input.trim() || loading}
             className="h-9 w-9 shrink-0"
+            aria-label="Send message"
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />

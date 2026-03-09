@@ -19,6 +19,7 @@ const admin = require("firebase-admin");
 const { db } = require("../lib/firestore");
 const { updateQuestionGenStats } = require("../ai/selfTuningCostEngine");
 const log = require("../lib/logger");
+const { MAX_QUESTIONS_PER_SECTION } = require("../lib/constants");
 const {
   QUESTION_BACKFILL_JOB_TYPE,
   MAX_NO_PROGRESS_STREAK,
@@ -31,7 +32,7 @@ const {
 const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
 
 /** Maximum AI calls per single invocation. */
-const MAX_ITERATIONS = 5;
+const MAX_ITERATIONS = 8;
 
 /** Safety margin: stop looping if we're within this many ms of the function timeout. */
 const TIMEOUT_BUFFER_MS = 30_000;
@@ -70,7 +71,7 @@ exports.processQuestionBackfillJob = functions
 
     const courseId = String(job.courseId || "");
     const sectionId = String(job.sectionId || "");
-    const targetCount = Math.max(1, Math.min(30, Number(job.targetCount || 10)));
+    const targetCount = Math.max(1, Math.min(MAX_QUESTIONS_PER_SECTION, Number(job.targetCount || 10)));
     const sectionRef = db.doc(`users/${uid}/sections/${sectionId}`);
 
     if (!courseId || !sectionId) {

@@ -162,6 +162,9 @@ const AI_RETRY_BASE_MS = 1000;
 /** Default number of questions to auto-generate per section. */
 const DEFAULT_QUESTION_COUNT = 10;
 
+/** Hard cap on questions per section. More are only generated on explicit user request. */
+const MAX_QUESTIONS_PER_SECTION = 100;
+
 // ── Function timeouts ───────────────────────────────────────────────────────
 
 /** Timeout for file processing (extraction + section creation). */
@@ -279,6 +282,7 @@ module.exports = {
   AI_MAX_RETRIES,
   AI_RETRY_BASE_MS,
   DEFAULT_QUESTION_COUNT,
+  MAX_QUESTIONS_PER_SECTION,
   TIMEOUT_PROCESS_FILE,
   TIMEOUT_PROCESS_SECTION,
   TIMEOUT_GENERATE_QUESTIONS,

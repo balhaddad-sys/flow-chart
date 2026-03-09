@@ -14,6 +14,7 @@ import {
   type DocumentReference,
   type CollectionReference,
   Timestamp,
+  limit,
 } from "firebase/firestore";
 import { db } from "./client";
 import type { CourseModel } from "../types/course";
@@ -226,7 +227,8 @@ export function subscribeAttempts(
   const q = query(
     userCollection(uid, "attempts"),
     where("courseId", "==", courseId),
-    orderBy("createdAt", "desc")
+    orderBy("createdAt", "desc"),
+    limit(500)
   );
   return onSnapshot(q, (snap) => {
     cb(snap.docs.map((d) => withId<AttemptModel>(d as never)));

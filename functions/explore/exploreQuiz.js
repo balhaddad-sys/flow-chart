@@ -281,3 +281,83 @@ exports.exploreQuiz = functions
       return safeError(error, "explore quiz generation");
     }
   });
+
+/**
+ * Retry a failed explore backfill job by creating a new PENDING job
+ * seeded with whatever questions the failed job already generated.
+ */
+exports.retryExploreBackfill = functions
+  .runWith({
+    timeoutSeconds: 30,
+    memory: "256MB",
+    secrets: [geminiApiKey, anthropicApiKey],
+  })
+  .https.onCall(async (data, context) => {
+    const uid = requireAuth(context);
+    requireStrings(data, [{ field: "jobId", maxLen: 128 }]);
+
+    await checkRateLimit(uid, "retryExploreBackfill", RATE_LIMITS.exploreQuiz);
+
+    const { jobId } = data;
+    const jobRef = db.doc(`users/${uid}/jobs/${jobId}`);
+
+    try {
+      const jobSnap = await jobRef.get();
+      if (!jobSnap.exists) {
+        return fail(Errors.NOT_FOUND, "Job not found.");
+      }
+
+      const job = jobSnap.data() || {};
+      if (job.type !== EXPLORE_BACKFILL_JOB_TYPE) {
+        return fail(Errors.INVALID_ARGUMENT, "Not an explore backfill job.");
+      }
+      if (job.status !== "FAILED") {
+        return fail(Errors.INVALID_ARGUMENT, "Only failed jobs can be retried.");
+      }
+
+      const topic = String(job.topic || "").trim();
+      const level = String(job.level || "MD3");
+      const levelProfile = getAssessmentLevel(level);
+      const targetCount = Math.max(3, Math.min(20, Number(job.targetCount) || 10));
+      const seedQuestions = Array.isArray(job.questions) ? job.questions : [];
+
+      const newJobId = await queueExploreBackfillJob({
+        uid,
+        topic,
+        levelProfile,
+        targetCount,
+        seedQuestions,
+        modelUsed: String(job.modelUsed || "retry"),
+        qualityGatePassed: false,
+        qualityScore: Number(job.qualityScore || 0),
+        profileDocId: String(job.profileDocId || ""),
+      });
+
+      // Mark old job as superseded
+      await jobRef.update({
+        status: "RETRIED",
+        retriedJobId: newJobId,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      log.info("Explore backfill retried", {
+        uid,
+        oldJobId: jobId,
+        newJobId,
+        topic,
+        level,
+        seedCount: seedQuestions.length,
+        targetCount,
+      });
+
+      return ok({
+        newJobId,
+        topic,
+        level: levelProfile.id,
+        seedCount: seedQuestions.length,
+        targetCount,
+      });
+    } catch (error) {
+      return safeError(error, "explore backfill retry");
+    }
+  });

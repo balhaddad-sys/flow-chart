@@ -67,4 +67,25 @@ function weekdayName(date) {
   return date.toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
 }
 
-module.exports = { shuffleArray, clampInt, truncate, toISODate, weekdayName };
+/**
+ * Race a promise against a timeout. Resolves with a failure object on timeout
+ * rather than rejecting, matching the AI client result shape.
+ *
+ * @param {Promise} taskPromise
+ * @param {number} timeoutMs
+ * @param {string} timeoutLabel - Human-readable label for log/error messages.
+ * @returns {Promise}
+ */
+function withTimeout(taskPromise, timeoutMs, timeoutLabel) {
+  return Promise.race([
+    taskPromise,
+    new Promise((resolve) => {
+      setTimeout(
+        () => resolve({ success: false, error: `${timeoutLabel} timed out after ${timeoutMs}ms` }),
+        timeoutMs
+      );
+    }),
+  ]);
+}
+
+module.exports = { shuffleArray, clampInt, truncate, toISODate, weekdayName, withTimeout };

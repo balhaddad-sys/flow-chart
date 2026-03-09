@@ -42,7 +42,7 @@ const { submitAssessmentAnswer } = require("./assessment/submitAssessmentAnswer"
 const { finishAssessmentSession } = require("./assessment/finishAssessmentSession");
 
 // ── Explore ─────────────────────────────────────────────────────────────────
-const { exploreQuiz } = require("./explore/exploreQuiz");
+const { exploreQuiz, retryExploreBackfill } = require("./explore/exploreQuiz");
 const { processExploreBackfillJob } = require("./explore/processExploreBackfillJob");
 const { exploreTopicInsight } = require("./explore/exploreTopicInsight");
 
@@ -80,6 +80,7 @@ exports.startAssessmentSession = startAssessmentSession;
 exports.submitAssessmentAnswer = submitAssessmentAnswer;
 exports.finishAssessmentSession = finishAssessmentSession;
 exports.exploreQuiz = exploreQuiz;
+exports.retryExploreBackfill = retryExploreBackfill;
 exports.processExploreBackfillJob = processExploreBackfillJob;
 exports.exploreTopicInsight = exploreTopicInsight;
 exports.generateExamBankQuestions = generateExamBankQuestions;

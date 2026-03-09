@@ -53,7 +53,7 @@ exports.generateQuestions = functions
       { field: "courseId", maxLen: 128 },
       { field: "sectionId", maxLen: 128 },
     ]);
-    const count = requireInt(data, "count", 1, 30, 10);
+    const count = requireInt(data, "count", 1, 100, 10);
 
     await checkRateLimit(uid, "generateQuestions", RATE_LIMITS.generateQuestions);
 
