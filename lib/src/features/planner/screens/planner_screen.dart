@@ -359,7 +359,6 @@ class _PlanContent extends ConsumerWidget {
     final todayDone = todayTasks.where((t) => t.status == 'DONE').length;
 
     final grouped = ref.watch(groupedTasksProvider(tasks));
-    final overdue = ref.watch(overdueTasksProvider(tasks));
 
     // Filter by selected date if any
     final selectedDate = ref.watch(selectedDateProvider);
@@ -558,7 +557,6 @@ class _PlannerFab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final overdue = ref.watch(overdueTasksProvider(tasks));
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (isLoading) {
       return FloatingActionButton(

@@ -132,6 +132,11 @@ class QuizNotifier extends StateNotifier<QuizState> {
 
   QuizNotifier(this._ref) : super(const QuizState());
 
+  /// Set an error message without loading questions.
+  void setError(String message) {
+    state = const QuizState().copyWith(errorMessage: message);
+  }
+
   /// Load questions for a quiz session.
   ///
   /// Flow:

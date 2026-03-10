@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -75,8 +74,8 @@ class _QuizScreenState extends ConsumerState<QuizScreen> {
   void _loadQuiz() {
     final courseId = _courseId;
     if (courseId == null) {
-      ref.read(quizProvider.notifier).state = const QuizState(
-        errorMessage: 'Course not found. Please go back and try again.',
+      ref.read(quizProvider.notifier).setError(
+        'Course not found. Please go back and try again.',
       );
       return;
     }
