@@ -11,8 +11,6 @@ workflows:
         - firebase_android
         - android_signing
         - app_config
-      android_signing:
-        - medq_keystore
     triggering:
       events:
         - tag
@@ -22,6 +20,16 @@ workflows:
       - name: Set up local.properties
         script: |
           echo "flutter.sdk=$HOME/programs/flutter" > "$CM_BUILD_DIR/android/local.properties"
+
+      - name: Set up Android signing
+        script: |
+          echo $CM_KEYSTORE | base64 --decode > "$CM_BUILD_DIR/android/app/upload-keystore.jks"
+          cat > "$CM_BUILD_DIR/android/key.properties" <<PROPS
+          storePassword=$CM_KEYSTORE_PASSWORD
+          keyPassword=$CM_KEY_PASSWORD
+          keyAlias=$CM_KEY_ALIAS
+          storeFile=app/upload-keystore.jks
+          PROPS
 
       - name: Install dependencies
         script: flutter pub get
