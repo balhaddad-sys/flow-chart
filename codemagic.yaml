@@ -84,9 +84,6 @@ workflows:
       groups:
         - firebase_ios
         - app_config
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: io.medq.app
     triggering:
       events:
         - tag
@@ -102,11 +99,20 @@ workflows:
       - name: Set up iOS Firebase config
         script: |
           if [ -n "$GOOGLE_SERVICE_INFO_PLIST" ]; then
-            echo "$GOOGLE_SERVICE_INFO_PLIST" > "$CM_BUILD_DIR/ios/Runner/GoogleService-Info.plist"
+            echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > "$CM_BUILD_DIR/ios/Runner/GoogleService-Info.plist"
           fi
 
       - name: Install dependencies
         script: flutter pub get
+
+      - name: Set up code signing
+        script: |
+          app-store-connect fetch-signing-files "io.medq.app" \
+            --type IOS_APP_STORE \
+            --create
+          keychain initialize
+          keychain add-certificates
+          xcode-project use-profiles
 
       - name: Generate code (Freezed / JSON)
         script: dart run build_runner build --delete-conflicting-outputs
@@ -114,10 +120,6 @@ workflows:
       - name: Install CocoaPods
         script: |
           cd ios && pod install
-
-      - name: Set up code signing
-        script: |
-          xcode-project use-profiles
 
       - name: Analyze
         script: flutter analyze --no-fatal-infos
