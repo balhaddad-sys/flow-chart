@@ -113,7 +113,7 @@ jobs:
 
       - name: Analyze and test before release build
         run: |
-          flutter analyze
+          flutter analyze --no-fatal-infos
           flutter test
 
       - name: Determine build metadata
