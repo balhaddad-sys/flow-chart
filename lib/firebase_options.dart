@@ -24,6 +24,27 @@ class DefaultFirebaseOptions {
     defaultValue: 'medq-a6cc6.firebasestorage.app',
   );
 
+  static const String _iosApiKey = String.fromEnvironment(
+    'FIREBASE_IOS_API_KEY',
+    defaultValue: 'AIzaSyCKk5PGxNUvEcFqi8Lu71gCX653ERg_tI4',
+  );
+  static const String _iosAppId = String.fromEnvironment(
+    'FIREBASE_IOS_APP_ID',
+    defaultValue: '1:1061864749573:ios:9c946b275923edca34ba6c',
+  );
+  static const String _iosMessagingSenderId = String.fromEnvironment(
+    'FIREBASE_IOS_MESSAGING_SENDER_ID',
+    defaultValue: '1061864749573',
+  );
+  static const String _iosProjectId = String.fromEnvironment(
+    'FIREBASE_IOS_PROJECT_ID',
+    defaultValue: 'medq-a6cc6',
+  );
+  static const String _iosStorageBucket = String.fromEnvironment(
+    'FIREBASE_IOS_STORAGE_BUCKET',
+    defaultValue: 'medq-a6cc6.firebasestorage.app',
+  );
+
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
       return web;
@@ -32,10 +53,7 @@ class DefaultFirebaseOptions {
       case TargetPlatform.android:
         return android;
       case TargetPlatform.iOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for ios - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return ios;
       case TargetPlatform.macOS:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for macos - '
@@ -74,6 +92,17 @@ class DefaultFirebaseOptions {
       messagingSenderId: _androidMessagingSenderId,
       projectId: _androidProjectId,
       storageBucket: _androidStorageBucket,
+    );
+  }
+
+  static FirebaseOptions get ios {
+    return const FirebaseOptions(
+      apiKey: _iosApiKey,
+      appId: _iosAppId,
+      messagingSenderId: _iosMessagingSenderId,
+      projectId: _iosProjectId,
+      storageBucket: _iosStorageBucket,
+      iosBundleId: 'io.medq.app',
     );
   }
 

@@ -7,6 +7,7 @@ import {
   Library,
   CircleHelp,
   Sparkles,
+  Compass,
   User,
   ChevronsUpDown,
   GraduationCap,
@@ -28,12 +29,14 @@ const navItems = [
   { href: "/library", label: "Library", icon: Library },
   { href: "/practice", label: "Practice", icon: CircleHelp },
   { href: "/ai", label: "AI Chat", icon: Sparkles },
+  { href: "/ai/explore", label: "Explore", icon: Compass },
   { href: "/profile", label: "Settings", icon: User },
 ];
 
 function isNavActive(pathname: string, href: string): boolean {
   if (href === "/today") return pathname === "/today" || pathname.startsWith("/today/");
-  if (href === "/ai") return pathname === "/ai" || pathname.startsWith("/ai/");
+  if (href === "/ai/explore") return pathname.startsWith("/ai/explore");
+  if (href === "/ai") return pathname === "/ai" || (pathname.startsWith("/ai/") && !pathname.startsWith("/ai/explore"));
   if (href === "/practice") {
     return pathname === "/practice" || pathname.startsWith("/practice/") || pathname.startsWith("/study/");
   }

@@ -1,0 +1,194 @@
+workflows:
+  # ── Android Release ──────────────────────────────────────────────────────────
+  android-release:
+    name: Android Release
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+    environment:
+      java: 17
+      flutter: stable
+      groups:
+        - firebase_android
+        - android_signing
+        - app_config
+      android_signing:
+        - medq_keystore
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: android-v*
+    scripts:
+      - name: Set up local.properties
+        script: |
+          echo "flutter.sdk=$HOME/programs/flutter" > "$CM_BUILD_DIR/android/local.properties"
+
+      - name: Install dependencies
+        script: flutter pub get
+
+      - name: Generate code (Freezed / JSON)
+        script: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze
+        script: flutter analyze
+
+      - name: Run tests
+        script: flutter test
+
+      - name: Build AAB (Play Store)
+        script: |
+          BUILD_NUMBER=$(($(google-play get-latest-build-number --package-name "io.medq.app" --tracks=internal 2>/dev/null || echo 0) + 1))
+          flutter build appbundle --release \
+            --build-number=$BUILD_NUMBER \
+            --dart-define=FIREBASE_ANDROID_API_KEY="$FIREBASE_ANDROID_API_KEY" \
+            --dart-define=FIREBASE_ANDROID_APP_ID="$FIREBASE_ANDROID_APP_ID" \
+            --dart-define=FIREBASE_ANDROID_MESSAGING_SENDER_ID="$FIREBASE_ANDROID_MESSAGING_SENDER_ID" \
+            --dart-define=FIREBASE_ANDROID_PROJECT_ID="$FIREBASE_ANDROID_PROJECT_ID" \
+            --dart-define=FIREBASE_ANDROID_STORAGE_BUCKET="$FIREBASE_ANDROID_STORAGE_BUCKET" \
+            --dart-define=MEDQ_PRIVACY_URL="$MEDQ_PRIVACY_URL" \
+            --dart-define=MEDQ_TERMS_URL="$MEDQ_TERMS_URL" \
+            --dart-define=MEDQ_SUPPORT_EMAIL="$MEDQ_SUPPORT_EMAIL"
+
+    artifacts:
+      - build/**/outputs/**/*.aab
+      - build/**/outputs/**/mapping.txt
+      - flutter_drive.log
+
+    publishing:
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: true
+
+  # ── iOS Release ──────────────────────────────────────────────────────────────
+  ios-release:
+    name: iOS Release
+    max_build_duration: 45
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: MedQ App Store Connect
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      groups:
+        - firebase_ios
+        - app_config
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: io.medq.app
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: ios-v*
+    scripts:
+      - name: Generate iOS platform if missing
+        script: |
+          if [ ! -d "$CM_BUILD_DIR/ios" ]; then
+            flutter create --platforms=ios --org io.medq --project-name medq .
+          fi
+
+      - name: Set up iOS Firebase config
+        script: |
+          if [ -n "$GOOGLE_SERVICE_INFO_PLIST" ]; then
+            echo "$GOOGLE_SERVICE_INFO_PLIST" > "$CM_BUILD_DIR/ios/Runner/GoogleService-Info.plist"
+          fi
+
+      - name: Install dependencies
+        script: flutter pub get
+
+      - name: Generate code (Freezed / JSON)
+        script: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Install CocoaPods
+        script: |
+          cd ios && pod install
+
+      - name: Set up code signing
+        script: |
+          xcode-project use-profiles
+
+      - name: Analyze
+        script: flutter analyze
+
+      - name: Run tests
+        script: flutter test
+
+      - name: Build IPA
+        script: |
+          BUILD_NUMBER=$(($(app-store-connect get-latest-testflight-build-number "$APP_STORE_APP_ID" 2>/dev/null || echo 0) + 1))
+          flutter build ipa --release \
+            --build-number=$BUILD_NUMBER \
+            --export-options-plist=/Users/builder/export_options.plist \
+            --dart-define=FIREBASE_IOS_API_KEY="$FIREBASE_IOS_API_KEY" \
+            --dart-define=FIREBASE_IOS_APP_ID="$FIREBASE_IOS_APP_ID" \
+            --dart-define=FIREBASE_IOS_MESSAGING_SENDER_ID="$FIREBASE_IOS_MESSAGING_SENDER_ID" \
+            --dart-define=FIREBASE_IOS_PROJECT_ID="$FIREBASE_IOS_PROJECT_ID" \
+            --dart-define=FIREBASE_IOS_STORAGE_BUCKET="$FIREBASE_IOS_STORAGE_BUCKET" \
+            --dart-define=MEDQ_PRIVACY_URL="$MEDQ_PRIVACY_URL" \
+            --dart-define=MEDQ_TERMS_URL="$MEDQ_TERMS_URL" \
+            --dart-define=MEDQ_SUPPORT_EMAIL="$MEDQ_SUPPORT_EMAIL"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        beta_groups:
+          - Internal Testers
+
+  # ── Android Debug APK (for testing) ──────────────────────────────────────────
+  android-debug:
+    name: Android Debug APK
+    max_build_duration: 20
+    instance_type: mac_mini_m2
+    environment:
+      java: 17
+      flutter: stable
+      groups:
+        - firebase_android
+        - app_config
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: develop
+          include: true
+    scripts:
+      - name: Set up local.properties
+        script: |
+          echo "flutter.sdk=$HOME/programs/flutter" > "$CM_BUILD_DIR/android/local.properties"
+
+      - name: Install dependencies
+        script: flutter pub get
+
+      - name: Generate code (Freezed / JSON)
+        script: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Build debug APK
+        script: |
+          flutter build apk --debug \
+            --dart-define=FIREBASE_ANDROID_API_KEY="$FIREBASE_ANDROID_API_KEY" \
+            --dart-define=FIREBASE_ANDROID_APP_ID="$FIREBASE_ANDROID_APP_ID" \
+            --dart-define=FIREBASE_ANDROID_MESSAGING_SENDER_ID="$FIREBASE_ANDROID_MESSAGING_SENDER_ID" \
+            --dart-define=FIREBASE_ANDROID_PROJECT_ID="$FIREBASE_ANDROID_PROJECT_ID" \
+            --dart-define=FIREBASE_ANDROID_STORAGE_BUCKET="$FIREBASE_ANDROID_STORAGE_BUCKET" \
+            --dart-define=MEDQ_PRIVACY_URL="$MEDQ_PRIVACY_URL" \
+            --dart-define=MEDQ_TERMS_URL="$MEDQ_TERMS_URL" \
+            --dart-define=MEDQ_SUPPORT_EMAIL="$MEDQ_SUPPORT_EMAIL"
+
+    artifacts:
+      - build/**/outputs/**/*.apk
+
+    publishing:
+      email:
+        recipients:
+          - team@medq.io
+        notify:
+          success: false
+          failure: true
