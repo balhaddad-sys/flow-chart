@@ -63,10 +63,12 @@ workflows:
       - flutter_drive.log
 
     publishing:
-      google_play:
-        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
-        track: internal
-        submit_as_draft: true
+      email:
+        recipients:
+          - b.alhaddad13@gmail.com
+        notify:
+          success: true
+          failure: true
 
   # ── iOS Release ──────────────────────────────────────────────────────────────
   ios-release:
@@ -85,8 +87,6 @@ workflows:
       ios_signing:
         distribution_type: app_store
         bundle_identifier: io.medq.app
-        provisioning_profiles:
-          - io.medq.app
     triggering:
       events:
         - tag
