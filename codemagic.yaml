@@ -25,12 +25,10 @@ workflows:
       - name: Set up Android signing
         script: |
           echo $CM_KEYSTORE | base64 --decode > "$CM_BUILD_DIR/android/app/upload-keystore.jks"
-          cat > "$CM_BUILD_DIR/android/key.properties" <<PROPS
-          storePassword=$CM_KEYSTORE_PASSWORD
-          keyPassword=$CM_KEY_PASSWORD
-          keyAlias=$CM_KEY_ALIAS
-          storeFile=app/upload-keystore.jks
-          PROPS
+          echo "storePassword=$CM_KEYSTORE_PASSWORD" > "$CM_BUILD_DIR/android/key.properties"
+          echo "keyPassword=$CM_KEY_PASSWORD" >> "$CM_BUILD_DIR/android/key.properties"
+          echo "keyAlias=$CM_KEY_ALIAS" >> "$CM_BUILD_DIR/android/key.properties"
+          echo "storeFile=app/upload-keystore.jks" >> "$CM_BUILD_DIR/android/key.properties"
 
       - name: Install dependencies
         script: flutter pub get
