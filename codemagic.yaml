@@ -10,7 +10,6 @@ workflows:
       groups:
         - firebase_android
         - android_signing
-        - google_play
         - app_config
     triggering:
       events:
@@ -64,10 +63,6 @@ workflows:
       - flutter_drive.log
 
     publishing:
-      google_play:
-        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
-        track: internal
-        submit_as_draft: true
       email:
         recipients:
           - b.alhaddad13@gmail.com
