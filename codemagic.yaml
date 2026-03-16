@@ -128,7 +128,7 @@ workflows:
             --create
           keychain initialize
           keychain add-certificates
-          xcode-project use-profiles
+          xcode-project use-profiles --project "$CM_BUILD_DIR/ios/Runner.xcodeproj"
 
       - name: Analyze
         script: flutter analyze --no-fatal-infos || true
@@ -138,10 +138,10 @@ workflows:
 
       - name: Build IPA
         script: |
-          BUILD_NUMBER=$(($(app-store-connect get-latest-testflight-build-number "$APP_STORE_APP_ID" 2>/dev/null || echo 0) + 1))
+          BUILD_NUMBER=$(($(app-store-connect get-latest-testflight-build-number "io.medq.app" 2>/dev/null || echo 0) + 1))
           flutter build ipa --release \
             --build-number=$BUILD_NUMBER \
-            --export-options-plist=/Users/builder/export_options.plist \
+            --export-options-plist=$HOME/export_options.plist \
             --dart-define=FIREBASE_IOS_API_KEY="$FIREBASE_IOS_API_KEY" \
             --dart-define=FIREBASE_IOS_APP_ID="$FIREBASE_IOS_APP_ID" \
             --dart-define=FIREBASE_IOS_MESSAGING_SENDER_ID="$FIREBASE_IOS_MESSAGING_SENDER_ID" \
