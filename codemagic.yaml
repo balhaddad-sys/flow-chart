@@ -99,6 +99,12 @@ workflows:
             flutter create --platforms=ios --org io.medq --project-name medq .
           fi
 
+      - name: Fix bundle ID to io.medq.app
+        script: |
+          cd "$CM_BUILD_DIR/ios"
+          sed -i '' 's/io\.medq\.medq/io.medq.app/g' Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/io\.medq\.medq/io.medq.app/g' Runner/Info.plist 2>/dev/null || true
+
       - name: Set up iOS Firebase config
         script: |
           if [ -n "$GOOGLE_SERVICE_INFO_PLIST" ]; then
@@ -108,6 +114,13 @@ workflows:
       - name: Install dependencies
         script: flutter pub get
 
+      - name: Generate code (Freezed / JSON)
+        script: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Install CocoaPods
+        script: |
+          cd ios && pod install
+
       - name: Set up code signing
         script: |
           app-store-connect fetch-signing-files "io.medq.app" \
@@ -116,13 +129,6 @@ workflows:
           keychain initialize
           keychain add-certificates
           xcode-project use-profiles
-
-      - name: Generate code (Freezed / JSON)
-        script: dart run build_runner build --delete-conflicting-outputs
-
-      - name: Install CocoaPods
-        script: |
-          cd ios && pod install
 
       - name: Analyze
         script: flutter analyze --no-fatal-infos || true
