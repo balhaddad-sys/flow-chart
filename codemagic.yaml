@@ -123,12 +123,21 @@ workflows:
 
       - name: Set up code signing
         script: |
+          set -e
+          echo "=== Fetching signing files ==="
           app-store-connect fetch-signing-files "io.medq.app" \
             --type IOS_APP_STORE \
-            --create
+            --create \
+            --verbose
+          echo "=== Initializing keychain ==="
           keychain initialize
+          echo "=== Adding certificates ==="
           keychain add-certificates
-          xcode-project use-profiles --project "$CM_BUILD_DIR/ios/Runner.xcodeproj"
+          echo "=== Listing profiles ==="
+          ls -la ~/Library/MobileDevice/Provisioning\ Profiles/ 2>/dev/null || echo "No profiles dir"
+          echo "=== Applying profiles ==="
+          xcode-project use-profiles --project "$CM_BUILD_DIR/ios/Runner.xcodeproj" --verbose
+          echo "=== Done ==="
 
       - name: Analyze
         script: flutter analyze --no-fatal-infos || true
