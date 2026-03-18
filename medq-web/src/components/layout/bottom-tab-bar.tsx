@@ -38,7 +38,7 @@ export function BottomTabBar() {
               aria-current={active ? "page" : undefined}
               aria-label={tab.label}
               className={cn(
-                "relative flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 pt-2 pb-1.5 text-[10px] font-medium transition-colors min-h-[44px]",
+                "relative flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 pt-2 pb-1.5 text-xs font-medium transition-colors min-h-[44px]",
                 active
                   ? "text-primary"
                   : "text-muted-foreground active:text-foreground"

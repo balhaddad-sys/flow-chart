@@ -295,7 +295,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
             >
               <span
                 className={cn(
-                  "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold transition-all",
+                  "mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-bold transition-all",
                   isPending
                     ? "bg-primary text-primary-foreground"
                     : isAnswered && isCorrectOption
@@ -321,7 +321,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
 
         {/* Keyboard hint — desktop only */}
         {!isAnswered && !submitting && (
-          <p className="hidden text-center text-[11px] text-muted-foreground/50 md:block">
+          <p className="hidden text-center text-xs text-muted-foreground/50 md:block">
             Press{" "}
             <kbd className="rounded border border-border/60 bg-muted/50 px-1 py-0.5 font-mono text-xs">A</kbd>
             –

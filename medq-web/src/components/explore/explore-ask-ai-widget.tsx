@@ -381,7 +381,7 @@ export function ExploreAskAiWidget() {
         >
           <Sparkles className="h-4 w-4 text-primary" />
           <span
-            className="text-[10px] font-bold tracking-widest text-primary"
+            className="text-xs font-bold tracking-widest text-primary"
             style={{ writingMode: "vertical-rl", textOrientation: "mixed" }}
           >
             AI
@@ -425,7 +425,7 @@ export function ExploreAskAiWidget() {
               </div>
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold">Ask AI · {topic}</p>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Context-aware tutor
                 </p>
               </div>
@@ -443,7 +443,7 @@ export function ExploreAskAiWidget() {
 
           {/* Quick prompts */}
           <div className="shrink-0 border-b border-border/60 px-3 py-2.5">
-            <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Quick prompts
             </p>
             <div className="flex flex-wrap gap-1.5">
@@ -452,7 +452,7 @@ export function ExploreAskAiWidget() {
                   key={prompt}
                   type="button"
                   onClick={() => setInput(prompt)}
-                  className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
+                  className="rounded-full border border-border/70 bg-background/70 px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent/50 hover:text-foreground"
                 >
                   {prompt}
                 </button>
@@ -492,7 +492,7 @@ export function ExploreAskAiWidget() {
                     {msg.content}
                   </p>
                   {msg.cached && (
-                    <Badge variant="outline" className="mt-2 text-[10px]">
+                    <Badge variant="outline" className="mt-2 text-xs">
                       cached
                     </Badge>
                   )}

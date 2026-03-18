@@ -130,7 +130,7 @@ export default function ProfilePage() {
       {/* Appearance */}
       <div className="rounded-xl border border-border bg-card p-4 shadow-sm animate-in-up stagger-1">
         <h2 className="text-[13px] font-bold tracking-tight">Appearance</h2>
-        <p className="mt-0.5 text-[11px] text-muted-foreground">Customize how MedQ looks</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">Customize how MedQ looks</p>
         <div className="mt-4 flex gap-2">
           {themeOptions.map((opt) => (
             <button
@@ -155,7 +155,7 @@ export default function ProfilePage() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-[13px] font-bold tracking-tight">Courses</h2>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">Tap a course to switch, or create a new one</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">Tap a course to switch, or create a new one</p>
           </div>
           <Link href="/onboarding?new=1">
             <Button variant="outline" size="sm">
@@ -225,7 +225,7 @@ export default function ProfilePage() {
                       <div className="flex-1 min-w-0">
                         <p className={cn("text-sm truncate", isActive && "font-medium")}>{course.title}</p>
                         {course.examType && (
-                          <p className="text-[11px] text-muted-foreground">{course.examType}</p>
+                          <p className="text-xs text-muted-foreground">{course.examType}</p>
                         )}
                       </div>
                     )}
@@ -315,7 +315,7 @@ export default function ProfilePage() {
       {/* Legal */}
       <div className="rounded-xl border border-border bg-card p-4 shadow-sm animate-in-up stagger-6">
         <h2 className="text-[13px] font-bold tracking-tight">Legal & Safety</h2>
-        <p className="mt-0.5 text-[11px] text-muted-foreground">
+        <p className="mt-0.5 text-xs text-muted-foreground">
           MedQ is an educational study platform and is not a clinical decision tool.
         </p>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -337,7 +337,7 @@ export default function ProfilePage() {
       {/* Danger Zone */}
       <div className="rounded-xl border border-red-200 dark:border-red-500/20 bg-card p-4 animate-in-up stagger-7">
         <h2 className="text-[13px] font-bold tracking-tight text-destructive">Danger Zone</h2>
-        <p className="mt-0.5 text-[11px] text-muted-foreground">
+        <p className="mt-0.5 text-xs text-muted-foreground">
           Permanently delete your account and all associated data.
         </p>
         <div className="mt-3">

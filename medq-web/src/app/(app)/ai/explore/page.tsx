@@ -738,10 +738,10 @@ export default function ExplorePage() {
                     <Zap className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
                   )}
                   <span className="flex-1 min-w-0 truncate text-sm">{entry.topic}</span>
-                  <Badge variant="outline" className="shrink-0 text-[10px] px-1.5 py-0">
+                  <Badge variant="outline" className="shrink-0 text-xs px-1.5 py-0">
                     {levelShortLabel(entry.level)}
                   </Badge>
-                  <span className="shrink-0 text-[10px] text-muted-foreground/70 w-14 text-right">
+                  <span className="shrink-0 text-xs text-muted-foreground/70 w-14 text-right">
                     {relativeTime(entry.timestamp)}
                   </span>
                   <button
@@ -792,7 +792,7 @@ export default function ExplorePage() {
             </div>
             <div>
               <p className="text-sm font-semibold">Learn</p>
-              <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground">
+              <p className="mt-0.5 text-xs leading-tight text-muted-foreground">
                 Teaching first, then quiz
               </p>
             </div>
@@ -817,7 +817,7 @@ export default function ExplorePage() {
             </div>
             <div>
               <p className="text-sm font-semibold">Quiz</p>
-              <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground">
+              <p className="mt-0.5 text-xs leading-tight text-muted-foreground">
                 Jump straight into questions
               </p>
             </div>

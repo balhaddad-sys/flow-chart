@@ -149,7 +149,7 @@ export default function QuizPage() {
             <span className="text-border">/</span>
             <span className="text-foreground font-medium">Quiz</span>
             {mode !== "section" && (
-              <Badge variant="secondary" className="ml-1 text-[10px]">{MODE_LABELS[mode]}</Badge>
+              <Badge variant="secondary" className="ml-1 text-xs">{MODE_LABELS[mode]}</Badge>
             )}
           </div>
           {answeredCount >= 2 && (

@@ -154,7 +154,7 @@ export function StudyAskAiWidget({
             <p className="truncate text-sm font-semibold">
               AI Tutor
             </p>
-            <p className="truncate text-[11px] text-muted-foreground">
+            <p className="truncate text-xs text-muted-foreground">
               {sectionTitle || "Ask anything about this section"}
             </p>
           </div>

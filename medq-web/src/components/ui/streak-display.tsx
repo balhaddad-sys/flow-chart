@@ -50,7 +50,7 @@ export function StreakDisplay({ days, lastStudied, className }: StreakDisplayPro
 
   return (
     <div className={cn("metric-card", className)}>
-      <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Streak</p>
+      <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Streak</p>
       <div className="mt-2 flex items-center gap-2">
         <Flame
           className={cn(
@@ -88,7 +88,7 @@ export function StreakDisplay({ days, lastStudied, className }: StreakDisplayPro
       </div>
 
       {atRisk && (
-        <p className="mt-1.5 text-[10px] font-medium text-orange-500">Study today to keep it</p>
+        <p className="mt-1.5 text-xs font-medium text-orange-500">Study today to keep it</p>
       )}
     </div>
   );

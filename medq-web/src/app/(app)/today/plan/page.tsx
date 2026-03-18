@@ -231,7 +231,7 @@ export default function PlanPage() {
             <div className="glass-card p-4 sm:p-5 border-primary/15 animate-in-up">
               <div className="mb-3 flex items-center gap-2">
                 <h2 className="text-base font-semibold">Today</h2>
-                <span className="rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-medium text-primary-foreground">
+                <span className="rounded-full bg-primary px-2.5 py-0.5 text-xs font-medium text-primary-foreground">
                   {todayGroup.tasks.length}
                 </span>
               </div>

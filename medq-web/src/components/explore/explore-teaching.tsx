@@ -58,7 +58,7 @@ function BarChart({
   return (
     <div className="space-y-2">
       {yLabel && (
-        <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {yLabel}
         </p>
       )}
@@ -74,13 +74,13 @@ function BarChart({
                 title={`${point.value}${point.unit ? ` ${point.unit}` : ""}`}
               />
             </div>
-            <p className="mt-1 text-[10px] leading-tight text-muted-foreground">
+            <p className="mt-1 text-xs leading-tight text-muted-foreground">
               {point.label}
             </p>
             <p className="text-xs font-semibold">
               {point.value}
               {point.unit ? (
-                <span className="text-[10px] font-normal text-muted-foreground">
+                <span className="text-xs font-normal text-muted-foreground">
                   {" "}{point.unit}
                 </span>
               ) : null}
@@ -89,7 +89,7 @@ function BarChart({
         ))}
       </div>
       {xLabel && (
-        <p className="text-center text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+        <p className="text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {xLabel}
         </p>
       )}
@@ -133,14 +133,14 @@ function GroupedBarChart({ chart }: { chart: TreatmentComparisonChart }) {
                 />
               ))}
             </div>
-            <p className="mt-1 text-[10px] leading-tight text-muted-foreground">
+            <p className="mt-1 text-xs leading-tight text-muted-foreground">
               {cat}
             </p>
           </div>
         ))}
       </div>
       {chart.unit && (
-        <p className="text-center text-[10px] text-muted-foreground">
+        <p className="text-center text-xs text-muted-foreground">
           Values in {chart.unit}
         </p>
       )}
@@ -174,7 +174,7 @@ function AlgorithmFlowchart({ chart }: { chart: DiagnosticAlgorithmChart }) {
           <div className="flex-1 pb-3">
             <p className="text-sm leading-snug">{step.label}</p>
             {step.type === "decision" && (
-              <div className="mt-1 flex gap-3 text-[10px]">
+              <div className="mt-1 flex gap-3 text-xs">
                 {step.yesNext && (
                   <span className="flex items-center gap-0.5 text-green-600 dark:text-green-400">
                     Yes <ChevronRight className="h-3 w-3" />
@@ -199,7 +199,7 @@ function ChartSource({ citation, url }: { citation?: string; url?: string }) {
   if (!citation) return null;
   return (
     <div className="border-t border-border/40 pt-1.5">
-      <p className="text-[10px] text-muted-foreground">
+      <p className="text-xs text-muted-foreground">
         Source: {citation}
         {url && (
           <a
@@ -212,7 +212,7 @@ function ChartSource({ citation, url }: { citation?: string; url?: string }) {
           </a>
         )}
       </p>
-      <p className="text-[10px] italic text-muted-foreground/70">
+      <p className="text-xs italic text-muted-foreground/70">
         AI-generated data — verify before clinical use.
       </p>
     </div>
@@ -351,7 +351,7 @@ export function ExploreTeaching({
             <div className="flex flex-wrap items-center gap-2">
               <ImageIcon className="h-4 w-4 text-primary" />
               <CardTitle className="text-base">Visual Aids</CardTitle>
-              <Badge variant="outline" className="text-[10px]">Auto</Badge>
+              <Badge variant="outline" className="text-xs">Auto</Badge>
             </div>
             <p className="text-xs text-muted-foreground">
               Added for visual-heavy topics. Verify labels with trusted anatomy sources before exams or clinical use.
@@ -388,7 +388,7 @@ export function ExploreTeaching({
                       <p className="line-clamp-2 text-xs font-medium leading-snug">
                         {item.title}
                       </p>
-                      <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         {item.matchedTarget && (
                           <Badge variant="secondary" className="h-4 px-1.5 text-[9px] font-medium">
                             {item.matchedTarget}
@@ -749,11 +749,11 @@ export function ExploreTeaching({
                 className="block rounded-lg border border-border/60 p-2.5 transition-colors hover:bg-muted/40"
               >
                 <div className="flex flex-wrap items-center gap-1.5">
-                  {g.year && <Badge variant="outline" className="text-[10px]">{g.year}</Badge>}
-                  <Badge variant="secondary" className="text-[10px]">{g.source}</Badge>
+                  {g.year && <Badge variant="outline" className="text-xs">{g.year}</Badge>}
+                  <Badge variant="secondary" className="text-xs">{g.source}</Badge>
                   <Badge
                     variant={g.strength === "HIGH" ? "default" : "outline"}
-                    className="text-[10px]"
+                    className="text-xs"
                   >
                     {g.strength}
                   </Badge>
@@ -789,14 +789,14 @@ export function ExploreTeaching({
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 rounded p-1.5 text-sm transition-colors hover:bg-muted/40"
               >
-                <Badge variant="outline" className="shrink-0 text-[10px]">
+                <Badge variant="outline" className="shrink-0 text-xs">
                   {c.source}
                 </Badge>
                 <span className="flex-1 truncate">{c.title}</span>
                 <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground" />
               </a>
             ))}
-            <p className="mt-3 border-t border-border/40 pt-2.5 text-[11px] italic text-muted-foreground/70">
+            <p className="mt-3 border-t border-border/40 pt-2.5 text-xs italic text-muted-foreground/70">
               Links open search results — verify specific articles before clinical use.
             </p>
           </CardContent>

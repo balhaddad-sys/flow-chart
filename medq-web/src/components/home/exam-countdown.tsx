@@ -59,9 +59,9 @@ export function ExamCountdown({ examDate }: ExamCountdownProps) {
         </span>
       </div>
 
-      <p className="mt-0.5 text-[11px] text-muted-foreground">{dateStr}</p>
+      <p className="mt-0.5 text-xs text-muted-foreground">{dateStr}</p>
       {isUrgent && (
-        <p className="mt-1.5 text-[10px] font-semibold uppercase tracking-wider text-red-500 animate-glow-pulse">
+        <p className="mt-1.5 text-xs font-semibold uppercase tracking-wider text-red-500 animate-glow-pulse">
           Exam soon
         </p>
       )}

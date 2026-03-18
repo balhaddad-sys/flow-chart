@@ -48,11 +48,11 @@ export function PipelineProgress(props: PipelineProgressProps) {
         <div className="flex items-center justify-between gap-3 mb-3">
           <div>
             <p className="text-[13px] font-bold tracking-tight">Getting Started</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               Step {activeStep + 1} of {steps.length} — {steps[activeStep]?.description ?? "Done"}
             </p>
           </div>
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold tabular-nums text-primary">
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-bold tabular-nums text-primary">
             {progressPercent}%
           </span>
         </div>

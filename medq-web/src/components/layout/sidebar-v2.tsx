@@ -136,7 +136,7 @@ export function SidebarV2() {
         <div className="space-y-4">
           {navGroups.map((group) => (
             <div key={group.label}>
-              <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/50">
+              <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground/50">
                 {group.label}
               </p>
               <div className="space-y-0.5">

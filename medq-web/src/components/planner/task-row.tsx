@@ -79,11 +79,11 @@ export function TaskRow({ task, sectionMap }: TaskRowProps) {
             <Clock className="h-3 w-3" />
             {task.estMinutes}m
           </span>
-          <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal">
+          <Badge variant="outline" className="text-xs px-1.5 py-0 font-normal">
             {meta.label}
           </Badge>
           {task.isFixPlan && (
-            <Badge className="bg-orange-500/10 text-orange-600 dark:text-orange-400 border-0 text-[10px] px-1.5 py-0 font-normal">
+            <Badge className="bg-orange-500/10 text-orange-600 dark:text-orange-400 border-0 text-xs px-1.5 py-0 font-normal">
               Fix
             </Badge>
           )}

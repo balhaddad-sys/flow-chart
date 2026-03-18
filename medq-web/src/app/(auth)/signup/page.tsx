@@ -182,7 +182,7 @@ export default function SignupPage() {
                     />
                   ))}
                 </div>
-                <p className="text-[11px] text-muted-foreground">{strength.label}</p>
+                <p className="text-xs text-muted-foreground">{strength.label}</p>
               </div>
             )}
           </div>

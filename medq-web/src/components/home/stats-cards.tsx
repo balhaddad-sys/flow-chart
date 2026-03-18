@@ -39,7 +39,7 @@ export function StatsCards({ stats, loading = false }: StatsCardsProps) {
 
       {/* Study Time */}
       <div className="metric-card">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Study Time</p>
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Study Time</p>
         <div className="mt-2 flex items-baseline gap-0.5">
           <NumberTicker value={totalHours} className="text-xl font-bold tabular-nums tracking-tight" />
           <span className="text-xs text-muted-foreground">h</span>
@@ -52,13 +52,13 @@ export function StatsCards({ stats, loading = false }: StatsCardsProps) {
         </div>
         <div className="mt-2 flex items-center gap-1.5">
           <Clock className="h-3 w-3 text-muted-foreground/60" />
-          <span className="text-[11px] text-muted-foreground">This course</span>
+          <span className="text-xs text-muted-foreground">This course</span>
         </div>
       </div>
 
       {/* Accuracy */}
       <div className="metric-card">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Accuracy</p>
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Accuracy</p>
         <div className="mt-2 flex items-center gap-2.5">
           <ProgressRing value={accuracy} size={36} strokeWidth={3.5} color="var(--primary)" />
           <div className="flex items-baseline gap-0.5">
@@ -66,14 +66,14 @@ export function StatsCards({ stats, loading = false }: StatsCardsProps) {
             <span className="text-xs text-muted-foreground">%</span>
           </div>
         </div>
-        <p className="mt-2 text-[11px] text-muted-foreground">
+        <p className="mt-2 text-xs text-muted-foreground">
           {answered > 0 ? `${answered.toLocaleString()} Qs` : "No attempts"}
         </p>
       </div>
 
       {/* Completion */}
       <div className="metric-card">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Completion</p>
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Completion</p>
         <div className="mt-2 flex items-center gap-2.5">
           <ProgressRing value={completion} size={36} strokeWidth={3.5} color="#7c3aed" />
           <div className="flex items-baseline gap-0.5">
@@ -81,7 +81,7 @@ export function StatsCards({ stats, loading = false }: StatsCardsProps) {
             <span className="text-xs text-muted-foreground">%</span>
           </div>
         </div>
-        <p className="mt-2 text-[11px] text-muted-foreground">
+        <p className="mt-2 text-xs text-muted-foreground">
           {completion >= 100 ? "Complete" : `${100 - completion}% left`}
         </p>
       </div>

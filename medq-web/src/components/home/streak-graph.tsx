@@ -108,18 +108,18 @@ export function StreakGraph({ className }: StreakGraphProps) {
           <Flame className={cn("h-4 w-4", streak > 0 ? "text-orange-500 animate-streak-glow" : "text-muted-foreground")} />
           <div>
             <h3 className="text-[13px] font-bold tracking-tight">Activity</h3>
-            <p className="text-[11px] text-muted-foreground">Last 12 weeks</p>
+            <p className="text-xs text-muted-foreground">Last 12 weeks</p>
           </div>
         </div>
 
         <div className="flex items-center gap-4 text-right">
           <div>
             <p className="text-base font-bold tabular-nums leading-none">{streak}</p>
-            <p className="text-[10px] text-muted-foreground">streak</p>
+            <p className="text-xs text-muted-foreground">streak</p>
           </div>
           <div>
             <p className="text-base font-bold tabular-nums leading-none">{totalQuestions}</p>
-            <p className="text-[10px] text-muted-foreground">total Qs</p>
+            <p className="text-xs text-muted-foreground">total Qs</p>
           </div>
         </div>
       </div>

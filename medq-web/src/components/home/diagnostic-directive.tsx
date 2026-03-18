@@ -31,7 +31,7 @@ export function DiagnosticDirective({
         <div>
           <h3 className="text-[13px] font-bold tracking-tight">AI Recommendations</h3>
           {accuracyPct != null && (
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Overall accuracy: <span className={cn("font-semibold", isStrong ? "text-emerald-600 dark:text-emerald-400" : "text-primary")}>{accuracyPct}%</span>
             </p>
           )}

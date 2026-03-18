@@ -383,7 +383,7 @@ export default function ExamBankPage() {
                 </p>
                 <button
                   onClick={() => setExamDateInput("")}
-                  className="mt-2 text-[10px] text-muted-foreground/70 hover:text-muted-foreground transition-colors"
+                  className="mt-2 text-xs text-muted-foreground/70 hover:text-muted-foreground transition-colors"
                 >
                   Change date
                 </button>
@@ -411,7 +411,7 @@ export default function ExamBankPage() {
                     {savingDate ? "…" : "Save"}
                   </Button>
                 </div>
-                <p className="text-[11px] text-muted-foreground/70">
+                <p className="text-xs text-muted-foreground/70">
                   We&apos;ll build a countdown and prioritise revision.
                 </p>
               </div>

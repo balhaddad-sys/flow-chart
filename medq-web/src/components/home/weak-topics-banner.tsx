@@ -43,7 +43,7 @@ export function WeakTopicsBanner({ topics }: WeakTopicsBannerProps) {
         </div>
         <Link
           href="/today/analytics"
-          className="text-[11px] font-medium text-primary hover:text-primary/80 transition-colors"
+          className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
         >
           View all
         </Link>
@@ -61,7 +61,7 @@ export function WeakTopicsBanner({ topics }: WeakTopicsBannerProps) {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <p className="truncate text-[13px] font-medium">{topic.tag}</p>
-                    <span className={cn("text-[10px] font-semibold", severity.color)}>
+                    <span className={cn("text-xs font-semibold", severity.color)}>
                       {accuracyPct}%
                     </span>
                   </div>
@@ -77,7 +77,7 @@ export function WeakTopicsBanner({ topics }: WeakTopicsBannerProps) {
                   href={`/practice/quiz?mode=topic&topic=${encodeURIComponent(topic.tag)}`}
                   className="shrink-0"
                 >
-                  <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[11px] text-primary">
+                  <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs text-primary">
                     <Play className="h-3 w-3" />
                     Drill
                   </Button>

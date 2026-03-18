@@ -441,18 +441,18 @@ export default function StudySessionPage({
           <div className="flex items-center gap-1 px-4 pb-1.5 overflow-x-auto scrollbar-none">
             <Badge
               variant="secondary"
-              className={`text-[10px] shrink-0 rounded-full border-transparent ${stageMeta.bg} ${stageMeta.color}`}
+              className={`text-xs shrink-0 rounded-full border-transparent ${stageMeta.bg} ${stageMeta.color}`}
             >
               <StageIcon className="mr-1 h-3 w-3" />
               {stageMeta.label}
             </Badge>
             {section.estMinutes && (
-              <Badge variant="outline" className="text-[10px] shrink-0 rounded-full">
+              <Badge variant="outline" className="text-xs shrink-0 rounded-full">
                 ~{section.estMinutes} min
               </Badge>
             )}
             {section.topicTags?.slice(0, 5).map((tag, i) => (
-              <Badge key={i} variant="secondary" className="text-[10px] shrink-0 rounded-full">
+              <Badge key={i} variant="secondary" className="text-xs shrink-0 rounded-full">
                 {tag}
               </Badge>
             ))}
@@ -933,14 +933,14 @@ export default function StudySessionPage({
                   Generate Notes
                 </Button>
                 {!sectionText && !textLoading && (
-                  <p className="mt-3 text-[11px] text-muted-foreground">
+                  <p className="mt-3 text-xs text-muted-foreground">
                     Section text must be loaded first.
                   </p>
                 )}
                 {textLoading && (
                   <InlineLoadingState
                     label="Loading section text..."
-                    className="mt-3 text-[11px]"
+                    className="mt-3 text-xs"
                   />
                 )}
               </div>

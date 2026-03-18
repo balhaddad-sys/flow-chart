@@ -42,24 +42,24 @@ function getQuestionBucket(section: SectionModel): QuestionBucket {
 
 function statusBadge(section: SectionModel) {
   if (section.aiStatus !== "ANALYZED") {
-    return <Badge variant="outline" className="text-[10px]">Analyzing</Badge>;
+    return <Badge variant="outline" className="text-xs">Analyzing</Badge>;
   }
   if (section.questionsStatus === "GENERATING") {
     const label = section.questionsCount > 0 ? "Ready + Generating" : "Generating";
     return (
-      <Badge variant="secondary" className="gap-1 text-[10px]">
+      <Badge variant="secondary" className="gap-1 text-xs">
         <Loader2 className="h-3 w-3 animate-spin" />
         {label}
       </Badge>
     );
   }
   if (section.questionsCount > 0) {
-    return <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400 hover:bg-emerald-100 text-[10px]">Ready</Badge>;
+    return <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400 hover:bg-emerald-100 text-xs">Ready</Badge>;
   }
   if (section.questionsStatus === "FAILED") {
-    return <Badge variant="destructive" className="text-[10px]">Failed</Badge>;
+    return <Badge variant="destructive" className="text-xs">Failed</Badge>;
   }
-  return <Badge variant="outline" className="text-[10px]">Needs Questions</Badge>;
+  return <Badge variant="outline" className="text-xs">Needs Questions</Badge>;
 }
 
 function SectionQuestionCard({
@@ -262,7 +262,7 @@ export default function PracticePage() {
                   <mode.icon className={cn("h-4.5 w-4.5", mode.color)} />
                 </div>
                 <p className="mt-2.5 text-[13px] font-semibold">{mode.label}</p>
-                <p className="mt-0.5 text-[11px] text-muted-foreground leading-relaxed">{mode.description}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">{mode.description}</p>
               </div>
             </Link>
           ))}

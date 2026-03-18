@@ -128,7 +128,7 @@ export function CommandPalette() {
             placeholder="Search pages, actions..."
             className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50"
           />
-          <kbd className="hidden rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground sm:inline">
+          <kbd className="hidden rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-mono text-muted-foreground sm:inline">
             ESC
           </kbd>
         </div>
@@ -139,7 +139,7 @@ export function CommandPalette() {
           )}
           {Array.from(grouped.entries()).map(([group, items]) => (
             <div key={group}>
-              <p className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/50">
+              <p className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground/50">
                 {group}
               </p>
               {items.map((item) => {
@@ -169,11 +169,11 @@ export function CommandPalette() {
         <div className="flex items-center justify-between border-t border-border px-4 py-2 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
             <span className="flex items-center gap-1">
-              <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px]">↑↓</kbd>
+              <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-xs">↑↓</kbd>
               Navigate
             </span>
             <span className="flex items-center gap-1">
-              <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px]">↵</kbd>
+              <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-xs">↵</kbd>
               Select
             </span>
           </div>

@@ -31,7 +31,7 @@ export function StatCard({
   return (
     <div className={cn("metric-card", className)}>
       <div className="flex items-center justify-between">
-        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
           {label}
         </p>
         {icon && (
@@ -61,7 +61,7 @@ export function StatCard({
           )}
           <span
             className={cn(
-              "text-[11px] font-medium",
+              "text-xs font-medium",
               trend === "up" ? "text-emerald-600 dark:text-emerald-400" : trend === "down" ? "text-red-600 dark:text-red-400" : "text-muted-foreground",
             )}
           >

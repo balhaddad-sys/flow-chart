@@ -58,6 +58,7 @@ export function SourceCitationDrawer({
               <button
                 onClick={() => setOpen(false)}
                 className="rounded-lg p-1 text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+                aria-label="Close source material"
               >
                 <X className="h-4 w-4" />
               </button>

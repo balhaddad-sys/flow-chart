@@ -36,7 +36,7 @@ export function PageLoadingState({
           <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
           Working in the background
         </div>
-        <p className="mt-2 text-[11px] text-muted-foreground/85">{expectation}</p>
+        <p className="mt-2 text-xs text-muted-foreground/85">{expectation}</p>
         <div className="mt-4 space-y-2">
           <Skeleton className="h-2.5 w-full rounded-full" />
           <Skeleton className="h-2.5 w-[88%] rounded-full" />
@@ -71,7 +71,7 @@ export function SectionLoadingState({
           <p className="text-xs text-muted-foreground">{description}</p>
         </div>
       </div>
-      <p className="text-[11px] text-muted-foreground/85">{expectation}</p>
+      <p className="text-xs text-muted-foreground/85">{expectation}</p>
       <div className="space-y-2.5">
         {Array.from({ length: rows }).map((_, index) => (
           <div key={index} className="rounded-lg border border-border p-3">
@@ -140,7 +140,7 @@ export function InlineLoadingState({
         <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
         <span>{label}</span>
       </span>
-      {hint && <span className="text-[11px] text-muted-foreground/80">{hint}</span>}
+      {hint && <span className="text-xs text-muted-foreground/80">{hint}</span>}
     </div>
   );
 }

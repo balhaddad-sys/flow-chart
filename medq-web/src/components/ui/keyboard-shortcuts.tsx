@@ -97,7 +97,7 @@ export function KeyboardShortcuts() {
         </div>
 
         <p className="mt-5 text-center text-xs text-muted-foreground/50">
-          Press <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px]">?</kbd> to
+          Press <kbd className="rounded border border-border bg-muted px-1 py-0.5 font-mono text-xs">?</kbd> to
           toggle this overlay
         </p>
       </div>

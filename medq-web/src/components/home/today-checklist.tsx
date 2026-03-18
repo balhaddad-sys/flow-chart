@@ -72,7 +72,7 @@ export function TodayChecklist({ tasks, loading, sectionMap }: TodayChecklistPro
           <div>
             <h2 className="text-[13px] font-bold tracking-tight">Today&rsquo;s Tasks</h2>
             {tasks.length > 0 && (
-              <p className="text-[11px] text-muted-foreground mt-0.5">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 {remainingMinutes > 0 ? `${remainingMinutes}m remaining` : "All done for today"}
               </p>
             )}
@@ -81,7 +81,7 @@ export function TodayChecklist({ tasks, loading, sectionMap }: TodayChecklistPro
             <Badge
               variant={doneCount === tasks.length ? "default" : "secondary"}
               className={cn(
-                "text-[11px] tabular-nums font-semibold",
+                "text-xs tabular-nums font-semibold",
                 doneCount === tasks.length && "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400 hover:bg-emerald-100"
               )}
             >
@@ -106,7 +106,7 @@ export function TodayChecklist({ tasks, loading, sectionMap }: TodayChecklistPro
             </div>
             <div>
               <p className="text-[13px] font-semibold text-emerald-700 dark:text-emerald-300">All caught up</p>
-              <p className="text-[11px] text-muted-foreground">No remaining tasks for today.</p>
+              <p className="text-xs text-muted-foreground">No remaining tasks for today.</p>
             </div>
           </div>
         ) : (
@@ -145,11 +145,11 @@ export function TodayChecklist({ tasks, loading, sectionMap }: TodayChecklistPro
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-muted/60 px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
                           <Icon className="h-2.5 w-2.5" />
                           {taskTypeLabel}
                         </span>
-                        <span className="text-[10px] text-muted-foreground/70 tabular-nums">
+                        <span className="text-xs text-muted-foreground/70 tabular-nums">
                           {task.estMinutes}m
                         </span>
                       </div>

@@ -139,11 +139,11 @@ export default function AiPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[13px] font-semibold">{thread.title}</p>
-                  <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">
+                  <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
                     {thread.lastMessage || "No messages yet"}
                   </p>
                 </div>
-                <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground/60">
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground/60">
                   <Clock3 className="h-2.5 w-2.5" />
                   {thread.messageCount}
                 </span>
@@ -160,7 +160,7 @@ export default function AiPage() {
             <Compass className="h-4 w-4 text-primary" />
           </div>
           <p className="text-[13px] font-semibold">Explore AI Tutor</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground leading-relaxed">
+          <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
             Generate adaptive quizzes and teaching outlines for any medical topic.
           </p>
           <Button
@@ -177,7 +177,7 @@ export default function AiPage() {
             <MessageSquare className="h-4 w-4 text-violet-600 dark:text-violet-400" />
           </div>
           <p className="text-[13px] font-semibold">Course Chat</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground leading-relaxed">
+          <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
             Keep persistent conversations tied to your active course.
           </p>
           <Button

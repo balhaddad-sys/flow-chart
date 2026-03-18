@@ -551,13 +551,13 @@ export default function AssessmentPage() {
                   <div>
                     <p className="text-xs text-muted-foreground">Accuracy</p>
                     <p className="text-xl font-bold tabular-nums"><NumberTicker value={report.overallAccuracy} />%</p>
-                    <p className="text-[11px] text-muted-foreground tabular-nums">{report.answeredCount}/{report.totalQuestions} answered</p>
+                    <p className="text-xs text-muted-foreground tabular-nums">{report.answeredCount}/{report.totalQuestions} answered</p>
                   </div>
                 </div>
                 <div className="rounded-xl border border-border/70 bg-background/70 p-4">
                   <p className="text-xs text-muted-foreground">Pace</p>
                   <p className="mt-1 text-xl font-bold tabular-nums"><NumberTicker value={report.avgTimeSec} />s</p>
-                  <p className="mt-1 text-[11px] text-muted-foreground tabular-nums">
+                  <p className="mt-1 text-xs text-muted-foreground tabular-nums">
                     Target {report.targetTimeSec}s per item
                   </p>
                   <p className="mt-2 text-xs text-muted-foreground">
@@ -584,15 +584,15 @@ export default function AssessmentPage() {
 
                     <div className="mt-3 grid gap-2 sm:grid-cols-3">
                       <div className="rounded-lg border border-border/60 bg-card/70 px-2.5 py-2">
-                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Accuracy</p>
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Accuracy</p>
                         <p className="mt-0.5 text-sm font-semibold tabular-nums">{topic.accuracy}%</p>
                       </div>
                       <div className="rounded-lg border border-border/60 bg-card/70 px-2.5 py-2">
-                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Avg Time</p>
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Avg Time</p>
                         <p className="mt-0.5 text-sm font-semibold tabular-nums">{topic.avgTimeSec}s</p>
                       </div>
                       <div className="rounded-lg border border-border/60 bg-card/70 px-2.5 py-2">
-                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Weakness Risk</p>
+                        <p className="text-xs uppercase tracking-wide text-muted-foreground">Weakness Risk</p>
                         <p className="mt-0.5 text-sm font-semibold tabular-nums">{weaknessPercent(topic.weaknessScore)}%</p>
                       </div>
                     </div>
