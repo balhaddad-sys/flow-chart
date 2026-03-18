@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, XCircle, RotateCcw, Home, AlertTriangle, TrendingUp } from "lucide-react";
+import { CheckCircle2, XCircle, RotateCcw, Home, AlertTriangle, TrendingUp, Clock, Zap, Timer } from "lucide-react";
 import { useQuizStore } from "@/lib/stores/quiz-store";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { NumberTicker } from "@/components/ui/animate-in";
@@ -27,13 +27,60 @@ function severityBadge(severity: TopicWeakness["severity"]) {
 
 export function QuizResults() {
   const router = useRouter();
-  const { questions, answers, results, endedEarly, reset } = useQuizStore();
+  const { questions, answers, results, startTime, endedEarly, reset } = useQuizStore();
 
   const answered = answers.size;
   const correct = Array.from(results.values()).filter(Boolean).length;
   const accuracy = answered > 0 ? Math.round((correct / answered) * 100) : 0;
   const xp = calculateXp(correct, 0);
   const skipped = questions.length - answered;
+
+  // Pacing analytics
+  const totalTimeSec = Math.round((Date.now() - startTime) / 1000);
+  const avgTimeSec = answered > 0 ? Math.round(totalTimeSec / answered) : 0;
+  const totalTimeFormatted = totalTimeSec >= 60
+    ? `${Math.floor(totalTimeSec / 60)}m ${totalTimeSec % 60}s`
+    : `${totalTimeSec}s`;
+  const avgTimeFormatted = avgTimeSec >= 60
+    ? `${Math.floor(avgTimeSec / 60)}m ${avgTimeSec % 60}s`
+    : `${avgTimeSec}s`;
+
+  // Difficulty breakdown
+  const difficultyBreakdown = useMemo(() => {
+    const buckets = { Easy: { correct: 0, total: 0 }, Medium: { correct: 0, total: 0 }, Hard: { correct: 0, total: 0 } };
+    questions.forEach((q) => {
+      if (!answers.has(q.id)) return;
+      const label = q.difficulty <= 2 ? "Easy" : q.difficulty >= 4 ? "Hard" : "Medium";
+      buckets[label].total++;
+      if (results.get(q.id)) buckets[label].correct++;
+    });
+    return Object.entries(buckets).filter(([, v]) => v.total > 0);
+  }, [questions, answers, results]);
+
+  // Save session for comparison
+  useMemo(() => {
+    try {
+      localStorage.setItem("medq-last-quiz-session", JSON.stringify({ accuracy, correct, answered, date: Date.now() }));
+    } catch { /* noop */ }
+  }, [accuracy, correct, answered]);
+
+  // Load last session for comparison
+  const improvement = useMemo(() => {
+    try {
+      const raw = localStorage.getItem("medq-prev-quiz-session");
+      if (!raw) return null;
+      const prev = JSON.parse(raw) as { accuracy: number };
+      return accuracy - prev.accuracy;
+    } catch { return null; }
+  }, [accuracy]);
+
+  // Rotate prev session
+  useMemo(() => {
+    try {
+      const current = localStorage.getItem("medq-last-quiz-session");
+      if (current) localStorage.setItem("medq-prev-quiz-session", current);
+    } catch { /* noop */ }
+  }, []);
 
   const profile = useMemo(
     () => computeQuizWeakness(questions, results, answers),
@@ -78,6 +125,56 @@ export function QuizResults() {
             </div>
           )}
         </div>
+
+        {/* Session Analytics */}
+        <div className="mt-6 grid grid-cols-3 gap-3 animate-in-up stagger-2">
+          <div className="rounded-xl border border-border/60 bg-background/60 p-3 text-center">
+            <Clock className="mx-auto h-4 w-4 text-muted-foreground mb-1" />
+            <p className="text-lg font-bold tabular-nums">{totalTimeFormatted}</p>
+            <p className="text-xs text-muted-foreground">Total time</p>
+          </div>
+          <div className="rounded-xl border border-border/60 bg-background/60 p-3 text-center">
+            <Timer className="mx-auto h-4 w-4 text-muted-foreground mb-1" />
+            <p className="text-lg font-bold tabular-nums">{avgTimeFormatted}</p>
+            <p className="text-xs text-muted-foreground">Avg / question</p>
+          </div>
+          <div className="rounded-xl border border-border/60 bg-background/60 p-3 text-center">
+            <Zap className="mx-auto h-4 w-4 text-muted-foreground mb-1" />
+            {improvement !== null ? (
+              <>
+                <p className={cn("text-lg font-bold tabular-nums", improvement > 0 ? "text-emerald-600" : improvement < 0 ? "text-red-500" : "text-muted-foreground")}>
+                  {improvement > 0 ? "+" : ""}{improvement}%
+                </p>
+                <p className="text-xs text-muted-foreground">vs last quiz</p>
+              </>
+            ) : (
+              <>
+                <p className="text-lg font-bold text-muted-foreground/50">—</p>
+                <p className="text-xs text-muted-foreground">First session</p>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Difficulty Breakdown */}
+        {difficultyBreakdown.length > 0 && (
+          <div className="mt-6 space-y-2 animate-in-up stagger-3">
+            <h3 className="text-sm font-semibold">By Difficulty</h3>
+            {difficultyBreakdown.map(([label, data]) => {
+              const pct = data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0;
+              const color = label === "Easy" ? "text-green-600" : label === "Hard" ? "text-red-500" : "text-yellow-600";
+              return (
+                <div key={label} className="flex items-center gap-3">
+                  <span className={cn("w-16 text-xs font-medium", color)}>{label}</span>
+                  <Progress value={pct} className="h-2 flex-1" />
+                  <span className="w-20 text-right text-xs tabular-nums text-muted-foreground">
+                    {data.correct}/{data.total} ({pct}%)
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
 
         {/* Topic weakness breakdown */}
         {profile.hasEnoughData && profile.topics.length > 0 && (

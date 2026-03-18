@@ -12,6 +12,10 @@ import {
   ChevronsUpDown,
   GraduationCap,
   PlusCircle,
+  CalendarDays,
+  BarChart3,
+  BookOpenCheck,
+  Search,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -24,13 +28,35 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-const navItems = [
-  { href: "/today", label: "Home", icon: Home },
-  { href: "/library", label: "Library", icon: Library },
-  { href: "/practice", label: "Practice", icon: CircleHelp },
-  { href: "/ai", label: "AI Chat", icon: Sparkles },
-  { href: "/ai/explore", label: "Explore", icon: Compass },
-  { href: "/profile", label: "Settings", icon: User },
+const navGroups = [
+  {
+    label: "Learn",
+    items: [
+      { href: "/today", label: "Home", icon: Home },
+      { href: "/library", label: "Library", icon: Library },
+    ],
+  },
+  {
+    label: "Practice",
+    items: [
+      { href: "/practice", label: "Quiz", icon: CircleHelp },
+      { href: "/practice/exam-bank", label: "Exam Bank", icon: BookOpenCheck },
+    ],
+  },
+  {
+    label: "Track",
+    items: [
+      { href: "/today/plan", label: "Planner", icon: CalendarDays },
+      { href: "/today/analytics", label: "Analytics", icon: BarChart3 },
+    ],
+  },
+  {
+    label: "Connect",
+    items: [
+      { href: "/ai", label: "AI Chat", icon: Sparkles },
+      { href: "/ai/explore", label: "Explore", icon: Compass },
+    ],
+  },
 ];
 
 function isNavActive(pathname: string, href: string): boolean {
@@ -67,7 +93,7 @@ export function SidebarV2() {
           <span className="text-[15px] font-bold tracking-tight text-foreground">
             MedQ
           </span>
-          <p className="text-[10px] text-muted-foreground leading-none">Study smarter</p>
+          <p className="text-xs text-muted-foreground leading-none">Study smarter</p>
         </div>
       </div>
 
@@ -106,35 +132,44 @@ export function SidebarV2() {
       )}
 
       {/* Navigation */}
-      <nav aria-label="Main navigation" className="flex-1 px-3 pt-1">
-        <div className="space-y-0.5">
-          {navItems.map((item) => {
-            const active = isNavActive(pathname, item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "group flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-150",
-                  active
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                )}
-              >
-                <item.icon
-                  className={cn(
-                    "h-[18px] w-[18px] shrink-0 transition-colors",
-                    active
-                      ? "text-primary"
-                      : "text-muted-foreground/70 group-hover:text-foreground"
-                  )}
-                  strokeWidth={active ? 2.2 : 1.8}
-                />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
+      <nav aria-label="Main navigation" className="flex-1 overflow-y-auto px-3 pt-1">
+        <div className="space-y-4">
+          {navGroups.map((group) => (
+            <div key={group.label}>
+              <p className="mb-1 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/50">
+                {group.label}
+              </p>
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const active = isNavActive(pathname, item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={cn(
+                        "group flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-150",
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      )}
+                    >
+                      <item.icon
+                        className={cn(
+                          "h-[18px] w-[18px] shrink-0 transition-colors",
+                          active
+                            ? "text-primary"
+                            : "text-muted-foreground/70 group-hover:text-foreground"
+                        )}
+                        strokeWidth={active ? 2.2 : 1.8}
+                      />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       </nav>
 
@@ -149,7 +184,7 @@ export function SidebarV2() {
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] font-medium">{user?.displayName || "Student"}</p>
-            <p className="truncate text-[11px] text-muted-foreground">{user?.email}</p>
+            <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
           </div>
         </Link>
       </div>

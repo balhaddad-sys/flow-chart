@@ -18,7 +18,10 @@ import {
   Loader2,
   ExternalLink,
   ShieldAlert,
+  Bookmark,
+  BookmarkCheck,
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { useQuizStore } from "@/lib/stores/quiz-store";
 import * as fn from "@/lib/firebase/functions";
 import type { TutorResponse } from "@/lib/firebase/functions";
@@ -34,8 +37,29 @@ interface QuestionCardProps {
   total: number;
 }
 
+function useBookmark(questionId: string) {
+  const key = "medq-bookmarked-questions";
+  const [bookmarked, setBookmarked] = useState(false);
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(key) || "[]") as string[];
+      setBookmarked(saved.includes(questionId));
+    } catch { /* noop */ }
+  }, [questionId]);
+  const toggle = () => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(key) || "[]") as string[];
+      const next = bookmarked ? saved.filter((id) => id !== questionId) : [...saved, questionId];
+      localStorage.setItem(key, JSON.stringify(next));
+      setBookmarked(!bookmarked);
+    } catch { /* noop */ }
+  };
+  return { bookmarked, toggle };
+}
+
 export function QuestionCard({ question, index, total }: QuestionCardProps) {
   const { answers, results, answerQuestion, nextQuestion, finishQuiz, getAttemptId } = useQuizStore();
+  const { bookmarked, toggle: toggleBookmark } = useBookmark(question.id);
 
   const [submitting, setSubmitting] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
@@ -165,20 +189,30 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
 
   return (
     <Card className="mx-auto max-w-2xl overflow-hidden rounded-2xl border border-border bg-card shadow-sm animate-in-up">
+      {/* Progress bar at top of card */}
+      <div className="px-6 pt-4 pb-0">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-xs font-semibold tabular-nums text-muted-foreground">
+            Question {index + 1} of {total}
+          </span>
+          <span className="text-xs tabular-nums text-muted-foreground/60">
+            {Math.round(((index + 1) / total) * 100)}%
+          </span>
+        </div>
+        <Progress value={((index + 1) / total) * 100} className="h-1.5" />
+      </div>
+
       <CardHeader className="pb-3">
         {/* Top meta row — minimal, out of the way */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="text-[12px] font-bold tabular-nums text-muted-foreground">
-              {index + 1}<span className="text-muted-foreground/40">/{total}</span>
-            </span>
-            <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${difficultyColor}`}>
+            <Badge variant="secondary" className={`text-xs px-1.5 py-0 ${difficultyColor}`}>
               {difficultyLabel}
             </Badge>
             {isDraft && (
               <Badge
                 variant="outline"
-                className="border-amber-500/40 bg-amber-500/8 text-amber-600 dark:text-amber-400 text-[10px] gap-1"
+                className="border-amber-500/40 bg-amber-500/8 text-amber-600 dark:text-amber-400 text-xs gap-1"
               >
                 <ShieldAlert className="h-2.5 w-2.5" />
                 Draft
@@ -187,6 +221,17 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
           </div>
 
           <div className="flex items-center gap-0.5">
+            <button
+              onClick={toggleBookmark}
+              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-accent/50 hover:text-primary"
+              aria-label={bookmarked ? "Remove bookmark" : "Bookmark question"}
+            >
+              {bookmarked ? (
+                <BookmarkCheck className="h-4 w-4 text-primary" />
+              ) : (
+                <Bookmark className="h-4 w-4" />
+              )}
+            </button>
             {hasSourceCitations && (
               <SourceCitationDrawer
                 sourceCitations={question.sourceCitations}
@@ -207,7 +252,7 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
             {question.topicTags.slice(0, 3).map((tag) => (
               <span
                 key={tag}
-                className="rounded-full bg-muted/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                className="rounded-full bg-muted/60 px-2 py-0.5 text-xs font-medium text-muted-foreground"
               >
                 {tag}
               </span>
@@ -278,11 +323,11 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
         {!isAnswered && !submitting && (
           <p className="hidden text-center text-[11px] text-muted-foreground/50 md:block">
             Press{" "}
-            <kbd className="rounded border border-border/60 bg-muted/50 px-1 py-0.5 font-mono text-[10px]">A</kbd>
+            <kbd className="rounded border border-border/60 bg-muted/50 px-1 py-0.5 font-mono text-xs">A</kbd>
             –
-            <kbd className="rounded border border-border/60 bg-muted/50 px-1 py-0.5 font-mono text-[10px]">D</kbd>
+            <kbd className="rounded border border-border/60 bg-muted/50 px-1 py-0.5 font-mono text-xs">D</kbd>
             {" "}to select ·{" "}
-            <kbd className="rounded border border-border/60 bg-muted/50 px-1 py-0.5 font-mono text-[10px]">Enter</kbd>
+            <kbd className="rounded border border-border/60 bg-muted/50 px-1 py-0.5 font-mono text-xs">Enter</kbd>
             {" "}to advance
           </p>
         )}

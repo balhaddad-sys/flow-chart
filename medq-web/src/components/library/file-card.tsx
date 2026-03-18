@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FileText, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { FileText, Loader2, CheckCircle2, AlertCircle, Clock } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { FileModel } from "@/lib/types/file";
@@ -10,17 +10,25 @@ interface FileCardProps {
   file: FileModel;
 }
 
-const statusConfig: Record<string, { icon: typeof FileText; color: string; label: string }> = {
-  UPLOADED: { icon: Loader2, color: "text-blue-500", label: "Queued" },
-  PROCESSING: { icon: Loader2, color: "text-orange-500", label: "Analysing" },
-  READY: { icon: CheckCircle2, color: "text-green-500", label: "Ready" },
-  FAILED: { icon: AlertCircle, color: "text-red-500", label: "Failed" },
+const statusConfig: Record<string, { icon: typeof FileText; color: string; label: string; textLabel: string }> = {
+  UPLOADED: { icon: Clock, color: "text-blue-500", label: "Waiting", textLabel: "Uploaded — waiting for analysis" },
+  QUEUED: { icon: Clock, color: "text-blue-500", label: "Queued", textLabel: "Queued — processing will begin shortly" },
+  PARSING: { icon: Loader2, color: "text-orange-500", label: "Reading", textLabel: "Being analyzed by AI..." },
+  CHUNKING: { icon: Loader2, color: "text-orange-500", label: "Analyzing", textLabel: "Being analyzed by AI..." },
+  INDEXING: { icon: Loader2, color: "text-orange-500", label: "Indexing", textLabel: "Being analyzed by AI..." },
+  GENERATING: { icon: Loader2, color: "text-orange-500", label: "Generating", textLabel: "Generating questions..." },
+  PROCESSING: { icon: Loader2, color: "text-orange-500", label: "Analyzing", textLabel: "Being analyzed by AI..." },
+  READY: { icon: CheckCircle2, color: "text-green-500", label: "Ready", textLabel: "Ready to study" },
+  READY_PARTIAL: { icon: CheckCircle2, color: "text-green-500", label: "Ready", textLabel: "Ready to study" },
+  READY_FULL: { icon: CheckCircle2, color: "text-green-500", label: "Ready", textLabel: "Ready to study" },
+  ANALYZED: { icon: CheckCircle2, color: "text-green-500", label: "Ready", textLabel: "Ready to study" },
+  FAILED: { icon: AlertCircle, color: "text-red-500", label: "Failed", textLabel: "Analysis failed — tap to retry" },
 };
 
 const phaseLabels: Record<string, string> = {
-  EXTRACTING: "Reading your file (running in background)...",
-  ANALYZING: "AI is studying the content (usually 1-3 min)...",
-  GENERATING_QUESTIONS: "Generating questions (you can continue browsing)...",
+  EXTRACTING: "Step 1/3: Reading your file...",
+  ANALYZING: "Step 2/3: AI is studying the content...",
+  GENERATING_QUESTIONS: "Step 3/3: Generating questions...",
 };
 
 function formatBytes(bytes: number): string {
