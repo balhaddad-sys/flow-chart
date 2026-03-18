@@ -199,7 +199,7 @@ export default function TodayPage() {
               <p className="text-[13px] text-muted-foreground mt-0.5">
                 {activeCourse.title}
                 {isSampleCourse && (
-                  <span className="ml-1.5 inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                  <span className="ml-1.5 inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                     Sample
                   </span>
                 )}
@@ -299,6 +299,65 @@ export default function TodayPage() {
                 <ChevronRight className="h-3.5 w-3.5" />
               </Button>
             </Link>
+          </div>
+        </section>
+      )}
+
+      {/* ── Next Steps guidance ─────────────────────────────────────── */}
+      {!hasFiles && !isSampleCourse && (
+        <section className="animate-in-up stagger-2 rounded-xl border border-primary/20 bg-primary/5 p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <Upload className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">Get started by uploading your study materials</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Upload a PDF, DOCX, or PPTX and AI will extract sections, generate questions, and create your study plan automatically.
+              </p>
+              <Link href="/library" className="mt-3 inline-block">
+                <Button size="sm">
+                  <Upload className="mr-1.5 h-3.5 w-3.5" />
+                  Upload Materials
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {hasFiles && !hasSections && (
+        <section className="animate-in-up stagger-2 rounded-xl border border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10 p-5">
+          <div className="flex items-start gap-3">
+            <div className="h-2 w-2 mt-2 shrink-0 rounded-full bg-amber-500 animate-glow-pulse" />
+            <div>
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">Your materials are being analyzed</p>
+              <p className="mt-1 text-sm text-amber-700/80 dark:text-amber-300/80">
+                AI is extracting sections and generating questions. This usually takes 1-3 minutes. You&apos;ll be notified when ready.
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {hasSections && !hasPlan && (
+        <section className="animate-in-up stagger-2 rounded-xl border border-primary/20 bg-primary/5 p-5">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <Calendar className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">Your materials are ready — generate your study plan</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Set your exam date and daily availability, and we&apos;ll create a personalized study schedule.
+              </p>
+              <Link href="/today/plan" className="mt-3 inline-block">
+                <Button size="sm">
+                  <Calendar className="mr-1.5 h-3.5 w-3.5" />
+                  Generate Plan
+                </Button>
+              </Link>
+            </div>
           </div>
         </section>
       )}
