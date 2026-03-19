@@ -15,29 +15,21 @@
 
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-const { db, batchSet } = require("../lib/firestore");
+const { db } = require("../lib/firestore");
 const log = require("../lib/logger");
-const { DEFAULT_QUESTION_COUNT } = require("../lib/constants");
-const { computeSectionQuestionDifficultyCounts } = require("../lib/difficulty");
-const { normaliseQuestion } = require("../lib/serialize");
 const { stripOCRNoise } = require("../lib/sanitize");
-const { generateQuestions: claudeGenerateQuestions } = require("../ai/aiClient");
-const { generateQuestions: geminiGenerateQuestions } = require("../ai/geminiClient");
 const { analyzeSectionBlueprint, blueprintContentCount } = require("../ai/blueprintAnalysis");
-const { QUESTIONS_FROM_TEXT_SYSTEM, questionsFromTextUserPrompt } = require("../ai/prompts");
 const { maybeAutoGenerateSchedule } = require("../scheduling/autoSchedule");
 
-// Define the secret so the function can access it
-const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
+// Only Gemini needed — Claude is deferred to on-demand question generation
 const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
 
 exports.processSection = functions
   .runWith({
-    timeoutSeconds: 300, // 5 minutes — parallel AI calls finish faster; still covers rate-limit retries
-    memory: "512MB",
-    maxInstances: 20, // Higher concurrency safe with parallel calls (each instance finishes faster)
-    minInstances: 1, // Keep warm to eliminate cold start latency
-    secrets: [anthropicApiKey, geminiApiKey], // Grant access to the secrets
+    timeoutSeconds: 120, // Blueprint-only is much faster than blueprint+questions
+    memory: "256MB",
+    maxInstances: 30,
+    secrets: [geminiApiKey],
   })
   .firestore.document("users/{uid}/sections/{sectionId}")
   .onCreate(async (snap, context) => {
@@ -91,58 +83,38 @@ exports.processSection = functions
 
       // Fetch raw text, file metadata, and course in parallel
       const bucket = admin.storage().bucket();
-      const [textResult, fileDoc, courseDoc] = await Promise.all([
+      const [textResult, fileDoc] = await Promise.all([
         bucket.file(sectionData.textBlobPath).download(),
         db.doc(`users/${uid}/files/${sectionData.fileId}`).get(),
-        db.doc(`users/${uid}/courses/${courseId}`).get(),
       ]);
       const rawText = textResult[0].toString("utf-8");
       const sectionText = stripOCRNoise(rawText);
       const fileData = fileDoc.exists ? fileDoc.data() : {};
-      const examType = (courseDoc.exists ? courseDoc.data()?.examType : null) || "SBA";
 
-      const count = DEFAULT_QUESTION_COUNT;
-      // Use default difficulty (3) for distribution since blueprint hasn't run yet
-      const { easyCount, mediumCount, hardCount } = computeSectionQuestionDifficultyCounts(
-        count,
-        sectionData.difficulty || 3
-      );
-
-      log.info("Text fetched, starting parallel AI generation", {
+      log.info("Text fetched, starting blueprint generation", {
         uid,
         sectionId,
         rawLength: rawText.length,
         cleanedLength: sectionText.length,
-        phase: "GENERATING_PARALLEL",
+        phase: "BLUEPRINT_ONLY",
       });
 
       const t0 = Date.now();
 
-      // ── Run blueprint + questions in PARALLEL ─────────────────────────
-      // Both calls work from the raw section text independently.
-      // Promise.allSettled lets each succeed or fail on its own.
-      const [blueprintResult, questionsResult] = await Promise.allSettled([
-        analyzeSectionBlueprint({
-          fileName: fileData.originalName || "Unknown",
-          sectionLabel: sectionData.title,
-          contentType: fileData.mimeType || "pdf",
-          sectionText,
-        }),
-        geminiGenerateQuestions(
-          QUESTIONS_FROM_TEXT_SYSTEM,
-          questionsFromTextUserPrompt({
-            sectionText,
-            count,
-            easyCount,
-            mediumCount,
-            hardCount,
-            sectionTitle: sectionData.title,
-            sourceFileName: fileData.originalName || "Unknown",
-            examType,
-          }),
-          { maxTokens: 4096, retries: 1 }
-        ),
-      ]);
+      // ── Blueprint only — questions are deferred to on-demand ──────────
+      // For large documents (1000+ pages), generating questions at ingestion
+      // is wasteful since most sections won't be studied immediately.
+      // Blueprint alone enables the planner, triage, and study guide.
+      // Questions generate on first practice/quiz visit (zero ingestion cost).
+      const blueprintResult = await analyzeSectionBlueprint({
+        fileName: fileData.originalName || "Unknown",
+        sectionLabel: sectionData.title,
+        contentType: fileData.mimeType || "pdf",
+        sectionText,
+      }).then(
+        (value) => ({ status: "fulfilled", value }),
+        (reason) => ({ status: "rejected", reason })
+      );
 
       // ── Process blueprint result ──────────────────────────────────────
       const bpOk = blueprintResult.status === "fulfilled" && blueprintResult.value?.success;
@@ -217,75 +189,19 @@ exports.processSection = functions
         return null;
       }
 
-      // ── Process questions result ──────────────────────────────────────
-      const qResult = questionsResult.status === "fulfilled" ? questionsResult.value : null;
-      const qOk = qResult?.success && qResult?.data?.questions;
-
-      if (!qOk) {
-        const qError = questionsResult.status === "fulfilled"
-          ? qResult?.error
-          : questionsResult.reason?.message;
-        log.warn("Question generation failed", { uid, sectionId, error: qError, durationMs: Date.now() - t0 });
-        await snap.ref.update({
-          questionsStatus: "FAILED",
-          questionsErrorMessage: qError || "Question generation failed",
-          lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        await maybeMarkFileReady(uid, sectionData.fileId);
-        return null; // Blueprint saved; questions can be retried manually
-      }
-
-      log.info("Questions generated", {
-        uid,
-        sectionId,
-        count: qResult.data.questions.length,
-        durationMs: Date.now() - t0,
-        model: qResult.model,
-      });
-
-      const defaults = {
-        fileId: sectionData.fileId,
-        fileName: fileData.originalName || "Unknown",
-        sectionId,
-        sectionTitle: normalised.title || sectionData.title,
-        topicTags: normalised.topicTags,
-      };
-
-      const validItems = [];
-      for (const raw of qResult.data.questions) {
-        const q = normaliseQuestion(raw, defaults);
-        if (!q) {
-          log.warn("Skipping invalid auto question", { sectionId, stem: raw.stem?.slice(0, 80) });
-          continue;
-        }
-        validItems.push({
-          ref: db.collection(`users/${uid}/questions`).doc(),
-          data: {
-            courseId,
-            sectionId,
-            ...q,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          },
-        });
-      }
-
-      if (validItems.length > 0) {
-        await batchSet(validItems);
-      }
-
-      // Mark question generation as complete
+      // Questions deferred to on-demand — mark as PENDING so the practice
+      // page shows "Generate" instead of "Failed". Questions are created
+      // when the user first visits Practice or Quiz for this section.
       await snap.ref.update({
-        questionsStatus: "COMPLETED",
-        questionsCount: validItems.length,
-        questionsErrorMessage: admin.firestore.FieldValue.delete(),
+        questionsStatus: "PENDING",
+        questionsCount: 0,
       });
 
-      log.info("Section processing complete", {
+      log.info("Section processing complete (blueprint only, questions deferred)", {
         uid,
         sectionId,
         phase: "COMPLETE",
-        questionsGenerated: validItems.length,
-        questionsSkipped: qResult.data.questions.length - validItems.length,
+        source: blueprintResult.value?.source || "unknown",
         totalDurationMs: Date.now() - t0,
       });
 

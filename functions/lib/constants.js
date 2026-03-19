@@ -31,8 +31,8 @@ const SUPPORTED_MIME_TYPES = [
 // ── Document extractors ─────────────────────────────────────────────────────
 
 /** Number of PDF pages per extracted section (larger chunks = fewer AI calls).
- *  At 25 pages/section, a 1000-page PDF produces ~40 sections instead of ~67. */
-const PAGES_PER_SECTION = 25;
+ *  At 40 pages/section, a 1000-page PDF produces ~25 sections. */
+const PAGES_PER_SECTION = 40;
 
 /** Number of PPTX slides per extracted section (larger chunks = fewer AI calls). */
 const SLIDES_PER_SECTION = 30;
