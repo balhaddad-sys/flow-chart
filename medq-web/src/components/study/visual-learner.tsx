@@ -13,6 +13,10 @@ import {
   ChevronDown,
   ChevronUp,
   Sparkles,
+  ImageIcon,
+  Palette,
+  Download,
+  ZoomIn,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/hooks/useAuth";
@@ -498,6 +502,233 @@ function VisualCard({ visual, index }: { visual: Visual; index: number }) {
   );
 }
 
+/* ─── Image Illustration Card ──────────────────────────────────────── */
+
+const IMAGE_STYLES = [
+  { id: "diagram", label: "Diagram", icon: GitBranch },
+  { id: "infographic", label: "Infographic", icon: TableProperties },
+  { id: "concept", label: "Concept Art", icon: Network },
+  { id: "clinical", label: "Clinical Card", icon: ImageIcon },
+] as const;
+
+function TopicIllustration({
+  sectionTitle,
+  topicTags,
+  concepts,
+}: {
+  sectionTitle: string;
+  topicTags?: string[];
+  concepts?: string[];
+}) {
+  const { user } = useAuth();
+  const [imageData, setImageData] = useState<{ base64: string; mimeType: string } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [style, setStyle] = useState<string>("diagram");
+  const [expanded, setExpanded] = useState(true);
+  const [zoomed, setZoomed] = useState(false);
+
+  const generateImage = useCallback(async () => {
+    if (loading) return;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const topic = sectionTitle;
+      const context = [
+        ...(topicTags ?? []),
+        ...(concepts ?? []),
+      ].slice(0, 8).join(", ");
+
+      let idToken = await user?.getIdToken();
+      const body = JSON.stringify({ topic, context, style });
+
+      let res = await fetch("/api/visual-learn/image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+        },
+        body,
+      });
+
+      if (res.status === 401 && user) {
+        idToken = await user.getIdToken(true);
+        res = await fetch("/api/visual-learn/image", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+          },
+          body,
+        });
+      }
+
+      const json = await res.json();
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.error || "Failed to generate illustration.");
+      }
+
+      setImageData(json.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to generate illustration.");
+    } finally {
+      setLoading(false);
+    }
+  }, [loading, sectionTitle, topicTags, concepts, style, user]);
+
+  function handleDownload() {
+    if (!imageData) return;
+    const link = document.createElement("a");
+    link.href = `data:${imageData.mimeType};base64,${imageData.base64}`;
+    link.download = `${sectionTitle.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 40)}_illustration.png`;
+    link.click();
+  }
+
+  return (
+    <div className="rounded-2xl border bg-card overflow-hidden">
+      {/* Header */}
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors text-left"
+      >
+        <div className="flex items-center justify-center h-8 w-8 rounded-xl bg-gradient-to-br from-violet-100 to-pink-100 dark:from-violet-900/40 dark:to-pink-900/40 shrink-0">
+          <ImageIcon className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <h4 className="text-sm font-semibold truncate">Topic Illustration</h4>
+            <span className="shrink-0 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 bg-muted/60 px-2 py-0.5 rounded-full">
+              AI Image
+            </span>
+          </div>
+          <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+            Generate a medical illustration for this topic
+          </p>
+        </div>
+        {expanded ? (
+          <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+        ) : (
+          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+        )}
+      </button>
+
+      {expanded && (
+        <div className="px-4 pb-4 pt-2 border-t border-border/30">
+          {/* Style picker */}
+          <div className="flex flex-wrap gap-1.5 mb-3">
+            {IMAGE_STYLES.map((s) => {
+              const Icon = s.icon;
+              const active = style === s.id;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => setStyle(s.id)}
+                  className={`
+                    flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium
+                    border transition-all
+                    ${active
+                      ? "bg-violet-100 dark:bg-violet-900/40 border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-300"
+                      : "bg-muted/30 border-border/50 text-muted-foreground hover:bg-muted/60"
+                    }
+                  `}
+                >
+                  <Icon className="h-3 w-3" />
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Image display */}
+          {imageData ? (
+            <div className="space-y-2">
+              <div
+                className={`relative rounded-xl overflow-hidden border border-border/50 bg-muted/20 cursor-pointer transition-all ${
+                  zoomed ? "fixed inset-4 z-50 bg-background/95 backdrop-blur-xl flex items-center justify-center p-4 rounded-2xl border-border" : ""
+                }`}
+                onClick={() => setZoomed(!zoomed)}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`data:${imageData.mimeType};base64,${imageData.base64}`}
+                  alt={`Medical illustration: ${sectionTitle}`}
+                  className={`w-full object-contain ${zoomed ? "max-h-[80vh]" : "max-h-[400px]"}`}
+                />
+                {!zoomed && (
+                  <div className="absolute top-2 right-2 flex gap-1">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setZoomed(true); }}
+                      className="rounded-lg bg-black/50 backdrop-blur-sm p-1.5 text-white hover:bg-black/70 transition-colors"
+                      title="Zoom in"
+                    >
+                      <ZoomIn className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDownload(); }}
+                      className="rounded-lg bg-black/50 backdrop-blur-sm p-1.5 text-white hover:bg-black/70 transition-colors"
+                      title="Download"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+              {zoomed && (
+                <div
+                  className="fixed inset-0 z-40 bg-black/60"
+                  onClick={() => setZoomed(false)}
+                />
+              )}
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                  <Palette className="h-3 w-3" />
+                  {IMAGE_STYLES.find((s) => s.id === style)?.label ?? "Diagram"} style
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-[11px] rounded-full"
+                  onClick={() => {
+                    setImageData(null);
+                    setTimeout(generateImage, 50);
+                  }}
+                >
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                  Regenerate
+                </Button>
+              </div>
+            </div>
+          ) : loading ? (
+            <div className="flex flex-col items-center justify-center py-10">
+              <div className="relative mb-3">
+                <ImageIcon className="h-8 w-8 text-violet-400 animate-pulse" />
+                <Loader2 className="absolute -bottom-1 -right-1 h-4 w-4 text-violet-500 animate-spin" />
+              </div>
+              <p className="text-xs text-muted-foreground">Generating illustration...</p>
+              <p className="text-[10px] text-muted-foreground/60 mt-1">This may take 10-20 seconds</p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center py-6">
+              {error && (
+                <p className="mb-3 max-w-xs text-xs text-destructive text-center">{error}</p>
+              )}
+              <Button
+                onClick={generateImage}
+                size="sm"
+                className="rounded-full px-5 bg-gradient-to-r from-violet-600 to-pink-600 hover:from-violet-700 hover:to-pink-700 text-white border-0"
+              >
+                <ImageIcon className="mr-1.5 h-3.5 w-3.5" />
+                Generate Illustration
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Main Component ───────────────────────────────────────────────── */
 
 export function VisualLearner({ sectionTitle, sectionText, blueprint, topicTags }: VisualLearnerProps) {
@@ -613,6 +844,14 @@ export function VisualLearner({ sectionTitle, sectionText, blueprint, topicTags 
         {visuals.map((visual, i) => (
           <VisualCard key={`${visual.type}-${i}`} visual={visual} index={i} />
         ))}
+        {/* AI Image Generation */}
+        {sectionTitle && (
+          <TopicIllustration
+            sectionTitle={sectionTitle}
+            topicTags={topicTags}
+            concepts={blueprint?.keyConcepts}
+          />
+        )}
       </div>
     );
   }
