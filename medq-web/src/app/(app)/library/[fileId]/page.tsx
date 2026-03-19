@@ -10,6 +10,7 @@ import { useSectionsByFile } from "@/lib/hooks/useSections";
 import { useFiles } from "@/lib/hooks/useFiles";
 import { useCourseStore } from "@/lib/stores/course-store";
 import { SectionList } from "@/components/library/section-list";
+import { IngestionStepper } from "@/components/ui/ingestion-stepper";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { InlineLoadingState, LoadingButtonLabel } from "@/components/ui/loading-state";
 import * as fn from "@/lib/firebase/functions";
@@ -30,6 +31,28 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
   const file = files.find((f) => f.id === fileId);
   const isFileLoading = !file && loading;
   const hasFailedSections = sections.some((s) => s.aiStatus === "FAILED" || s.questionsStatus === "FAILED");
+
+  const PROCESSING_STATUSES = new Set(["UPLOADED", "QUEUED", "PARSING", "CHUNKING", "INDEXING", "GENERATING", "PROCESSING"]);
+  const isProcessing = file ? PROCESSING_STATUSES.has(file.status) : false;
+
+  const ingestionStatusMap: Record<string, string> = {
+    UPLOADED: "queued", QUEUED: "queued", PARSING: "parsing",
+    CHUNKING: "chunking", INDEXING: "indexing",
+    GENERATING: "generating_questions", PROCESSING: "chunking",
+  };
+  const ingestionProgressMap: Record<string, number> = {
+    UPLOADED: 5, QUEUED: 10, PARSING: 25, CHUNKING: 45,
+    INDEXING: 60, GENERATING: 80, PROCESSING: 45,
+  };
+  const ingestionLabelMap: Record<string, string> = {
+    UPLOADED: "Waiting in queue...",
+    QUEUED: "Waiting in queue...",
+    PARSING: "Reading your document...",
+    CHUNKING: "Splitting into study sections...",
+    INDEXING: "AI is analyzing each section...",
+    GENERATING: "Generating exam questions...",
+    PROCESSING: "AI is working on your file...",
+  };
 
   async function handleRetry() {
     setRetrying(true);
@@ -111,6 +134,15 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
           )}
         </div>
       </div>
+
+      {/* Processing phase indicator */}
+      {isProcessing && file && (
+        <IngestionStepper
+          status={ingestionStatusMap[file.status] ?? "queued"}
+          progress={ingestionProgressMap[file.status] ?? 10}
+          stepLabel={ingestionLabelMap[file.status] ?? `Processing ${file.originalName}...`}
+        />
+      )}
 
       {deleteConfirmOpen && (
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4">

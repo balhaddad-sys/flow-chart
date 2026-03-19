@@ -41,10 +41,20 @@ export function FileProcessingNotifier() {
       const previous = previousStatuses.get(file.id);
       if (!previous || previous === file.status) continue;
 
+      const PHASE_MESSAGES: Record<string, string> = {
+        PARSING: `Reading ${file.originalName}...`,
+        CHUNKING: `Splitting ${file.originalName} into sections...`,
+        INDEXING: `AI is analyzing ${file.originalName}...`,
+        GENERATING: `Generating questions for ${file.originalName}...`,
+        PROCESSING: `Processing ${file.originalName}...`,
+      };
+
       if (file.status === "PROCESSING" && previous === "UPLOADED") {
         toast(`Analysing ${file.originalName} — running normally in background (usually 1-3 minutes).`, {
           duration: 5000,
         });
+      } else if (PHASE_MESSAGES[file.status] && previous !== file.status) {
+        toast(PHASE_MESSAGES[file.status], { duration: 3000, id: `phase-${file.id}` });
       } else if (file.status === "READY") {
         newlyReadyCount++;
       } else if (file.status === "FAILED") {

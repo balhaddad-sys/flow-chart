@@ -99,8 +99,42 @@ export function SectionList({ sections, loading, file }: SectionListProps) {
     );
   }
 
+  const analyzedCount = sections.filter((s) => s.aiStatus === "ANALYZED").length;
+  const processingCount = sections.filter((s) => s.aiStatus === "PENDING" || s.aiStatus === "PROCESSING").length;
+  const failedCount = sections.filter((s) => s.aiStatus === "FAILED").length;
+  const totalQuestions = sections.reduce((sum, s) => sum + (s.questionsCount || 0), 0);
+
   return (
     <div className="space-y-2">
+      {/* Processing summary bar */}
+      {(processingCount > 0 || (failedCount > 0 && analyzedCount > 0)) && (
+        <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-muted/30 px-4 py-2.5 text-xs">
+          {processingCount > 0 && (
+            <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              {processingCount} analyzing
+            </span>
+          )}
+          {analyzedCount > 0 && (
+            <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="h-3 w-3" />
+              {analyzedCount} ready
+            </span>
+          )}
+          {failedCount > 0 && (
+            <span className="flex items-center gap-1.5 text-red-600 dark:text-red-400">
+              <AlertCircle className="h-3 w-3" />
+              {failedCount} failed
+            </span>
+          )}
+          {totalQuestions > 0 && (
+            <span className="flex items-center gap-1.5 text-muted-foreground ml-auto">
+              <HelpCircle className="h-3 w-3" />
+              {totalQuestions} questions total
+            </span>
+          )}
+        </div>
+      )}
       {sections.map((section) => {
         const config = aiStatusConfig[section.aiStatus] ?? aiStatusConfig.PENDING;
         const StatusIcon = config.icon;
