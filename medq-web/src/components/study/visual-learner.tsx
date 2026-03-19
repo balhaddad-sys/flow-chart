@@ -527,9 +527,11 @@ function TopicIllustration({
   const [style, setStyle] = useState<string>("diagram");
   const [expanded, setExpanded] = useState(true);
   const [zoomed, setZoomed] = useState(false);
+  const imgLoadingRef = useRef(false);
 
   const generateImage = useCallback(async () => {
-    if (loading) return;
+    if (imgLoadingRef.current) return;
+    imgLoadingRef.current = true;
     setLoading(true);
     setError(null);
 
@@ -573,9 +575,10 @@ function TopicIllustration({
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate illustration.");
     } finally {
+      imgLoadingRef.current = false;
       setLoading(false);
     }
-  }, [loading, sectionTitle, topicTags, concepts, style, user]);
+  }, [sectionTitle, topicTags, concepts, style, user]);
 
   function handleDownload() {
     if (!imageData) return;
@@ -738,11 +741,14 @@ export function VisualLearner({ sectionTitle, sectionText, blueprint, topicTags 
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  const loadingRef = useRef(false);
+
   const generate = useCallback(async () => {
-    if (!sectionText || !sectionTitle || loading) return;
+    if (!sectionText || !sectionTitle || loadingRef.current) return;
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+    loadingRef.current = true;
     setLoading(true);
     setError(null);
 
@@ -800,9 +806,10 @@ export function VisualLearner({ sectionTitle, sectionText, blueprint, topicTags 
       if (controller.signal.aborted) return;
       setError(err instanceof Error ? err.message : "Failed to generate visuals.");
     } finally {
+      loadingRef.current = false;
       if (!controller.signal.aborted) setLoading(false);
     }
-  }, [sectionText, sectionTitle, loading, user, blueprint, topicTags]);
+  }, [sectionText, sectionTitle, user, blueprint, topicTags]);
 
   useEffect(() => {
     return () => abortRef.current?.abort();
@@ -810,10 +817,10 @@ export function VisualLearner({ sectionTitle, sectionText, blueprint, topicTags 
 
   // Auto-generate when text is available
   useEffect(() => {
-    if (sectionText && sectionTitle && !visuals && !loading && !error) {
+    if (sectionText && sectionTitle && !visuals && !loadingRef.current && !error) {
       generate();
     }
-  }, [sectionText, sectionTitle]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sectionText, sectionTitle, generate, visuals, error]);
 
   if (loading) return <LoadingState />;
 

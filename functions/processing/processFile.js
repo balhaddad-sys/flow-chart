@@ -38,6 +38,9 @@ const { extractPdfSections } = require("./extractors/pdfExtractor");
 const { extractPptxSections } = require("./extractors/pptxExtractor");
 const { extractDocxSections } = require("./extractors/docxExtractor");
 const { filterAnalyzableSections } = require("./filters/sectionFilter");
+const { extractPdfWithVision } = require("../ai/geminiClient");
+
+const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
 
 const ACTIVE_FILE_STATUSES = new Set([
   "READY",
@@ -59,9 +62,10 @@ function normaliseStatusKey(status) {
 
 exports.processUploadedFile = functions
   .runWith({
-    timeoutSeconds: 120, // Extraction is fast; AI processing is async via triggers
+    timeoutSeconds: 120,
     memory: "1GB",
-    minInstances: 1, // Keep one warm instance to eliminate cold starts
+    minInstances: 1,
+    secrets: [geminiApiKey],
   })
   .storage.object()
   .onFinalize(async (object, context) => {
@@ -200,21 +204,13 @@ exports.processUploadedFile = functions
       if (contentType === "application/pdf") {
         rawSections = await extractPdfSections(tempFilePath);
 
-        // Vision fallback for scanned/image-heavy PDFs
+        // Vision fallback for scanned/image-heavy PDFs using Gemini
         if (rawSections.length === 0) {
-          log.info("PDF text extraction yielded no sections — trying vision-based OCR", { uid, fileId });
+          log.info("PDF text extraction yielded no sections — trying Gemini vision OCR", { uid, fileId });
           try {
-            const { processDocumentBatch } = require("./processDocumentBatch");
-            const downloadUrl = await bucket.file(filePath).getSignedUrl({
-              action: "read",
-              expires: Date.now() + 30 * 60 * 1000, // 30 min
-            });
-            const result = await processDocumentBatch({
-              fileUrl: downloadUrl[0],
-              mimeType: "application/pdf",
-              maxPages: 60,
-            });
-            if (result.sections && result.sections.length > 0) {
+            const pdfBuffer = fs.readFileSync(tempFilePath);
+            const result = await extractPdfWithVision(pdfBuffer);
+            if (result.success && result.sections.length > 0) {
               rawSections = result.sections.map((s, i) => ({
                 text: s.text,
                 title: s.title || `Scanned Section ${i + 1}`,
@@ -226,7 +222,6 @@ exports.processUploadedFile = functions
             }
           } catch (visionErr) {
             log.warn("Vision fallback failed", { uid, fileId, error: visionErr.message });
-            // Continue — will fall through to the "no sections" error below
           }
         }
       } else if (contentType.includes("presentationml") || contentType.includes("presentation")) {

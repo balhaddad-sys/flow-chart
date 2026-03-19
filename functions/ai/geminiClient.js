@@ -375,11 +375,97 @@ async function generateQuestions(systemPrompt, userPrompt, opts = {}) {
   });
 }
 
+/**
+ * Extract text from a scanned/image-heavy PDF using Gemini's native PDF support.
+ * Sends the raw PDF bytes as inline data and asks Gemini to extract and segment the text.
+ * @param {Buffer} pdfBuffer - Raw PDF file bytes
+ * @returns {object} { success, sections: [{ title, text, startPage, endPage }] }
+ */
+async function extractPdfWithVision(pdfBuffer) {
+  const model = getClient().getGenerativeModel({
+    model: MODEL_ID,
+    generationConfig: {
+      maxOutputTokens: 8192,
+      temperature: 0,
+    },
+  });
+
+  const t0 = Date.now();
+  let attempt = 0;
+  const maxRetries = 2;
+
+  for (;;) {
+    try {
+      const result = await model.generateContent({
+        contents: [{
+          role: "user",
+          parts: [
+            {
+              inlineData: {
+                mimeType: "application/pdf",
+                data: pdfBuffer.toString("base64"),
+              },
+            },
+            {
+              text: `Extract ALL text content from this PDF document. Organize the content into logical sections.
+
+Return STRICT JSON only (no markdown, no commentary):
+{
+  "sections": [
+    {
+      "title": "string — descriptive section title",
+      "text": "string — full extracted text for this section",
+      "startPage": number,
+      "endPage": number
+    }
+  ]
+}
+
+Rules:
+- Extract ALL readable text including tables, lists, and captions.
+- Group content by natural topic boundaries (headings, chapters).
+- If no clear headings exist, create sections of ~1500-2000 words each.
+- Preserve the original text as faithfully as possible.
+- Do not summarize — extract the FULL text.`,
+            },
+          ],
+        }],
+      });
+
+      const text = result.response.text();
+      if (!text || text.trim().length === 0) {
+        return { success: false, sections: [], error: "Gemini returned empty response" };
+      }
+
+      const data = extractJson(text);
+      const sections = Array.isArray(data.sections) ? data.sections : [];
+
+      console.log("PDF vision extraction complete", {
+        sections: sections.length,
+        ms: Date.now() - t0,
+      });
+
+      return { success: sections.length > 0, sections };
+    } catch (error) {
+      console.error(`PDF vision attempt ${attempt + 1}/${maxRetries + 1} failed:`, error.message);
+
+      if (attempt >= maxRetries) {
+        return { success: false, sections: [], error: error.message };
+      }
+
+      attempt++;
+      const delay = RETRY_DELAYS[attempt - 1] || 4000;
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+}
+
 module.exports = {
   MODEL_ID,
   MAX_TOKENS,
   callGemini,
   callGeminiVision,
+  extractPdfWithVision,
   generateSummary,
   generateBlueprint,
   generateQuestions,

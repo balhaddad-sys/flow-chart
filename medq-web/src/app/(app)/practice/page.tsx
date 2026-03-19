@@ -33,7 +33,8 @@ import { toast } from "sonner";
 type QuestionBucket = "ready" | "needs" | "processing";
 
 function getQuestionBucket(section: SectionModel): QuestionBucket {
-  if (section.questionsCount > 0) return "ready";
+  if ((section.questionsCount ?? 0) > 0) return "ready";
+  if (section.questionsStatus === "SKIPPED" || section.isNonInstructional) return "ready";
   if (section.aiStatus === "PENDING" || section.aiStatus === "PROCESSING" || section.questionsStatus === "GENERATING") {
     return "processing";
   }
@@ -53,7 +54,10 @@ function statusBadge(section: SectionModel) {
       </Badge>
     );
   }
-  if (section.questionsCount > 0) {
+  if (section.questionsStatus === "SKIPPED" || section.isNonInstructional) {
+    return <Badge variant="outline" className="text-xs text-muted-foreground">Non-instructional</Badge>;
+  }
+  if ((section.questionsCount ?? 0) > 0) {
     return <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400 hover:bg-emerald-100 text-xs">Ready</Badge>;
   }
   if (section.questionsStatus === "FAILED") {
@@ -71,13 +75,17 @@ function SectionQuestionCard({
   generating: boolean;
   onGenerate: (sectionId: string) => Promise<void>;
 }) {
-  const canStartQuiz = section.questionsCount > 0;
+  const qCount = section.questionsCount ?? 0;
+  const isSkipped = section.questionsStatus === "SKIPPED" || section.isNonInstructional;
+  const canStartQuiz = qCount > 0;
   const canGenerate =
+    !isSkipped &&
     section.aiStatus === "ANALYZED" &&
     section.questionsStatus !== "GENERATING" &&
     (section.questionsStatus === "FAILED" ||
       section.questionsStatus === "PENDING" ||
-      section.questionsCount === 0);
+      !section.questionsStatus ||
+      qCount === 0);
 
   return (
     <div className="flex items-start gap-3 rounded-lg border border-border p-3.5 transition-all hover:bg-accent/40 hover:border-primary/20">
@@ -221,8 +229,12 @@ export default function PracticePage() {
         toast.info("Question generation already in progress.", { id: toastId });
       } else if (result.fromCache) {
         toast.success(`${result.questionCount ?? 0} questions already available.`, { id: toastId });
-      } else {
+      } else if ((result.generatedNow ?? 0) > 0 && !result.backgroundQueued) {
+        toast.success(`${result.generatedNow} questions generated!`, { id: toastId });
+      } else if (result.backgroundQueued) {
         toast.success("Generating questions — they'll appear as they're ready.", { id: toastId, description: "You can navigate away safely." });
+      } else {
+        toast.success(`${result.questionCount ?? 0} questions ready.`, { id: toastId });
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to generate questions.";

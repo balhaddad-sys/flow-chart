@@ -30,6 +30,7 @@ export interface SectionModel {
   questionsStatus: string;
   questionsCount: number;
   questionsErrorMessage?: string;
+  isNonInstructional?: boolean;
   lastErrorAt?: Timestamp;
   orderIndex: number;
   createdAt?: Timestamp;
