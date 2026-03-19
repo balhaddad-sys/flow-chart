@@ -23,6 +23,7 @@ import {
   HelpCircle,
   RotateCcw,
   ArrowLeft,
+  Filter,
 } from "lucide-react";
 import * as fn from "@/lib/firebase/functions";
 import { toast } from "sonner";
@@ -35,6 +36,7 @@ export default function PlanPage() {
   const { sections, loading: sectionsLoading } = useSections(courseId);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [triageStats, setTriageStats] = useState<{ scheduled: number; backlogged: number; deferred: number } | null>(null);
   const autoGenTriggered = useRef(false);
 
   const sectionMap = useMemo(() => buildSectionMap(sections), [sections]);
@@ -93,7 +95,9 @@ export default function PlanPage() {
         defaultMinutesPerDay: courseAvail.defaultMinutesPerDay,
         perDayOverrides: courseAvail.perDayOverrides ?? courseAvail.perDay ?? {},
         excludedDates: courseAvail.excludedDates,
+        catchUpBufferPercent: courseAvail.catchUpBufferPercent,
       };
+      const revisionPolicy = activeCourse.revisionPolicy ?? "standard";
 
       planProgress.setPhase("calculate");
 
@@ -104,7 +108,7 @@ export default function PlanPage() {
       const result = await fn.generateSchedule({
         courseId,
         availability,
-        revisionPolicy: "standard",
+        revisionPolicy,
       });
 
       planProgress.setPhase("save");
@@ -115,7 +119,18 @@ export default function PlanPage() {
         );
         planProgress.setFailed("Not enough available study time. Try increasing daily minutes or extending your exam date.");
       } else {
-        planProgress.setComplete(`Plan generated — ${result.taskCount ?? 0} tasks created!`);
+        const tri = result.triage;
+        if (tri) setTriageStats({ scheduled: tri.scheduled, backlogged: tri.backlogged, deferred: tri.deferred });
+        const triSuffix = tri && (tri.backlogged > 0 || tri.deferred > 0)
+          ? ` (${tri.backlogged + tri.deferred} sections deferred)`
+          : "";
+        planProgress.setComplete(`Plan generated — ${result.taskCount ?? 0} tasks created${triSuffix}!`);
+        if (tri && (tri.backlogged > 0 || tri.deferred > 0)) {
+          toast.info(
+            `${tri.scheduled} high-priority sections scheduled. ${tri.backlogged} backlogged, ${tri.deferred} deferred for later.`,
+            { description: "The plan prioritizes your weakest and most exam-relevant topics." }
+          );
+        }
         if (result.extendedWindow) {
           const spillDays = result.spillDays ?? 0;
           toast.warning(
@@ -246,6 +261,16 @@ export default function PlanPage() {
                 </span>
               </div>
             </div>
+            {triageStats && (triageStats.backlogged > 0 || triageStats.deferred > 0) && (
+              <div className="mt-3 flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+                <Filter className="h-3.5 w-3.5 shrink-0" />
+                <span>
+                  <span className="font-medium text-foreground">{triageStats.scheduled}</span> sections scheduled
+                  {triageStats.backlogged > 0 && <> · <span className="font-medium">{triageStats.backlogged}</span> backlogged</>}
+                  {triageStats.deferred > 0 && <> · <span className="font-medium">{triageStats.deferred}</span> deferred</>}
+                </span>
+              </div>
+            )}
           </div>
         )}
       </div>

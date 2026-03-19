@@ -454,7 +454,7 @@ describe("scheduling/scheduler", () => {
       const questions = tasks.find((t) => t.type === "QUESTIONS");
 
       expect(study.title).toContain("STEMI from NSTEMI");
-      expect(study.rationale).toMatch(/weak topic/i);
+      expect(study.rationale).toMatch(/critical gap|weak|needs focused review/i);
       expect(questions._dayOffset).toBe(1);
     });
 

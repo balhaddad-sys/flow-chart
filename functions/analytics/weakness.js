@@ -114,6 +114,46 @@ function rankWeakTopics(topicMap, now = new Date(), limit = WEAK_TOPICS_LIMIT) {
 }
 
 /**
+ * Return ALL topic scores (not capped) for the scheduler's full learner model.
+ * Also includes per-topic accuracy and last-attempt date for mastery detection.
+ *
+ * @param {Map<string, TopicStats>} topicMap
+ * @param {Date} [now=new Date()]
+ * @returns {{ allTopicScores: WeakTopic[], lastReviewByTag: Object<string, Date> }}
+ */
+function computeFullTopicProfile(topicMap, now = new Date()) {
+  const allTopicScores = [];
+  const lastReviewByTag = {};
+
+  for (const [tag, stats] of topicMap.entries()) {
+    const daysSinceLastReview = stats.lastAttemptDate
+      ? Math.floor((now - stats.lastAttemptDate) / MS_PER_DAY)
+      : 14;
+    const avgTimePerQ = stats.totalAttempts > 0 ? stats.totalTimeSec / stats.totalAttempts : 0;
+
+    const weaknessScore = computeWeaknessScore({
+      wrongAttempts: stats.wrongAttempts,
+      totalAttempts: stats.totalAttempts,
+      daysSinceLastReview,
+      avgTimePerQ,
+      expectedTime: 60,
+    });
+
+    const accuracy = stats.totalAttempts > 0
+      ? (stats.totalAttempts - stats.wrongAttempts) / stats.totalAttempts
+      : 0;
+
+    allTopicScores.push({ tag, weaknessScore, accuracy, totalAttempts: stats.totalAttempts });
+    if (stats.lastAttemptDate) {
+      lastReviewByTag[tag] = stats.lastAttemptDate;
+    }
+  }
+
+  allTopicScores.sort((a, b) => b.weaknessScore - a.weaknessScore);
+  return { allTopicScores, lastReviewByTag };
+}
+
+/**
  * Compute overall course stats from a list of attempts.
  *
  * @param {AttemptRecord[]} attempts
@@ -154,6 +194,7 @@ function computeCompletionStats(tasks) {
 module.exports = {
   accumulateTopicStats,
   rankWeakTopics,
+  computeFullTopicProfile,
   computeOverallAccuracy,
   computeCompletionStats,
 };

@@ -185,10 +185,15 @@ function normalizeExamTypeKey(examType) {
   return key;
 }
 
-function buildWeaknessMap(weakestTopics = []) {
+function buildWeaknessMap(weakestTopics = [], allTopicScores = []) {
   const weaknessByTag = new Map();
 
-  for (const topic of Array.isArray(weakestTopics) ? weakestTopics : []) {
+  // Prefer full topic profile when available (not capped to top-5)
+  const source = Array.isArray(allTopicScores) && allTopicScores.length > 0
+    ? allTopicScores
+    : (Array.isArray(weakestTopics) ? weakestTopics : []);
+
+  for (const topic of source) {
     const key = normalizeTopicKey(topic?.tag);
     if (!key) continue;
     weaknessByTag.set(key, clamp01(Number(topic?.weaknessScore ?? 0)));
@@ -202,6 +207,7 @@ function buildAdaptiveContext({
   examDate = null,
   examType = null,
   stats = null,
+  taskBehavior = null,
 } = {}) {
   const safeStart = startDate instanceof Date ? startDate : new Date(startDate || Date.now());
   const safeExam = examDate instanceof Date ? examDate : (examDate ? new Date(examDate) : null);
@@ -221,6 +227,24 @@ function buildAdaptiveContext({
     }
   }
 
+  // Build per-section behavior map from prior task data (skipped, overtimed, etc.)
+  const sectionBehavior = new Map();
+  if (taskBehavior && Array.isArray(taskBehavior)) {
+    for (const task of taskBehavior) {
+      for (const sectionId of (task.sectionIds || [])) {
+        if (!sectionBehavior.has(sectionId)) {
+          sectionBehavior.set(sectionId, { skippedCount: 0, overtimeRatio: 0, totalAttempts: 0 });
+        }
+        const entry = sectionBehavior.get(sectionId);
+        entry.totalAttempts++;
+        if (task.status === "SKIPPED") entry.skippedCount++;
+        if (task.status === "DONE" && task.actualMinutes && task.estMinutes) {
+          entry.overtimeRatio = Math.max(entry.overtimeRatio, task.actualMinutes / task.estMinutes);
+        }
+      }
+    }
+  }
+
   return {
     enabled: true,
     startDate: safeStart,
@@ -229,8 +253,9 @@ function buildAdaptiveContext({
     examTypeKey: normalizeExamTypeKey(examType),
     overallAccuracy: clamp01(Number(stats?.overallAccuracy ?? 0)),
     completionPercent: clamp01(Number(stats?.completionPercent ?? 0)),
-    weaknessByTag: buildWeaknessMap(stats?.weakestTopics),
+    weaknessByTag: buildWeaknessMap(stats?.weakestTopics, stats?.allTopicScores),
     lastReviewByTag,
+    sectionBehavior,
   };
 }
 
@@ -254,7 +279,7 @@ function computeExamAlignment(section, adaptiveContext) {
 
   const key = adaptiveContext.examTypeKey;
   const sectionText = collectSectionText(section);
-  if (!sectionText) return 0.5;
+  if (!sectionText) return 0.35;
 
   let patterns = null;
   if (key === "OSCE") patterns = EXAM_ALIGNMENT_PATTERNS.OSCE;
@@ -268,7 +293,13 @@ function computeExamAlignment(section, adaptiveContext) {
     if (pattern.test(sectionText)) hits++;
   }
 
-  return clamp01(0.35 + hits * 0.14);
+  // Blueprint density bonus: sections with rich structured content
+  // are inherently more exam-assessable
+  const bp = section.blueprint || {};
+  const bpItems = (bp.highYieldPoints?.length || 0) + (bp.commonTraps?.length || 0);
+  const bpBonus = bpItems >= 4 ? 0.12 : bpItems >= 2 ? 0.06 : 0;
+
+  return clamp01(0.30 + hits * 0.12 + bpBonus);
 }
 
 function computeHighYieldDensity(section) {
@@ -294,7 +325,14 @@ function lookupSectionWeakness(section, adaptiveContext) {
   strongest = Math.max(strongest, titleWeakness);
 
   if (strongest > 0) return strongest;
-  return adaptiveContext.overallAccuracy > 0 && adaptiveContext.overallAccuracy < 0.65 ? 0.35 : 0;
+
+  // No topic-level data — use a graduated fallback based on overall accuracy.
+  // This only fires for sections whose tags weren't covered in any quiz attempt.
+  if (adaptiveContext.overallAccuracy <= 0) return 0.3; // no data yet
+  if (adaptiveContext.overallAccuracy < 0.55) return 0.40;
+  if (adaptiveContext.overallAccuracy < 0.65) return 0.30;
+  if (adaptiveContext.overallAccuracy < 0.80) return 0.15;
+  return 0;
 }
 
 function selectPrimaryTopicTag(section, adaptiveContext, fallbackTitle) {
@@ -620,22 +658,49 @@ function buildTaskFocus(type, section, fallbackTitle) {
 
 function buildTaskRationale(type, signals, adaptiveContext) {
   const reasons = [];
+  const topicName = signals.primaryTopicTag ? truncate(signals.primaryTopicTag, 40) : null;
 
-  if (signals.weakness >= 0.65) reasons.push("weak topic");
-  else if (signals.weakness >= 0.45) reasons.push("needs reinforcement");
-
-  if (signals.highYieldDensity >= 0.55) reasons.push("high-yield content");
-  if (signals.examAlignment >= 0.7 && adaptiveContext?.examTypeKey !== "GENERAL") reasons.push("exam-aligned");
-  if (adaptiveContext?.daysToExam != null && adaptiveContext.daysToExam <= 14) reasons.push("exam soon");
-
-  if (type === "QUESTIONS") {
-    reasons.push(signals.questionGapDays > 0 ? "retrieval after a short delay" : "immediate retrieval check");
-  } else if (type === "REVIEW") {
-    reasons.push("spaced reinforcement");
+  // Weakness — graduated phrasing
+  if (signals.weakness >= 0.80) {
+    reasons.push(topicName ? `critical gap in ${topicName}` : "critical weakness detected");
+  } else if (signals.weakness >= 0.65) {
+    reasons.push(topicName ? `${topicName} needs focused review` : "weak topic — prioritized");
+  } else if (signals.weakness >= 0.45) {
+    reasons.push(topicName ? `reinforcing ${topicName}` : "moderate weakness — reinforcement scheduled");
   }
 
-  if (reasons.length === 0) reasons.push("coverage sequencing");
-  return truncate(reasons.slice(0, 3).join(", "), 200);
+  // High-yield density
+  if (signals.highYieldDensity >= 0.7) reasons.push("dense in high-yield facts and common traps");
+  else if (signals.highYieldDensity >= 0.55) reasons.push("high-yield content");
+
+  // Exam alignment
+  if (signals.examAlignment >= 0.7 && adaptiveContext?.examTypeKey !== "GENERAL") {
+    const examLabel = adaptiveContext.examTypeKey === "OSCE" ? "OSCE stations"
+      : adaptiveContext.examTypeKey === "BASIC_SCIENCE" ? "basic science exam"
+      : "clinical reasoning exam";
+    reasons.push(`aligned with ${examLabel}`);
+  } else if (signals.examAlignment >= 0.55 && adaptiveContext?.examTypeKey !== "GENERAL") {
+    reasons.push("moderate exam relevance");
+  }
+
+  // Urgency
+  if (adaptiveContext?.daysToExam != null) {
+    if (adaptiveContext.daysToExam <= 3) reasons.push("exam imminent");
+    else if (adaptiveContext.daysToExam <= 7) reasons.push("exam this week");
+    else if (adaptiveContext.daysToExam <= 14) reasons.push("exam within 2 weeks");
+  }
+
+  // Type-specific detail
+  if (type === "QUESTIONS") {
+    if (signals.questionGapDays > 0) reasons.push("delayed retrieval practice for deeper encoding");
+    else reasons.push("immediate recall check");
+  } else if (type === "REVIEW") {
+    if (signals.weakness >= 0.55) reasons.push("spaced repetition — targeting weak area");
+    else reasons.push("spaced reinforcement");
+  }
+
+  if (reasons.length === 0) reasons.push("scheduled for curriculum coverage");
+  return truncate(reasons.slice(0, 3).join(", "), 220);
 }
 
 function condenseFocusForTitle(focus) {
@@ -734,8 +799,24 @@ function buildWorkUnits(sections, courseId, revisionPolicy = "standard", srsCard
   const reviewsEnabled = policy !== "off";
 
   for (const [sourceOrder, section] of sections.entries()) {
-    const estMinutes = clampInt(section.estMinutes || 15, 5, 240);
+    let estMinutes = clampInt(section.estMinutes || 15, 5, 240);
     const difficulty = clampInt(section.difficulty || 3, 1, 5);
+
+    // Rescale based on prior behavior: overtime sections get more time,
+    // repeatedly-skipped sections get smaller focused blocks
+    if (adaptiveContext?.sectionBehavior) {
+      const behavior = adaptiveContext.sectionBehavior.get(section.id);
+      if (behavior) {
+        if (behavior.skippedCount >= 2) {
+          // Repeatedly skipped — make it smaller and more focused
+          estMinutes = clampInt(Math.round(estMinutes * 0.6), 5, 240);
+        } else if (behavior.overtimeRatio > 1.5) {
+          // Takes much longer than estimated — give more time
+          estMinutes = clampInt(Math.round(estMinutes * Math.min(1.4, behavior.overtimeRatio)), 5, 240);
+        }
+      }
+    }
+
     const baseTitle = deriveSectionTaskTitle(section, sourceOrder);
     const topicTags = (section.topicTags || []).slice(0, 10);
     const adaptiveSignals = adaptiveContext ? computeSectionAdaptiveSignals(section, adaptiveContext, baseTitle) : null;

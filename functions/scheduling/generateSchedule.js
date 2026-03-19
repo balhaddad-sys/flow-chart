@@ -45,7 +45,7 @@ exports.generateSchedule = functions
       const { courseId, availability, revisionPolicy } = data;
 
       // ── Parallel fetch: course, sections, SRS cards, done tasks, stats ──
-      const [courseDoc, sectionsSnap, srsSnap, doneTasksSnap, statsDoc] = await Promise.all([
+      const [courseDoc, sectionsSnap, srsSnap, allTasksSnap, statsDoc] = await Promise.all([
         db.doc(`users/${uid}/courses/${courseId}`).get(),
         db.collection(`users/${uid}/sections`)
           .where("courseId", "==", courseId)
@@ -57,8 +57,6 @@ exports.generateSchedule = functions
           .get(),
         db.collection(`users/${uid}/tasks`)
           .where("courseId", "==", courseId)
-          .where("status", "==", "DONE")
-          .where("type", "==", "STUDY")
           .get(),
         db.doc(`users/${uid}/stats/${courseId}`).get(),
       ]);
@@ -102,9 +100,11 @@ exports.generateSchedule = functions
       }
 
       // Exclude sections that already have completed (DONE) study tasks
-      // (doneTasksSnap already fetched in parallel above)
+      const allTaskData = allTasksSnap.docs.map((d) => d.data());
       const doneSectionIds = new Set(
-        doneTasksSnap.docs.flatMap((d) => d.data().sectionIds || [])
+        allTaskData
+          .filter((t) => t.status === "DONE" && t.type === "STUDY")
+          .flatMap((t) => t.sectionIds || [])
       );
 
       const schedulableSections = sections.filter((s) => !doneSectionIds.has(s.id));
@@ -118,6 +118,7 @@ exports.generateSchedule = functions
         examDate,
         examType: courseData.examType || null,
         stats: statsDoc.exists ? statsDoc.data() : null,
+        taskBehavior: allTaskData,
       });
 
       // ── Triage v2: classify sections into schedule/backlog/defer ──────

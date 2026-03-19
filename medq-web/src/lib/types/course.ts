@@ -6,6 +6,7 @@ export interface CourseAvailability {
   /** @deprecated Use perDayOverrides — kept for backward compat with old courses */
   perDay?: Record<string, number>;
   excludedDates?: string[];
+  catchUpBufferPercent?: number;
 }
 
 export interface CourseModel {
@@ -15,6 +16,7 @@ export interface CourseModel {
   examType?: string;
   tags: string[];
   availability: CourseAvailability;
+  revisionPolicy?: string;
   status: string;
   fileCount?: number;
   sectionCount?: number;

@@ -16,6 +16,7 @@ const log = require("../lib/logger");
 const {
   accumulateTopicStats,
   rankWeakTopics,
+  computeFullTopicProfile,
   computeOverallAccuracy,
   computeCompletionStats,
 } = require("./weakness");
@@ -120,6 +121,7 @@ exports.computeWeakness = functions
       const { totalAnswered, overallAccuracy } = computeOverallAccuracy(attempts);
       const topicMap = accumulateTopicStats(attempts, questionMap);
       const weakestTopics = rankWeakTopics(topicMap);
+      const { allTopicScores, lastReviewByTag } = computeFullTopicProfile(topicMap);
 
       // ── Task completion stats (single query) ───────────────────────────
       const tasksSnap = await db
@@ -140,6 +142,8 @@ exports.computeWeakness = functions
           overallAccuracy: Math.round(overallAccuracy * 1000) / 1000,
           completionPercent: Math.round(completionPercent * 1000) / 1000,
           weakestTopics,
+          allTopicScores,
+          lastReviewByTag,
           diagnosticDirectives,
           lastStudiedAt: admin.firestore.FieldValue.serverTimestamp(),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),

@@ -214,10 +214,17 @@ export function generateSchedule(params: {
     feasible: boolean;
     deficit?: number;
     taskCount?: number;
+    skippedCount?: number;
     totalDays?: number;
     extendedWindow?: boolean;
     spillDays?: number;
     originalDeficit?: number;
+    triage?: {
+      scheduled: number;
+      backlogged: number;
+      deferred: number;
+      prunedForDeficit: number;
+    };
   }>("generateSchedule", params);
 }
 
