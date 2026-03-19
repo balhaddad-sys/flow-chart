@@ -10,6 +10,8 @@
  * NOT used for: tutoring, chat, or real-time interactions (latency-sensitive)
  */
 
+const { extractJson } = require("./geminiClient");
+
 const DEEPSEEK_API_URL = "https://api.deepseek.com/chat/completions";
 const MODEL_ID = "deepseek-chat";
 const RETRY_DELAYS = [500, 1500, 4000];
@@ -56,7 +58,7 @@ async function callDeepSeek(systemPrompt, userPrompt, opts = {}) {
   for (;;) {
     try {
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 60000);
+      const timer = setTimeout(() => controller.abort(), 45000); // 45s — leaves room for Claude fallback within 120s function timeout
 
       const res = await fetch(DEEPSEEK_API_URL, {
         method: "POST",
@@ -97,7 +99,7 @@ async function callDeepSeek(systemPrompt, userPrompt, opts = {}) {
       }
 
       if (jsonMode) {
-        const parsed = JSON.parse(content);
+        const parsed = extractJson(content);
         return { success: true, data: parsed, model: MODEL_ID, tokensUsed };
       }
 
