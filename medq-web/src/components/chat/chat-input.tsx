@@ -8,9 +8,11 @@ import { Send, Loader2 } from "lucide-react";
 interface ChatInputProps {
   onSend: (message: string) => void;
   disabled?: boolean;
+  /** Optional phase label shown during loading (e.g. "Gathering context...") */
+  phaseLabel?: string;
 }
 
-export function ChatInput({ onSend, disabled }: ChatInputProps) {
+export function ChatInput({ onSend, disabled, phaseLabel }: ChatInputProps) {
   const [text, setText] = useState("");
 
   function handleSubmit(e: React.FormEvent) {
@@ -49,8 +51,8 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
       {disabled && (
         <InlineLoadingState
           className="mt-2 text-xs"
-          label="AI is drafting your reply..."
-          hint="This is running normally and usually takes a few seconds."
+          label={phaseLabel || "AI is drafting your reply..."}
+          hint="This usually takes a few seconds."
         />
       )}
     </div>

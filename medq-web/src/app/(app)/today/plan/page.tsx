@@ -11,6 +11,8 @@ import { buildSectionMap } from "@/lib/utils/task-title";
 import { TaskRow } from "@/components/planner/task-row";
 import { Button } from "@/components/ui/button";
 import { LoadingButtonLabel, SectionLoadingState } from "@/components/ui/loading-state";
+import { PhaseLoadingCard } from "@/components/ui/phase-loading-card";
+import { usePhaseProgress } from "@/lib/hooks/usePhaseProgress";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { NumberTicker } from "@/components/ui/animate-in";
 import {
@@ -69,11 +71,23 @@ export default function PlanPage() {
   const reviewCount = tasks.filter((t) => t.type === "REVIEW").length;
   const totalMinutes = tasks.reduce((sum, t) => sum + t.estMinutes, 0);
 
+  const planPhases = [
+    { key: "collect", label: "Collecting sections" },
+    { key: "check", label: "Checking availability" },
+    { key: "calculate", label: "Calculating workload" },
+    { key: "place", label: "Placing tasks" },
+    { key: "save", label: "Saving plan" },
+  ];
+  const planProgress = usePhaseProgress("idle");
+
   async function handleGenerate() {
     if (!courseId || !activeCourse) return;
     setError(null);
     setGenerating(true);
+    planProgress.setPhase("collect");
+
     try {
+      planProgress.setPhase("check");
       const courseAvail = activeCourse.availability ?? {};
       const availability = {
         defaultMinutesPerDay: courseAvail.defaultMinutesPerDay,
@@ -81,31 +95,40 @@ export default function PlanPage() {
         excludedDates: courseAvail.excludedDates,
       };
 
+      planProgress.setPhase("calculate");
+
+      // Small delay to show phase transition
+      await new Promise((r) => setTimeout(r, 300));
+      planProgress.setPhase("place");
+
       const result = await fn.generateSchedule({
         courseId,
         availability,
         revisionPolicy: "standard",
       });
+
+      planProgress.setPhase("save");
+
       if (!result.feasible) {
         setError(
           `Not enough study days. You need ${result.deficit ?? 0} more minutes.`
         );
-        toast.error("Not enough available study time to generate the full plan.");
+        planProgress.setFailed("Not enough available study time. Try increasing daily minutes or extending your exam date.");
       } else {
+        planProgress.setComplete(`Plan generated — ${result.taskCount ?? 0} tasks created!`);
         if (result.extendedWindow) {
           const spillDays = result.spillDays ?? 0;
           toast.warning(
             spillDays > 0
-              ? `Plan generated with ${result.taskCount ?? 0} tasks. Extended by ${spillDays} day${spillDays === 1 ? "" : "s"} beyond your target date.`
-              : `Plan generated with ${result.taskCount ?? 0} tasks using an extended study window.`
+              ? `Extended by ${spillDays} day${spillDays === 1 ? "" : "s"} beyond your target date.`
+              : `Plan generated using an extended study window.`
           );
-        } else {
-          toast.success(`Study plan generated! ${result.taskCount ?? 0} tasks created.`);
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to generate schedule");
-      toast.error("Failed to generate schedule.");
+      const msg = err instanceof Error ? err.message : "Failed to generate schedule";
+      setError(msg);
+      planProgress.setFailed(msg);
     } finally {
       setGenerating(false);
     }
@@ -115,12 +138,17 @@ export default function PlanPage() {
     if (!courseId) return;
     setError(null);
     setGenerating(true);
+    planProgress.setPhase("collect");
+
     try {
+      planProgress.setPhase("check");
       await fn.regenSchedule({ courseId });
+      planProgress.setPhase("calculate");
       await handleGenerate();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to regenerate");
-      toast.error("Failed to regenerate schedule.");
+      const msg = err instanceof Error ? err.message : "Failed to regenerate";
+      setError(msg);
+      planProgress.setFailed(msg);
     } finally {
       setGenerating(false);
     }
@@ -162,6 +190,21 @@ export default function PlanPage() {
             </Button>
           )}
         </div>
+
+        {/* Phase progress during generation */}
+        {planProgress.isRunning && (
+          <PhaseLoadingCard
+            phases={planPhases}
+            activePhase={planProgress.activePhase}
+            failed={planProgress.failed}
+            failedMessage={planProgress.failedMessage ?? undefined}
+            elapsedSec={planProgress.elapsedSec}
+            complete={planProgress.complete}
+            completeMessage={planProgress.completeMessage ?? undefined}
+            onRetry={handleGenerate}
+            className="mt-4"
+          />
+        )}
 
         {tasks.length > 0 && (
           <div className="mt-5 rounded-2xl border border-border/70 bg-background/70 p-4 sm:p-5 animate-in-up stagger-3">

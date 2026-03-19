@@ -48,12 +48,20 @@ function getSubtitle(file: FileModel): string | null {
 export function FileCard({ file }: FileCardProps) {
   const config = statusConfig[file.status] ?? statusConfig.UPLOADED;
   const StatusIcon = config.icon;
-  const isAnimated = file.status === "UPLOADED" || file.status === "PROCESSING";
+    const isProcessing = ["UPLOADED", "QUEUED", "PARSING", "CHUNKING", "INDEXING", "GENERATING", "PROCESSING"].includes(file.status);
+  const isAnimated = isProcessing;
   const subtitle = getSubtitle(file);
+  const isPartial = file.status === "READY_PARTIAL";
 
   return (
     <Link href={`/library/${file.id}`}>
-      <Card className="transition-all hover:bg-accent/40 hover:shadow-sm">
+      <Card className="transition-all hover:bg-accent/40 hover:shadow-sm overflow-hidden">
+        {/* Thin progress bar for processing files */}
+        {isProcessing && (
+          <div className="h-0.5 w-full bg-muted/40">
+            <div className="h-full bg-primary animate-pulse rounded-full" style={{ width: "60%" }} />
+          </div>
+        )}
         <CardContent className="flex items-center gap-3 p-3.5">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 shrink-0">
             <FileText className="h-4.5 w-4.5 text-primary" />
@@ -73,6 +81,11 @@ export function FileCard({ file }: FileCardProps) {
             </div>
             {subtitle && (
               <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
+            )}
+            {isPartial && (
+              <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
+                Some sections need question retry
+              </p>
             )}
           </div>
           <Badge variant="outline" className={`gap-1 ${config.color}`}>
