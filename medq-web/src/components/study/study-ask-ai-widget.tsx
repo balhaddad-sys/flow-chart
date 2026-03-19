@@ -39,6 +39,7 @@ export function StudyAskAiWidget({
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [phaseLabel, setPhaseLabel] = useState("");
   const [threadId, setThreadId] = useState<string | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -84,6 +85,7 @@ export function StudyAskAiWidget({
     setInput("");
     setMessages((prev) => [...prev, { role: "user", content: question }]);
     setLoading(true);
+    setPhaseLabel("Creating conversation...");
 
     try {
       let currentThreadId = threadId;
@@ -101,6 +103,11 @@ export function StudyAskAiWidget({
         currentThreadId = ref.id;
         setThreadId(currentThreadId);
       }
+
+      setPhaseLabel("Gathering course context...");
+      // Small pause so user sees the phase change
+      await new Promise((r) => setTimeout(r, 200));
+      setPhaseLabel("Generating answer...");
 
       const result = await fn.sendChatMessage({
         threadId: currentThreadId,
@@ -221,7 +228,7 @@ export function StudyAskAiWidget({
           <div className="flex justify-start">
             <div className="mr-5 flex items-center gap-2 rounded-xl border border-border/60 bg-background/80 px-3 py-2 text-sm text-muted-foreground">
               <InlineLoadingState
-                label="Thinking through your question..."
+                label={phaseLabel || "Thinking through your question..."}
                 hint="Usually completes in 5-15 seconds."
                 className="text-sm"
               />

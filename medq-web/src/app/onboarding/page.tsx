@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageLoadingState, LoadingButtonLabel } from "@/components/ui/loading-state";
+import { PhaseLoadingCard } from "@/components/ui/phase-loading-card";
+import { usePhaseProgress } from "@/lib/hooks/usePhaseProgress";
 import {
   ChevronLeft,
   ChevronRight,
@@ -276,10 +278,18 @@ export default function OnboardingPage() {
   const isLast = step === STEPS.length - 1;
   const canProceed = step === 0 ? courseTitle.trim().length > 0 : true;
 
+  const onboardPhases = [
+    { key: "create", label: "Creating course" },
+    { key: "prefs", label: "Saving preferences" },
+    { key: "redirect", label: "Preparing your workspace" },
+  ];
+  const onboardProgress = usePhaseProgress("idle");
+
   async function handleFinish() {
     if (!courseTitle.trim()) return;
     setCreating(true);
     setError(null);
+    onboardProgress.setPhase("create");
     try {
       const result = await fn.createCourse({
         title: courseTitle.trim(),
@@ -287,14 +297,17 @@ export default function OnboardingPage() {
         examType,
         availability,
       });
+      onboardProgress.setPhase("prefs");
       const courseId = (result as { courseId?: string }).courseId;
       if (courseId) setActiveCourseId(courseId);
+      onboardProgress.setPhase("redirect");
       reset();
       // Redirect to library so they can upload immediately
       router.replace("/library");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to create course";
       setError(msg);
+      onboardProgress.setFailed(msg);
       toast.error(msg);
     } finally {
       setCreating(false);
@@ -372,20 +385,26 @@ export default function OnboardingPage() {
               </Button>
             )}
             {isLast ? (
-              <Button
-                className="flex-1 h-11 rounded-xl"
-                onClick={handleFinish}
-                disabled={creating || !canProceed}
-              >
-                {creating ? (
-                  <LoadingButtonLabel label="Creating course…" />
-                ) : (
-                  <>
-                    Get Started
-                    <Sparkles className="ml-1.5 h-4 w-4" />
-                  </>
-                )}
-              </Button>
+              onboardProgress.isRunning || onboardProgress.failed ? (
+                <PhaseLoadingCard
+                  phases={onboardPhases}
+                  activePhase={onboardProgress.activePhase}
+                  failed={onboardProgress.failed}
+                  failedMessage={onboardProgress.failedMessage ?? undefined}
+                  elapsedSec={onboardProgress.elapsedSec}
+                  onRetry={() => { onboardProgress.reset(); handleFinish(); }}
+                  className="flex-1"
+                />
+              ) : (
+                <Button
+                  className="flex-1 h-11 rounded-xl"
+                  onClick={handleFinish}
+                  disabled={creating || !canProceed}
+                >
+                  Get Started
+                  <Sparkles className="ml-1.5 h-4 w-4" />
+                </Button>
+              )
             ) : (
               <Button
                 className="flex-1 h-11 rounded-xl"

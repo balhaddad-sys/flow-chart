@@ -172,27 +172,24 @@ export default function PlanPage() {
             <h1 className="page-title animate-in-up stagger-1">Study Plan</h1>
             <p className="page-subtitle animate-in-up stagger-2">Generate and track a daily study roadmap.</p>
           </div>
-          {tasks.length === 0 ? (
-            <Button onClick={handleGenerate} disabled={generating || !courseId} size="sm" className="rounded-xl">
-              <Plus className="mr-1.5 h-4 w-4" />
-              {generating ? "Generating plan..." : "Generate Plan"}
-            </Button>
-          ) : (
-            <Button variant="outline" size="sm" className="rounded-xl" onClick={handleRegen} disabled={generating}>
-              {generating ? (
-                <LoadingButtonLabel label="Regenerating..." />
-              ) : (
-                <>
-                  <RefreshCw className="mr-1.5 h-4 w-4" />
-                  Regenerate
-                </>
-              )}
-            </Button>
+          {/* Hide buttons while phase card is visible */}
+          {!planProgress.isRunning && !planProgress.failed && !planProgress.complete && (
+            tasks.length === 0 ? (
+              <Button onClick={handleGenerate} disabled={generating || !courseId} size="sm" className="rounded-xl">
+                <Plus className="mr-1.5 h-4 w-4" />
+                Generate Plan
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" className="rounded-xl" onClick={handleRegen} disabled={generating}>
+                <RefreshCw className="mr-1.5 h-4 w-4" />
+                Regenerate
+              </Button>
+            )
           )}
         </div>
 
-        {/* Phase progress during generation */}
-        {planProgress.isRunning && (
+        {/* Phase progress — shown during generation, on failure, and on completion */}
+        {(planProgress.isRunning || planProgress.failed || planProgress.complete) && (
           <PhaseLoadingCard
             phases={planPhases}
             activePhase={planProgress.activePhase}
@@ -201,9 +198,19 @@ export default function PlanPage() {
             elapsedSec={planProgress.elapsedSec}
             complete={planProgress.complete}
             completeMessage={planProgress.completeMessage ?? undefined}
-            onRetry={handleGenerate}
+            onRetry={() => { planProgress.reset(); handleGenerate(); }}
             className="mt-4"
           />
+        )}
+
+        {/* Dismiss button after completion */}
+        {planProgress.complete && (
+          <button
+            onClick={() => planProgress.reset()}
+            className="mt-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Dismiss
+          </button>
         )}
 
         {tasks.length > 0 && (

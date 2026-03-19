@@ -9,6 +9,7 @@ import { FileUploadZone } from "@/components/library/file-upload-zone";
 import { FileCard } from "@/components/library/file-card";
 import { InlineLoadingState, ListLoadingState } from "@/components/ui/loading-state";
 import { Button } from "@/components/ui/button";
+import { IngestionStepper } from "@/components/ui/ingestion-stepper";
 import { Upload, ArrowRight, Search, Filter } from "lucide-react";
 
 type StatusFilter = "all" | "processing" | "ready" | "error";
@@ -145,14 +146,35 @@ export default function LibraryPage() {
           </div>
         ) : (
           <>
-            {backgroundProcessingCount > 0 && (
-              <div className="flex items-center gap-3 rounded-xl border border-amber-200 dark:border-amber-500/20 bg-amber-50 dark:bg-amber-500/10 px-4 py-3">
-                <div className="h-2 w-2 shrink-0 rounded-full bg-amber-500 animate-glow-pulse" />
-                <span className="text-sm text-amber-700 dark:text-amber-300">
-                  AI is analysing {backgroundProcessingCount} file{backgroundProcessingCount === 1 ? "" : "s"}. This usually takes 1-3 minutes.
-                </span>
-              </div>
-            )}
+            {/* Show ingestion stepper for each processing file */}
+            {files.filter((f) => ["UPLOADED", "QUEUED", "PARSING", "CHUNKING", "INDEXING", "GENERATING", "PROCESSING"].includes(f.status)).map((file) => {
+              const statusMap: Record<string, string> = {
+                UPLOADED: "queued", QUEUED: "queued", PARSING: "parsing",
+                CHUNKING: "chunking", INDEXING: "indexing",
+                GENERATING: "generating_questions", PROCESSING: "chunking",
+              };
+              const progressMap: Record<string, number> = {
+                UPLOADED: 5, QUEUED: 10, PARSING: 25, CHUNKING: 45,
+                INDEXING: 60, GENERATING: 80, PROCESSING: 45,
+              };
+              const stepLabelMap: Record<string, string> = {
+                UPLOADED: `Queued — ${file.originalName}`,
+                QUEUED: `Queued — ${file.originalName}`,
+                PARSING: `Reading ${file.originalName}...`,
+                CHUNKING: `Structuring ${file.originalName}...`,
+                INDEXING: `Analyzing ${file.originalName}...`,
+                GENERATING: `Generating questions for ${file.originalName}...`,
+                PROCESSING: `Analyzing ${file.originalName}...`,
+              };
+              return (
+                <IngestionStepper
+                  key={file.id}
+                  status={statusMap[file.status] ?? "queued"}
+                  progress={progressMap[file.status] ?? 10}
+                  stepLabel={stepLabelMap[file.status] ?? `Processing ${file.originalName}...`}
+                />
+              );
+            })}
 
             {hasFiles && !hasPlan && backgroundProcessingCount === 0 && (
               <div className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card px-4 py-3">
