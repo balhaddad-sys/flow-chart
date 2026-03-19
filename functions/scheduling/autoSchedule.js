@@ -49,7 +49,7 @@ async function maybeAutoGenerateSchedule(uid, courseId) {
 
     const allFilesDone = filesSnap.docs.every((d) => {
       const status = d.data().status;
-      return status === "READY" || status === "FAILED";
+      return status === "READY" || status === "READY_PARTIAL" || status === "FAILED";
     });
 
     if (!allFilesDone) return; // Some files still processing
@@ -240,6 +240,15 @@ async function maybeAutoGenerateSchedule(uid, courseId) {
       courseId,
       error: err.message,
     });
+
+    // Release the lock so auto-schedule can retry on next file completion
+    try {
+      await db.doc(`users/${uid}/courses/${courseId}`).update({
+        _autoScheduleLock: admin.firestore.FieldValue.delete(),
+      });
+    } catch (unlockErr) {
+      log.warn("Failed to release auto-schedule lock", { uid, courseId, error: unlockErr.message });
+    }
   }
 }
 
