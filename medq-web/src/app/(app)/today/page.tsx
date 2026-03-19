@@ -228,33 +228,24 @@ export default function TodayPage() {
               </div>
             )}
 
-            <div className="mt-4 flex items-center gap-2">
-              <Link href={primaryAction.href}>
-                <Button size="sm">
-                  <primaryAction.icon className="mr-1.5 h-3.5 w-3.5" />
-                  {primaryAction.label}
-                </Button>
-              </Link>
-              {secondaryActions.length > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="icon" aria-label="More actions">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    {secondaryActions.map((action) => (
-                      <DropdownMenuItem
-                        key={action.href}
-                        onSelect={() => router.push(action.href)}
-                      >
-                        {action.label}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </div>
+            {/* Hero CTA — one clear next action */}
+            <Link
+              href={primaryAction.href}
+              className="mt-4 flex items-center gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 transition-colors hover:bg-primary/10 max-w-sm"
+            >
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15">
+                <primaryAction.icon className="h-4 w-4 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground">{primaryAction.label}</p>
+                <p className="text-xs text-muted-foreground">
+                  {!hasFiles ? "Upload your study materials" :
+                   !hasPlan ? "Set up your personalized schedule" :
+                   hasSections ? "Test your knowledge" : "Ask AI anything"}
+                </p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-primary shrink-0" />
+            </Link>
           </div>
 
           <ExamCountdown examDate={activeCourse?.examDate} courseTitle={activeCourse?.title} />

@@ -16,7 +16,7 @@ export interface FileModel {
   mimeType: string;
   sizeBytes: number;
   meta: FileMeta;
-  status: "UPLOADED" | "PROCESSING" | "READY" | "FAILED" | (string & {});
+  status: "UPLOADED" | "QUEUED" | "PARSING" | "CHUNKING" | "INDEXING" | "GENERATING" | "PROCESSING" | "READY" | "READY_PARTIAL" | "READY_FULL" | "FAILED" | (string & {});
   errorMessage?: string;
   processingPhase?: "EXTRACTING" | "ANALYZING" | "GENERATING_QUESTIONS" | (string & {});
   processingStartedAt?: Timestamp;
