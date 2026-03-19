@@ -18,6 +18,7 @@ import {
   RotateCcw,
   ExternalLink,
   Loader2,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -490,10 +491,14 @@ export default function StudySessionPage({
 
         {/* Tab selector — pinned inside sticky header so it never scrolls away */}
         <div className="px-4 pb-2 pt-1">
-          <TabsList className={`grid w-full ${file?.storagePath && file?.mimeType === "application/pdf" ? "grid-cols-3" : "grid-cols-2"} h-10 rounded-xl p-1`}>
+          <TabsList className={`grid w-full ${file?.storagePath && file?.mimeType === "application/pdf" ? "grid-cols-4" : "grid-cols-3"} h-10 rounded-xl p-1`}>
             <TabsTrigger value="guide" className="rounded-lg gap-1.5 text-xs sm:text-sm data-[state=active]:shadow-sm">
               <BookOpen className="h-3.5 w-3.5" />
               Guide
+            </TabsTrigger>
+            <TabsTrigger value="visuals" className="rounded-lg gap-1.5 text-xs sm:text-sm data-[state=active]:shadow-sm">
+              <Eye className="h-3.5 w-3.5" />
+              Visuals
             </TabsTrigger>
             <TabsTrigger value="notes" className="rounded-lg gap-1.5 text-xs sm:text-sm data-[state=active]:shadow-sm">
               <Lightbulb className="h-3.5 w-3.5" />
@@ -816,6 +821,16 @@ export default function StudySessionPage({
                 </p>
               </div>
             )}
+          </TabsContent>
+
+          {/* ─── Visuals Tab ─── */}
+          <TabsContent value="visuals" className="mt-0">
+            <VisualLearner
+              sectionTitle={section?.title}
+              sectionText={sectionText}
+              blueprint={section?.blueprint}
+              topicTags={section?.topicTags}
+            />
           </TabsContent>
 
           {/* ─── Notes Tab (AI-generated study notes) ─── */}

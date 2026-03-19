@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { getAuth } from "firebase/auth";
 
 /* ─── Types ────────────────────────────────────────────────────────── */
 
