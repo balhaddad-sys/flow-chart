@@ -3,6 +3,7 @@ const {
   prioritiseQuestions,
   evaluateQuestionSet,
   mergeQuestionSets,
+  buildTokenBudget,
 } = require("../explore/exploreEngine");
 
 describe("explore/exploreEngine", () => {
@@ -74,5 +75,19 @@ describe("explore/exploreEngine", () => {
     expect(typeof evaluation.qualityScore).toBe("number");
     expect(evaluation.metrics.total).toBe(3);
     expect(typeof evaluation.qualityGatePassed).toBe("boolean");
+  });
+
+  it("keeps baseline Explore targets close to the requested count", () => {
+    const targets = buildExploreTargets(md3, 10);
+
+    expect(targets.requestCount).toBe(10);
+    expect(targets.primaryRequestCount).toBe(10);
+  });
+
+  it("uses leaner token budgets across fast and advanced modes", () => {
+    expect(buildTokenBudget(3, { fast: true })).toBeLessThanOrEqual(3200);
+    expect(buildTokenBudget(10, { advanced: false })).toBeLessThanOrEqual(4400);
+    expect(buildTokenBudget(10, { advanced: true })).toBeLessThanOrEqual(5600);
+    expect(buildTokenBudget(10, { fast: true })).toBeLessThan(buildTokenBudget(10, { advanced: true }));
   });
 });

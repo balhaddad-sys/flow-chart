@@ -33,10 +33,11 @@ const {
 } = require("./generationPipeline");
 
 const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
+const deepseekApiKey = functions.params.defineSecret("DEEPSEEK_API_KEY");
 
 /**
  * Questions at or below this threshold are generated synchronously in-request.
- * Above this, we queue a background job. 15 questions ≈ one Claude call (~15s).
+ * Above this, we queue a background job. 15 questions ≈ one DeepSeek call (~10s).
  */
 const INLINE_THRESHOLD = 15;
 
@@ -44,7 +45,7 @@ exports.generateQuestions = functions
   .runWith({
     timeoutSeconds: 120,
     memory: "512MB",
-    secrets: [anthropicApiKey],
+    secrets: [anthropicApiKey, deepseekApiKey],
   })
   .https.onCall(async (data, context) => {
     const t0 = Date.now();

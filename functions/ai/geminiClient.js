@@ -15,7 +15,8 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { jsonrepair } = require("jsonrepair");
 
-const MODEL_ID = "gemini-2.0-flash";
+// gemini-2.0-flash shuts down June 1 2026 — use 2.5-flash-lite (same price, future-proof)
+const MODEL_ID = "gemini-2.5-flash-lite";
 
 const MAX_TOKENS = {
   vision: 2048,
@@ -366,7 +367,7 @@ async function generateBlueprint(systemPrompt, userPrompt) {
  */
 async function generateQuestions(systemPrompt, userPrompt, opts = {}) {
   return callGemini(systemPrompt, userPrompt, {
-    maxTokens: opts.maxTokens ?? 8192,
+    maxTokens: opts.maxTokens ?? 6144,
     retries: opts.retries ?? 1,
     rateLimitMaxRetries: opts.rateLimitMaxRetries ?? 1,
     rateLimitRetryDelayMs: opts.rateLimitRetryDelayMs ?? 8000,
@@ -385,14 +386,14 @@ async function extractPdfWithVision(pdfBuffer) {
   const model = getClient().getGenerativeModel({
     model: MODEL_ID,
     generationConfig: {
-      maxOutputTokens: 8192,
+      maxOutputTokens: 6144,
       temperature: 0,
     },
   });
 
   const t0 = Date.now();
   let attempt = 0;
-  const maxRetries = 2;
+  const maxRetries = 1;
 
   for (;;) {
     try {

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { jsonrepair } from "jsonrepair";
 import { verifyFirebaseToken } from "@/lib/server/firebase-token";
 
-const MODEL_ID = "gemini-2.0-flash";
+const MODEL_ID = "gemini-2.5-flash-lite";
 const MODEL_TIMEOUT_MS = 30_000;
 const INPUT_TITLE_MAX_CHARS = 180;
 const INPUT_SECTION_MAX_CHARS = 20_000;

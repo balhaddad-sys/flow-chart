@@ -8,7 +8,7 @@ import {
   type ExploreChatProvider,
 } from "@/lib/utils/explore-chat-policy";
 
-const GEMINI_MODEL_ID = "gemini-2.0-flash";
+const GEMINI_MODEL_ID = "gemini-2.5-flash-lite";
 const CLAUDE_HAIKU_MODEL_ID = "claude-haiku-4-5-20251001";
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 

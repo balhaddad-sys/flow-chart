@@ -10,7 +10,8 @@ const { MAX_QUESTIONS_PER_SECTION } = require("../lib/constants");
 const { computeSectionQuestionDifficultyCounts } = require("../lib/difficulty");
 const { normaliseQuestion } = require("../lib/serialize");
 const { verifyQuestionEvidenceBatch } = require("../lib/citationVerification");
-const { generateQuestions: aiGenerateQuestions } = require("../ai/aiClient");
+const { generateQuestions: claudeGenerateQuestions } = require("../ai/aiClient");
+const { generateQuestions: deepseekGenerateQuestions } = require("../ai/deepseekClient");
 const { buildQuestionGenPlan } = require("../ai/selfTuningCostEngine");
 const { QUESTIONS_SYSTEM, questionsUserPrompt } = require("../ai/prompts");
 const {
@@ -167,26 +168,39 @@ async function generateAndPersistBatch({
     .filter(Boolean);
 
   const t0 = Date.now();
-  const result = await aiGenerateQuestions(
+  const questionPromptArgs = {
+    blueprintJSON: section.blueprint,
+    count: plan.aiRequestCount,
+    easyCount,
+    mediumCount,
+    hardCount,
+    sectionTitle: section.title || "Section",
+    sourceFileName,
+    examType: resolvedExamType,
+    avoidStems,
+  };
+  const questionOpts = {
+    maxTokens: plan.tokenBudget,
+    retries: plan.retries,
+    rateLimitMaxRetries: plan.rateLimitMaxRetries,
+    rateLimitRetryDelayMs: plan.rateLimitRetryDelayMs,
+  };
+
+  // DeepSeek-first for cost (~12x cheaper), Claude fallback for reliability
+  let result = await deepseekGenerateQuestions(
     QUESTIONS_SYSTEM,
-    questionsUserPrompt({
-      blueprintJSON: section.blueprint,
-      count: plan.aiRequestCount,
-      easyCount,
-      mediumCount,
-      hardCount,
-      sectionTitle: section.title || "Section",
-      sourceFileName,
-      examType: resolvedExamType,
-      avoidStems,
-    }),
-    {
-      maxTokens: plan.tokenBudget,
-      retries: plan.retries,
-      rateLimitMaxRetries: plan.rateLimitMaxRetries,
-      rateLimitRetryDelayMs: plan.rateLimitRetryDelayMs,
-    }
+    questionsUserPrompt(questionPromptArgs),
+    questionOpts
   );
+
+  if (!result.success || !result.data?.questions) {
+    console.warn("DeepSeek question generation failed, falling back to Claude:", result.error);
+    result = await claudeGenerateQuestions(
+      QUESTIONS_SYSTEM,
+      questionsUserPrompt(questionPromptArgs),
+      questionOpts
+    );
+  }
 
   if (!result.success || !result.data?.questions) {
     return {

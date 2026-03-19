@@ -77,7 +77,7 @@ describe("Explore Store", () => {
           targetCount: 10,
           backgroundJobId: "job-123",
           backfillStatus: "running",
-          modelUsed: "gemini-2.0-flash",
+          modelUsed: "gemini-2.5-flash-lite",
           qualityGatePassed: true,
           qualityScore: 0.85,
         }
@@ -92,7 +92,7 @@ describe("Explore Store", () => {
       expect(state.targetCount).toBe(10);
       expect(state.backgroundJobId).toBe("job-123");
       expect(state.backfillStatus).toBe("running");
-      expect(state.modelUsed).toBe("gemini-2.0-flash");
+      expect(state.modelUsed).toBe("gemini-2.5-flash-lite");
       expect(state.qualityGatePassed).toBe(true);
       expect(state.qualityScore).toBe(0.85);
       expect(state.currentIndex).toBe(0);
@@ -324,7 +324,7 @@ describe("Explore Store", () => {
         targetCount: 10,
         backgroundJobId: "job-abc",
         backfillStatus: "running",
-        modelUsed: "gemini-2.0-flash",
+        modelUsed: "gemini-2.5-flash-lite",
       });
 
       expect(useExploreStore.getState().phase).toBe("quiz");

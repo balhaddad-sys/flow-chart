@@ -50,6 +50,39 @@ describe("ai/selfTuningCostEngine", () => {
       expect(plan.rateLimitMaxRetries).toBe(0);
       expect(plan.rateLimitRetryDelayMs).toBe(5000);
     });
+
+    it("keeps token budgets inside the lean cap", () => {
+      const plan = buildQuestionGenPlan({
+        requestedCount: 25,
+        existingCount: 0,
+        sectionStats: {
+          runs: 4,
+          validRateEma: 0.7,
+          duplicateRateEma: 0.08,
+          latencyMsEma: 9000,
+        },
+      });
+
+      expect(plan.tokenBudget).toBeLessThanOrEqual(5200);
+      expect(plan.tokenBudget).toBeGreaterThanOrEqual(900);
+    });
+
+    it("respects historical token budgets when they were already sufficient", () => {
+      const plan = buildQuestionGenPlan({
+        requestedCount: 10,
+        existingCount: 2,
+        sectionStats: {
+          runs: 9,
+          validRateEma: 0.88,
+          duplicateRateEma: 0.04,
+          latencyMsEma: 6000,
+          tokenBudgetEma: 1400,
+        },
+      });
+
+      expect(plan.tokenBudget).toBeLessThanOrEqual(1470);
+      expect(plan.tokenBudget).toBeGreaterThanOrEqual(900);
+    });
   });
 
   describe("updateQuestionGenStats", () => {

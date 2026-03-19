@@ -14,8 +14,8 @@ const { EXPLORE_QUESTIONS_SYSTEM, exploreQuestionsUserPrompt } = require("../ai/
 const ADVANCED_LEVELS = new Set(["MD4", "MD5", "INTERN", "RESIDENT", "POSTGRADUATE"]);
 const EXPERT_LEVELS = new Set(["RESIDENT", "POSTGRADUATE"]);
 
-const MAX_PRIMARY_REQUEST_COUNT_ADVANCED = 12;
-const MAX_SUPPLEMENT_REQUEST_COUNT = 10;
+const MAX_PRIMARY_REQUEST_COUNT_ADVANCED = 10;
+const MAX_SUPPLEMENT_REQUEST_COUNT = 8;
 
 // Claude is primary (more surgical with evidence-based content)
 const FAST_PRIMARY_TIMEOUT_MS = 30_000;
@@ -26,8 +26,8 @@ const FULL_FALLBACK_TIMEOUT_MS = 45_000;
 function buildExploreTargets(levelProfile, requestedCount) {
   const safeCount = Math.max(3, requestedCount);
   const targets = {
-    requestCount: Math.min(20, safeCount + 1),
-    primaryRequestCount: Math.min(20, safeCount + 1),
+    requestCount: Math.min(18, safeCount),
+    primaryRequestCount: Math.min(18, safeCount),
     inBandRatio: 0.75,
     hardFloorCount: 0,
     expertFloorCount: 0,
@@ -40,8 +40,8 @@ function buildExploreTargets(levelProfile, requestedCount) {
   }
 
   if (ADVANCED_LEVELS.has(levelProfile.id)) {
-    targets.requestCount = Math.min(20, safeCount + 2);
-    targets.primaryRequestCount = Math.min(MAX_PRIMARY_REQUEST_COUNT_ADVANCED, safeCount + 1);
+    targets.requestCount = Math.min(18, safeCount + 1);
+    targets.primaryRequestCount = Math.min(MAX_PRIMARY_REQUEST_COUNT_ADVANCED, safeCount);
     targets.inBandRatio = 0.8;
     targets.hardFloorCount = Math.max(1, Math.ceil(safeCount * 0.45));
   }
@@ -57,10 +57,11 @@ function buildExploreTargets(levelProfile, requestedCount) {
 
 function buildTokenBudget(requestCount, { advanced = false, rescue = false, fast = false } = {}) {
   const safeCount = Math.max(3, Math.min(20, Number(requestCount) || 10));
-  // Evidence-based responses with guideline citations need more tokens per question
-  const base = fast ? 700 : advanced ? 1100 : 900;
-  const perQuestion = fast ? 280 : advanced ? 380 : 320;
-  const hardCap = rescue ? 6000 : fast ? 4500 : advanced ? 8192 : 6500;
+  // Keep Explore generation lean: enough room for evidence-based reasoning
+  // without the older oversized token ceilings.
+  const base = fast ? 520 : advanced ? 880 : 720;
+  const perQuestion = fast ? 220 : advanced ? 320 : 260;
+  const hardCap = rescue ? 4800 : fast ? 3200 : advanced ? 5600 : 4400;
   return Math.min(hardCap, base + safeCount * perQuestion);
 }
 
@@ -253,7 +254,7 @@ async function generateFastStartQuestions({
 }) {
   const phaseDurationsMs = {};
   const isAdvanced = ADVANCED_LEVELS.has(levelProfile.id);
-  const primaryRequestCount = Math.min(8, Math.max(3, requestedCount + 1));
+  const primaryRequestCount = Math.min(6, Math.max(3, requestedCount));
   const buildPrompt = ({ requestCount, excludeStems = [] }) =>
     exploreQuestionsUserPrompt({
       topic,
@@ -334,7 +335,7 @@ async function generateFastStartQuestions({
     }
   }
 
-  questions = await verifyQuestionEvidenceBatch(questions, { maxRemoteChecks: 2 });
+  questions = await verifyQuestionEvidenceBatch(questions, { maxRemoteChecks: 1 });
   questions = prioritiseQuestions(questions, levelProfile, requestedCount);
   const evaluation = evaluateQuestionSet(questions, levelProfile, requestedCount);
 
@@ -581,7 +582,7 @@ async function generateFullQuestions({
   }
 
   if (questions.length > 0) {
-    questions = await verifyQuestionEvidenceBatch(questions, { maxRemoteChecks: 2 });
+    questions = await verifyQuestionEvidenceBatch(questions, { maxRemoteChecks: 1 });
     questions = prioritiseQuestions(questions, levelProfile, requestedCount);
     metrics = qualityMetrics(questions, levelProfile);
   }

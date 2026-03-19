@@ -98,8 +98,8 @@ async function analyzeSinglePage(base64Image, pageIndex, imageMediaType) {
     base64Image,
     mediaType: detectedType,
     userText: documentExtractUserPrompt({ pageIndex }),
-    maxTokens: 2048,
-    retries: 2,
+    maxTokens: 1536,
+    retries: 1,
   });
 
   if (!result.success) {

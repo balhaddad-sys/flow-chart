@@ -40,6 +40,14 @@ const DEFAULT_COUNT = 10;
  */
 const GENERATION_VERSION = 2;
 
+function buildExamBankTokenBudget(count, { fallback = false } = {}) {
+  const safeCount = Math.max(3, Math.min(20, Number(count) || DEFAULT_COUNT));
+  const base = fallback ? 900 : 1100;
+  const perQuestion = fallback ? 280 : 320;
+  const hardCap = fallback ? 5200 : 6144;
+  return Math.min(hardCap, base + safeCount * perQuestion);
+}
+
 /** Maps each exam type to its default MedQ assessment level. */
 const EXAM_DEFAULT_LEVELS = {
   PLAB1:       "MD3",
@@ -186,7 +194,11 @@ exports.generateExamBankQuestions = functions
       // Primary: Claude (more surgical with evidence-based guidelines and citations)
       // Token budget must accommodate full evidence-based explanations with
       // guideline citations, trial references, and per-option reasoning.
-      const claudeOpts = { maxTokens: 8192, retries: 2, usePrefill: true };
+      const claudeOpts = {
+        maxTokens: buildExamBankTokenBudget(count),
+        retries: 1,
+        usePrefill: true,
+      };
       let generationResult = await claudeGenerate(EXPLORE_QUESTIONS_SYSTEM, userPrompt, claudeOpts);
       let modelUsed = "claude";
 
@@ -196,11 +208,11 @@ exports.generateExamBankQuestions = functions
           uid, examType, domain, claudeError: generationResult.error,
         });
         const geminiOpts = {
-          maxTokens: 8192,
-          retries: 1,
+          maxTokens: buildExamBankTokenBudget(count, { fallback: true }),
+          retries: 0,
           temperature: 0.12,
-          rateLimitMaxRetries: 2,
-          rateLimitRetryDelayMs: 8000,
+          rateLimitMaxRetries: 1,
+          rateLimitRetryDelayMs: 4000,
         };
         generationResult = await geminiGenerate(EXPLORE_QUESTIONS_SYSTEM, userPrompt, geminiOpts);
         modelUsed = "gemini-fallback";

@@ -43,8 +43,11 @@ const MAX_SECTION_CONTENT_LEN = 3_000;
 const MAX_SECTION_KEY_POINTS = 5;
 const MAX_CHART_DATA_POINTS = 12;
 const MAX_ALGORITHM_STEPS = 15;
+const MAX_QUESTION_CONTEXT_CHARS = 500;
 const GEMINI_TIMEOUT_MS = 55_000;
 const CLAUDE_TIMEOUT_MS = 65_000;
+const CLAUDE_MAX_TOKENS = 5_200;
+const GEMINI_FALLBACK_MAX_TOKENS = 4_400;
 
 function normaliseStringList(input, { maxItems = MAX_LIST_ITEMS, maxLen = 260 } = {}) {
   if (!Array.isArray(input)) return [];
@@ -419,7 +422,7 @@ exports.exploreTopicInsight = functions
     const topic = String(data.topic || "").trim();
     const examType = typeof data.examType === "string" ? data.examType.trim().slice(0, 40) : null;
     const questionContext = typeof data.questionContext === "string"
-      ? data.questionContext.trim().slice(0, 800)
+      ? data.questionContext.trim().slice(0, MAX_QUESTION_CONTEXT_CHARS)
       : "";
     const levelProfile = getAssessmentLevel(data.level);
     const hasQuestionContext = Boolean(questionContext);
@@ -496,7 +499,7 @@ exports.exploreTopicInsight = functions
       const claudeT0 = Date.now();
       const claudeResult = await withTimeout(
         claudeGenerate(EXPLORE_TOPIC_INSIGHT_SYSTEM, prompt, {
-          maxTokens: 7_000,
+          maxTokens: CLAUDE_MAX_TOKENS,
           retries: 1,
           usePrefill: true,
         }).catch((error) => ({ success: false, error: error.message })),
@@ -515,7 +518,7 @@ exports.exploreTopicInsight = functions
         const geminiT0 = Date.now();
         const geminiResult = await withTimeout(
           geminiGenerate(EXPLORE_TOPIC_INSIGHT_SYSTEM, prompt, {
-            maxTokens: 6_000,
+            maxTokens: GEMINI_FALLBACK_MAX_TOKENS,
             retries: 1,
             temperature: 0.15,
             rateLimitMaxRetries: 1,

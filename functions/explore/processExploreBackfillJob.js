@@ -112,7 +112,7 @@ exports.processExploreBackfillJob = functions
     }
 
     try {
-      const generationCount = Math.min(20, Math.max(3, remainingCount + 1));
+      const generationCount = Math.min(18, Math.max(3, remainingCount));
       const excludeStems = seedQuestions
         .map((q) => String(q?.stem || "").replace(/\s+/g, " ").trim())
         .concat(profileExcludeStems)

@@ -186,6 +186,9 @@ const DEFAULT_VISION_CONCURRENCY = 4;
 /** Hard ceiling on concurrency regardless of caller input. */
 const MAX_VISION_CONCURRENCY = 6;
 
+/** Skip full-PDF vision OCR fallback above this size to avoid runaway scan costs. */
+const MAX_VISION_PDF_BYTES = 12 * 1024 * 1024;
+
 // ── GDPR / data deletion ────────────────────────────────────────────────────
 
 /** Firestore sub-collections under each user document (used for GDPR deletion). */
@@ -334,6 +337,7 @@ module.exports = {
   MAX_BASE64_LENGTH,
   DEFAULT_VISION_CONCURRENCY,
   MAX_VISION_CONCURRENCY,
+  MAX_VISION_PDF_BYTES,
   USER_SUBCOLLECTIONS,
   AI_MODEL,
   AI_MAX_TOKENS,

@@ -23,6 +23,7 @@ const {
   SUPPORTED_MIME_TYPES,
   INGESTION_STEP_LABELS,
   DEFAULT_QUESTION_COUNT,
+  MAX_VISION_PDF_BYTES,
 } = require("../lib/constants");
 
 /** Emit a real-time progress update to the file document. */
@@ -201,31 +202,43 @@ exports.processUploadedFile = functions
 
       // Download to tmp
       await bucket.file(filePath).download({ destination: tempFilePath });
+      const uploadedFileSizeBytes = Number(object.size || fs.statSync(tempFilePath).size || 0);
 
       // Extract raw sections via the appropriate extractor
       // For PDFs: try text extraction first, fall back to vision-based OCR if low text
       let rawSections = [];
+      let skippedVisionFallback = false;
       if (contentType === "application/pdf") {
         rawSections = await extractPdfSections(tempFilePath);
 
         // Vision fallback for scanned/image-heavy PDFs using Gemini
         if (rawSections.length === 0) {
-          log.info("PDF text extraction yielded no sections — trying Gemini vision OCR", { uid, fileId });
-          try {
-            const pdfBuffer = fs.readFileSync(tempFilePath);
-            const result = await extractPdfWithVision(pdfBuffer);
-            if (result.success && result.sections.length > 0) {
-              rawSections = result.sections.map((s, i) => ({
-                text: s.text,
-                title: s.title || `Scanned Section ${i + 1}`,
-                startPage: s.startPage || i + 1,
-                endPage: s.endPage || i + 1,
-                estMinutes: Math.ceil((s.text?.length || 500) / 1500) * 3,
-              }));
-              log.info("Vision OCR recovered sections", { uid, fileId, count: rawSections.length });
+          if (uploadedFileSizeBytes > MAX_VISION_PDF_BYTES) {
+            skippedVisionFallback = true;
+            log.warn("Skipping Gemini vision OCR for oversized scanned PDF", {
+              uid,
+              fileId,
+              sizeBytes: uploadedFileSizeBytes,
+              maxBytes: MAX_VISION_PDF_BYTES,
+            });
+          } else {
+            log.info("PDF text extraction yielded no sections — trying Gemini vision OCR", { uid, fileId });
+            try {
+              const pdfBuffer = fs.readFileSync(tempFilePath);
+              const result = await extractPdfWithVision(pdfBuffer);
+              if (result.success && result.sections.length > 0) {
+                rawSections = result.sections.map((s, i) => ({
+                  text: s.text,
+                  title: s.title || `Scanned Section ${i + 1}`,
+                  startPage: s.startPage || i + 1,
+                  endPage: s.endPage || i + 1,
+                  estMinutes: Math.ceil((s.text?.length || 500) / 1500) * 3,
+                }));
+                log.info("Vision OCR recovered sections", { uid, fileId, count: rawSections.length });
+              }
+            } catch (visionErr) {
+              log.warn("Vision fallback failed", { uid, fileId, error: visionErr.message });
             }
-          } catch (visionErr) {
-            log.warn("Vision fallback failed", { uid, fileId, error: visionErr.message });
           }
         }
       } else if (contentType.includes("presentationml") || contentType.includes("presentation")) {
@@ -283,7 +296,9 @@ exports.processUploadedFile = functions
             sectionCount: 0,
             errorMessage: allDroppedAsNonInstructional
               ? "Only editorial or non-instructional pages were detected. Upload core medical content pages."
-              : "No readable text was found in this document. This may be an image-only scan — try re-saving with OCR enabled, or upload a text-based PDF.",
+              : skippedVisionFallback
+                ? "This scanned PDF is too large for the cost-controlled OCR fallback. Re-save it with OCR enabled or upload a smaller page range."
+                : "No readable text was found in this document. This may be an image-only scan — try re-saving with OCR enabled, or upload a text-based PDF.",
             lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
           },
           { merge: true }
