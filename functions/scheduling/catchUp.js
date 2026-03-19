@@ -32,7 +32,8 @@ exports.catchUp = functions
     try {
       const { courseId } = data;
       const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      // Use UTC midnight for consistent day boundaries across timezones
+      const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
       // Fetch overdue TODO tasks
       const overdueSnap = await db

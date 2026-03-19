@@ -38,9 +38,22 @@ function distributeOverdue(overdueItems, today, spanDays = CATCH_UP_SPAN_DAYS, d
 
     for (const item of overdueItems) {
       const taskMinutes = item.estMinutes || 15;
-      // Find next day with enough capacity.
-      while (dayIdx < caps.length - 1 && caps[dayIdx].remaining < taskMinutes) {
+      // Find next day with enough capacity (don't stop early at length - 1).
+      const startIdx = dayIdx;
+      while (dayIdx < caps.length && caps[dayIdx].remaining < taskMinutes) {
         dayIdx++;
+      }
+      // If no day has enough capacity, find the one with the most remaining.
+      if (dayIdx >= caps.length) {
+        let bestIdx = startIdx;
+        let bestRemaining = caps[startIdx]?.remaining ?? 0;
+        for (let d = startIdx; d < caps.length; d++) {
+          if (caps[d].remaining > bestRemaining) {
+            bestIdx = d;
+            bestRemaining = caps[d].remaining;
+          }
+        }
+        dayIdx = bestIdx;
       }
       result.push({
         ref: item.ref,

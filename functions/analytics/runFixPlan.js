@@ -18,6 +18,7 @@ const { checkRateLimit, RATE_LIMITS } = require("../middleware/rateLimit");
 const { db, batchSet } = require("../lib/firestore");
 const { Errors, fail, ok, safeError } = require("../lib/errors");
 const log = require("../lib/logger");
+const { MS_PER_DAY } = require("../lib/constants");
 const { generateFixPlan } = require("../ai/aiClient");
 const { FIX_PLAN_SYSTEM, fixPlanUserPrompt } = require("../ai/prompts");
 
@@ -61,7 +62,7 @@ exports.runFixPlan = functions
       const examDate = courseData.examDate?.toDate();
       const now = new Date();
       const daysAvailable = examDate
-        ? Math.max(1, Math.ceil((examDate - now) / 86_400_000))
+        ? Math.max(1, Math.ceil((examDate.getTime() - now.getTime()) / MS_PER_DAY))
         : 7; // default 7 days if no exam date
       const minutesAvailable = daysAvailable * 60; // ~1hr/day for remediation
 
@@ -99,7 +100,7 @@ exports.runFixPlan = functions
           isFixPlan: true,
           focus: String(task.focus || "").slice(0, 500),
           dueDate: admin.firestore.Timestamp.fromDate(
-            new Date(now.getTime() + (task.dayOffset || 0) * 86_400_000)
+            new Date(now.getTime() + (task.dayOffset || 0) * MS_PER_DAY)
           ),
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         },

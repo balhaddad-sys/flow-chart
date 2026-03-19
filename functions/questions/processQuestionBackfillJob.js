@@ -178,7 +178,7 @@ exports.processQuestionBackfillJob = functions
       const finalState = await fetchExistingQuestionState({ uid, courseId, sectionId });
       const finalDistinct = finalState.distinctCount || finalState.count;
       const reachedTarget = finalDistinct >= targetCount;
-      const finalStatus = reachedTarget ? "COMPLETED" : (finalDistinct > 0 ? "COMPLETED" : "FAILED");
+      const finalStatus = finalDistinct > 0 ? "COMPLETED" : "FAILED";
 
       // Update self-tuning stats if we have batch data
       let questionGenStats = section.questionGenStats || {};
