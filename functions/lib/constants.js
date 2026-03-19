@@ -31,8 +31,8 @@ const SUPPORTED_MIME_TYPES = [
 // ── Document extractors ─────────────────────────────────────────────────────
 
 /** Number of PDF pages per extracted section (larger chunks = fewer AI calls).
- *  At 40 pages/section, a 1000-page PDF produces ~25 sections. */
-const PAGES_PER_SECTION = 40;
+ *  25 pages balances cost (fewer AI calls) vs quality (sections stay topically coherent). */
+const PAGES_PER_SECTION = 25;
 
 /** Number of PPTX slides per extracted section (larger chunks = fewer AI calls). */
 const SLIDES_PER_SECTION = 30;
@@ -44,10 +44,9 @@ const WORDS_PER_SECTION = 1800;
 const MIN_CHARS_PER_SECTION = 100;
 
 /** Maximum characters of section text sent to AI prompts.
- *  ~4K chars ≈ ~1K tokens — aggressive truncation for cost control
- *  on large documents. Blueprint extraction works well even with
- *  partial text since key concepts cluster in early paragraphs. */
-const MAX_AI_SECTION_CHARS = 4000;
+ *  ~6K chars ≈ ~1.5K tokens — enough for accurate blueprint extraction
+ *  without sending full 25-page sections. */
+const MAX_AI_SECTION_CHARS = 6000;
 
 // ── Scheduling ───────────────────────────────────────────────────────────────
 

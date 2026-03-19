@@ -533,10 +533,14 @@ async function analyzeSectionBlueprint({
   const heuristicCount = blueprintContentCount(heuristicBlueprint);
   const fallbackHasContent = heuristicCount > 0;
 
-  // If the heuristic blueprint is rich enough (≥8 items across all fields),
-  // skip the AI call entirely — saves ~$0.001 per section, which adds up
-  // at scale (800 sections = $0.80 saved).
-  if (heuristicCount >= 8) {
+  // Only skip AI when heuristic is both rich AND the title is meaningful.
+  // Noisy OCR text can produce high item counts from garbage patterns,
+  // so we require a non-generic title as a quality signal.
+  const heuristicTitleOk = heuristicBlueprint.title
+    && !looksGenericTitle(heuristicBlueprint.title)
+    && heuristicBlueprint.title.length >= 8;
+
+  if (heuristicCount >= 12 && heuristicTitleOk) {
     return {
       success: true,
       normalised: heuristicBlueprint,
