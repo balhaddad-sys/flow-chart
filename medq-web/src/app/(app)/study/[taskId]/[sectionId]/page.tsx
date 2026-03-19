@@ -31,7 +31,6 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { useTimerStore } from "@/lib/stores/timer-store";
 import { updateTask, getFile } from "@/lib/firebase/firestore";
 import { getTextBlob, getFileDownloadUrl } from "@/lib/firebase/storage";
-import { getAuth } from "firebase/auth";
 import * as fn from "@/lib/firebase/functions";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
@@ -115,7 +114,7 @@ export default function StudySessionPage({
   const [activeSourceParagraphIndex, setActiveSourceParagraphIndex] = useState<number | null>(null);
   const sourceParagraphRefs = useRef<Record<number, HTMLLIElement | null>>({});
   const [file, setFile] = useState<FileModel | null>(null);
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfSourceUrl, setPdfSourceUrl] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
 
 
@@ -263,19 +262,15 @@ export default function StudySessionPage({
     }
   }, [sectionText, section?.title, summaryLoading, user]);
 
-  // Load PDF URL for in-app viewer when file is a PDF
+  // Get Firebase Storage download URL for the PDF viewer
   useEffect(() => {
-    if (!file?.storagePath || file.mimeType !== "application/pdf" || pdfUrl) return;
+    if (!file?.storagePath || file.mimeType !== "application/pdf" || pdfSourceUrl) return;
     let cancelled = false;
     setPdfLoading(true);
     (async () => {
       try {
         const downloadUrl = await getFileDownloadUrl(file.storagePath);
-        const authToken = await getAuth().currentUser?.getIdToken() ?? "";
-        const startIdx = Math.max(1, Math.floor(section?.contentRef?.startIndex || 1));
-        const endIdx = Math.max(startIdx, Math.floor(section?.contentRef?.endIndex || startIdx));
-        const url = `/api/section-pdf?url=${encodeURIComponent(downloadUrl)}&start=${startIdx}&end=${endIdx}&name=${encodeURIComponent(file.originalName)}&token=${encodeURIComponent(authToken)}`;
-        if (!cancelled) setPdfUrl(url);
+        if (!cancelled) setPdfSourceUrl(downloadUrl);
       } catch {
         // silently fail — user can still use Guide and Notes
       } finally {
@@ -283,7 +278,7 @@ export default function StudySessionPage({
       }
     })();
     return () => { cancelled = true; };
-  }, [file?.storagePath, file?.mimeType, section?.contentRef, pdfUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [file?.storagePath, file?.mimeType, pdfSourceUrl]);
 
   // Auto-generate notes when section text loads
   useEffect(() => {
@@ -927,11 +922,13 @@ export default function StudySessionPage({
               {pdfLoading ? (
                 <div className="flex flex-col items-center justify-center py-16">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  <p className="mt-2 text-xs text-muted-foreground">Loading source PDF...</p>
+                  <p className="mt-2 text-xs text-muted-foreground">Preparing PDF viewer...</p>
                 </div>
-              ) : pdfUrl ? (
+              ) : pdfSourceUrl ? (
                 <PDFViewer
-                  url={pdfUrl}
+                  sourceUrl={pdfSourceUrl}
+                  startPage={Math.max(1, Math.floor(section?.contentRef?.startIndex || 1))}
+                  endPage={Math.max(1, Math.floor(section?.contentRef?.endIndex || 1))}
                   className="min-h-[60vh]"
                 />
               ) : (
