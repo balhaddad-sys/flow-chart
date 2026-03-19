@@ -83,6 +83,57 @@ const DEFAULT_STUDY_PERIOD_DAYS = 30;
 /** Number of future days the catch-up algorithm distributes overdue tasks across. */
 const CATCH_UP_SPAN_DAYS = 5;
 
+// ── Triage v2: selective scheduling ─────────────────────────────────────────
+
+/**
+ * Composite priority score weights for section triage.
+ * Must sum to 1.0.  Derived from retrieval-practice & spacing research:
+ * Cepeda et al. 2008, Pavlik & Anderson 2008, Roediger & Butler 2011.
+ */
+const TRIAGE_WEIGHTS = Object.freeze({
+  weakness:       0.30,
+  examAlignment:  0.25,
+  highYield:      0.15,
+  urgency:        0.10,
+  questionReady:  0.10,
+  difficulty:     0.10,
+});
+
+/**
+ * Triage band thresholds — sections are classified into three tiers.
+ * >= SCHEDULE: placed on the active daily plan.
+ * >= BACKLOG:  kept available but not auto-scheduled.
+ * <  BACKLOG:  deferred entirely (hidden from the daily plan).
+ */
+const TRIAGE_SCHEDULE_THRESHOLD = 0.65;
+const TRIAGE_BACKLOG_THRESHOLD  = 0.45;
+
+/** Maximum brand-new (first-study) topics placed per day. */
+const MAX_NEW_TOPICS_PER_DAY = 3;
+
+/** Maximum total tasks placed per day (new + review + questions). */
+const MAX_TASKS_PER_DAY = 8;
+
+/**
+ * Mastery suppression: a section is considered mastered when all three
+ * conditions are met simultaneously.
+ */
+const MASTERY_MIN_ACCURACY    = 0.85;
+const MASTERY_MAX_DAYS_SINCE  = 7;
+const MASTERY_MAX_WEAKNESS    = 0.25;
+
+/**
+ * Minimum question coverage (questionsCount) before a QUESTIONS task
+ * is considered worthwhile.
+ */
+const MIN_QUESTIONS_FOR_TASK = 3;
+
+/**
+ * Minimum OCR / text content length for a section to be considered
+ * non-thin.  Sections shorter than this are candidates for merging.
+ */
+const THIN_SECTION_MIN_CHARS = 200;
+
 // ── FSRS v5 (adaptive spaced repetition) ────────────────────────────────────
 
 /** Target recall probability for FSRS interval computation. */
@@ -299,4 +350,14 @@ module.exports = {
   STREAK_HISTORY_DAYS,
   CACHE_MAX_QUESTIONS_PER_TOPIC,
   CACHE_COLLECTION,
+  TRIAGE_WEIGHTS,
+  TRIAGE_SCHEDULE_THRESHOLD,
+  TRIAGE_BACKLOG_THRESHOLD,
+  MAX_NEW_TOPICS_PER_DAY,
+  MAX_TASKS_PER_DAY,
+  MASTERY_MIN_ACCURACY,
+  MASTERY_MAX_DAYS_SINCE,
+  MASTERY_MAX_WEAKNESS,
+  MIN_QUESTIONS_FOR_TASK,
+  THIN_SECTION_MIN_CHARS,
 };

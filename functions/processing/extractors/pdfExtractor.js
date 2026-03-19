@@ -146,44 +146,124 @@ async function extractPdfSections(filePath) {
   // Detect heading-like lines so sections get meaningful titles
   const headings = detectHeadings(fullText);
 
+  // ── Heading-aware segmentation ──
+  // Instead of fixed PAGES_PER_SECTION windows, use detected headings as
+  // natural section boundaries. Fall back to page-window splitting when
+  // headings are sparse (< 2 for the document).
   const sections = [];
   const droppedPages = [];
-  let startPage = 1;
 
-  while (startPage <= totalPages) {
-    const endPage = Math.min(startPage + PAGES_PER_SECTION - 1, totalPages);
+  // Build heading page map: heading -> page number
+  const headingPages = headings.map((h) => {
+    // Find which page this heading falls on
+    let page = 1;
+    for (let p = 0; p < pageCharOffsets.length - 1; p++) {
+      if (h.charOffset >= pageCharOffsets[p] && h.charOffset < (pageCharOffsets[p + 1] ?? fullText.length)) {
+        page = p + 1;
+        break;
+      }
+    }
+    return { ...h, page };
+  });
 
-    // Use actual page boundaries instead of average char density
-    const startChar = pageCharOffsets[startPage - 1] ?? 0;
-    const rawEndChar = pageCharOffsets[endPage] ?? fullText.length;
+  const useHeadingBoundaries = headingPages.length >= 2;
 
-    // Snap to nearest paragraph boundary
-    const endChar = endPage === totalPages
-      ? fullText.length
-      : snapToBreak(fullText, rawEndChar);
+  if (useHeadingBoundaries) {
+    // Split at each heading boundary
+    for (let i = 0; i < headingPages.length; i++) {
+      const heading = headingPages[i];
+      const nextHeading = headingPages[i + 1];
+      const startPage = heading.page;
+      const endPage = nextHeading ? Math.max(startPage, nextHeading.page - 1) : totalPages;
 
-    const text = fullText.slice(startChar, endChar).trim();
+      // Cap very long sections at PAGES_PER_SECTION and split
+      if (endPage - startPage + 1 > PAGES_PER_SECTION * 2) {
+        // Split into roughly equal parts
+        let subStart = startPage;
+        while (subStart <= endPage) {
+          const subEnd = Math.min(subStart + PAGES_PER_SECTION - 1, endPage);
+          const startChar = pageCharOffsets[subStart - 1] ?? 0;
+          const rawEndChar = pageCharOffsets[subEnd] ?? fullText.length;
+          const endChar = subEnd === totalPages ? fullText.length : snapToBreak(fullText, rawEndChar);
+          const text = fullText.slice(startChar, endChar).trim();
 
-    if (text.length >= MIN_CHARS_PER_SECTION) {
-      // Use first detected heading within this section's char range
-      const heading = headings.find(
-        (h) => h.charOffset >= startChar && h.charOffset < endChar
-      );
-      const title = heading ? heading.text : `Pages ${startPage}\u2013${endPage}`;
+          if (text.length >= MIN_CHARS_PER_SECTION) {
+            sections.push({
+              text,
+              title: subStart === startPage ? heading.text : `${heading.text} (cont.)`,
+              startPage: subStart,
+              endPage: subEnd,
+              estMinutes: Math.ceil((subEnd - subStart + 1) * 3),
+            });
+          } else {
+            droppedPages.push({ startPage: subStart, endPage: subEnd, textLength: text.length });
+          }
+          subStart = subEnd + 1;
+        }
+      } else {
+        const startChar = pageCharOffsets[startPage - 1] ?? 0;
+        const rawEndChar = pageCharOffsets[endPage] ?? fullText.length;
+        const endChar = endPage === totalPages ? fullText.length : snapToBreak(fullText, rawEndChar);
+        const text = fullText.slice(startChar, endChar).trim();
 
-      sections.push({
-        text,
-        title,
-        startPage,
-        endPage,
-        estMinutes: Math.ceil((endPage - startPage + 1) * 3),
-      });
-    } else {
-      // Track dropped pages so callers can surface warnings
-      droppedPages.push({ startPage, endPage, textLength: text.length });
+        if (text.length >= MIN_CHARS_PER_SECTION) {
+          sections.push({
+            text,
+            title: heading.text,
+            startPage,
+            endPage,
+            estMinutes: Math.ceil((endPage - startPage + 1) * 3),
+          });
+        } else {
+          droppedPages.push({ startPage, endPage, textLength: text.length });
+        }
+      }
     }
 
-    startPage = endPage + 1;
+    // Handle pages before the first heading
+    if (headingPages[0].page > 1) {
+      const preStart = 1;
+      const preEnd = headingPages[0].page - 1;
+      const startChar = pageCharOffsets[preStart - 1] ?? 0;
+      const endChar = pageCharOffsets[preEnd] ?? fullText.length;
+      const text = fullText.slice(startChar, snapToBreak(fullText, endChar)).trim();
+      if (text.length >= MIN_CHARS_PER_SECTION) {
+        sections.unshift({
+          text,
+          title: `Introduction (Pages 1\u2013${preEnd})`,
+          startPage: preStart,
+          endPage: preEnd,
+          estMinutes: Math.ceil(preEnd * 3),
+        });
+      }
+    }
+  } else {
+    // Fallback: fixed page-window splitting (sparse/no headings)
+    let startPage = 1;
+    while (startPage <= totalPages) {
+      const endPage = Math.min(startPage + PAGES_PER_SECTION - 1, totalPages);
+      const startChar = pageCharOffsets[startPage - 1] ?? 0;
+      const rawEndChar = pageCharOffsets[endPage] ?? fullText.length;
+      const endChar = endPage === totalPages ? fullText.length : snapToBreak(fullText, rawEndChar);
+      const text = fullText.slice(startChar, endChar).trim();
+
+      if (text.length >= MIN_CHARS_PER_SECTION) {
+        const heading = headings.find(
+          (h) => h.charOffset >= startChar && h.charOffset < endChar
+        );
+        const title = heading ? heading.text : `Pages ${startPage}\u2013${endPage}`;
+        sections.push({
+          text,
+          title,
+          startPage,
+          endPage,
+          estMinutes: Math.ceil((endPage - startPage + 1) * 3),
+        });
+      } else {
+        droppedPages.push({ startPage, endPage, textLength: text.length });
+      }
+      startPage = endPage + 1;
+    }
   }
 
   // Ensure short documents still produce at least one section.

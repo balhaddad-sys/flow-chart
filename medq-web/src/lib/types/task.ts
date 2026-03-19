@@ -30,5 +30,7 @@ export interface TaskModel {
   rationale?: string;
   adaptiveScore?: number;
   isAdaptive?: boolean;
+  triageTier?: "schedule" | "backlog" | "defer";
+  exclusionReason?: string;
   createdAt?: Timestamp;
 }

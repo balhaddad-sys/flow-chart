@@ -195,9 +195,40 @@ exports.processUploadedFile = functions
       await bucket.file(filePath).download({ destination: tempFilePath });
 
       // Extract raw sections via the appropriate extractor
+      // For PDFs: try text extraction first, fall back to vision-based OCR if low text
       let rawSections = [];
       if (contentType === "application/pdf") {
         rawSections = await extractPdfSections(tempFilePath);
+
+        // Vision fallback for scanned/image-heavy PDFs
+        if (rawSections.length === 0) {
+          log.info("PDF text extraction yielded no sections — trying vision-based OCR", { uid, fileId });
+          try {
+            const { processDocumentBatch } = require("./processDocumentBatch");
+            const downloadUrl = await bucket.file(filePath).getSignedUrl({
+              action: "read",
+              expires: Date.now() + 30 * 60 * 1000, // 30 min
+            });
+            const result = await processDocumentBatch({
+              fileUrl: downloadUrl[0],
+              mimeType: "application/pdf",
+              maxPages: 60,
+            });
+            if (result.sections && result.sections.length > 0) {
+              rawSections = result.sections.map((s, i) => ({
+                text: s.text,
+                title: s.title || `Scanned Section ${i + 1}`,
+                startPage: s.startPage || i + 1,
+                endPage: s.endPage || i + 1,
+                estMinutes: Math.ceil((s.text?.length || 500) / 1500) * 3,
+              }));
+              log.info("Vision OCR recovered sections", { uid, fileId, count: rawSections.length });
+            }
+          } catch (visionErr) {
+            log.warn("Vision fallback failed", { uid, fileId, error: visionErr.message });
+            // Continue — will fall through to the "no sections" error below
+          }
+        }
       } else if (contentType.includes("presentationml") || contentType.includes("presentation")) {
         rawSections = await extractPptxSections(tempFilePath);
       } else if (contentType.includes("wordprocessingml") || contentType.includes("msword")) {
@@ -253,7 +284,7 @@ exports.processUploadedFile = functions
             sectionCount: 0,
             errorMessage: allDroppedAsNonInstructional
               ? "Only editorial or non-instructional pages were detected. Upload core medical content pages."
-              : "No readable text was found in this document. If this is a scanned file, run OCR first and upload again.",
+              : "No readable text was found in this document. This may be an image-only scan — try re-saving with OCR enabled, or upload a text-based PDF.",
             lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
           },
           { merge: true }

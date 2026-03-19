@@ -28,6 +28,9 @@ const {
   checkFeasibility,
   placeTasks,
   validateScheduleInputs,
+  triageSections,
+  mergeAdjacentThinSections,
+  pruneForDeficit,
 } = require("./scheduler");
 
 exports.generateSchedule = functions
@@ -110,7 +113,6 @@ exports.generateSchedule = functions
         return ok({ taskCount: 0, skippedCount: 0, message: "All sections already completed." });
       }
 
-      // (statsDoc already fetched in parallel above)
       const adaptiveContext = buildAdaptiveContext({
         startDate,
         examDate,
@@ -118,20 +120,34 @@ exports.generateSchedule = functions
         stats: statsDoc.exists ? statsDoc.data() : null,
       });
 
+      // ── Triage v2: classify sections into schedule/backlog/defer ──────
+      const inputSections = schedulableSections.length > 0 ? schedulableSections : sections;
+      const { results: triageResults, scheduled: scheduledSections, backlog: backlogSections, deferred: deferredSections } =
+        triageSections(inputSections, adaptiveContext);
+
+      // Merge adjacent thin/low-priority sections to reduce fragmentation
+      const mergedSections = mergeAdjacentThinSections(scheduledSections, triageResults);
+
       const tasks = buildWorkUnits(
-        schedulableSections.length > 0 ? schedulableSections : sections,
+        mergedSections,
         courseId, revisionPolicy, srsCards, adaptiveContext
       );
-      const totalMinutes = computeTotalLoad(tasks);
+
+      // ── Capacity-aware deficit pruning ─────────────────────────────────
       const requestedDays = buildDayCapacities(startDate, examDate, availability);
       let days = requestedDays;
+      const totalCapacity = days.reduce((sum, d) => sum + d.usableCapacity, 0);
+
+      // If over capacity, prune lowest-priority tasks before extending
+      const { kept: prunedTasks, pruned: droppedTasks } = pruneForDeficit(tasks, totalCapacity);
+      const activeTasks = prunedTasks.length < tasks.length ? prunedTasks : tasks;
+
+      const totalMinutes = computeTotalLoad(activeTasks);
       const requestedWindow = checkFeasibility(totalMinutes, requestedDays);
       let feasible = requestedWindow.feasible;
       let extendedWindow = false;
 
       if (!feasible) {
-        // Relax strict date-window fitting: if the selected study period is too
-        // short, retry against the maximum supported horizon.
         const maxEndDate = new Date(startDate.getTime() + (MAX_SCHEDULE_DAYS - 1) * MS_PER_DAY);
         const extendedDays = buildDayCapacities(startDate, maxEndDate, availability);
         const extendedWindowCheck = checkFeasibility(totalMinutes, extendedDays);
@@ -140,7 +156,7 @@ exports.generateSchedule = functions
           return ok({
             feasible: false,
             deficit: extendedWindowCheck.deficit,
-            taskCount: tasks.length,
+            taskCount: activeTasks.length,
             suggestions: [
               "Increase daily study time",
               "Reduce revision intensity",
@@ -154,7 +170,7 @@ exports.generateSchedule = functions
         extendedWindow = true;
       }
 
-      const { placed, skipped } = placeTasks(tasks, days, { examDate, adaptiveContext });
+      const { placed, skipped } = placeTasks(activeTasks, days, { examDate, adaptiveContext });
       let spillDays = 0;
       if (extendedWindow && examDate && placed.length > 0) {
         const latestDueDate = placed.reduce(
@@ -203,6 +219,12 @@ exports.generateSchedule = functions
         extendedWindow,
         spillDays,
         adaptivePlanning: true,
+        triage: {
+          scheduled: scheduledSections.length,
+          backlogged: backlogSections.length,
+          deferred: deferredSections.length,
+          prunedForDeficit: droppedTasks.length,
+        },
       });
 
       return ok({
@@ -210,6 +232,12 @@ exports.generateSchedule = functions
         taskCount: placed.length,
         skippedCount: skipped.length,
         totalDays: days.length,
+        triage: {
+          scheduled: scheduledSections.length,
+          backlogged: backlogSections.length,
+          deferred: deferredSections.length,
+          prunedForDeficit: droppedTasks.length,
+        },
         ...(extendedWindow
           ? {
               extendedWindow: true,

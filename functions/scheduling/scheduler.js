@@ -209,6 +209,18 @@ function buildAdaptiveContext({
     ? Math.max(0, Math.ceil((safeExam.getTime() - safeStart.getTime()) / MS_PER_DAY))
     : null;
 
+  // Build last-review recency map from stats
+  const lastReviewByTag = new Map();
+  if (stats?.lastReviewByTag) {
+    for (const [tag, timestamp] of Object.entries(stats.lastReviewByTag)) {
+      const date = timestamp?.toDate?.() ?? (typeof timestamp === "number" ? new Date(timestamp) : null);
+      if (date) {
+        const daysSince = Math.max(0, Math.ceil((safeStart.getTime() - date.getTime()) / MS_PER_DAY));
+        lastReviewByTag.set(normalizeTopicKey(tag), daysSince);
+      }
+    }
+  }
+
   return {
     enabled: true,
     startDate: safeStart,
@@ -218,6 +230,7 @@ function buildAdaptiveContext({
     overallAccuracy: clamp01(Number(stats?.overallAccuracy ?? 0)),
     completionPercent: clamp01(Number(stats?.completionPercent ?? 0)),
     weaknessByTag: buildWeaknessMap(stats?.weakestTopics),
+    lastReviewByTag,
   };
 }
 
@@ -393,7 +406,23 @@ function isMastered(section, adaptiveContext) {
   if (weakness > MASTERY_MAX_WEAKNESS) return false;
   if (adaptiveContext.overallAccuracy < MASTERY_MIN_ACCURACY) return false;
 
+  // Check recency: mastery requires a recent review within MASTERY_MAX_DAYS_SINCE
   const topicTags = Array.isArray(section.topicTags) ? section.topicTags : [];
+  let hasRecentReview = false;
+
+  if (adaptiveContext.lastReviewByTag && adaptiveContext.lastReviewByTag.size > 0) {
+    for (const tag of topicTags) {
+      const daysSince = adaptiveContext.lastReviewByTag.get(normalizeTopicKey(tag));
+      if (daysSince != null && daysSince <= MASTERY_MAX_DAYS_SINCE) {
+        hasRecentReview = true;
+        break;
+      }
+    }
+    // If we have review data but no recent review, topic isn't truly mastered
+    if (!hasRecentReview) return false;
+  }
+  // If no review data at all, fall through to weakness-only check (backward compat)
+
   for (const tag of topicTags) {
     const tagWeakness = adaptiveContext.weaknessByTag.get(normalizeTopicKey(tag));
     if (tagWeakness != null && tagWeakness <= MASTERY_MAX_WEAKNESS) return true;
@@ -718,9 +747,12 @@ function buildWorkUnits(sections, courseId, revisionPolicy = "standard", srsCard
         }
       : {};
 
+    // For merged sections, use all constituent IDs; otherwise just the one
+    const allSectionIds = section._mergedSectionIds || [section.id];
+
     const base = {
       courseId,
-      sectionIds: [section.id],
+      sectionIds: allSectionIds,
       topicTags,
       difficulty,
       status: "TODO",
@@ -901,7 +933,9 @@ function orderStudyTasksAdaptive(studyTasks, adaptiveContext) {
 
 function placeAnchoredTasks(anchorTasks, placed, days, dayOrderMap, lastValidIdx, skipped) {
   for (const task of anchorTasks) {
-    const studyTask = placed.find((t) => t.type === "STUDY" && t.sectionIds[0] === task.sectionIds[0]);
+    // Match study task by any overlapping sectionId (supports merged sections)
+    const taskSectionSet = new Set(task.sectionIds);
+    const studyTask = placed.find((t) => t.type === "STUDY" && t.sectionIds.some((id) => taskSectionSet.has(id)));
     if (!studyTask) {
       skipped.push(task);
       continue;
@@ -1124,6 +1158,39 @@ function placeTasks(tasks, days, { examDate, adaptiveContext } = {}) {
   return { placed, skipped };
 }
 
+/**
+ * When total load exceeds capacity, drop bottom-tier tasks instead of
+ * extending into a mediocre, overloaded plan.
+ *
+ * Strategy: sort tasks by priority ascending, remove lowest-priority tasks
+ * until the total load fits within available capacity. Removed tasks get
+ * an exclusion reason.
+ */
+function pruneForDeficit(tasks, totalCapacity) {
+  const totalLoad = computeTotalLoad(tasks);
+  if (totalLoad <= totalCapacity) return { kept: tasks, pruned: [] };
+
+  // Sort by priority ascending (lowest first) — prune from the bottom
+  const sorted = [...tasks].sort((a, b) => (a.priority || 0) - (b.priority || 0));
+  const pruned = [];
+  let excess = totalLoad - totalCapacity;
+
+  const kept = [];
+  for (const task of sorted) {
+    if (excess > 0 && (task.priority || 0) < 50) {
+      pruned.push({
+        ...task,
+        _prunedReason: "Excluded: insufficient study time for low-priority content",
+      });
+      excess -= task.estMinutes;
+    } else {
+      kept.push(task);
+    }
+  }
+
+  return { kept, pruned };
+}
+
 function validateScheduleInputs(startDate, examDate) {
   const errors = [];
   if (examDate && examDate.getTime() <= startDate.getTime()) {
@@ -1140,4 +1207,12 @@ module.exports = {
   checkFeasibility,
   placeTasks,
   validateScheduleInputs,
+  // Triage v2 exports
+  computeTriageScore,
+  triageSections,
+  isMastered,
+  hasRetrievalValue,
+  isThinSection,
+  mergeAdjacentThinSections,
+  pruneForDeficit,
 };

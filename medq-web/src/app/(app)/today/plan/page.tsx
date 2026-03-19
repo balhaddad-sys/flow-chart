@@ -10,7 +10,7 @@ import { groupTasksByDay } from "@/lib/utils/date";
 import { buildSectionMap } from "@/lib/utils/task-title";
 import { TaskRow } from "@/components/planner/task-row";
 import { Button } from "@/components/ui/button";
-import { LoadingButtonLabel, SectionLoadingState } from "@/components/ui/loading-state";
+import { SectionLoadingState } from "@/components/ui/loading-state";
 import { PhaseLoadingCard } from "@/components/ui/phase-loading-card";
 import { usePhaseProgress } from "@/lib/hooks/usePhaseProgress";
 import { ProgressRing } from "@/components/ui/progress-ring";

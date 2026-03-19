@@ -20,6 +20,9 @@ const {
   checkFeasibility,
   placeTasks,
   validateScheduleInputs,
+  triageSections,
+  mergeAdjacentThinSections,
+  pruneForDeficit,
 } = require("./scheduler");
 
 /**
@@ -169,9 +172,23 @@ async function maybeAutoGenerateSchedule(uid, courseId) {
       stats: statsDoc.exists ? statsDoc.data() : null,
     });
 
-    const tasks = buildWorkUnits(sections, courseId, revisionPolicy, srsCards, adaptiveContext);
-    const totalMinutes = computeTotalLoad(tasks);
+    // ── Triage + merge + prune — same pipeline as manual generateSchedule ──
+    const { results: triageResults, scheduled: scheduledSections } =
+      triageSections(sections, adaptiveContext);
+    const mergedSections = mergeAdjacentThinSections(
+      scheduledSections.length > 0 ? scheduledSections : sections,
+      triageResults
+    );
+
+    const allTasks = buildWorkUnits(mergedSections, courseId, revisionPolicy, srsCards, adaptiveContext);
+
+    // Capacity-aware deficit pruning
     let days = buildDayCapacities(startDate, examDate, availability);
+    const totalCapacity = days.reduce((sum, d) => sum + d.usableCapacity, 0);
+    const { kept: prunedTasks } = pruneForDeficit(allTasks, totalCapacity);
+    const tasks = prunedTasks.length < allTasks.length ? prunedTasks : allTasks;
+
+    const totalMinutes = computeTotalLoad(tasks);
     const { feasible } = checkFeasibility(totalMinutes, days);
 
     if (!feasible) {

@@ -6,6 +6,13 @@ const {
   checkFeasibility,
   placeTasks,
   validateScheduleInputs,
+  computeTriageScore,
+  triageSections,
+  isMastered,
+  hasRetrievalValue,
+  isThinSection,
+  mergeAdjacentThinSections,
+  pruneForDeficit,
 } = require("../scheduling/scheduler");
 
 describe("scheduling/scheduler", () => {
@@ -428,6 +435,7 @@ describe("scheduling/scheduler", () => {
           difficulty: 5,
           topicTags: ["Cardiology"],
           questionsStatus: "COMPLETED",
+          questionsCount: 10,
           blueprint: {
             learningObjectives: ["Differentiate STEMI from NSTEMI"],
             keyConcepts: ["Acute coronary syndrome"],
@@ -553,6 +561,257 @@ describe("scheduling/scheduler", () => {
       const questions = tasks.find((t) => t.type === "QUESTIONS");
       // min(5, max(8, round(5*0.35))) = min(5, 8) = 5  (capped at study time)
       expect(questions.estMinutes).toBeLessThanOrEqual(5);
+    });
+  });
+
+  // ── Triage v2 ───────────────────────────────────────────────────────────────
+
+  describe("triage v2: selective scheduling", () => {
+    const makeAdaptive = (overrides = {}) => buildAdaptiveContext({
+      startDate: new Date("2025-01-01T00:00:00Z"),
+      examDate: new Date("2025-02-01T00:00:00Z"),
+      examType: "USMLE_STEP2",
+      stats: {
+        overallAccuracy: 0.55,
+        weakestTopics: [{ tag: "cardiology", weaknessScore: 0.9 }],
+      },
+      ...overrides,
+    });
+
+    describe("computeTriageScore", () => {
+      it("scores a weak, high-yield, exam-aligned section above schedule threshold", () => {
+        const ctx = makeAdaptive();
+        const section = {
+          id: "s1", title: "Acute MI management", difficulty: 5,
+          topicTags: ["cardiology"], questionsStatus: "COMPLETED", questionsCount: 10,
+          blueprint: { highYieldPoints: ["Immediate PCI"], commonTraps: ["Missing posterior MI"], keyConcepts: ["ECG interpretation"] },
+        };
+        const result = computeTriageScore(section, ctx);
+        expect(result.triageTier).toBe("schedule");
+        expect(result.triageScore).toBeGreaterThanOrEqual(0.70);
+      });
+
+      it("defers a low-relevance section with no weakness", () => {
+        const ctx = makeAdaptive({ stats: { overallAccuracy: 0.85, weakestTopics: [] } });
+        const section = {
+          id: "s2", title: "Research methodology basics", difficulty: 1,
+          topicTags: ["research"], questionsStatus: "PENDING", questionsCount: 0,
+          blueprint: {},
+        };
+        const result = computeTriageScore(section, ctx);
+        expect(result.triageTier).not.toBe("schedule");
+        expect(result.exclusionReason).toBeTruthy();
+      });
+
+      it("returns schedule tier when no adaptive context", () => {
+        const result = computeTriageScore({ id: "s1", title: "Test" }, null);
+        expect(result.triageTier).toBe("schedule");
+      });
+    });
+
+    describe("triageSections", () => {
+      it("partitions sections into schedule/backlog/defer", () => {
+        const ctx = makeAdaptive();
+        const sections = [
+          { id: "s1", title: "Acute coronary syndrome", difficulty: 5, topicTags: ["cardiology"],
+            questionsStatus: "COMPLETED", questionsCount: 10,
+            blueprint: { highYieldPoints: ["Immediate PCI"], commonTraps: ["Posterior MI"], keyConcepts: ["ECG"] } },
+          { id: "s2", title: "Research methodology", difficulty: 1, topicTags: ["research"],
+            questionsStatus: "PENDING", questionsCount: 0, blueprint: {} },
+        ];
+        const { scheduled, backlog, deferred, results } = triageSections(sections, ctx);
+        expect(scheduled.length + backlog.length + deferred.length).toBe(2);
+        expect(results.size).toBe(2);
+        // High-priority section should be scheduled
+        expect(results.get("s1").triageTier).toBe("schedule");
+      });
+
+      it("suppresses mastered sections — they never reach schedule tier", () => {
+        const ctx = makeAdaptive({
+          stats: { overallAccuracy: 0.92, weakestTopics: [{ tag: "cardiology", weaknessScore: 0.1 }] },
+        });
+        const sections = [
+          { id: "s1", title: "Cardiology basics", difficulty: 5, topicTags: ["cardiology"],
+            questionsStatus: "COMPLETED", questionsCount: 10,
+            blueprint: { highYieldPoints: ["Basics"], commonTraps: ["Trap"], keyConcepts: ["ECG"] } },
+        ];
+        const { results, scheduled } = triageSections(sections, ctx);
+        // Mastered section should not be scheduled
+        expect(scheduled).toHaveLength(0);
+        expect(results.get("s1").triageTier).not.toBe("schedule");
+      });
+    });
+
+    describe("isMastered", () => {
+      it("returns true for low-weakness, high-accuracy section", () => {
+        const ctx = makeAdaptive({
+          stats: { overallAccuracy: 0.92, weakestTopics: [{ tag: "cardiology", weaknessScore: 0.1 }] },
+        });
+        const section = { id: "s1", title: "Test", topicTags: ["cardiology"] };
+        expect(isMastered(section, ctx)).toBe(true);
+      });
+
+      it("returns false when weakness is high", () => {
+        const ctx = makeAdaptive();
+        const section = { id: "s1", title: "Test", topicTags: ["cardiology"] };
+        expect(isMastered(section, ctx)).toBe(false);
+      });
+
+      it("returns false without adaptive context", () => {
+        expect(isMastered({ id: "s1", topicTags: [] }, null)).toBe(false);
+      });
+    });
+
+    describe("hasRetrievalValue", () => {
+      it("requires COMPLETED questionsStatus", () => {
+        expect(hasRetrievalValue({ questionsStatus: "PENDING", questionsCount: 10 }, null)).toBe(false);
+      });
+
+      it("requires minimum question count", () => {
+        expect(hasRetrievalValue({ questionsStatus: "COMPLETED", questionsCount: 1 }, null)).toBe(false);
+      });
+
+      it("returns true with enough questions and no adaptive context", () => {
+        expect(hasRetrievalValue({ questionsStatus: "COMPLETED", questionsCount: 10 }, null)).toBe(true);
+      });
+
+      it("gates on weakness/exam/highYield signal when adaptive", () => {
+        const ctx = makeAdaptive({ stats: { overallAccuracy: 0.95, weakestTopics: [] } });
+        const section = {
+          questionsStatus: "COMPLETED", questionsCount: 10,
+          topicTags: ["obscure"], title: "Obscure topic", difficulty: 1,
+          blueprint: {},
+        };
+        // No weakness, low exam alignment, low high-yield → no retrieval value
+        expect(hasRetrievalValue(section, ctx)).toBe(false);
+      });
+    });
+
+    describe("isThinSection", () => {
+      it("identifies sections with too little text", () => {
+        expect(isThinSection({ title: "T", textLength: 50 })).toBe(true);
+        expect(isThinSection({ title: "T", textLength: 500 })).toBe(false);
+      });
+
+      it("identifies generic titles with no blueprint as thin", () => {
+        expect(isThinSection({ title: "Pages 1-5", blueprint: {} })).toBe(true);
+      });
+
+      it("keeps sections with blueprint content", () => {
+        expect(isThinSection({
+          title: "Pages 1-5",
+          blueprint: { learningObjectives: ["obj1"], keyConcepts: ["c1"], highYieldPoints: [], commonTraps: [] },
+        })).toBe(false);
+      });
+    });
+
+    describe("mergeAdjacentThinSections", () => {
+      it("merges consecutive thin sections", () => {
+        const triageResults = new Map([
+          ["s1", { triageTier: "backlog" }],
+          ["s2", { triageTier: "backlog" }],
+          ["s3", { triageTier: "schedule" }],
+        ]);
+        const sections = [
+          { id: "s1", title: "Pages 1-3", estMinutes: 5, topicTags: ["a"], blueprint: {} },
+          { id: "s2", title: "Pages 4-6", estMinutes: 8, topicTags: ["b"], blueprint: {} },
+          { id: "s3", title: "Major Topic", estMinutes: 30, topicTags: ["c"],
+            blueprint: { learningObjectives: ["obj"], keyConcepts: ["k"], highYieldPoints: ["h"], commonTraps: [] } },
+        ];
+        const merged = mergeAdjacentThinSections(sections, triageResults);
+        // s1+s2 merged, s3 standalone
+        expect(merged.length).toBe(2);
+        expect(merged[0]._isMerged).toBe(true);
+        expect(merged[1].id).toBe("s3");
+      });
+
+      it("returns single section unchanged", () => {
+        const merged = mergeAdjacentThinSections([{ id: "s1", title: "T" }], new Map());
+        expect(merged).toHaveLength(1);
+      });
+    });
+
+    describe("pruneForDeficit", () => {
+      it("removes lowest-priority tasks when over capacity", () => {
+        const tasks = [
+          { type: "STUDY", estMinutes: 30, priority: 80 },
+          { type: "STUDY", estMinutes: 30, priority: 60 },
+          { type: "STUDY", estMinutes: 30, priority: 20 },
+        ];
+        const { kept, pruned } = pruneForDeficit(tasks, 60);
+        expect(kept).toHaveLength(2);
+        expect(pruned).toHaveLength(1);
+        expect(pruned[0].priority).toBe(20);
+        expect(pruned[0]._prunedReason).toBeTruthy();
+      });
+
+      it("keeps all tasks when capacity is sufficient", () => {
+        const tasks = [
+          { type: "STUDY", estMinutes: 30, priority: 80 },
+          { type: "STUDY", estMinutes: 30, priority: 60 },
+        ];
+        const { kept, pruned } = pruneForDeficit(tasks, 120);
+        expect(kept).toHaveLength(2);
+        expect(pruned).toHaveLength(0);
+      });
+
+      it("only prunes tasks with priority < 50", () => {
+        const tasks = [
+          { type: "STUDY", estMinutes: 50, priority: 60 },
+          { type: "STUDY", estMinutes: 50, priority: 70 },
+        ];
+        const { kept, pruned } = pruneForDeficit(tasks, 60);
+        // Both above 50 threshold, so neither pruned even though over capacity
+        expect(kept).toHaveLength(2);
+        expect(pruned).toHaveLength(0);
+      });
+    });
+
+    describe("question readiness gate", () => {
+      it("skips QUESTIONS task for low-value section in adaptive mode", () => {
+        const ctx = makeAdaptive({ stats: { overallAccuracy: 0.95, weakestTopics: [] } });
+        const sections = [{
+          id: "s1", title: "Low relevance topic", difficulty: 1,
+          topicTags: ["obscure"], questionsStatus: "COMPLETED", questionsCount: 10,
+          blueprint: {},
+        }];
+        const tasks = buildWorkUnits(sections, "c1", "off", null, ctx);
+        const questionTasks = tasks.filter((t) => t.type === "QUESTIONS");
+        expect(questionTasks).toHaveLength(0);
+      });
+
+      it("creates QUESTIONS task for weak topic in adaptive mode", () => {
+        const ctx = makeAdaptive();
+        const sections = [{
+          id: "s1", title: "Cardiology emergency", difficulty: 4,
+          topicTags: ["cardiology"], questionsStatus: "COMPLETED", questionsCount: 10,
+          blueprint: { highYieldPoints: ["ACS management"], commonTraps: ["Posterior MI"], keyConcepts: [] },
+        }];
+        const tasks = buildWorkUnits(sections, "c1", "off", null, ctx);
+        const questionTasks = tasks.filter((t) => t.type === "QUESTIONS");
+        expect(questionTasks).toHaveLength(1);
+      });
+    });
+
+    describe("scarcity caps", () => {
+      it("limits new study topics per day", () => {
+        const ctx = makeAdaptive();
+        const sections = Array.from({ length: 6 }, (_, i) => ({
+          id: `s${i}`, title: `Topic ${i}`, difficulty: 3,
+          topicTags: [`topic${i}`], estMinutes: 15,
+          blueprint: { highYieldPoints: ["p"], commonTraps: ["t"], keyConcepts: ["k"] },
+        }));
+        const tasks = buildWorkUnits(sections, "c1", "off", null, ctx);
+        const studyTasks = tasks.filter((t) => t.type === "STUDY");
+        const days = [
+          { date: new Date("2025-01-01"), usableCapacity: 200, remaining: 200 },
+          { date: new Date("2025-01-02"), usableCapacity: 200, remaining: 200 },
+        ];
+        const { placed } = placeTasks(studyTasks, days, { adaptiveContext: ctx });
+        const day1Tasks = placed.filter((t) => t.dueDate.toISOString().includes("2025-01-01"));
+        // Should be capped at MAX_NEW_TOPICS_PER_DAY (3)
+        expect(day1Tasks.length).toBeLessThanOrEqual(3);
+      });
     });
   });
 });

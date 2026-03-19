@@ -25,6 +25,7 @@ import {
   LoadingButtonLabel,
 } from "@/components/ui/loading-state";
 import { PhaseLoadingCard } from "@/components/ui/phase-loading-card";
+import { usePhaseProgress } from "@/lib/hooks/usePhaseProgress";
 import {
   Upload,
   Calendar,
@@ -89,9 +90,8 @@ export default function TodayPage() {
   const { stats, loading: statsLoading } = useStats(effectiveCourseId);
 
   const sectionMap = useMemo(() => buildSectionMap(sections), [sections]);
-  const [fixPlanLoading, setFixPlanLoading] = useState(false);
-  const [fixPlanPhase, setFixPlanPhase] = useState("idle");
-  const [seedPhase, setSeedPhase] = useState("idle");
+  const fixPlanProgress = usePhaseProgress("idle");
+  const seedProgress = usePhaseProgress("idle");
 
   const hasFiles = files.length > 0;
   const hasSections = sections.some((s) => s.aiStatus === "ANALYZED");
@@ -125,48 +125,40 @@ export default function TodayPage() {
 
   async function handleFixPlan() {
     if (!effectiveCourseId) return;
-    setFixPlanLoading(true);
-    setFixPlanPhase("analyze");
+    fixPlanProgress.setPhase("analyze");
     try {
-      // Phase transitions on a timer since we can't observe the function internals
-      const phaseTimer = setTimeout(() => setFixPlanPhase("plan"), 3000);
-      const phaseTimer2 = setTimeout(() => setFixPlanPhase("save"), 7000);
+      fixPlanProgress.setPhase("plan");
       await fn.runFixPlan({ courseId: effectiveCourseId });
-      clearTimeout(phaseTimer);
-      clearTimeout(phaseTimer2);
-      setFixPlanPhase("done");
+      fixPlanProgress.setPhase("save");
+      fixPlanProgress.setComplete("Fix plan ready!");
       toast.success("Remediation plan generated. Check your plan for updated tasks.");
     } catch {
-      setFixPlanPhase("analyze");
+      fixPlanProgress.setFailed("Failed to generate fix plan.");
       toast.error("Failed to generate fix plan.");
-    } finally {
-      setFixPlanLoading(false);
-      setTimeout(() => setFixPlanPhase("idle"), 2000);
     }
   }
 
   async function handleSeedSampleDeck() {
     setSeedingDeck(true);
-    setSeedPhase("create");
+    seedProgress.setPhase("create");
     try {
-      const t1 = setTimeout(() => setSeedPhase("generate"), 3000);
-      const t2 = setTimeout(() => setSeedPhase("finalize"), 8000);
+      seedProgress.setPhase("generate");
       const result = await fn.seedSampleDeck();
-      clearTimeout(t1);
-      clearTimeout(t2);
-      setSeedPhase("done");
+      seedProgress.setPhase("finalize");
       if (result.alreadySeeded) {
+        seedProgress.setComplete("Sample deck already loaded.");
         toast.info("Sample deck is already in your account.");
       } else {
+        seedProgress.setComplete("Sample deck ready!");
         toast.success(`Sample deck ready — ${result.questionCount} high-yield questions loaded!`);
         setDeckSeeded(true);
         if (result.courseId) setActiveCourseId(result.courseId);
       }
     } catch {
+      seedProgress.setFailed("Failed to load sample deck.");
       toast.error("Failed to load sample deck.");
     } finally {
       setSeedingDeck(false);
-      setTimeout(() => setSeedPhase("idle"), 2000);
     }
   }
 
@@ -287,16 +279,20 @@ export default function TodayPage() {
               )}
             </Button>
           </div>
-          {seedingDeck && seedPhase !== "idle" && (
+          {(seedProgress.isRunning || seedProgress.failed || seedProgress.complete) && (
             <PhaseLoadingCard
               phases={[
                 { key: "create", label: "Creating sample course" },
                 { key: "generate", label: "Loading high-yield questions" },
                 { key: "finalize", label: "Setting up your deck" },
               ]}
-              activePhase={seedPhase}
-              complete={seedPhase === "done"}
-              completeMessage="Sample deck ready!"
+              activePhase={seedProgress.activePhase}
+              failed={seedProgress.failed}
+              failedMessage={seedProgress.failedMessage ?? undefined}
+              complete={seedProgress.complete}
+              completeMessage={seedProgress.completeMessage ?? undefined}
+              elapsedSec={seedProgress.elapsedSec}
+              onRetry={() => { seedProgress.reset(); handleSeedSampleDeck(); }}
               className="mt-3"
             />
           )}
@@ -451,9 +447,9 @@ export default function TodayPage() {
                 size="sm"
                 className="h-7 text-xs gap-1"
                 onClick={handleFixPlan}
-                disabled={fixPlanLoading || !effectiveCourseId}
+                disabled={fixPlanProgress.isRunning || !effectiveCourseId}
               >
-                {fixPlanLoading ? (
+                {fixPlanProgress.isRunning ? (
                   <LoadingButtonLabel label="Generating..." />
                 ) : (
                   <>
@@ -464,16 +460,20 @@ export default function TodayPage() {
               </Button>
             )}
           </div>
-          {fixPlanLoading && fixPlanPhase !== "idle" && (
+          {(fixPlanProgress.isRunning || fixPlanProgress.failed || fixPlanProgress.complete) && (
             <PhaseLoadingCard
               phases={[
                 { key: "analyze", label: "Analyzing weak topics" },
                 { key: "plan", label: "Building remediation tasks" },
                 { key: "save", label: "Saving to your plan" },
               ]}
-              activePhase={fixPlanPhase}
-              complete={fixPlanPhase === "done"}
-              completeMessage="Fix plan ready!"
+              activePhase={fixPlanProgress.activePhase}
+              failed={fixPlanProgress.failed}
+              failedMessage={fixPlanProgress.failedMessage ?? undefined}
+              complete={fixPlanProgress.complete}
+              completeMessage={fixPlanProgress.completeMessage ?? undefined}
+              elapsedSec={fixPlanProgress.elapsedSec}
+              onRetry={() => { fixPlanProgress.reset(); handleFixPlan(); }}
               className="mb-3"
             />
           )}

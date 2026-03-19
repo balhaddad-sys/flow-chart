@@ -9,7 +9,7 @@ import { useCourses } from "@/lib/hooks/useCourses";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { PageLoadingState, LoadingButtonLabel } from "@/components/ui/loading-state";
+import { PageLoadingState } from "@/components/ui/loading-state";
 import { PhaseLoadingCard } from "@/components/ui/phase-loading-card";
 import { usePhaseProgress } from "@/lib/hooks/usePhaseProgress";
 import {
@@ -174,6 +174,7 @@ export default function OnboardingPage() {
   const [showCreateFlow, setShowCreateFlow] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const onboardProgress = usePhaseProgress("idle");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -283,7 +284,6 @@ export default function OnboardingPage() {
     { key: "prefs", label: "Saving preferences" },
     { key: "redirect", label: "Preparing your workspace" },
   ];
-  const onboardProgress = usePhaseProgress("idle");
 
   async function handleFinish() {
     if (!courseTitle.trim()) return;

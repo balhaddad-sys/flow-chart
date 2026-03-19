@@ -21,18 +21,21 @@ export function RouteProgress() {
       setVisible(true);
       setProgress(0);
 
-      // Animate progress from 0 → 90% quickly
+      // Logarithmic ease — fast start, naturally decelerates toward 90%
       let p = 0;
       timerRef.current = setInterval(() => {
-        p += Math.random() * 15 + 5;
-        if (p >= 90) {
+        p += (90 - p) * 0.15;
+        if (p >= 89.5) {
           p = 90;
           if (timerRef.current) clearInterval(timerRef.current);
         }
         setProgress(p);
       }, 100);
 
-      // Complete after a short delay (new page has mounted)
+      // Complete after a short delay. Next.js App Router doesn't expose
+      // route-transition-end events, so we use a fixed timeout as a
+      // best-effort signal that the new page has mounted. For heavier
+      // routes the bar may complete slightly before content appears.
       const complete = setTimeout(() => {
         if (timerRef.current) clearInterval(timerRef.current);
         setProgress(100);

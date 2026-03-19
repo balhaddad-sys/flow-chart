@@ -74,9 +74,9 @@ export function TaskRow({ task, sectionMap }: TaskRowProps) {
         <p className={`break-words text-sm font-medium leading-tight ${isDone || isSkipped ? "line-through text-muted-foreground" : ""}`}>
           {displayTitle}
         </p>
-        {task.rationale && (
+        {(task.exclusionReason || task.rationale) && (
           <p className="mt-1 break-words text-[11px] leading-snug text-muted-foreground">
-            {task.rationale}
+            {task.exclusionReason || task.rationale}
           </p>
         )}
         <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -95,6 +95,11 @@ export function TaskRow({ task, sectionMap }: TaskRowProps) {
           {task.isAdaptive && !task.isFixPlan && (
             <Badge variant="outline" className="text-xs px-1.5 py-0 font-normal">
               Adaptive
+            </Badge>
+          )}
+          {task.triageTier === "backlog" && (
+            <Badge className="bg-slate-500/10 text-slate-500 dark:text-slate-400 border-0 text-xs px-1.5 py-0 font-normal">
+              Backlog
             </Badge>
           )}
         </div>
