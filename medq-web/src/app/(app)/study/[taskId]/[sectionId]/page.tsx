@@ -247,45 +247,13 @@ export default function StudySessionPage({
     setSummaryError(null);
     try {
       const input = { sectionText: sectionText.slice(0, 8000), title: section.title };
-      try {
-        const data = await fn.generateSectionSummary(input);
-        if (controller.signal.aborted) return;
-        if (data?.summary || data?.keyPoints?.length || data?.mnemonics?.length) {
-          setSummary(data);
-          return;
-        }
-      } catch { /* fall through */ }
-
+      const data = await fn.generateSectionSummary(input);
       if (controller.signal.aborted) return;
-      const summaryBody = JSON.stringify(input);
-      let idToken = await user?.getIdToken();
-      let res = await fetch("/api/summary", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
-        },
-        body: summaryBody,
-        signal: controller.signal,
-      });
-      // Retry with forced token refresh on 401
-      if (res.status === 401 && user) {
-        idToken = await user.getIdToken(true);
-        res = await fetch("/api/summary", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
-          },
-          body: summaryBody,
-          signal: controller.signal,
-        });
+      if (data?.summary || data?.keyPoints?.length || data?.mnemonics?.length) {
+        setSummary(data);
+      } else {
+        throw new Error("Summary generation returned empty results.");
       }
-      const json = await res.json();
-      if (!res.ok || !json?.success || !json?.data) {
-        throw new Error(json?.error || "Failed to generate summary.");
-      }
-      setSummary(json.data as AISummary);
     } catch (error) {
       if (controller.signal.aborted) return;
       const message = error instanceof Error ? error.message : "Failed to generate summary.";

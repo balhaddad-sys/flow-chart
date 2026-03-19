@@ -240,7 +240,11 @@ async function generateAndPersistBatch({
     stagedQuestions.push({ docRef, question: normalised });
   }
 
-  const verifiedQuestions = stagedQuestions.length > 0
+  // Skip evidence verification for small fast-start batches (≤ 3 questions)
+  // to reduce network cost at ingestion time. Verification runs on backfill
+  // when the user requests a full question bank.
+  const skipVerification = target <= 3;
+  const verifiedQuestions = !skipVerification && stagedQuestions.length > 0
     ? await verifyQuestionEvidenceBatch(
       stagedQuestions.map((item) => item.question),
       { maxRemoteChecks: 2 }

@@ -4,10 +4,10 @@ import { jsonrepair } from "jsonrepair";
 import { verifyFirebaseToken } from "@/lib/server/firebase-token";
 
 const MODEL_ID = "gemini-2.5-flash-lite";
-const MODEL_TIMEOUT_MS = 45_000;
+const MODEL_TIMEOUT_MS = 30_000;
 const INPUT_TITLE_MAX_CHARS = 180;
-const INPUT_SECTION_MAX_CHARS = 20_000;
-const PROMPT_SECTION_MAX_CHARS = 8_000;
+const INPUT_SECTION_MAX_CHARS = 8_000;
+const PROMPT_SECTION_MAX_CHARS = 4_000;
 
 const VISUAL_CACHE_TTL_MS = 15 * 60 * 1000;
 const VISUAL_CACHE_MAX_ENTRIES = 64;
@@ -244,7 +244,7 @@ export async function POST(req: NextRequest) {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
       model: MODEL_ID,
-      generationConfig: { maxOutputTokens: 4096, temperature: 0.3 },
+      generationConfig: { maxOutputTokens: 2048, temperature: 0.3 },
     });
 
     promise = withTimeout(

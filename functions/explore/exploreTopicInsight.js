@@ -427,7 +427,20 @@ exports.exploreTopicInsight = functions
     const levelProfile = getAssessmentLevel(data.level);
     const hasQuestionContext = Boolean(questionContext);
 
-    // ── Knowledge Cache lookup (skip when question-specific) ──────────
+    // ── Knowledge Cache lookup ────────────────────────────────────────
+    // For question-context requests, use a hash-based cache key so that
+    // repeated "explain this question" calls for the same stem don't
+    // trigger fresh model calls each time.
+    if (hasQuestionContext) {
+      try {
+        const qHash = questionContext.slice(0, 80).replace(/\s+/g, "_").toLowerCase();
+        const qCacheKey = `${topic}:${levelProfile.id}:q:${qHash}`;
+        const qCache = await lookupInsight(qCacheKey, levelProfile.id, examType);
+        if (qCache.hit) {
+          return ok({ insight: qCache.insight, cached: true, model: "cache" });
+        }
+      } catch { /* continue to generation */ }
+    }
     if (!hasQuestionContext) {
       try {
         const insightCache = await lookupInsight(topic, levelProfile.id, examType);
@@ -592,7 +605,13 @@ exports.exploreTopicInsight = functions
       }
 
       // Non-blocking: populate global cache for future users.
-      if (!hasQuestionContext) {
+      // Also cache question-context insights using hash key.
+      if (hasQuestionContext) {
+        const qHash = questionContext.slice(0, 80).replace(/\s+/g, "_").toLowerCase();
+        const qCacheKey = `${topic}:${levelProfile.id}:q:${qHash}`;
+        writeInsight(qCacheKey, levelProfile.id, examType, payload, { modelUsed })
+          .catch((err) => log.warn("Question insight cache write failed", { topic, error: err.message }));
+      } else {
         writeInsight(topic, levelProfile.id, examType, payload, { modelUsed })
           .catch((err) => log.warn("Insight cache write failed", { topic, error: err.message }));
       }

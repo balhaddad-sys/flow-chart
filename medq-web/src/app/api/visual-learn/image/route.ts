@@ -41,10 +41,10 @@ function quickHash(input: string): string {
   return (hash >>> 0).toString(16);
 }
 
-// Rate limit: max 5 image generations per user per minute
+// Rate limit: max 3 image generations per user per minute
 const userRateMap = new Map<string, number[]>();
 const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX = 5;
+const RATE_LIMIT_MAX = 3;
 
 function checkRateLimit(uid: string): boolean {
   const now = Date.now();

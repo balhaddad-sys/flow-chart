@@ -4,7 +4,11 @@ import { verifyFirebaseToken } from "@/lib/server/firebase-token";
 
 export const runtime = "nodejs";
 
-const ALLOWED_HOST = "firebasestorage.googleapis.com";
+const ALLOWED_HOSTS = new Set([
+  "firebasestorage.googleapis.com",
+  "medq-a6cc6.firebasestorage.app",
+  "storage.googleapis.com",
+]);
 const MAX_SECTION_PAGES = 60;
 const MAX_SOURCE_BYTES = 100 * 1024 * 1024; // 100 MB source PDF limit
 
@@ -52,8 +56,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
   }
 
-  if (parsedUrl.hostname !== ALLOWED_HOST) {
-    return NextResponse.json({ error: "URL not allowed" }, { status: 403 });
+  if (!ALLOWED_HOSTS.has(parsedUrl.hostname)) {
+    return NextResponse.json({ error: `URL host not allowed: ${parsedUrl.hostname}` }, { status: 403 });
   }
 
   const requestedStart = toPositiveInt(req.nextUrl.searchParams.get("start"), 1);
