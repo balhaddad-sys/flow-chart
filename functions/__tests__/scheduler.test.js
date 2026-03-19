@@ -1,4 +1,5 @@
 const {
+  buildAdaptiveContext,
   buildWorkUnits,
   computeTotalLoad,
   buildDayCapacities,
@@ -405,6 +406,90 @@ describe("scheduling/scheduler", () => {
       // Both reviews land on day 2 — they should have distinct orderIndex values
       expect(reviews).toHaveLength(2);
       expect(reviews[0].orderIndex).not.toBe(reviews[1].orderIndex);
+    });
+  });
+
+  describe("adaptive planning", () => {
+    it("adds specific rationale metadata and delays question retrieval for hard weak topics", () => {
+      const adaptiveContext = buildAdaptiveContext({
+        startDate: new Date("2025-01-01T00:00:00Z"),
+        examDate: new Date("2025-01-20T00:00:00Z"),
+        examType: "USMLE_STEP2",
+        stats: {
+          overallAccuracy: 0.52,
+          weakestTopics: [{ tag: "cardiology", weaknessScore: 0.9 }],
+        },
+      });
+
+      const tasks = buildWorkUnits(
+        [{
+          id: "s1",
+          title: "Pages 1-10",
+          difficulty: 5,
+          topicTags: ["Cardiology"],
+          questionsStatus: "COMPLETED",
+          blueprint: {
+            learningObjectives: ["Differentiate STEMI from NSTEMI"],
+            keyConcepts: ["Acute coronary syndrome"],
+            highYieldPoints: ["Immediate management of chest pain"],
+            commonTraps: ["Missing posterior MI clues"],
+            termsToDefine: ["Troponin rise"],
+          },
+        }],
+        "c1",
+        "standard",
+        null,
+        adaptiveContext
+      );
+
+      const study = tasks.find((t) => t.type === "STUDY");
+      const questions = tasks.find((t) => t.type === "QUESTIONS");
+
+      expect(study.title).toContain("STEMI from NSTEMI");
+      expect(study.rationale).toMatch(/weak topic/i);
+      expect(questions._dayOffset).toBe(1);
+    });
+
+    it("prioritizes nearby weak topics earlier when adaptive mode is enabled", () => {
+      const adaptiveContext = buildAdaptiveContext({
+        startDate: new Date("2025-01-01T00:00:00Z"),
+        examDate: new Date("2025-01-21T00:00:00Z"),
+        examType: "USMLE_STEP2",
+        stats: {
+          overallAccuracy: 0.58,
+          weakestTopics: [{ tag: "cardiology", weaknessScore: 0.95 }],
+        },
+      });
+
+      const tasks = buildWorkUnits(
+        [
+          { id: "s1", title: "Renal physiology", topicTags: ["renal"], difficulty: 2 },
+          { id: "s2", title: "Pulmonary embolism", topicTags: ["respiratory"], difficulty: 3 },
+          {
+            id: "s3",
+            title: "Acute coronary syndrome",
+            topicTags: ["cardiology"],
+            difficulty: 5,
+            blueprint: {
+              learningObjectives: ["Select the next best management step"],
+              keyConcepts: ["ECG interpretation in MI"],
+              highYieldPoints: ["Immediate ACS treatment"],
+              commonTraps: ["Treating NSTEMI as benign chest pain"],
+            },
+          },
+        ],
+        "c1",
+        "off",
+        null,
+        adaptiveContext
+      );
+
+      const days = [
+        { date: new Date("2025-01-01T00:00:00Z"), usableCapacity: 120, remaining: 120 },
+      ];
+
+      const { placed } = placeTasks(tasks, days, { adaptiveContext });
+      expect(placed[0].sectionIds[0]).toBe("s3");
     });
   });
 

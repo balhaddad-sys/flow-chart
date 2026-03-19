@@ -1,16 +1,15 @@
 /**
  * @module scheduling/scheduler
- * @description Pure scheduling algorithm — no Firebase dependencies.
+ * @description Pure scheduling algorithm with optional adaptive planning.
  *
- * This module contains the core study-plan logic extracted from the callable
- * `generateSchedule` function so that it can be unit-tested without mocking
- * Firestore.  Every function is a pure transformation of plain objects.
- *
- * Pipeline:
- *   sections  →  buildWorkUnits  →  tasks
- *   tasks     →  computeTotalLoad →  minutes
- *   config    →  buildDayCapacities →  days[]
- *   (tasks, days) →  placeTasks  →  { placed, skipped }
+ * Default mode preserves the previous deterministic "spread the workload"
+ * behavior. When an adaptive context is supplied, the scheduler still remains
+ * fully deterministic, but it starts using learner signals to:
+ * - prioritize weak and high-yield topics,
+ * - align coverage with the target exam,
+ * - interleave nearby topics instead of blindly following section order,
+ * - place question tasks after a short retrieval gap when useful,
+ * - annotate tasks with focus/rationale metadata so the plan feels specific.
  */
 
 const {
@@ -26,15 +25,71 @@ const {
 const { clampInt, truncate, toISODate, weekdayName } = require("../lib/utils");
 
 const GENERIC_SECTION_TITLE_RE =
-  /\b(?:pages?|slides?|section|chapter|part)\s*\d+(?:\s*(?:-|–|—|to)\s*\d+)?\b|\b(?:untitled|unknown\s+section)\b/i;
+  /\b(?:pages?|slides?|section|chapter|part)\s*\d+(?:\s*(?:-|to)\s*\d+)?\b|\b(?:untitled|unknown\s+section)\b/i;
 const LEADING_OBJECTIVE_VERB_RE =
   /^(?:understand|describe|explain|identify|recogni[sz]e|differentiate|evaluate|apply|outline|review|summari[sz]e|know)\s+/i;
 
+const EXAM_GROUPS = Object.freeze({
+  OSCE: new Set(["OSCE", "PLAB2", "MRCP_PACES"]),
+  BASIC_SCIENCE: new Set(["USMLE_STEP1"]),
+  CLINICAL_REASONING: new Set(["SBA", "MIXED", "USMLE_STEP2", "PLAB1", "MRCP_PART1", "MRCGP_AKT", "FINALS"]),
+});
+
+const EXAM_ALIGNMENT_PATTERNS = Object.freeze({
+  OSCE: [
+    /\bhistory\b/i,
+    /\bexam(?:ination)?\b/i,
+    /\bcommunication\b/i,
+    /\bcounsel(?:ling)?\b/i,
+    /\bconsent\b/i,
+    /\bprocedure\b/i,
+    /\bsbar\b/i,
+    /\bhandover\b/i,
+    /\bcapacity\b/i,
+    /\bsafeguarding\b/i,
+  ],
+  BASIC_SCIENCE: [
+    /\bpathophysiology\b/i,
+    /\bmechanism\b/i,
+    /\bbiochem(?:istry)?\b/i,
+    /\bpharmac(?:ology|okinetics|odynamics)\b/i,
+    /\banatomy\b/i,
+    /\bphysiology\b/i,
+    /\bimmunology\b/i,
+    /\bmicrobiology\b/i,
+    /\bgenetic(?:s)?\b/i,
+    /\benzyme\b/i,
+    /\breceptor\b/i,
+  ],
+  CLINICAL_REASONING: [
+    /\bdiagnos(?:is|tic)\b/i,
+    /\bmanagement\b/i,
+    /\binvestigation\b/i,
+    /\bnext\s+step\b/i,
+    /\bcomplication\b/i,
+    /\bscreening\b/i,
+    /\breferral\b/i,
+    /\bemergency\b/i,
+    /\btreatment\b/i,
+    /\binterpret(?:ation|ing)\b/i,
+    /\bhigh[- ]yield\b/i,
+  ],
+});
+
 function cleanTitleCandidate(value, maxLen = 140) {
-  return truncate(value, maxLen)
+  return truncate(String(value || ""), maxLen)
     .replace(/\s+/g, " ")
     .replace(/^[-:;,.()\s]+|[-:;,.()\s]+$/g, "")
     .trim();
+}
+
+function clamp01(value) {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(1, value));
+}
+
+function normalizeTopicKey(value) {
+  return cleanTitleCandidate(value, 140).toLowerCase();
 }
 
 function isGenericSectionTitle(value) {
@@ -61,6 +116,19 @@ function pushCandidate(candidates, seen, value) {
   if (seen.has(key)) return;
   seen.add(key);
   candidates.push(candidate);
+}
+
+function pickSpecificFromSources(...sources) {
+  for (const source of sources) {
+    const values = Array.isArray(source) ? source : [source];
+    for (const value of values) {
+      const candidate = objectiveToTopic(value);
+      if (candidate && !isGenericSectionTitle(candidate)) {
+        return truncate(candidate, 180);
+      }
+    }
+  }
+  return "";
 }
 
 function deriveSectionTaskTitle(section, sourceOrder = 0) {
@@ -94,7 +162,275 @@ function deriveSectionTaskTitle(section, sourceOrder = 0) {
   return `Section ${sourceOrder + 1}`;
 }
 
-// ── Types ────────────────────────────────────────────────────────────────────
+function normalizeExamTypeKey(examType) {
+  const key = String(examType || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, "_");
+
+  if (!key) return "GENERAL";
+  if (EXAM_GROUPS.OSCE.has(key)) return "OSCE";
+  if (EXAM_GROUPS.BASIC_SCIENCE.has(key)) return "BASIC_SCIENCE";
+  if (EXAM_GROUPS.CLINICAL_REASONING.has(key)) return "CLINICAL_REASONING";
+  return key;
+}
+
+function buildWeaknessMap(weakestTopics = []) {
+  const weaknessByTag = new Map();
+
+  for (const topic of Array.isArray(weakestTopics) ? weakestTopics : []) {
+    const key = normalizeTopicKey(topic?.tag);
+    if (!key) continue;
+    weaknessByTag.set(key, clamp01(Number(topic?.weaknessScore ?? 0)));
+  }
+
+  return weaknessByTag;
+}
+
+function buildAdaptiveContext({
+  startDate = new Date(),
+  examDate = null,
+  examType = null,
+  stats = null,
+} = {}) {
+  const safeStart = startDate instanceof Date ? startDate : new Date(startDate || Date.now());
+  const safeExam = examDate instanceof Date ? examDate : (examDate ? new Date(examDate) : null);
+  const daysToExam = safeExam
+    ? Math.max(0, Math.ceil((safeExam.getTime() - safeStart.getTime()) / MS_PER_DAY))
+    : null;
+
+  return {
+    enabled: true,
+    startDate: safeStart,
+    examDate: safeExam,
+    daysToExam,
+    examTypeKey: normalizeExamTypeKey(examType),
+    overallAccuracy: clamp01(Number(stats?.overallAccuracy ?? 0)),
+    completionPercent: clamp01(Number(stats?.completionPercent ?? 0)),
+    weaknessByTag: buildWeaknessMap(stats?.weakestTopics),
+  };
+}
+
+function collectSectionText(section) {
+  const blueprint = section.blueprint || {};
+  return [
+    section.title,
+    ...(Array.isArray(section.topicTags) ? section.topicTags : []),
+    ...(Array.isArray(blueprint.learningObjectives) ? blueprint.learningObjectives : []),
+    ...(Array.isArray(blueprint.keyConcepts) ? blueprint.keyConcepts : []),
+    ...(Array.isArray(blueprint.highYieldPoints) ? blueprint.highYieldPoints : []),
+    ...(Array.isArray(blueprint.commonTraps) ? blueprint.commonTraps : []),
+    ...(Array.isArray(blueprint.termsToDefine) ? blueprint.termsToDefine : []),
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function computeExamAlignment(section, adaptiveContext) {
+  if (!adaptiveContext) return 0.5;
+
+  const key = adaptiveContext.examTypeKey;
+  const sectionText = collectSectionText(section);
+  if (!sectionText) return 0.5;
+
+  let patterns = null;
+  if (key === "OSCE") patterns = EXAM_ALIGNMENT_PATTERNS.OSCE;
+  else if (key === "BASIC_SCIENCE") patterns = EXAM_ALIGNMENT_PATTERNS.BASIC_SCIENCE;
+  else if (key === "CLINICAL_REASONING") patterns = EXAM_ALIGNMENT_PATTERNS.CLINICAL_REASONING;
+
+  if (!patterns || patterns.length === 0) return 0.5;
+
+  let hits = 0;
+  for (const pattern of patterns) {
+    if (pattern.test(sectionText)) hits++;
+  }
+
+  return clamp01(0.35 + hits * 0.14);
+}
+
+function computeHighYieldDensity(section) {
+  const blueprint = section.blueprint || {};
+  const highYieldCount = Array.isArray(blueprint.highYieldPoints) ? blueprint.highYieldPoints.length : 0;
+  const commonTrapCount = Array.isArray(blueprint.commonTraps) ? blueprint.commonTraps.length : 0;
+  const keyConceptCount = Array.isArray(blueprint.keyConcepts) ? blueprint.keyConcepts.length : 0;
+  return clamp01((highYieldCount + commonTrapCount * 1.25 + Math.min(3, keyConceptCount) * 0.35) / 6);
+}
+
+function lookupSectionWeakness(section, adaptiveContext) {
+  if (!adaptiveContext) return 0;
+
+  const topicTags = Array.isArray(section.topicTags) ? section.topicTags : [];
+  let strongest = 0;
+
+  for (const tag of topicTags) {
+    const weakness = adaptiveContext.weaknessByTag.get(normalizeTopicKey(tag)) || 0;
+    strongest = Math.max(strongest, weakness);
+  }
+
+  const titleWeakness = adaptiveContext.weaknessByTag.get(normalizeTopicKey(section.title)) || 0;
+  strongest = Math.max(strongest, titleWeakness);
+
+  if (strongest > 0) return strongest;
+  return adaptiveContext.overallAccuracy > 0 && adaptiveContext.overallAccuracy < 0.65 ? 0.35 : 0;
+}
+
+function selectPrimaryTopicTag(section, adaptiveContext, fallbackTitle) {
+  const topicTags = Array.isArray(section.topicTags) ? section.topicTags : [];
+  if (topicTags.length === 0) {
+    return cleanTitleCandidate(fallbackTitle || section.title, 120);
+  }
+
+  if (!adaptiveContext) return cleanTitleCandidate(topicTags[0], 120);
+
+  const sorted = [...topicTags].sort((a, b) => {
+    const weaknessA = adaptiveContext.weaknessByTag.get(normalizeTopicKey(a)) || 0;
+    const weaknessB = adaptiveContext.weaknessByTag.get(normalizeTopicKey(b)) || 0;
+    if (weaknessA !== weaknessB) return weaknessB - weaknessA;
+    return String(a).localeCompare(String(b));
+  });
+
+  return cleanTitleCandidate(sorted[0], 120);
+}
+
+function computeSectionAdaptiveSignals(section, adaptiveContext, fallbackTitle) {
+  const difficulty = clampInt(section.difficulty || 3, 1, 5);
+  const weakness = lookupSectionWeakness(section, adaptiveContext);
+  const highYieldDensity = computeHighYieldDensity(section);
+  const examAlignment = computeExamAlignment(section, adaptiveContext);
+  const urgency = adaptiveContext?.daysToExam == null
+    ? 0.45
+    : clamp01(1 - Math.min(120, adaptiveContext.daysToExam) / 120);
+  const difficultyScore = clamp01((difficulty - 1) / 4);
+
+  const score = clamp01(
+    weakness * 0.33
+    + highYieldDensity * 0.23
+    + examAlignment * 0.16
+    + difficultyScore * 0.14
+    + urgency * 0.14
+  );
+
+  const questionGapDays = adaptiveContext?.daysToExam != null && adaptiveContext.daysToExam <= 5
+    ? 0
+    : (weakness >= 0.55 || difficulty >= 4 || highYieldDensity >= 0.55 ? 1 : 0);
+
+  return {
+    weakness,
+    highYieldDensity,
+    examAlignment,
+    urgency,
+    score,
+    priority: clampInt(Math.round(score * 100), 0, 100),
+    questionGapDays,
+    primaryTopicTag: selectPrimaryTopicTag(section, adaptiveContext, fallbackTitle),
+  };
+}
+
+function buildStudyFocus(section, fallbackTitle) {
+  const blueprint = section.blueprint || {};
+  const primary = pickSpecificFromSources(
+    blueprint.learningObjectives,
+    blueprint.keyConcepts,
+    blueprint.termsToDefine,
+    section.topicTags,
+    fallbackTitle
+  );
+  const trap = pickSpecificFromSources(blueprint.commonTraps, blueprint.highYieldPoints);
+
+  if (primary && trap && normalizeTopicKey(primary) !== normalizeTopicKey(trap)) {
+    return truncate(`${primary}; watch for ${trap}`, 220);
+  }
+
+  return primary || truncate(fallbackTitle, 220);
+}
+
+function buildQuestionFocus(section, fallbackTitle) {
+  const blueprint = section.blueprint || {};
+  const primary = pickSpecificFromSources(
+    blueprint.highYieldPoints,
+    blueprint.commonTraps,
+    blueprint.keyConcepts,
+    section.topicTags,
+    fallbackTitle
+  );
+  const secondary = pickSpecificFromSources(blueprint.commonTraps, blueprint.learningObjectives);
+
+  if (primary && secondary && normalizeTopicKey(primary) !== normalizeTopicKey(secondary)) {
+    return truncate(`${primary}; avoid ${secondary}`, 220);
+  }
+
+  return primary || truncate(fallbackTitle, 220);
+}
+
+function buildReviewFocus(section, fallbackTitle) {
+  const blueprint = section.blueprint || {};
+  const primary = pickSpecificFromSources(
+    section.topicTags,
+    blueprint.keyConcepts,
+    blueprint.learningObjectives,
+    fallbackTitle
+  );
+  const secondary = pickSpecificFromSources(blueprint.commonTraps, blueprint.highYieldPoints);
+
+  if (primary && secondary && normalizeTopicKey(primary) !== normalizeTopicKey(secondary)) {
+    return truncate(`${primary}; revisit ${secondary}`, 220);
+  }
+
+  return primary || truncate(fallbackTitle, 220);
+}
+
+function buildTaskFocus(type, section, fallbackTitle) {
+  if (type === "QUESTIONS") return buildQuestionFocus(section, fallbackTitle);
+  if (type === "REVIEW") return buildReviewFocus(section, fallbackTitle);
+  return buildStudyFocus(section, fallbackTitle);
+}
+
+function buildTaskRationale(type, signals, adaptiveContext) {
+  const reasons = [];
+
+  if (signals.weakness >= 0.65) reasons.push("weak topic");
+  else if (signals.weakness >= 0.45) reasons.push("needs reinforcement");
+
+  if (signals.highYieldDensity >= 0.55) reasons.push("high-yield content");
+  if (signals.examAlignment >= 0.7 && adaptiveContext?.examTypeKey !== "GENERAL") reasons.push("exam-aligned");
+  if (adaptiveContext?.daysToExam != null && adaptiveContext.daysToExam <= 14) reasons.push("exam soon");
+
+  if (type === "QUESTIONS") {
+    reasons.push(signals.questionGapDays > 0 ? "retrieval after a short delay" : "immediate retrieval check");
+  } else if (type === "REVIEW") {
+    reasons.push("spaced reinforcement");
+  }
+
+  if (reasons.length === 0) reasons.push("coverage sequencing");
+  return truncate(reasons.slice(0, 3).join(", "), 200);
+}
+
+function condenseFocusForTitle(focus) {
+  return cleanTitleCandidate(String(focus || "").split(/[.;]/)[0], 110);
+}
+
+function buildTaskTitle(prefix, baseTitle, focus) {
+  const cleanBase = cleanTitleCandidate(baseTitle, 170) || "Section";
+  const shortFocus = condenseFocusForTitle(focus);
+
+  if (!shortFocus) return `${prefix}: ${cleanBase}`;
+  if (cleanBase.toLowerCase().includes(shortFocus.toLowerCase())) {
+    return `${prefix}: ${cleanBase}`;
+  }
+
+  return truncate(`${prefix}: ${cleanBase} - ${shortFocus}`, 200);
+}
+
+function adaptiveTaskPriority(type, signals) {
+  const base = signals.priority;
+  if (type === "QUESTIONS") {
+    return clampInt(base + (signals.weakness >= 0.55 ? 10 : 6), 0, 100);
+  }
+  if (type === "REVIEW") {
+    return clampInt(base + 4, 0, 100);
+  }
+  return base;
+}
 
 /**
  * @typedef {Object} SectionInput
@@ -109,9 +445,9 @@ function deriveSectionTaskTitle(section, sourceOrder = 0) {
 /**
  * @typedef {Object} AvailabilityConfig
  * @property {number}  [defaultMinutesPerDay=120]
- * @property {Object<string,number>} [perDayOverrides] - e.g. `{ monday: 60 }`
- * @property {string[]} [excludedDates] - ISO date strings to skip.
- * @property {number}  [catchUpBufferPercent=15] - 0–50; reserved for catch-up.
+ * @property {Object<string,number>} [perDayOverrides]
+ * @property {string[]} [excludedDates]
+ * @property {number}  [catchUpBufferPercent=15]
  */
 
 /**
@@ -126,15 +462,15 @@ function deriveSectionTaskTitle(section, sourceOrder = 0) {
  * @property {string}   status
  * @property {boolean}  isPinned
  * @property {number}   priority
- * @property {number}   [sourceOrder] - Section order in the course sequence.
- * @property {number}   [_dayOffset] - Internal: review offset from study day.
+ * @property {number}   [sourceOrder]
+ * @property {number}   [_dayOffset]
  */
 
 /**
  * @typedef {Object} DaySlot
  * @property {Date}   date
- * @property {number} usableCapacity - Minutes available after catch-up buffer.
- * @property {number} remaining      - Minutes not yet allocated.
+ * @property {number} usableCapacity
+ * @property {number} remaining
  */
 
 /**
@@ -143,23 +479,22 @@ function deriveSectionTaskTitle(section, sourceOrder = 0) {
  * @property {number} orderIndex
  */
 
-// ── Step A: build work units ─────────────────────────────────────────────────
-
 /**
  * Convert a list of sections into STUDY, QUESTIONS, and REVIEW work units.
  *
  * When `srsCards` is provided and contains an entry for a section with a valid
  * `nextReview` date, a single FSRS-driven REVIEW task is created using the
- * adaptive interval instead of the static policy offsets.  Sections without
+ * adaptive interval instead of the static policy offsets. Sections without
  * SRS cards fall back to the static `REVISION_POLICIES`.
  *
  * @param {SectionInput[]} sections
  * @param {string} courseId
  * @param {string} [revisionPolicy="standard"]
- * @param {Map<string,Object>|Object<string,Object>} [srsCards] - Map of sectionId → SRS card data
+ * @param {Map<string,Object>|Object<string,Object>} [srsCards]
+ * @param {object|null} [adaptiveContext=null]
  * @returns {WorkUnit[]}
  */
-function buildWorkUnits(sections, courseId, revisionPolicy = "standard", srsCards) {
+function buildWorkUnits(sections, courseId, revisionPolicy = "standard", srsCards, adaptiveContext = null) {
   const policy = VALID_REVISION_POLICIES.has(revisionPolicy) ? revisionPolicy : "standard";
   const tasks = [];
   const srsMap = srsCards instanceof Map ? srsCards : (srsCards ? new Map(Object.entries(srsCards)) : null);
@@ -168,8 +503,17 @@ function buildWorkUnits(sections, courseId, revisionPolicy = "standard", srsCard
   for (const [sourceOrder, section] of sections.entries()) {
     const estMinutes = clampInt(section.estMinutes || 15, 5, 240);
     const difficulty = clampInt(section.difficulty || 3, 1, 5);
-    const title = deriveSectionTaskTitle(section, sourceOrder);
+    const baseTitle = deriveSectionTaskTitle(section, sourceOrder);
     const topicTags = (section.topicTags || []).slice(0, 10);
+    const adaptiveSignals = adaptiveContext ? computeSectionAdaptiveSignals(section, adaptiveContext, baseTitle) : null;
+    const sharedAdaptive = adaptiveSignals
+      ? {
+          topicTag: adaptiveSignals.primaryTopicTag,
+          adaptiveScore: Number(adaptiveSignals.score.toFixed(3)),
+          isAdaptive: true,
+        }
+      : {};
+
     const base = {
       courseId,
       sectionIds: [section.id],
@@ -181,30 +525,69 @@ function buildWorkUnits(sections, courseId, revisionPolicy = "standard", srsCard
       sourceOrder,
     };
 
-    tasks.push({ ...base, type: "STUDY", title: `Study: ${title}`, estMinutes });
+    const studyFocus = adaptiveSignals ? buildTaskFocus("STUDY", section, baseTitle) : "";
+    tasks.push({
+      ...base,
+      ...sharedAdaptive,
+      type: "STUDY",
+      title: adaptiveSignals ? buildTaskTitle("Study", baseTitle, studyFocus) : `Study: ${baseTitle}`,
+      estMinutes,
+      ...(adaptiveSignals ? {
+        focus: studyFocus,
+        rationale: buildTaskRationale("STUDY", adaptiveSignals, adaptiveContext),
+        priority: adaptiveTaskPriority("STUDY", adaptiveSignals),
+      } : {}),
+    });
 
-    // CRITICAL: Only create QUESTIONS task if questions are actually generated
     if (section.questionsStatus === "COMPLETED") {
-      tasks.push({ ...base, type: "QUESTIONS", title: `Questions: ${title}`, estMinutes: Math.min(estMinutes, Math.max(8, Math.round(estMinutes * 0.35))) });
+      const questionFocus = adaptiveSignals ? buildTaskFocus("QUESTIONS", section, baseTitle) : "";
+      tasks.push({
+        ...base,
+        ...sharedAdaptive,
+        type: "QUESTIONS",
+        title: adaptiveSignals ? buildTaskTitle("Questions", baseTitle, questionFocus) : `Questions: ${baseTitle}`,
+        estMinutes: Math.min(estMinutes, Math.max(8, Math.round(estMinutes * 0.35))),
+        ...(adaptiveSignals ? {
+          focus: questionFocus,
+          rationale: buildTaskRationale("QUESTIONS", adaptiveSignals, adaptiveContext),
+          priority: adaptiveTaskPriority("QUESTIONS", adaptiveSignals),
+          _dayOffset: adaptiveSignals.questionGapDays,
+        } : {}),
+      });
     }
 
-    // ── REVIEW tasks: use FSRS interval if available, else static policy ──
+    const reviewFocus = adaptiveSignals ? buildTaskFocus("REVIEW", section, baseTitle) : "";
+    const reviewMeta = adaptiveSignals
+      ? {
+          ...sharedAdaptive,
+          focus: reviewFocus,
+          rationale: buildTaskRationale("REVIEW", adaptiveSignals, adaptiveContext),
+          priority: adaptiveTaskPriority("REVIEW", adaptiveSignals),
+        }
+      : {};
+
     const srsCard = reviewsEnabled ? srsMap?.get(section.id) : null;
     if (srsCard && srsCard.nextReview && srsCard.interval > 0) {
-      // FSRS-driven: single review at the adaptive interval
       const reviewMinutes = Math.max(10, Math.min(30, Math.round(10 + (srsCard.difficulty / 10) * 20)));
       tasks.push({
         ...base,
+        ...reviewMeta,
         type: "REVIEW",
-        title: `Review: ${title}`,
+        title: adaptiveSignals ? buildTaskTitle("Review", baseTitle, reviewFocus) : `Review: ${baseTitle}`,
         estMinutes: reviewMinutes,
         _dayOffset: srsCard.interval,
         fsrsGenerated: true,
       });
     } else {
-      // Static fallback: multiple reviews at fixed offsets
       for (const review of REVISION_POLICIES[policy]) {
-        tasks.push({ ...base, type: "REVIEW", title: `Review: ${title}`, estMinutes: review.minutes, _dayOffset: review.dayOffset });
+        tasks.push({
+          ...base,
+          ...reviewMeta,
+          type: "REVIEW",
+          title: adaptiveSignals ? buildTaskTitle("Review", baseTitle, reviewFocus) : `Review: ${baseTitle}`,
+          estMinutes: review.minutes,
+          _dayOffset: review.dayOffset,
+        });
       }
     }
   }
@@ -212,29 +595,10 @@ function buildWorkUnits(sections, courseId, revisionPolicy = "standard", srsCard
   return tasks;
 }
 
-// ── Step B: total load ───────────────────────────────────────────────────────
-
-/**
- * Sum the estimated minutes across all work units.
- *
- * @param {WorkUnit[]} tasks
- * @returns {number}
- */
 function computeTotalLoad(tasks) {
   return tasks.reduce((sum, t) => sum + t.estMinutes, 0);
 }
 
-// ── Step C: build day capacities ─────────────────────────────────────────────
-
-/**
- * Build an array of day-slots between today and the end date, respecting
- * per-day overrides, excluded dates, and the catch-up buffer.
- *
- * @param {Date}               today
- * @param {Date|null}          examDate
- * @param {AvailabilityConfig} [availability={}]
- * @returns {DaySlot[]}
- */
 function buildDayCapacities(today, examDate, availability = {}) {
   const endDate = examDate || new Date(today.getTime() + DEFAULT_STUDY_PERIOD_DAYS * MS_PER_DAY);
   const defaultMinutes = clampInt(availability.defaultMinutesPerDay ?? DEFAULT_MINUTES_PER_DAY, MIN_DAILY_MINUTES, MAX_DAILY_MINUTES);
@@ -263,15 +627,6 @@ function buildDayCapacities(today, examDate, availability = {}) {
   return days;
 }
 
-// ── Step D: feasibility check ────────────────────────────────────────────────
-
-/**
- * Check whether the total workload fits within the available capacity.
- *
- * @param {number}    totalMinutes
- * @param {DaySlot[]} days
- * @returns {{ feasible: boolean, deficit: number }}
- */
 function checkFeasibility(totalMinutes, days) {
   const totalUsable = days.reduce((sum, d) => sum + d.usableCapacity, 0);
   return {
@@ -280,40 +635,97 @@ function checkFeasibility(totalMinutes, days) {
   };
 }
 
-// ── Step E + F: place tasks ──────────────────────────────────────────────────
+function sharesTopic(left, right) {
+  const leftTopics = new Set(
+    [left?.topicTag, ...(Array.isArray(left?.topicTags) ? left.topicTags : [])]
+      .map(normalizeTopicKey)
+      .filter(Boolean)
+  );
+  const rightTopics = [
+    right?.topicTag,
+    ...(Array.isArray(right?.topicTags) ? right.topicTags : []),
+  ]
+    .map(normalizeTopicKey)
+    .filter(Boolean);
 
-/**
- * Place work units onto day-slots using a balanced-fill heuristic.
- *
- * Study and question tasks are placed first in section order, then review tasks
- * are anchored at their spaced-repetition offset from the corresponding study
- * task's day.
- *
- * @param {WorkUnit[]} tasks
- * @param {DaySlot[]}  days  - **Mutated**: `remaining` is decremented.
- * @param {Object}     [opts={}]
- * @param {Date|null}  [opts.examDate] - Clamp reviews to this boundary.
- * @returns {{ placed: PlacedTask[], skipped: WorkUnit[] }}
- */
-function placeTasks(tasks, days, { examDate } = {}) {
-  const studyTasks = tasks.filter((t) => t.type === "STUDY" || t.type === "QUESTIONS");
-  const reviewTasks = tasks.filter((t) => t.type === "REVIEW");
-  const maxDayCapacity = days.reduce((max, d) => Math.max(max, d.usableCapacity), 0);
+  return rightTopics.some((key) => leftTopics.has(key));
+}
 
-  // Keep an intentional learning flow by defaulting to section order.
-  studyTasks.sort((a, b) => {
+function orderStudyTasksAdaptive(studyTasks, adaptiveContext) {
+  const remaining = [...studyTasks].sort((a, b) => {
     const orderA = a.sourceOrder ?? 0;
     const orderB = b.sourceOrder ?? 0;
     if (orderA !== orderB) return orderA - orderB;
     return b.difficulty - a.difficulty;
   });
 
-  let dayIndex = 0;
-  let orderIndex = 0;
-  const placed = [];
-  const skipped = [];
+  const ordered = [];
+  let previous = null;
+  const lookahead = adaptiveContext?.daysToExam != null && adaptiveContext.daysToExam <= 21 ? 6 : 4;
 
-  // Split oversized tasks so they can be distributed across multiple days.
+  while (remaining.length > 0) {
+    const window = remaining.slice(0, Math.min(lookahead, remaining.length));
+    let bestIndex = 0;
+    let bestScore = -Infinity;
+
+    for (let i = 0; i < window.length; i++) {
+      const task = window[i];
+      const adaptiveScore = clamp01(task.adaptiveScore ?? (task.priority || 0) / 100);
+      const jumpPenalty = i * 0.09;
+      const sameTopicPenalty = previous && sharesTopic(previous, task) ? 0.18 : 0;
+      const score = adaptiveScore - jumpPenalty - sameTopicPenalty;
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestIndex = i;
+      }
+    }
+
+    const [chosen] = remaining.splice(bestIndex, 1);
+    ordered.push(chosen);
+    previous = chosen;
+  }
+
+  return ordered;
+}
+
+function placeAnchoredTasks(anchorTasks, placed, days, dayOrderMap, lastValidIdx, skipped) {
+  for (const task of anchorTasks) {
+    const studyTask = placed.find((t) => t.type === "STUDY" && t.sectionIds[0] === task.sectionIds[0]);
+    if (!studyTask) {
+      skipped.push(task);
+      continue;
+    }
+
+    const studyDayIdx = days.findIndex((d) => d.date.getTime() === studyTask.dueDate.getTime());
+    if (studyDayIdx === -1) {
+      skipped.push(task);
+      continue;
+    }
+
+    let targetIdx = Math.min(studyDayIdx + (task._dayOffset || 0), lastValidIdx);
+
+    while (targetIdx < days.length && targetIdx <= lastValidIdx && days[targetIdx].remaining < task.estMinutes) {
+      targetIdx++;
+    }
+
+    if (targetIdx > lastValidIdx || days[targetIdx].remaining < task.estMinutes) {
+      skipped.push(task);
+      continue;
+    }
+
+    const { _dayOffset, ...cleanTask } = task;
+    const dayKey = days[targetIdx].date.getTime();
+    const nextOrder = dayOrderMap.get(dayKey) || 0;
+    dayOrderMap.set(dayKey, nextOrder + 1);
+    placed.push({ ...cleanTask, dueDate: days[targetIdx].date, orderIndex: nextOrder });
+    days[targetIdx].remaining -= task.estMinutes;
+  }
+}
+
+function placeTasks(tasks, days, { examDate, adaptiveContext } = {}) {
+  const maxDayCapacity = days.reduce((max, d) => Math.max(max, d.usableCapacity), 0);
+
   const expandTask = (task) => {
     if (maxDayCapacity <= 0 || task.estMinutes <= maxDayCapacity) return [task];
     const parts = [];
@@ -332,19 +744,91 @@ function placeTasks(tasks, days, { examDate } = {}) {
     return parts;
   };
 
-  // Place study + question tasks.
-  for (const originalTask of studyTasks) {
+  if (!adaptiveContext) {
+    const studyTasks = tasks.filter((t) => t.type === "STUDY" || t.type === "QUESTIONS");
+    const reviewTasks = tasks.filter((t) => t.type === "REVIEW");
+
+    studyTasks.sort((a, b) => {
+      const orderA = a.sourceOrder ?? 0;
+      const orderB = b.sourceOrder ?? 0;
+      if (orderA !== orderB) return orderA - orderB;
+      return b.difficulty - a.difficulty;
+    });
+
+    let dayIndex = 0;
+    let orderIndex = 0;
+    const placed = [];
+    const skipped = [];
+
+    for (const originalTask of studyTasks) {
+      for (const task of expandTask(originalTask)) {
+        let targetDay = dayIndex;
+        while (targetDay < days.length && days[targetDay].remaining < task.estMinutes) {
+          targetDay++;
+        }
+
+        if (targetDay >= days.length) {
+          let bestDay = -1;
+          let bestRemaining = 0;
+          for (let d = dayIndex; d < days.length; d++) {
+            if (days[d].remaining > bestRemaining) {
+              bestDay = d;
+              bestRemaining = days[d].remaining;
+            }
+          }
+          if (bestDay === -1 || bestRemaining < task.estMinutes) {
+            skipped.push(task);
+            continue;
+          }
+          targetDay = bestDay;
+        }
+
+        if (targetDay !== dayIndex) {
+          dayIndex = targetDay;
+          orderIndex = 0;
+        }
+
+        placed.push({ ...task, dueDate: days[dayIndex].date, orderIndex: orderIndex++ });
+        days[dayIndex].remaining -= task.estMinutes;
+      }
+    }
+
+    const dayOrderMap = new Map();
+    for (const p of placed) {
+      const dayKey = p.dueDate.getTime();
+      const existing = dayOrderMap.get(dayKey) || 0;
+      dayOrderMap.set(dayKey, Math.max(existing, p.orderIndex + 1));
+    }
+
+    let lastValidIdx = days.length - 1;
+    if (examDate) {
+      while (lastValidIdx > 0 && days[lastValidIdx].date.getTime() > examDate.getTime()) {
+        lastValidIdx--;
+      }
+    }
+
+    placeAnchoredTasks(reviewTasks, placed, days, dayOrderMap, lastValidIdx, skipped);
+    return { placed, skipped };
+  }
+
+  const studyTasks = tasks.filter((t) => t.type === "STUDY");
+  const questionTasks = tasks.filter((t) => t.type === "QUESTIONS");
+  const reviewTasks = tasks.filter((t) => t.type === "REVIEW");
+  const orderedStudies = orderStudyTasksAdaptive(studyTasks, adaptiveContext);
+
+  let dayIndex = 0;
+  let orderIndex = 0;
+  const placed = [];
+  const skipped = [];
+
+  for (const originalTask of orderedStudies) {
     for (const task of expandTask(originalTask)) {
-      // Find first day with enough remaining capacity.
       let targetDay = dayIndex;
       while (targetDay < days.length && days[targetDay].remaining < task.estMinutes) {
         targetDay++;
       }
 
       if (targetDay >= days.length) {
-        // No day has exact capacity — find the day with the most remaining.
-        // NEVER exceed a day's capacity. If the task doesn't fit anywhere,
-        // skip it rather than overbooking.
         let bestDay = -1;
         let bestRemaining = 0;
         for (let d = dayIndex; d < days.length; d++) {
@@ -353,7 +837,6 @@ function placeTasks(tasks, days, { examDate } = {}) {
             bestRemaining = days[d].remaining;
           }
         }
-        // Only place if the best day has enough capacity for this task
         if (bestDay === -1 || bestRemaining < task.estMinutes) {
           skipped.push(task);
           continue;
@@ -371,7 +854,6 @@ function placeTasks(tasks, days, { examDate } = {}) {
     }
   }
 
-  // Build per-day order counter from placed study/question tasks.
   const dayOrderMap = new Map();
   for (const p of placed) {
     const dayKey = p.dueDate.getTime();
@@ -379,7 +861,6 @@ function placeTasks(tasks, days, { examDate } = {}) {
     dayOrderMap.set(dayKey, Math.max(existing, p.orderIndex + 1));
   }
 
-  // Find last valid day index (respects exam boundary).
   let lastValidIdx = days.length - 1;
   if (examDate) {
     while (lastValidIdx > 0 && days[lastValidIdx].date.getTime() > examDate.getTime()) {
@@ -387,52 +868,21 @@ function placeTasks(tasks, days, { examDate } = {}) {
     }
   }
 
-  // Place review tasks at offset from their study task's day.
-  for (const task of reviewTasks) {
-    const studyTask = placed.find((t) => t.type === "STUDY" && t.sectionIds[0] === task.sectionIds[0]);
-    if (!studyTask) {
-      skipped.push(task);
-      continue;
-    }
+  const orderedQuestions = [...questionTasks].sort((a, b) => {
+    if ((b.priority || 0) !== (a.priority || 0)) return (b.priority || 0) - (a.priority || 0);
+    return (a.sourceOrder ?? 0) - (b.sourceOrder ?? 0);
+  });
+  placeAnchoredTasks(orderedQuestions, placed, days, dayOrderMap, lastValidIdx, skipped);
 
-    const studyDayIdx = days.findIndex((d) => d.date.getTime() === studyTask.dueDate.getTime());
-    if (studyDayIdx === -1) {
-      skipped.push(task);
-      continue;
-    }
-
-    let targetIdx = Math.min(studyDayIdx + (task._dayOffset || 1), lastValidIdx);
-
-    // Find a day with enough remaining capacity, searching forward from the target.
-    while (targetIdx < days.length && targetIdx <= lastValidIdx && days[targetIdx].remaining < task.estMinutes) {
-      targetIdx++;
-    }
-
-    // If no day has capacity within the exam boundary, skip this review
-    // instead of overbooking the last valid day.
-    if (targetIdx > lastValidIdx || days[targetIdx].remaining < task.estMinutes) {
-      skipped.push(task);
-      continue;
-    }
-
-    const { _dayOffset, ...cleanTask } = task;
-    const dayKey = days[targetIdx].date.getTime();
-    const nextOrder = dayOrderMap.get(dayKey) || 0;
-    dayOrderMap.set(dayKey, nextOrder + 1);
-    placed.push({ ...cleanTask, dueDate: days[targetIdx].date, orderIndex: nextOrder });
-    days[targetIdx].remaining -= task.estMinutes;
-  }
+  const orderedReviews = [...reviewTasks].sort((a, b) => {
+    if ((b.priority || 0) !== (a.priority || 0)) return (b.priority || 0) - (a.priority || 0);
+    return (a.sourceOrder ?? 0) - (b.sourceOrder ?? 0);
+  });
+  placeAnchoredTasks(orderedReviews, placed, days, dayOrderMap, lastValidIdx, skipped);
 
   return { placed, skipped };
 }
 
-/**
- * Validate schedule generation inputs.
- *
- * @param {Date}      startDate
- * @param {Date|null} examDate
- * @returns {string[]} Array of validation error messages (empty = valid).
- */
 function validateScheduleInputs(startDate, examDate) {
   const errors = [];
   if (examDate && examDate.getTime() <= startDate.getTime()) {
@@ -442,6 +892,7 @@ function validateScheduleInputs(startDate, examDate) {
 }
 
 module.exports = {
+  buildAdaptiveContext,
   buildWorkUnits,
   computeTotalLoad,
   buildDayCapacities,

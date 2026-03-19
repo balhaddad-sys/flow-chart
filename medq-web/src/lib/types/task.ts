@@ -12,6 +12,7 @@ export interface TaskModel {
   title: string;
   sectionIds: string[];
   topicTags: string[];
+  topicTag?: string;
   estMinutes: number;
   actualMinutes?: number;
   difficulty: number;
@@ -25,5 +26,9 @@ export interface TaskModel {
   parentTaskId?: string;
   linkedQuestionSetId?: string;
   isFixPlan?: boolean;
+  focus?: string;
+  rationale?: string;
+  adaptiveScore?: number;
+  isAdaptive?: boolean;
   createdAt?: Timestamp;
 }

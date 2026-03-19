@@ -994,8 +994,6 @@ export default function StudySessionPage({
               ) : pdfUrl ? (
                 <PDFViewer
                   url={pdfUrl}
-                  startPage={1}
-                  endPage={Math.max(1, Math.floor((section?.contentRef?.endIndex || 1) - (section?.contentRef?.startIndex || 1) + 1))}
                   className="min-h-[60vh]"
                 />
               ) : (

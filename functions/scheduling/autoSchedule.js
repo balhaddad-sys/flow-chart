@@ -13,6 +13,7 @@ const { db, batchSet } = require("../lib/firestore");
 const log = require("../lib/logger");
 const { MS_PER_DAY, MAX_SCHEDULE_DAYS } = require("../lib/constants");
 const {
+  buildAdaptiveContext,
   buildWorkUnits,
   computeTotalLoad,
   buildDayCapacities,
@@ -103,9 +104,10 @@ async function maybeAutoGenerateSchedule(uid, courseId) {
     }
 
     // ── Fetch course and user preferences ────────────────────────────
-    const [courseDoc, userDoc] = await Promise.all([
+    const [courseDoc, userDoc, statsDoc] = await Promise.all([
       db.doc(`users/${uid}/courses/${courseId}`).get(),
       db.doc(`users/${uid}`).get(),
+      db.doc(`users/${uid}/stats/${courseId}`).get(),
     ]);
     if (!courseDoc.exists) return;
 
@@ -160,7 +162,14 @@ async function maybeAutoGenerateSchedule(uid, courseId) {
       return;
     }
 
-    const tasks = buildWorkUnits(sections, courseId, revisionPolicy, srsCards);
+    const adaptiveContext = buildAdaptiveContext({
+      startDate,
+      examDate,
+      examType: courseData.examType || null,
+      stats: statsDoc.exists ? statsDoc.data() : null,
+    });
+
+    const tasks = buildWorkUnits(sections, courseId, revisionPolicy, srsCards, adaptiveContext);
     const totalMinutes = computeTotalLoad(tasks);
     let days = buildDayCapacities(startDate, examDate, availability);
     const { feasible } = checkFeasibility(totalMinutes, days);
@@ -180,7 +189,7 @@ async function maybeAutoGenerateSchedule(uid, courseId) {
       days = extendedDays;
     }
 
-    const { placed, skipped } = placeTasks(tasks, days, { examDate });
+    const { placed, skipped } = placeTasks(tasks, days, { examDate, adaptiveContext });
     if (placed.length === 0) return;
 
     if (skipped.length > 0) {
@@ -205,6 +214,7 @@ async function maybeAutoGenerateSchedule(uid, courseId) {
       taskCount: placed.length,
       skippedCount: skipped.length,
       totalDays: days.length,
+      adaptivePlanning: true,
     });
   } catch (err) {
     // Non-fatal: user can still generate manually from /today/plan

@@ -20,7 +20,15 @@ const { db, batchSet, batchDelete } = require("../lib/firestore");
 const { Errors, fail, ok, safeError } = require("../lib/errors");
 const log = require("../lib/logger");
 const { MS_PER_DAY, MAX_SCHEDULE_DAYS } = require("../lib/constants");
-const { buildWorkUnits, computeTotalLoad, buildDayCapacities, checkFeasibility, placeTasks, validateScheduleInputs } = require("./scheduler");
+const {
+  buildAdaptiveContext,
+  buildWorkUnits,
+  computeTotalLoad,
+  buildDayCapacities,
+  checkFeasibility,
+  placeTasks,
+  validateScheduleInputs,
+} = require("./scheduler");
 
 exports.generateSchedule = functions
   .runWith({ timeoutSeconds: 120, memory: "512MB" })
@@ -36,7 +44,8 @@ exports.generateSchedule = functions
       // ── Fetch course ──────────────────────────────────────────────────
       const courseDoc = await db.doc(`users/${uid}/courses/${courseId}`).get();
       if (!courseDoc.exists) return fail(Errors.NOT_FOUND, "Course not found.");
-      const examDate = courseDoc.data().examDate?.toDate();
+      const courseData = courseDoc.data();
+      const examDate = courseData.examDate?.toDate();
 
       // ── Fetch analysed sections ───────────────────────────────────────
       const sectionsSnap = await db
@@ -103,9 +112,17 @@ exports.generateSchedule = functions
         return ok({ taskCount: 0, skippedCount: 0, message: "All sections already completed." });
       }
 
+      const statsDoc = await db.doc(`users/${uid}/stats/${courseId}`).get();
+      const adaptiveContext = buildAdaptiveContext({
+        startDate,
+        examDate,
+        examType: courseData.examType || null,
+        stats: statsDoc.exists ? statsDoc.data() : null,
+      });
+
       const tasks = buildWorkUnits(
         schedulableSections.length > 0 ? schedulableSections : sections,
-        courseId, revisionPolicy, srsCards
+        courseId, revisionPolicy, srsCards, adaptiveContext
       );
       const totalMinutes = computeTotalLoad(tasks);
       const requestedDays = buildDayCapacities(startDate, examDate, availability);
@@ -139,7 +156,7 @@ exports.generateSchedule = functions
         extendedWindow = true;
       }
 
-      const { placed, skipped } = placeTasks(tasks, days, { examDate });
+      const { placed, skipped } = placeTasks(tasks, days, { examDate, adaptiveContext });
       let spillDays = 0;
       if (extendedWindow && examDate && placed.length > 0) {
         const latestDueDate = placed.reduce(
@@ -187,6 +204,7 @@ exports.generateSchedule = functions
         totalDays: days.length,
         extendedWindow,
         spillDays,
+        adaptivePlanning: true,
       });
 
       return ok({
