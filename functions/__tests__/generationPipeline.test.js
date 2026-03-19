@@ -28,13 +28,13 @@ describe("questions/generationPipeline", () => {
 
   describe("computeMaxBackfillAttempts", () => {
     it("scales with target count", () => {
-      expect(computeMaxBackfillAttempts(10)).toBe(30);
+      expect(computeMaxBackfillAttempts(10)).toBe(20);
     });
 
     it("enforces lower and upper bounds", () => {
-      expect(computeMaxBackfillAttempts(1)).toBe(18);
-      expect(computeMaxBackfillAttempts(30)).toBe(90);
-      expect(computeMaxBackfillAttempts(100)).toBe(200);
+      expect(computeMaxBackfillAttempts(1)).toBe(12);
+      expect(computeMaxBackfillAttempts(30)).toBe(60);
+      expect(computeMaxBackfillAttempts(100)).toBe(60);
     });
   });
 });

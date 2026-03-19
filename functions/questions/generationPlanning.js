@@ -26,7 +26,7 @@ function computeFastStartCounts(requestedCount, existingCount) {
 
 function computeMaxBackfillAttempts(targetCount) {
   const safeTarget = clampInt(targetCount || 10, 1, MAX_QUESTIONS_PER_SECTION);
-  return clampInt(safeTarget * 3, 18, 200);
+  return clampInt(safeTarget * 2, 12, 60);
 }
 
 module.exports = {

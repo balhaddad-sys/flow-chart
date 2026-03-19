@@ -19,7 +19,11 @@ const path = require("path");
 const fs = require("fs");
 
 const { db, batchSet } = require("../lib/firestore");
-const { SUPPORTED_MIME_TYPES, INGESTION_STEP_LABELS } = require("../lib/constants");
+const {
+  SUPPORTED_MIME_TYPES,
+  INGESTION_STEP_LABELS,
+  DEFAULT_QUESTION_COUNT,
+} = require("../lib/constants");
 
 /** Emit a real-time progress update to the file document. */
 async function setProgress(fileRef, status, progress) {
@@ -173,7 +177,7 @@ exports.processUploadedFile = functions
             stepLabel: allDone
               ? INGESTION_STEP_LABELS["ready_full"]
               : INGESTION_STEP_LABELS["generating_questions"],
-            totalQuestionTarget: existingSectionSnap.size * 10,
+            totalQuestionTarget: existingSectionSnap.size * DEFAULT_QUESTION_COUNT,
           },
           { merge: true }
         );
@@ -314,7 +318,7 @@ exports.processUploadedFile = functions
           progress: 70,
           stepLabel: INGESTION_STEP_LABELS["generating_questions"],
           sectionCount: sections.length,
-          totalQuestionTarget: sections.length * 10,
+          totalQuestionTarget: sections.length * DEFAULT_QUESTION_COUNT,
         },
         { merge: true }
       );

@@ -30,8 +30,9 @@ const SUPPORTED_MIME_TYPES = [
 
 // ── Document extractors ─────────────────────────────────────────────────────
 
-/** Number of PDF pages per extracted section (larger chunks = fewer AI calls). */
-const PAGES_PER_SECTION = 15;
+/** Number of PDF pages per extracted section (larger chunks = fewer AI calls).
+ *  At 25 pages/section, a 1000-page PDF produces ~40 sections instead of ~67. */
+const PAGES_PER_SECTION = 25;
 
 /** Number of PPTX slides per extracted section (larger chunks = fewer AI calls). */
 const SLIDES_PER_SECTION = 30;
@@ -41,6 +42,12 @@ const WORDS_PER_SECTION = 1800;
 
 /** Minimum characters for a section to be kept (filters empty chunks). */
 const MIN_CHARS_PER_SECTION = 100;
+
+/** Maximum characters of section text sent to AI prompts.
+ *  ~4K chars ≈ ~1K tokens — aggressive truncation for cost control
+ *  on large documents. Blueprint extraction works well even with
+ *  partial text since key concepts cluster in early paragraphs. */
+const MAX_AI_SECTION_CHARS = 4000;
 
 // ── Scheduling ───────────────────────────────────────────────────────────────
 
@@ -168,16 +175,16 @@ const WEAK_TOPICS_LIMIT = 5;
 // ── Vision batch processing ──────────────────────────────────────────────────
 
 /** Maximum pages accepted in a single batch extraction call. */
-const MAX_BATCH_PAGES = 25;
+const MAX_BATCH_PAGES = 20;
 
-/** Maximum base64 character length per page image (~450 KB). */
-const MAX_BASE64_LENGTH = 450_000;
+/** Maximum base64 character length per page image (~250 KB — downsampled for cost). */
+const MAX_BASE64_LENGTH = 250_000;
 
 /** Default concurrency for parallel vision requests. */
-const DEFAULT_VISION_CONCURRENCY = 8;
+const DEFAULT_VISION_CONCURRENCY = 4;
 
 /** Hard ceiling on concurrency regardless of caller input. */
-const MAX_VISION_CONCURRENCY = 12;
+const MAX_VISION_CONCURRENCY = 6;
 
 // ── GDPR / data deletion ────────────────────────────────────────────────────
 
@@ -211,7 +218,7 @@ const AI_MAX_RETRIES = 2;
 const AI_RETRY_BASE_MS = 1000;
 
 /** Default number of questions to auto-generate per section. */
-const DEFAULT_QUESTION_COUNT = 10;
+const DEFAULT_QUESTION_COUNT = 6;
 
 /** Hard cap on questions per section. More are only generated on explicit user request. */
 const MAX_QUESTIONS_PER_SECTION = 100;
@@ -350,6 +357,7 @@ module.exports = {
   STREAK_HISTORY_DAYS,
   CACHE_MAX_QUESTIONS_PER_TOPIC,
   CACHE_COLLECTION,
+  MAX_AI_SECTION_CHARS,
   TRIAGE_WEIGHTS,
   TRIAGE_SCHEDULE_THRESHOLD,
   TRIAGE_BACKLOG_THRESHOLD,

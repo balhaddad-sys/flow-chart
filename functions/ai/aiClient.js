@@ -31,13 +31,13 @@ const MODELS = {
   HEAVY: "claude-sonnet-4-6", // Tutoring, fix plans, chat (quality-optimized)
 };
 
-// Max tokens per prompt type — tuned for speed vs completeness
+// Max tokens per prompt type — tuned for cost vs completeness
 const MAX_TOKENS = {
-  blueprint: 2500, // Increased from 2048 to prevent truncation on content-rich sections
+  blueprint: 1800,
   questions: 8192,
   tutoring: 1024,
   fixPlan: 2048,
-  documentExtract: 1200,
+  documentExtract: 800,
 };
 
 // Retry delays in ms for non-rate-limit errors
@@ -45,7 +45,7 @@ const RETRY_DELAYS = [500, 1500, 4000];
 
 // Rate limit retry: wait 60s (full rate window reset) before retrying
 const RATE_LIMIT_RETRY_DELAY = 60000;
-const RATE_LIMIT_MAX_RETRIES = 4; // Up to 5 attempts total for rate limits
+const RATE_LIMIT_MAX_RETRIES = 2; // Up to 3 attempts total for rate limits (was 4)
 
 // Lazy-initialized Anthropic client.
 // Firebase secrets are only available at function invocation time, NOT at module load.
