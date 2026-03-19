@@ -41,19 +41,28 @@ exports.generateSchedule = functions
     try {
       const { courseId, availability, revisionPolicy } = data;
 
-      // ── Fetch course ──────────────────────────────────────────────────
-      const courseDoc = await db.doc(`users/${uid}/courses/${courseId}`).get();
+      // ── Parallel fetch: course, sections, SRS cards, done tasks, stats ──
+      const [courseDoc, sectionsSnap, srsSnap, doneTasksSnap, statsDoc] = await Promise.all([
+        db.doc(`users/${uid}/courses/${courseId}`).get(),
+        db.collection(`users/${uid}/sections`)
+          .where("courseId", "==", courseId)
+          .where("aiStatus", "==", "ANALYZED")
+          .orderBy("orderIndex")
+          .get(),
+        db.collection(`users/${uid}/srs`)
+          .where("courseId", "==", courseId)
+          .get(),
+        db.collection(`users/${uid}/tasks`)
+          .where("courseId", "==", courseId)
+          .where("status", "==", "DONE")
+          .where("type", "==", "STUDY")
+          .get(),
+        db.doc(`users/${uid}/stats/${courseId}`).get(),
+      ]);
+
       if (!courseDoc.exists) return fail(Errors.NOT_FOUND, "Course not found.");
       const courseData = courseDoc.data();
       const examDate = courseData.examDate?.toDate();
-
-      // ── Fetch analysed sections ───────────────────────────────────────
-      const sectionsSnap = await db
-        .collection(`users/${uid}/sections`)
-        .where("courseId", "==", courseId)
-        .where("aiStatus", "==", "ANALYZED")
-        .orderBy("orderIndex")
-        .get();
 
       if (sectionsSnap.empty) return fail(Errors.NO_SECTIONS);
 
@@ -66,11 +75,6 @@ exports.generateSchedule = functions
           return (a.orderIndex ?? 0) - (b.orderIndex ?? 0);
         });
 
-      // ── Fetch FSRS SRS cards for adaptive review intervals ──────────
-      const srsSnap = await db
-        .collection(`users/${uid}/srs`)
-        .where("courseId", "==", courseId)
-        .get();
       const srsCards = new Map();
       srsSnap.docs.forEach((d) => {
         const data = d.data();
@@ -95,13 +99,7 @@ exports.generateSchedule = functions
       }
 
       // Exclude sections that already have completed (DONE) study tasks
-      // to prevent regeneration from duplicating work the user finished.
-      const doneTasksSnap = await db
-        .collection(`users/${uid}/tasks`)
-        .where("courseId", "==", courseId)
-        .where("status", "==", "DONE")
-        .where("type", "==", "STUDY")
-        .get();
+      // (doneTasksSnap already fetched in parallel above)
       const doneSectionIds = new Set(
         doneTasksSnap.docs.flatMap((d) => d.data().sectionIds || [])
       );
@@ -112,7 +110,7 @@ exports.generateSchedule = functions
         return ok({ taskCount: 0, skippedCount: 0, message: "All sections already completed." });
       }
 
-      const statsDoc = await db.doc(`users/${uid}/stats/${courseId}`).get();
+      // (statsDoc already fetched in parallel above)
       const adaptiveContext = buildAdaptiveContext({
         startDate,
         examDate,

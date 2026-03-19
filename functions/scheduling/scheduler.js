@@ -21,6 +21,16 @@ const {
   MAX_DAILY_MINUTES,
   MAX_SCHEDULE_DAYS,
   DEFAULT_STUDY_PERIOD_DAYS,
+  TRIAGE_WEIGHTS,
+  TRIAGE_SCHEDULE_THRESHOLD,
+  TRIAGE_BACKLOG_THRESHOLD,
+  MAX_NEW_TOPICS_PER_DAY,
+  MAX_TASKS_PER_DAY,
+  MASTERY_MIN_ACCURACY,
+  MASTERY_MAX_DAYS_SINCE,
+  MASTERY_MAX_WEAKNESS,
+  MIN_QUESTIONS_FOR_TASK,
+  THIN_SECTION_MIN_CHARS,
 } = require("../lib/constants");
 const { clampInt, truncate, toISODate, weekdayName } = require("../lib/utils");
 
@@ -326,6 +336,200 @@ function computeSectionAdaptiveSignals(section, adaptiveContext, fallbackTitle) 
   };
 }
 
+// ── Triage v2: selective scheduling ────────────────────────────────────────
+
+/**
+ * Compute the v2 composite triage score using the research-backed weight mix.
+ * Returns a 0-1 score and a tier classification.
+ */
+function computeTriageScore(section, adaptiveContext) {
+  if (!adaptiveContext) return { triageScore: 0.5, triageTier: "schedule", exclusionReason: null };
+
+  const difficulty = clampInt(section.difficulty || 3, 1, 5);
+  const weakness = lookupSectionWeakness(section, adaptiveContext);
+  const examAlignment = computeExamAlignment(section, adaptiveContext);
+  const highYieldDensity = computeHighYieldDensity(section);
+  const urgency = adaptiveContext.daysToExam == null
+    ? 0.45
+    : clamp01(1 - Math.min(120, adaptiveContext.daysToExam) / 120);
+  const questionReady = section.questionsStatus === "COMPLETED"
+    ? clamp01(Math.min(1, (section.questionsCount || 0) / 10))
+    : 0;
+  const difficultyScore = clamp01((difficulty - 1) / 4);
+
+  const triageScore = clamp01(
+    weakness         * TRIAGE_WEIGHTS.weakness
+    + examAlignment  * TRIAGE_WEIGHTS.examAlignment
+    + highYieldDensity * TRIAGE_WEIGHTS.highYield
+    + urgency        * TRIAGE_WEIGHTS.urgency
+    + questionReady  * TRIAGE_WEIGHTS.questionReady
+    + difficultyScore * TRIAGE_WEIGHTS.difficulty
+  );
+
+  let triageTier;
+  let exclusionReason = null;
+
+  if (triageScore >= TRIAGE_SCHEDULE_THRESHOLD) {
+    triageTier = "schedule";
+  } else if (triageScore >= TRIAGE_BACKLOG_THRESHOLD) {
+    triageTier = "backlog";
+    exclusionReason = buildExclusionReason("backlog", { weakness, examAlignment, highYieldDensity, urgency });
+  } else {
+    triageTier = "defer";
+    exclusionReason = buildExclusionReason("defer", { weakness, examAlignment, highYieldDensity, urgency });
+  }
+
+  return { triageScore, triageTier, exclusionReason, weakness, examAlignment, highYieldDensity, urgency, questionReady, difficultyScore };
+}
+
+/**
+ * Check whether a section is mastered: strong recent accuracy, recent review,
+ * and no current weakness signal.
+ */
+function isMastered(section, adaptiveContext) {
+  if (!adaptiveContext) return false;
+
+  const weakness = lookupSectionWeakness(section, adaptiveContext);
+  if (weakness > MASTERY_MAX_WEAKNESS) return false;
+  if (adaptiveContext.overallAccuracy < MASTERY_MIN_ACCURACY) return false;
+
+  const topicTags = Array.isArray(section.topicTags) ? section.topicTags : [];
+  for (const tag of topicTags) {
+    const tagWeakness = adaptiveContext.weaknessByTag.get(normalizeTopicKey(tag));
+    if (tagWeakness != null && tagWeakness <= MASTERY_MAX_WEAKNESS) return true;
+  }
+
+  return weakness <= MASTERY_MAX_WEAKNESS && adaptiveContext.overallAccuracy >= MASTERY_MIN_ACCURACY;
+}
+
+/**
+ * Determine if a section has enough question coverage and retrieval value
+ * to warrant a QUESTIONS task.
+ */
+function hasRetrievalValue(section, adaptiveContext) {
+  if (section.questionsStatus !== "COMPLETED") return false;
+  if ((section.questionsCount || 0) < MIN_QUESTIONS_FOR_TASK) return false;
+  if (!adaptiveContext) return true;
+
+  const weakness = lookupSectionWeakness(section, adaptiveContext);
+  const examAlignment = computeExamAlignment(section, adaptiveContext);
+  const highYieldDensity = computeHighYieldDensity(section);
+
+  return weakness >= 0.40 || examAlignment >= 0.60 || highYieldDensity >= 0.45;
+}
+
+/**
+ * Check if a section is "thin" — too little content to be a standalone task.
+ */
+function isThinSection(section) {
+  const textLen = section.textLength || section.charCount || 0;
+  if (textLen > 0 && textLen < THIN_SECTION_MIN_CHARS) return true;
+
+  const bp = section.blueprint || {};
+  const totalItems = (bp.learningObjectives?.length || 0)
+    + (bp.keyConcepts?.length || 0)
+    + (bp.highYieldPoints?.length || 0)
+    + (bp.commonTraps?.length || 0);
+  return totalItems === 0 && isGenericSectionTitle(section.title);
+}
+
+/**
+ * Merge adjacent thin/low-priority sections into combined study blocks.
+ */
+function mergeAdjacentThinSections(sections, triageResults) {
+  if (sections.length <= 1) return sections;
+
+  const merged = [];
+  let pendingGroup = null;
+
+  for (let i = 0; i < sections.length; i++) {
+    const section = sections[i];
+    const triage = triageResults.get(section.id);
+    const thin = isThinSection(section);
+    const lowPriority = triage && triage.triageTier !== "schedule";
+
+    if (thin || (lowPriority && (section.estMinutes || 15) <= 10)) {
+      if (!pendingGroup) {
+        pendingGroup = { sections: [section], ids: [section.id], topicTags: new Set(section.topicTags || []), totalMinutes: section.estMinutes || 15 };
+      } else {
+        pendingGroup.sections.push(section);
+        pendingGroup.ids.push(section.id);
+        for (const tag of (section.topicTags || [])) pendingGroup.topicTags.add(tag);
+        pendingGroup.totalMinutes += section.estMinutes || 15;
+      }
+    } else {
+      if (pendingGroup) { merged.push(finalizeMergedGroup(pendingGroup)); pendingGroup = null; }
+      merged.push(section);
+    }
+  }
+
+  if (pendingGroup) merged.push(finalizeMergedGroup(pendingGroup));
+  return merged;
+}
+
+function finalizeMergedGroup(group) {
+  if (group.sections.length === 1) return group.sections[0];
+  const primary = group.sections[0];
+  const allTags = [...group.topicTags].slice(0, 10);
+  const title = allTags.length > 0
+    ? allTags.slice(0, 3).join(", ")
+    : `Combined: ${group.sections.map((s) => s.title).slice(0, 2).join(" + ")}`;
+
+  return {
+    ...primary,
+    id: group.ids[0],
+    _mergedSectionIds: group.ids,
+    title,
+    topicTags: allTags,
+    estMinutes: Math.min(group.totalMinutes, 45),
+    _isMerged: true,
+  };
+}
+
+function buildExclusionReason(tier, signals) {
+  if (tier === "defer") {
+    if (signals.weakness < 0.2 && signals.examAlignment < 0.4) return "Deferred: low exam relevance and no weakness signal";
+    if (signals.weakness < 0.2) return "Deferred: recently mastered";
+    if (signals.examAlignment < 0.4) return "Deferred: low exam relevance";
+    return "Deferred: low overall priority";
+  }
+  if (tier === "backlog") {
+    if (signals.weakness < 0.3) return "Backlogged: no significant weakness";
+    if (signals.examAlignment < 0.5) return "Backlogged: low exam alignment";
+    if (signals.highYieldDensity < 0.3) return "Backlogged: low high-yield density";
+    return "Backlogged: moderate priority — will schedule if capacity allows";
+  }
+  return null;
+}
+
+/**
+ * Run triage on all sections. Returns partitioned sections + per-section results.
+ */
+function triageSections(sections, adaptiveContext) {
+  const results = new Map();
+  const scheduled = [];
+  const backlog = [];
+  const deferred = [];
+
+  for (const section of sections) {
+    const triage = computeTriageScore(section, adaptiveContext);
+    const mastered = isMastered(section, adaptiveContext);
+
+    if (mastered && triage.triageTier === "schedule") {
+      triage.triageTier = "backlog";
+      triage.exclusionReason = "Backlogged: recently mastered with strong accuracy";
+    }
+
+    results.set(section.id, triage);
+
+    if (triage.triageTier === "schedule") scheduled.push(section);
+    else if (triage.triageTier === "backlog") backlog.push(section);
+    else deferred.push(section);
+  }
+
+  return { results, scheduled, backlog, deferred };
+}
+
 function buildStudyFocus(section, fallbackTitle) {
   const blueprint = section.blueprint || {};
   const primary = pickSpecificFromSources(
@@ -539,7 +743,13 @@ function buildWorkUnits(sections, courseId, revisionPolicy = "standard", srsCard
       } : {}),
     });
 
-    if (section.questionsStatus === "COMPLETED") {
+    // Gate: only create question tasks when retrieval value is present (adaptive)
+    // or questions are completed (non-adaptive fallback)
+    const shouldCreateQuestions = adaptiveContext
+      ? hasRetrievalValue(section, adaptiveContext)
+      : section.questionsStatus === "COMPLETED";
+
+    if (shouldCreateQuestions) {
       const questionFocus = adaptiveSignals ? buildTaskFocus("QUESTIONS", section, baseTitle) : "";
       tasks.push({
         ...base,
@@ -725,14 +935,26 @@ function placeAnchoredTasks(anchorTasks, placed, days, dayOrderMap, lastValidIdx
 
 function placeTasks(tasks, days, { examDate, adaptiveContext } = {}) {
   const maxDayCapacity = days.reduce((max, d) => Math.max(max, d.usableCapacity), 0);
+  const MIN_SPLIT_CHUNK = 10; // never create a part shorter than 10 min
 
+  /**
+   * Split a task into parts that fit within daily capacities.
+   * First tries to fit whole; if no day has room, splits into
+   * chunks that match available remaining capacity.
+   */
   const expandTask = (task) => {
-    if (maxDayCapacity <= 0 || task.estMinutes <= maxDayCapacity) return [task];
+    if (maxDayCapacity <= 0) return [task];
+    if (task.estMinutes <= maxDayCapacity) return [task];
     const parts = [];
     let remaining = task.estMinutes;
     let part = 1;
     while (remaining > 0) {
       const chunk = Math.min(maxDayCapacity, remaining);
+      if (chunk < MIN_SPLIT_CHUNK && parts.length > 0) {
+        // Absorb tiny remainder into last part
+        parts[parts.length - 1].estMinutes += chunk;
+        break;
+      }
       parts.push({
         ...task,
         estMinutes: chunk,
@@ -743,6 +965,57 @@ function placeTasks(tasks, days, { examDate, adaptiveContext } = {}) {
     }
     return parts;
   };
+
+  /**
+   * Place a single task, respecting daily capacity. Never overbooks.
+   * If no day has enough room for the full task, splits it across days.
+   * Returns true if placed (possibly split), false if completely skipped.
+   */
+  function placeOneTask(task, placed, startDayIndex, orderIndexMap, skipped) {
+    // 1. Try to find a day with enough room starting from startDayIndex
+    for (let d = startDayIndex; d < days.length; d++) {
+      if (days[d].remaining >= task.estMinutes) {
+        const dayKey = days[d].date.getTime();
+        const order = orderIndexMap.get(dayKey) || 0;
+        orderIndexMap.set(dayKey, order + 1);
+        placed.push({ ...task, dueDate: days[d].date, orderIndex: order });
+        days[d].remaining -= task.estMinutes;
+        return d; // return the day index used
+      }
+    }
+
+    // 2. No single day fits — split across multiple days
+    let remaining = task.estMinutes;
+    let part = 1;
+    let firstDay = -1;
+    for (let d = startDayIndex; d < days.length && remaining > 0; d++) {
+      if (days[d].remaining <= 0) continue;
+      const chunk = Math.min(days[d].remaining, remaining);
+      if (chunk < MIN_SPLIT_CHUNK && remaining - chunk > 0) continue; // skip tiny slots unless it's the last piece
+      const dayKey = days[d].date.getTime();
+      const order = orderIndexMap.get(dayKey) || 0;
+      orderIndexMap.set(dayKey, order + 1);
+      placed.push({
+        ...task,
+        estMinutes: chunk,
+        title: remaining < task.estMinutes || chunk < task.estMinutes
+          ? `${task.title} (Part ${part})`
+          : task.title,
+        dueDate: days[d].date,
+        orderIndex: order,
+      });
+      days[d].remaining -= chunk;
+      remaining -= chunk;
+      if (firstDay === -1) firstDay = d;
+      part++;
+    }
+
+    if (remaining > 0) {
+      // Could not place even after splitting — skip the remainder
+      skipped.push({ ...task, estMinutes: remaining, title: `${task.title} (overflow)` });
+    }
+    return firstDay >= 0 ? firstDay : startDayIndex;
+  }
 
   if (!adaptiveContext) {
     const studyTasks = tasks.filter((t) => t.type === "STUDY" || t.type === "QUESTIONS");
@@ -756,49 +1029,17 @@ function placeTasks(tasks, days, { examDate, adaptiveContext } = {}) {
     });
 
     let dayIndex = 0;
-    let orderIndex = 0;
     const placed = [];
     const skipped = [];
+    const dayOrderMap = new Map();
 
     for (const originalTask of studyTasks) {
       for (const task of expandTask(originalTask)) {
-        let targetDay = dayIndex;
-        while (targetDay < days.length && days[targetDay].remaining < task.estMinutes) {
-          targetDay++;
-        }
-
-        if (targetDay >= days.length) {
-          let bestDay = -1;
-          let bestRemaining = 0;
-          for (let d = dayIndex; d < days.length; d++) {
-            if (days[d].remaining > bestRemaining) {
-              bestDay = d;
-              bestRemaining = days[d].remaining;
-            }
-          }
-          if (bestDay === -1 || bestRemaining < task.estMinutes) {
-            skipped.push(task);
-            continue;
-          }
-          targetDay = bestDay;
-        }
-
-        if (targetDay !== dayIndex) {
-          dayIndex = targetDay;
-          orderIndex = 0;
-        }
-
-        placed.push({ ...task, dueDate: days[dayIndex].date, orderIndex: orderIndex++ });
-        days[dayIndex].remaining -= task.estMinutes;
+        dayIndex = placeOneTask(task, placed, dayIndex, dayOrderMap, skipped);
       }
     }
 
-    const dayOrderMap = new Map();
-    for (const p of placed) {
-      const dayKey = p.dueDate.getTime();
-      const existing = dayOrderMap.get(dayKey) || 0;
-      dayOrderMap.set(dayKey, Math.max(existing, p.orderIndex + 1));
-    }
+    // dayOrderMap is already populated by placeOneTask
 
     let lastValidIdx = days.length - 1;
     if (examDate) {
@@ -817,48 +1058,42 @@ function placeTasks(tasks, days, { examDate, adaptiveContext } = {}) {
   const orderedStudies = orderStudyTasksAdaptive(studyTasks, adaptiveContext);
 
   let dayIndex = 0;
-  let orderIndex = 0;
   const placed = [];
   const skipped = [];
+  const dayOrderMap = new Map();
+  const newTopicsPerDay = new Map(); // date.getTime() → count of new STUDY topics
+  const tasksPerDay = new Map();     // date.getTime() → total task count
 
   for (const originalTask of orderedStudies) {
     for (const task of expandTask(originalTask)) {
-      let targetDay = dayIndex;
-      while (targetDay < days.length && days[targetDay].remaining < task.estMinutes) {
-        targetDay++;
+      // Try to place with scarcity awareness
+      let placedDay = -1;
+      for (let d = dayIndex; d < days.length; d++) {
+        if (days[d].remaining < task.estMinutes) continue;
+        const dayKey = days[d].date.getTime();
+        const newCount = newTopicsPerDay.get(dayKey) || 0;
+        const totalCount = tasksPerDay.get(dayKey) || 0;
+
+        // Enforce scarcity caps: max new topics and max total tasks per day
+        if (newCount >= MAX_NEW_TOPICS_PER_DAY || totalCount >= MAX_TASKS_PER_DAY) continue;
+
+        const order = dayOrderMap.get(dayKey) || 0;
+        dayOrderMap.set(dayKey, order + 1);
+        placed.push({ ...task, dueDate: days[d].date, orderIndex: order });
+        days[d].remaining -= task.estMinutes;
+        newTopicsPerDay.set(dayKey, newCount + 1);
+        tasksPerDay.set(dayKey, totalCount + 1);
+        placedDay = d;
+        break;
       }
 
-      if (targetDay >= days.length) {
-        let bestDay = -1;
-        let bestRemaining = 0;
-        for (let d = dayIndex; d < days.length; d++) {
-          if (days[d].remaining > bestRemaining) {
-            bestDay = d;
-            bestRemaining = days[d].remaining;
-          }
-        }
-        if (bestDay === -1 || bestRemaining < task.estMinutes) {
-          skipped.push(task);
-          continue;
-        }
-        targetDay = bestDay;
+      if (placedDay === -1) {
+        // Fall back to standard placement without scarcity caps
+        dayIndex = placeOneTask(task, placed, dayIndex, dayOrderMap, skipped);
+      } else {
+        dayIndex = placedDay;
       }
-
-      if (targetDay !== dayIndex) {
-        dayIndex = targetDay;
-        orderIndex = 0;
-      }
-
-      placed.push({ ...task, dueDate: days[dayIndex].date, orderIndex: orderIndex++ });
-      days[dayIndex].remaining -= task.estMinutes;
     }
-  }
-
-  const dayOrderMap = new Map();
-  for (const p of placed) {
-    const dayKey = p.dueDate.getTime();
-    const existing = dayOrderMap.get(dayKey) || 0;
-    dayOrderMap.set(dayKey, Math.max(existing, p.orderIndex + 1));
   }
 
   let lastValidIdx = days.length - 1;
@@ -873,6 +1108,12 @@ function placeTasks(tasks, days, { examDate, adaptiveContext } = {}) {
     return (a.sourceOrder ?? 0) - (b.sourceOrder ?? 0);
   });
   placeAnchoredTasks(orderedQuestions, placed, days, dayOrderMap, lastValidIdx, skipped);
+
+  // Update tasksPerDay for question placement
+  for (const p of placed) {
+    const dk = p.dueDate.getTime();
+    tasksPerDay.set(dk, (tasksPerDay.get(dk) || 0));
+  }
 
   const orderedReviews = [...reviewTasks].sort((a, b) => {
     if ((b.priority || 0) !== (a.priority || 0)) return (b.priority || 0) - (a.priority || 0);
