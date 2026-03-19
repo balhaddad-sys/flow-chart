@@ -36,6 +36,8 @@ import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { toast } from "sonner";
 import { StudyAskAiWidget } from "@/components/study/study-ask-ai-widget";
+import { VisualLearner } from "@/components/study/visual-learner";
+import { PDFViewer } from "@/components/study/pdf-viewer";
 import {
   cleanOCR,
   cleanSectionTitle,
@@ -113,6 +115,8 @@ export default function StudySessionPage({
   const sourceParagraphRefs = useRef<Record<number, HTMLLIElement | null>>({});
   const [file, setFile] = useState<FileModel | null>(null);
   const [openingSource, setOpeningSource] = useState(false);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
 
   // Fetch task to determine knowledge stage
@@ -291,6 +295,28 @@ export default function StudySessionPage({
     }
   }, [sectionText, section?.title, summaryLoading, user]);
 
+  // Load PDF URL for in-app viewer when file is a PDF
+  useEffect(() => {
+    if (!file?.storagePath || file.mimeType !== "application/pdf" || pdfUrl) return;
+    let cancelled = false;
+    setPdfLoading(true);
+    (async () => {
+      try {
+        const downloadUrl = await getFileDownloadUrl(file.storagePath);
+        const authToken = await getAuth().currentUser?.getIdToken() ?? "";
+        const startIdx = Math.max(1, Math.floor(section?.contentRef?.startIndex || 1));
+        const endIdx = Math.max(startIdx, Math.floor(section?.contentRef?.endIndex || startIdx));
+        const url = `/api/section-pdf?url=${encodeURIComponent(downloadUrl)}&start=${startIdx}&end=${endIdx}&name=${encodeURIComponent(file.originalName)}&token=${encodeURIComponent(authToken)}`;
+        if (!cancelled) setPdfUrl(url);
+      } catch {
+        // silently fail — user can still use Guide and Notes
+      } finally {
+        if (!cancelled) setPdfLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [file?.storagePath, file?.mimeType, section?.contentRef, pdfUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Auto-generate notes when section text loads
   useEffect(() => {
     if (sectionText && section?.title && !summary && !summaryLoading && !summaryError) {
@@ -458,26 +484,13 @@ export default function StudySessionPage({
                 {tag}
               </Badge>
             ))}
-            {file?.storagePath && (
-              <button
-                onClick={handleOpenSource}
-                disabled={openingSource}
-                className="ml-auto flex items-center gap-1.5 shrink-0 rounded-full border border-primary/30 bg-primary/5 px-3 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10 hover:border-primary/50 disabled:opacity-50"
-              >
-                {openingSource ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <ExternalLink className="h-3.5 w-3.5" />
-                )}
-                {openingSource ? "Opening..." : "Source"}
-              </button>
-            )}
+            {/* Source button removed — source is now a tab */}
           </div>
         )}
 
         {/* Tab selector — pinned inside sticky header so it never scrolls away */}
         <div className="px-4 pb-2 pt-1">
-          <TabsList className="grid w-full grid-cols-2 h-10 rounded-xl p-1">
+          <TabsList className={`grid w-full ${file?.storagePath && file?.mimeType === "application/pdf" ? "grid-cols-3" : "grid-cols-2"} h-10 rounded-xl p-1`}>
             <TabsTrigger value="guide" className="rounded-lg gap-1.5 text-xs sm:text-sm data-[state=active]:shadow-sm">
               <BookOpen className="h-3.5 w-3.5" />
               Guide
@@ -486,6 +499,12 @@ export default function StudySessionPage({
               <Lightbulb className="h-3.5 w-3.5" />
               Notes
             </TabsTrigger>
+            {file?.storagePath && file?.mimeType === "application/pdf" && (
+              <TabsTrigger value="source" className="rounded-lg gap-1.5 text-xs sm:text-sm data-[state=active]:shadow-sm">
+                <ExternalLink className="h-3.5 w-3.5" />
+                Source
+              </TabsTrigger>
+            )}
           </TabsList>
         </div>
       </div>
@@ -948,6 +967,32 @@ export default function StudySessionPage({
               </div>
             )}
           </TabsContent>
+
+          {/* ─── Source Tab (PDF Viewer) ─── */}
+          {file?.storagePath && file?.mimeType === "application/pdf" && (
+            <TabsContent value="source" className="mt-0">
+              {pdfLoading ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <p className="mt-2 text-xs text-muted-foreground">Loading source PDF...</p>
+                </div>
+              ) : pdfUrl ? (
+                <PDFViewer
+                  url={pdfUrl}
+                  startPage={1}
+                  endPage={Math.max(1, Math.floor((section?.contentRef?.endIndex || 1) - (section?.contentRef?.startIndex || 1) + 1))}
+                  className="min-h-[60vh]"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <AlertTriangle className="h-5 w-5 text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">
+                    Unable to load source PDF. Try refreshing the page.
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+          )}
 
       </div>
       </Tabs>
