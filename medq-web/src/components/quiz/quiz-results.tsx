@@ -6,7 +6,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, XCircle, RotateCcw, Home, AlertTriangle, TrendingUp, Clock, Zap, Timer } from "lucide-react";
+import { CheckCircle2, XCircle, RotateCcw, Home, AlertTriangle, TrendingUp, Clock, Zap, Timer, ChevronRight } from "lucide-react";
 import { useQuizStore } from "@/lib/stores/quiz-store";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { NumberTicker } from "@/components/ui/animate-in";
@@ -245,28 +245,56 @@ export function QuizResults() {
           })}
         </div>
 
-        <div className="mt-6 flex gap-3 animate-in-up stagger-4">
-          <Button
-            variant="outline"
-            className="flex-1 rounded-xl"
-            onClick={() => {
-              reset();
-              router.back();
-            }}
-          >
-            <Home className="mr-2 h-4 w-4" />
-            Back
-          </Button>
-          <Button
-            className="flex-1 rounded-xl"
-            onClick={() => {
-              reset();
-              window.location.reload();
-            }}
-          >
-            <RotateCcw className="mr-2 h-4 w-4" />
-            Retry
-          </Button>
+        {/* Next Steps — clear, directional */}
+        <div className="mt-8 space-y-3 animate-in-up stagger-4">
+          <h3 className="text-sm font-semibold">What to do next</h3>
+
+          {/* If weak topics exist, prioritize review */}
+          {profile.hasEnoughData && profile.topics.some((t) => t.severity !== "STRONG") && (
+            <Link
+              href={`/ai/explore?topic=${encodeURIComponent(
+                profile.topics.find((t) => t.severity === "CRITICAL")?.rawTag ??
+                profile.topics.find((t) => t.severity === "REINFORCE")?.rawTag ??
+                profile.topics[0]?.rawTag ?? ""
+              )}&autostart=learn`}
+              className="flex items-center gap-3 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3 transition-colors hover:bg-primary/10"
+            >
+              <TrendingUp className="h-4 w-4 shrink-0 text-primary" />
+              <span className="flex-1 text-sm">
+                Review your weakest topic:{" "}
+                <span className="font-medium text-primary">
+                  {(profile.topics.find((t) => t.severity === "CRITICAL") ??
+                    profile.topics.find((t) => t.severity === "REINFORCE") ??
+                    profile.topics[0])?.tag}
+                </span>
+              </span>
+              <ChevronRight className="h-4 w-4 text-primary" />
+            </Link>
+          )}
+
+          <div className="flex gap-3">
+            <Button
+              variant="outline"
+              className="flex-1 rounded-xl"
+              onClick={() => {
+                reset();
+                router.push("/today");
+              }}
+            >
+              <Home className="mr-2 h-4 w-4" />
+              Today
+            </Button>
+            <Button
+              className="flex-1 rounded-xl"
+              onClick={() => {
+                reset();
+                window.location.reload();
+              }}
+            >
+              <RotateCcw className="mr-2 h-4 w-4" />
+              Retry Quiz
+            </Button>
+          </div>
         </div>
       </div>
     </div>

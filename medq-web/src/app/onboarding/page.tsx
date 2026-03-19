@@ -401,8 +401,34 @@ export default function OnboardingPage() {
           {/* Skip hint */}
           {isLast && (
             <p className="mt-3 text-center text-[0.7rem] text-muted-foreground">
-              You can adjust your schedule anytime from settings.
+              You can adjust your schedule anytime from your profile.
             </p>
+          )}
+
+          {/* Fast-start: skip to sample deck */}
+          {isFirst && (
+            <div className="mt-4 border-t border-border/50 pt-4">
+              <p className="text-center text-xs text-muted-foreground">
+                Just want to try it out?{" "}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const result = await fn.seedSampleDeck();
+                      const courseId = (result as { courseId?: string }).courseId;
+                      if (courseId) setActiveCourseId(courseId);
+                      reset();
+                      router.replace("/today");
+                    } catch {
+                      toast.error("Failed to load sample deck.");
+                    }
+                  }}
+                  className="font-medium text-primary hover:text-primary/80 underline underline-offset-2"
+                >
+                  Start with a sample deck
+                </button>
+              </p>
+            </div>
           )}
         </div>
       </div>

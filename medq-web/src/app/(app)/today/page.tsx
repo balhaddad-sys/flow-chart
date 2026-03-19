@@ -158,20 +158,33 @@ export default function TodayPage() {
     }
   }
 
+  // Find the most actionable next step for the user
+  const inProgressTask = todayTasks.find((t) => t.status === "IN_PROGRESS");
+  const nextTodoTask = todayTasks.find((t) => t.status === "TODO");
+  const continueTask = inProgressTask || nextTodoTask;
+
   const primaryAction = !hasFiles
     ? { label: "Upload Materials", href: "/library", icon: Upload }
     : hasFiles && !hasPlan
       ? { label: "Generate Plan", href: "/today/plan", icon: Calendar }
-      : hasSections
-        ? { label: "Start Quiz", href: "/practice", icon: CircleHelp }
-        : { label: "AI Chat", href: "/ai", icon: Sparkles };
+      : continueTask
+        ? {
+            label: continueTask.status === "IN_PROGRESS" ? "Continue Studying" : "Start Next Task",
+            href: continueTask.type === "QUESTIONS"
+              ? `/practice/quiz?section=${continueTask.sectionIds?.[0] ?? ""}`
+              : continueTask.sectionIds?.[0]
+                ? `/study/${continueTask.id}/${continueTask.sectionIds[0]}`
+                : "/practice",
+            icon: ChevronRight,
+          }
+        : hasSections
+          ? { label: "Start Quiz", href: "/practice", icon: CircleHelp }
+          : { label: "AI Chat", href: "/ai", icon: Sparkles };
 
   const secondaryActions = [
     { label: "Library", href: "/library", visible: primaryAction.href !== "/library" },
-    { label: "Plan", href: "/today/plan", visible: primaryAction.href !== "/today/plan" },
-    { label: "Practice", href: "/practice", visible: primaryAction.href !== "/practice" },
+    { label: "Practice", href: "/practice", visible: !primaryAction.href.startsWith("/practice") },
     { label: "AI Chat", href: "/ai", visible: primaryAction.href !== "/ai" },
-    { label: "Analytics", href: "/today/analytics", visible: true },
   ].filter((action) => action.visible);
 
   if (coursesLoading) {
@@ -185,10 +198,10 @@ export default function TodayPage() {
   }
 
   return (
-    <div className="page-wrap page-stack">
+    <main className="page-wrap page-stack" aria-label="Today dashboard">
 
       {/* ── Header ─────────────────────────────────────────────────── */}
-      <section className="animate-in-up">
+      <section className="animate-in-up" aria-label="Dashboard header">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-xs font-medium text-muted-foreground tracking-wide">{todayDate}</p>
@@ -362,13 +375,88 @@ export default function TodayPage() {
         </section>
       )}
 
-      {/* ── Pipeline progress ──────────────────────────────────────── */}
-      <PipelineProgress
-        hasFiles={hasFiles}
-        hasSections={hasSections}
-        hasPlan={hasPlan}
-        hasQuizAttempts={hasQuizAttempts}
-      />
+      {/* ── Continue where you left off ──────────────────────────── */}
+      {continueTask && hasPlan && (
+        <section className="animate-in-up stagger-2 surface-hero p-5">
+          <div className="flex items-center gap-4">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+              <BookOpen className="h-5 w-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-muted-foreground">
+                {continueTask.status === "IN_PROGRESS" ? "Continue where you left off" : "Up next"}
+              </p>
+              <p className="text-sm font-semibold truncate mt-0.5">
+                {sectionMap.get(continueTask.sectionIds?.[0] ?? "")?.title ?? continueTask.title}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {continueTask.type} · {continueTask.estMinutes}min
+              </p>
+            </div>
+            <Link href={primaryAction.href}>
+              <Button size="sm" className="shrink-0 gap-1.5">
+                {continueTask.status === "IN_PROGRESS" ? "Resume" : "Start"}
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </Link>
+          </div>
+        </section>
+      )}
+
+      {/* ── Today's Tasks ──────────────────────────────────────────── */}
+      {hasPlan && (
+        <section className="animate-in-up stagger-3">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="section-label">Today&apos;s Tasks</h2>
+            <Link
+              href="/today/plan"
+              className="inline-flex items-center gap-1 text-[12px] font-medium text-primary hover:text-primary/80 transition-colors"
+            >
+              <Calendar className="h-3 w-3" />
+              Full Plan
+            </Link>
+          </div>
+          <TodayChecklist tasks={todayTasks} loading={tasksLoading} sectionMap={sectionMap} />
+        </section>
+      )}
+
+      {/* ── Pipeline progress (only before plan exists) ─────────────── */}
+      {!hasPlan && (
+        <PipelineProgress
+          hasFiles={hasFiles}
+          hasSections={hasSections}
+          hasPlan={hasPlan}
+          hasQuizAttempts={hasQuizAttempts}
+        />
+      )}
+
+      {/* ── Weak Topics (actionable) ──────────────────────────────── */}
+      {weakTopics.length > 0 && (
+        <section className="animate-in-up stagger-3">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="section-label">Areas to Improve</h2>
+            {weakTopics.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs gap-1"
+                onClick={handleFixPlan}
+                disabled={fixPlanLoading || !effectiveCourseId}
+              >
+                {fixPlanLoading ? (
+                  <LoadingButtonLabel label="Generating..." />
+                ) : (
+                  <>
+                    <Wrench className="h-3 w-3" />
+                    Fix Plan
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+          <WeakTopicsBanner topics={weakTopics} />
+        </section>
+      )}
 
       {/* ── Diagnostic directives ──────────────────────────────────── */}
       {diagnosticDirectives.length > 0 && (
@@ -378,58 +466,25 @@ export default function TodayPage() {
         />
       )}
 
-      {/* ── Stats ──────────────────────────────────────────────────── */}
-      <section className="animate-in-up stagger-3 space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="section-label">Performance</h2>
-          <Link
-            href="/today/analytics"
-            className="inline-flex items-center gap-1.5 text-[12px] font-medium text-primary hover:text-primary/80 transition-colors"
-          >
-            <BarChart3 className="h-3 w-3" />
-            View analytics
-          </Link>
-        </div>
-        <StatsCards stats={stats} loading={statsLoading} />
-      </section>
-
-      {/* ── Tasks + Weak Topics ────────────────────────────────────── */}
-      <section className="animate-in-up stagger-4 grid gap-5 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start">
-        <TodayChecklist tasks={todayTasks} loading={tasksLoading} sectionMap={sectionMap} />
-
-        <div className="space-y-3">
-          <WeakTopicsBanner topics={weakTopics} />
-
-          {weakTopics.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={handleFixPlan}
-              disabled={fixPlanLoading || !effectiveCourseId}
+      {/* ── Performance (lower priority) ───────────────────────────── */}
+      {hasQuizAttempts && (
+        <section className="animate-in-up stagger-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="section-label">Performance</h2>
+            <Link
+              href="/today/analytics"
+              className="inline-flex items-center gap-1.5 text-[12px] font-medium text-primary hover:text-primary/80 transition-colors"
             >
-              {fixPlanLoading ? (
-                <LoadingButtonLabel label="Generating..." />
-              ) : (
-                <>
-                  <Wrench className="mr-2 h-3.5 w-3.5" />
-                  Remediation Plan
-                </>
-              )}
-            </Button>
-          )}
-
-          <Link href="/today/plan" className="block">
-            <Button variant="outline" size="sm" className="w-full text-[12px]">
-              <Calendar className="mr-1 h-3.5 w-3.5" />
-              Open Plan Workspace
-            </Button>
-          </Link>
-        </div>
-      </section>
+              <BarChart3 className="h-3 w-3" />
+              View Analytics
+            </Link>
+          </div>
+          <StatsCards stats={stats} loading={statsLoading} />
+        </section>
+      )}
 
       {/* ── Streak ─────────────────────────────────────────────────── */}
       {hasQuizAttempts && <StreakGraph />}
-    </div>
+    </main>
   );
 }

@@ -5,6 +5,7 @@ import { useDebouncedValue } from "@/lib/hooks/useDebounce";
 import { useRouter } from "next/navigation";
 import { useCourseStore } from "@/lib/stores/course-store";
 import { useChatThreads } from "@/lib/hooks/useChatThreads";
+import { useCourses } from "@/lib/hooks/useCourses";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -64,16 +65,28 @@ export default function AiPage() {
     }
   }
 
+  const activeCourse = useCourses().courses.find((c) => c.id === courseId);
+
   return (
     <div className="page-wrap page-stack">
 
-      {/* Header */}
+      {/* Header with context chip */}
       <div className="animate-in-up">
-        <h1 className="page-title">AI Chat</h1>
+        <h1 className="page-title">AI</h1>
         <p className="page-subtitle">
-          Explore medical topics, ask questions, and get guidance grounded in your study materials.
+          Ask questions, explore topics, and review mistakes — grounded in your study materials.
         </p>
-        <div className="flex flex-wrap gap-2 mt-3">
+
+        {/* Active course context chip */}
+        {activeCourse && (
+          <div className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+            <Sparkles className="h-3 w-3" />
+            {activeCourse.title}
+          </div>
+        )}
+
+        {/* Mode actions */}
+        <div className="flex flex-wrap gap-2 mt-4">
           <Button onClick={() => router.push("/ai/explore")} size="sm">
             <Compass className="mr-1.5 h-3.5 w-3.5" />
             Explore Topic
@@ -89,7 +102,7 @@ export default function AiPage() {
             ) : (
               <Plus className="mr-1.5 h-3.5 w-3.5" />
             )}
-            {!creating && "New Chat"}
+            {!creating && "Ask a Question"}
           </Button>
           {latestThread && (
             <Button
@@ -104,29 +117,58 @@ export default function AiPage() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-1.5 shadow-sm animate-in-up stagger-1">
-        <Search className="h-4 w-4 text-muted-foreground/60" />
-        <Input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search threads..."
-          className="h-8 border-none bg-transparent px-0 shadow-none focus-visible:ring-0"
-        />
+      {/* AI capabilities — what you can do */}
+      <div className="grid gap-2.5 sm:grid-cols-2 md:grid-cols-4 animate-in-up stagger-1">
+        {[
+          { icon: Compass, label: "Explore", desc: "Learn any topic in depth", action: () => router.push("/ai/explore") },
+          { icon: MessageSquare, label: "Ask", desc: "Ask about your materials", action: handleNewThread },
+          { icon: Sparkles, label: "Explain", desc: "Get mistake breakdowns", action: () => router.push("/ai/explore?autostart=learn") },
+          { icon: Search, label: "Summarize", desc: "Condense key concepts", action: handleNewThread },
+        ].map((mode) => (
+          <button
+            key={mode.label}
+            onClick={mode.action}
+            className="surface-interactive p-4 text-left"
+          >
+            <mode.icon className="h-4 w-4 text-primary mb-2" />
+            <p className="text-[13px] font-semibold">{mode.label}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{mode.desc}</p>
+          </button>
+        ))}
       </div>
+
+      {/* Search */}
+      {threads.length > 0 && (
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-1.5 shadow-sm animate-in-up stagger-2">
+          <Search className="h-4 w-4 text-muted-foreground/60" />
+          <Input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search conversations..."
+            className="h-8 border-none bg-transparent px-0 shadow-none focus-visible:ring-0"
+          />
+        </div>
+      )}
 
       {/* Thread list */}
       {loading ? (
         <ListLoadingState rows={4} />
-      ) : filteredThreads.length === 0 ? (
+      ) : filteredThreads.length === 0 && !search.trim() ? (
         <EmptyState
           icon={MessageSquare}
-          title={search.trim() ? "No threads match your search" : "No conversations yet"}
-          description="Start a new chat to ask AI about your course content."
-          action={{ label: "New Chat", onClick: handleNewThread }}
+          title="No conversations yet"
+          description="Start by exploring a topic or asking a question about your course."
+          action={{ label: "Explore a Topic", onClick: () => router.push("/ai/explore") }}
+        />
+      ) : filteredThreads.length === 0 ? (
+        <EmptyState
+          icon={Search}
+          title="No threads match your search"
+          description="Try a different search term."
         />
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 animate-in-up stagger-2">
+          <h2 className="section-label">Recent Conversations</h2>
           {filteredThreads.map((thread) => (
             <Card
               key={thread.id}
@@ -152,46 +194,6 @@ export default function AiPage() {
           ))}
         </div>
       )}
-
-      {/* Feature cards */}
-      <div className="grid gap-2.5 md:grid-cols-2 animate-in-up stagger-3">
-        <div className="surface-interactive p-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 mb-2.5">
-            <Compass className="h-4 w-4 text-primary" />
-          </div>
-          <p className="text-[13px] font-semibold">Explore AI Tutor</p>
-          <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
-            Generate adaptive quizzes and teaching outlines for any medical topic.
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-3 text-[12px]"
-            onClick={() => router.push("/ai/explore")}
-          >
-            Open Explore
-          </Button>
-        </div>
-        <div className="surface-interactive p-4">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/10 mb-2.5">
-            <MessageSquare className="h-4 w-4 text-violet-600 dark:text-violet-400" />
-          </div>
-          <p className="text-[13px] font-semibold">Course Chat</p>
-          <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
-            Keep persistent conversations tied to your active course.
-          </p>
-          <Button
-            size="sm"
-            variant="outline"
-            className="mt-3 text-[12px]"
-            onClick={handleNewThread}
-            disabled={creating || !courseId}
-          >
-            <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-            Create Thread
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }

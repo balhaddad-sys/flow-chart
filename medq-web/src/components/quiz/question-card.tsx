@@ -288,6 +288,8 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
               key={i}
               onClick={() => handleSelect(i)}
               disabled={isAnswered || submitting}
+              aria-label={`Option ${String.fromCharCode(65 + i)}: ${option}`}
+              aria-pressed={isSelected}
               className={cn(
                 "flex w-full items-start gap-3 rounded-xl border p-3.5 text-left text-[14px] transition-all duration-150",
                 style,

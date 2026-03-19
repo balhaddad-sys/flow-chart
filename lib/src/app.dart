@@ -97,11 +97,13 @@ class _AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<_AppShell> {
   static const _disclaimerDismissKey = 'medq_disclaimer_dismissed_v1';
 
+  // 4 core tabs — aligned with web navigation
+  // Settings/Profile accessible from Home screen header
   static const _navItems = [
     _NavItem(
       icon: Icons.home_outlined,
       activeIcon: Icons.home_rounded,
-      label: 'Home',
+      label: 'Today',
       path: '/today',
     ),
     _NavItem(
@@ -121,12 +123,6 @@ class _AppShellState extends ConsumerState<_AppShell> {
       activeIcon: Icons.auto_awesome_rounded,
       label: 'AI',
       path: '/ai',
-    ),
-    _NavItem(
-      icon: Icons.person_outline_rounded,
-      activeIcon: Icons.person_rounded,
-      label: 'Settings',
-      path: '/profile',
     ),
   ];
 
@@ -322,11 +318,9 @@ class _AppShellState extends ConsumerState<_AppShell> {
   int _indexFromLocation(String location) {
     if (location.startsWith('/today') || location.startsWith('/home')) return 0;
     if (location.startsWith('/library')) return 1;
-    if (location.startsWith('/practice')) return 2;
+    if (location.startsWith('/practice') || location.startsWith('/study') || location.startsWith('/quiz')) return 2;
     if (location.startsWith('/ai')) return 3;
-    if (location.startsWith('/profile') || location.startsWith('/settings')) {
-      return 4;
-    }
+    // Profile/Settings → highlight Home since it's accessible from there
     return 0;
   }
 

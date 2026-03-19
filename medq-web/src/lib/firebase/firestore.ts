@@ -168,6 +168,7 @@ export function subscribeTodayTasks(
   cb: (tasks: TaskModel[]) => void,
   onError?: (err: Error) => void
 ) {
+  // Use unified day-boundary logic from date utils
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);

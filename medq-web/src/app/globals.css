@@ -190,49 +190,55 @@
 @layer utilities {
   /* Page layout */
   .page-wrap {
-    @apply mx-auto w-full max-w-3xl px-4 py-5 sm:px-6 sm:py-7;
+    @apply mx-auto w-full max-w-3xl px-5 py-6 sm:px-6 sm:py-8;
   }
 
   .page-stack {
-    @apply flex flex-col gap-5 sm:gap-7;
+    @apply flex flex-col gap-6 sm:gap-8;
   }
 
   .page-title {
-    @apply text-xl font-bold leading-tight tracking-tight sm:text-2xl;
+    @apply text-2xl font-bold leading-tight tracking-tight sm:text-[28px];
   }
 
   .page-subtitle {
-    @apply mt-0.5 text-sm leading-relaxed text-muted-foreground;
+    @apply mt-1 text-[14px] leading-relaxed text-muted-foreground;
   }
 
-  /* Section labels */
+  /* Section labels — stronger hierarchy */
   .section-label {
-    @apply text-[11px] font-semibold uppercase tracking-widest text-muted-foreground;
+    @apply text-xs font-semibold uppercase tracking-widest text-muted-foreground;
   }
 
-  /* Surfaces */
+  /* Section headings — for content areas */
+  .section-heading {
+    @apply text-lg font-bold tracking-tight;
+  }
+
+  /* Surfaces — intentional, minimal borders, premium shadows */
   .glass-card {
-    @apply rounded-xl border border-border bg-card shadow-sm;
+    @apply rounded-2xl border border-border/80 bg-card;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.03);
   }
 
   .surface-raised {
-    @apply rounded-xl border border-border bg-card;
-    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+    @apply rounded-xl border border-border/70 bg-card;
+    box-shadow: 0 2px 8px -2px rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.03);
   }
 
   .surface-sunken {
-    @apply rounded-xl bg-muted/60;
+    @apply rounded-xl bg-muted/50;
   }
 
   .surface-interactive {
-    @apply rounded-xl border border-border bg-card cursor-pointer;
+    @apply rounded-xl border border-border/60 bg-card cursor-pointer;
     box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.03);
     transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .surface-interactive:hover {
-    @apply border-primary/40;
-    box-shadow: 0 4px 12px -2px rgb(0 0 0 / 0.06);
+    @apply border-primary/30;
+    box-shadow: 0 4px 16px -3px rgb(0 0 0 / 0.08);
     transform: translateY(-1px);
   }
 
@@ -241,22 +247,26 @@
   }
 
   .surface-hero {
-    @apply rounded-2xl border border-border bg-card;
-    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04);
+    @apply rounded-2xl border border-border/70 bg-card;
+    box-shadow: 0 2px 12px -3px rgb(0 0 0 / 0.06);
   }
 
   .metric-card {
-    @apply rounded-xl border border-border bg-card p-4;
-    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.03);
+    @apply rounded-xl border border-border/60 bg-card p-4;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.03);
   }
 
   .divider-fade {
-    @apply h-px w-full bg-gradient-to-r from-transparent via-border to-transparent;
+    @apply h-px w-full bg-gradient-to-r from-transparent via-border/60 to-transparent;
   }
 
-  /* Stat number */
+  /* Stat number — key metrics stand out */
   .stat-number {
-    @apply text-2xl font-bold tabular-nums tracking-tight;
+    @apply text-2xl font-extrabold tabular-nums tracking-tight;
+  }
+
+  .stat-label {
+    @apply text-xs font-medium text-muted-foreground mt-0.5;
   }
 
   /* Text utilities */

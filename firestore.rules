@@ -39,7 +39,8 @@ service cloud.firestore {
         && isValidString(request.resource.data.email, 320);
       allow update: if isOwner(userId)
         && (!('name' in request.resource.data) || isValidString(request.resource.data.name, 200))
-        && (!('email' in request.resource.data) || isValidString(request.resource.data.email, 320));
+        && (!('email' in request.resource.data) || isValidString(request.resource.data.email, 320))
+        && (!('timezone' in request.resource.data) || (request.resource.data.timezone is string && request.resource.data.timezone.size() <= 64));
       allow delete: if isOwner(userId);
 
       match /courses/{courseId} {
@@ -177,7 +178,11 @@ service cloud.firestore {
         allow read: if isOwner(userId);
         allow create: if isOwner(userId)
           && hasRequiredFields(['threadId', 'role', 'content'])
-          && request.resource.data.role in ['user', 'assistant'];
+          && request.resource.data.role in ['user', 'assistant']
+          && isValidString(request.resource.data.content, 10000)
+          && isValidString(request.resource.data.threadId, 128);
+        // Messages are immutable once created — no updates allowed
+        allow update: if false;
         allow delete: if isOwner(userId);
       }
     }

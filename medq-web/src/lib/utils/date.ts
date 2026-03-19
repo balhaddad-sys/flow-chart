@@ -1,5 +1,38 @@
 import { Timestamp } from "firebase/firestore";
 
+/**
+ * Get the user's IANA timezone. Uses the browser API which returns the
+ * system timezone (e.g. "Europe/London", "America/New_York").
+ */
+export function getUserTimezone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+  } catch {
+    return "UTC";
+  }
+}
+
+/**
+ * Get start-of-day and end-of-day boundaries in the user's local timezone.
+ * All day-boundary logic flows through this single function.
+ */
+export function getTodayBounds(): { startOfDay: Date; endOfDay: Date } {
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+  return { startOfDay, endOfDay };
+}
+
+/**
+ * Get a stable YYYY-MM-DD key for a date in the user's local timezone.
+ */
+export function toDayKey(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
 export function formatDate(ts: Timestamp | undefined): string {
   if (!ts) return "";
   return ts.toDate().toLocaleDateString("en-US", {
@@ -11,22 +44,12 @@ export function formatDate(ts: Timestamp | undefined): string {
 
 export function isToday(ts: Timestamp): boolean {
   const date = ts.toDate();
-  const today = new Date();
-  return (
-    date.getFullYear() === today.getFullYear() &&
-    date.getMonth() === today.getMonth() &&
-    date.getDate() === today.getDate()
-  );
+  const { startOfDay, endOfDay } = getTodayBounds();
+  return date >= startOfDay && date < endOfDay;
 }
 
 export function isSameDay(a: Timestamp, b: Timestamp): boolean {
-  const da = a.toDate();
-  const db = b.toDate();
-  return (
-    da.getFullYear() === db.getFullYear() &&
-    da.getMonth() === db.getMonth() &&
-    da.getDate() === db.getDate()
-  );
+  return toDayKey(a.toDate()) === toDayKey(b.toDate());
 }
 
 export function groupTasksByDay<T extends { dueDate: Timestamp }>(
@@ -35,8 +58,7 @@ export function groupTasksByDay<T extends { dueDate: Timestamp }>(
   const groups: Map<string, { date: Timestamp; tasks: T[] }> = new Map();
 
   for (const task of tasks) {
-    const d = task.dueDate.toDate();
-    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    const key = toDayKey(task.dueDate.toDate());
     const existing = groups.get(key);
     if (existing) {
       existing.tasks.push(task);

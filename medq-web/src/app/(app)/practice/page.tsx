@@ -155,24 +155,24 @@ const modeCards = [
   {
     href: "/practice/quiz?mode=mixed",
     icon: Zap,
-    label: "Smart Mix",
-    description: "AI-weighted mix focusing on weak areas",
+    label: "Quick Quiz",
+    description: "AI-weighted mix that prioritises your weak areas",
     color: "text-amber-600 dark:text-amber-400",
     bg: "bg-amber-50 dark:bg-amber-500/10",
   },
   {
     href: "/practice/quiz?mode=random",
     icon: Shuffle,
-    label: "Random Quiz",
-    description: "Random selection from all questions",
+    label: "Random Practice",
+    description: "Random selection across all your topics",
     color: "text-blue-600 dark:text-blue-400",
     bg: "bg-blue-50 dark:bg-blue-500/10",
   },
   {
     href: "/practice/assessment",
     icon: BrainCircuit,
-    label: "Assessment",
-    description: "Adaptive diagnostics with scoring",
+    label: "Full Assessment",
+    description: "Adaptive exam simulation with scoring",
     color: "text-violet-600 dark:text-violet-400",
     bg: "bg-violet-50 dark:bg-violet-500/10",
   },
@@ -223,7 +223,7 @@ export default function PracticePage() {
 
   if (!courseId) {
     return (
-      <div className="page-wrap page-stack">
+      <main className="page-wrap page-stack" aria-label="Practice hub">
         <h1 className="page-title">Practice</h1>
         <Card>
           <CardContent className="flex items-center justify-between gap-4 p-5">
@@ -235,12 +235,12 @@ export default function PracticePage() {
             </Link>
           </CardContent>
         </Card>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="page-wrap page-stack">
+    <main className="page-wrap page-stack" aria-label="Practice hub">
 
       {/* Header */}
       <div className="animate-in-up">
@@ -320,6 +320,6 @@ export default function PracticePage() {
           </Tabs>
         </div>
       )}
-    </div>
+    </main>
   );
 }
