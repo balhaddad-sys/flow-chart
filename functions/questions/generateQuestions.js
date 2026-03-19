@@ -224,6 +224,7 @@ async function _generateInline({
   const generatedNow = batch.generatedNow || 0;
   const finalCount = existingState.count + generatedNow;
   const finalDistinct = effectiveCount + generatedNow;
+  const stillNeeded = targetCount - finalDistinct;
   const status = finalDistinct > 0 ? "COMPLETED" : "FAILED";
 
   await sectionRef.update({
@@ -236,12 +237,36 @@ async function _generateInline({
       : "AI generation produced no valid questions.",
   });
 
+  // If inline yielded some but not enough, queue backfill for the remainder
+  if (generatedNow > 0 && stillNeeded > 0) {
+    log.info("Inline generation underfilled, queueing backfill", {
+      uid, courseId, sectionId,
+      generated: generatedNow,
+      target: targetCount,
+      stillNeeded,
+    });
+    // Fire-and-forget: queue a backfill job for the remaining questions
+    try {
+      await db.collection(`users/${uid}/jobs`).add({
+        type: "questionBackfill",
+        courseId,
+        sectionId,
+        requestedCount: stillNeeded,
+        status: "PENDING",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (backfillErr) {
+      log.warn("Failed to queue backfill job", { error: backfillErr.message });
+    }
+  }
+
   log.info("Questions generated inline", {
     uid, courseId, sectionId,
     requested: targetCount,
     generated: generatedNow,
     duplicatesSkipped: batch.duplicateStemSkipped || 0,
     totalNow: finalCount,
+    backfillQueued: stillNeeded > 0,
     durationMs: Date.now() - t0,
   });
 

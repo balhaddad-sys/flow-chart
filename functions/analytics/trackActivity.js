@@ -26,9 +26,10 @@ exports.trackActivity = functions
     const attempt = snap.data();
 
     try {
-      const now = new Date();
-      // Use UTC date so activity is consistent across timezones
-      const dateKey = now.toISOString().slice(0, 10); // YYYY-MM-DD
+      // Use the attempt's own timestamp for accurate date attribution
+      // Falls back to server time if attempt has no timestamp
+      const attemptTime = attempt.createdAt?.toDate?.() ?? attempt.answeredAt?.toDate?.() ?? new Date();
+      const dateKey = attemptTime.toISOString().slice(0, 10); // YYYY-MM-DD
 
       const dayRef = db.doc(`users/${uid}/activity/${dateKey}`);
 

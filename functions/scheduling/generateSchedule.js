@@ -75,7 +75,9 @@ exports.generateSchedule = functions
       });
 
       // ── Pure algorithm ────────────────────────────────────────────────
-      const startDate = new Date();
+      // Normalize to UTC midnight so tasks always align with date boundaries
+      const now = new Date();
+      const startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
       // Validate inputs before scheduling.
       const validationErrors = validateScheduleInputs(startDate, examDate);

@@ -47,15 +47,36 @@ interface ProviderResolution {
   fallbackReason: string | null;
 }
 
+// NOTE: Rate limiting is instance-local on serverless (Vercel). This means
+// limits reset on cold starts and can be bypassed across parallel instances.
+// This is an acceptable tradeoff — the backend Cloud Functions have their own
+// Firestore-backed rate limits as the authoritative defense. This layer is
+// a best-effort client-side throttle to reduce unnecessary AI API calls.
 const rateLimitMap = new Map<string, number[]>();
 const responseCache = new Map<string, ResponseCacheEntry>();
 const inFlightResponses = new Map<string, Promise<ModelResponse>>();
+
+// Periodically evict stale entries to prevent memory growth
+function pruneStaleEntries() {
+  const now = Date.now();
+  for (const [key, timestamps] of rateLimitMap) {
+    const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+    if (recent.length === 0) rateLimitMap.delete(key);
+    else rateLimitMap.set(key, recent);
+  }
+  for (const [key, entry] of responseCache) {
+    if (entry.expiresAt < now) responseCache.delete(key);
+  }
+}
 
 function checkRateLimit(uid: string): boolean {
   const now = Date.now();
   const key = `explore-chat:${uid}`;
   const timestamps = rateLimitMap.get(key) ?? [];
   const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+
+  // Periodic cleanup (every ~50 calls)
+  if (Math.random() < 0.02) pruneStaleEntries();
 
   if (recent.length >= RATE_LIMIT_MAX) {
     rateLimitMap.set(key, recent);

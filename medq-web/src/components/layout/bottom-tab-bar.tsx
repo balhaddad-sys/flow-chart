@@ -2,21 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Library, CircleHelp, Sparkles, Compass, User } from "lucide-react";
+import { Home, Library, CircleHelp, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+// 4 core tabs — lean mobile navigation
+// Settings is accessible via sidebar on desktop and profile avatar on mobile
 const tabs = [
   { href: "/today", label: "Home", icon: Home },
   { href: "/library", label: "Library", icon: Library },
   { href: "/practice", label: "Practice", icon: CircleHelp },
   { href: "/ai", label: "AI", icon: Sparkles },
-  { href: "/ai/explore", label: "Explore", icon: Compass },
-  { href: "/profile", label: "Settings", icon: User },
 ];
 
 function isTabActive(pathname: string, href: string): boolean {
   if (href === "/today") return pathname === "/today" || pathname.startsWith("/today/");
-  if (href === "/ai/explore") return pathname.startsWith("/ai/explore");
-  if (href === "/ai") return pathname === "/ai" || (pathname.startsWith("/ai/") && !pathname.startsWith("/ai/explore"));
+  if (href === "/ai") return pathname.startsWith("/ai");
   if (href === "/practice") {
     return pathname === "/practice" || pathname.startsWith("/practice/") || pathname.startsWith("/study/");
   }

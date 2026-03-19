@@ -92,9 +92,17 @@ service cloud.firestore {
 
       match /tasks/{taskId} {
         allow read: if isOwner(userId);
-        allow create: if isOwner(userId);
+        // Tasks are primarily created by Cloud Functions (generateSchedule).
+        // Client can only create with required fields; server-owned fields are frozen.
+        allow create: if isOwner(userId)
+          && hasRequiredFields(['courseId', 'status'])
+          && request.resource.data.status in ['TODO', 'IN_PROGRESS', 'DONE', 'SKIPPED'];
         allow update: if isOwner(userId)
-          && (!('status' in request.resource.data) || request.resource.data.status in ['TODO', 'IN_PROGRESS', 'DONE', 'SKIPPED']);
+          && (!('status' in request.resource.data) || request.resource.data.status in ['TODO', 'IN_PROGRESS', 'DONE', 'SKIPPED'])
+          // Freeze server-owned scheduling fields
+          && (!('courseId' in request.resource.data) || request.resource.data.courseId == resource.data.courseId)
+          && (!('sectionId' in request.resource.data) || request.resource.data.sectionId == resource.data.sectionId)
+          && (!('estimatedMinutes' in request.resource.data) || request.resource.data.estimatedMinutes == resource.data.estimatedMinutes);
         allow delete: if isOwner(userId);
       }
 
@@ -124,11 +132,12 @@ service cloud.firestore {
       match /examBank/{examId} {
         allow read: if isOwner(userId);
         // Questions are created by Cloud Functions (Admin SDK).
-        // Client can create (save progress when doc doesn't exist yet),
-        // update (save progress), and delete (clear stale data).
+        // Client can only write progress data, not question content.
         allow create: if isOwner(userId)
           && request.resource.data.keys().hasOnly(['progress']);
-        allow update: if isOwner(userId);
+        allow update: if isOwner(userId)
+          && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['progress', 'updatedAt']);
         allow delete: if isOwner(userId);
       }
 
@@ -154,8 +163,13 @@ service cloud.firestore {
       match /chatThreads/{threadId} {
         allow read: if isOwner(userId);
         allow create: if isOwner(userId)
-          && hasRequiredFields(['courseId', 'title']);
-        allow update: if isOwner(userId);
+          && hasRequiredFields(['courseId', 'title'])
+          && isValidString(request.resource.data.title, 500);
+        allow update: if isOwner(userId)
+          // Clients can only update title; courseId is immutable
+          && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['title', 'updatedAt', 'lastMessageAt'])
+          && (!('title' in request.resource.data) || isValidString(request.resource.data.title, 500));
         allow delete: if isOwner(userId);
       }
 

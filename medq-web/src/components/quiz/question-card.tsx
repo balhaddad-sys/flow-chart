@@ -136,7 +136,8 @@ export function QuestionCard({ question, index, total }: QuestionCardProps) {
     }
 
     try {
-      const elapsed = Math.round((Date.now() - useQuizStore.getState().startTime) / 1000);
+      // Use per-question elapsed time (not cumulative quiz time)
+      const elapsed = useQuizStore.getState().getQuestionElapsed(question.id);
       // Fire-and-forget to backend; UI already shows the result
       fn.submitAttempt({
         questionId: question.id,
