@@ -174,10 +174,12 @@ async function callClaude(
 
   for (;;) {
     try {
-      // Build messages array with optional prefill injection
+      // Build messages array with optional prefill injection.
+      // Sonnet 4.6+ does not support assistant prefill — disable for HEAVY tier.
       const messages = [{ role: "user", content: userPrompt }];
+      const canPrefill = usePrefill && tier !== "HEAVY";
 
-      if (usePrefill) {
+      if (canPrefill) {
         messages.push({ role: "assistant", content: "{" });
       }
 
@@ -199,7 +201,7 @@ async function callClaude(
         .map((block) => block.text)
         .join("");
 
-      if (usePrefill) {
+      if (canPrefill) {
         text = "{" + text;
       }
 
