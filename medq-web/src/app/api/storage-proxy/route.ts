@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyFirebaseToken } from "@/lib/server/firebase-token";
 
-const ALLOWED_HOST = "firebasestorage.googleapis.com";
+const ALLOWED_HOSTS = new Set([
+  "firebasestorage.googleapis.com",
+  "medq-a6cc6.firebasestorage.app",
+  "storage.googleapis.com",
+]);
 const MAX_RESPONSE_BYTES = 10 * 1024 * 1024; // 10 MB limit
 
 /**
@@ -21,9 +25,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
 
-  try {
-    await verifyFirebaseToken(token);
-  } catch {
+  const bearerToken = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
+  const user = await verifyFirebaseToken(bearerToken);
+  if (!user) {
     return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
   }
 
@@ -40,8 +44,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
   }
 
-  if (parsed.hostname !== ALLOWED_HOST) {
-    return NextResponse.json({ error: "URL not allowed" }, { status: 403 });
+  if (!ALLOWED_HOSTS.has(parsed.hostname)) {
+    return NextResponse.json({ error: `URL host not allowed: ${parsed.hostname}` }, { status: 403 });
   }
 
   try {
