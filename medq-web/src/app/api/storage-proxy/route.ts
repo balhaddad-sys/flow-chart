@@ -1,12 +1,32 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verifyFirebaseToken } from "@/lib/server/firebase-token";
 
 const ALLOWED_HOST = "firebasestorage.googleapis.com";
+const MAX_RESPONSE_BYTES = 10 * 1024 * 1024; // 10 MB limit
 
 /**
  * Server-side proxy for Firebase Storage downloads.
  * Avoids CORS issues since the fetch happens on the server, not the browser.
+ *
+ * Security:
+ * - Requires valid Firebase auth token
+ * - Only allows firebasestorage.googleapis.com URLs (SSRF protection)
+ * - Enforces response size limit
  */
 export async function GET(req: NextRequest) {
+  // Auth check
+  const authHeader = req.headers.get("authorization");
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!token) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
+  try {
+    await verifyFirebaseToken(token);
+  } catch {
+    return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
+  }
+
   const url = req.nextUrl.searchParams.get("url");
   if (!url) {
     return NextResponse.json({ error: "Missing url parameter" }, { status: 400 });
@@ -32,7 +52,18 @@ export async function GET(req: NextRequest) {
         { status: res.status }
       );
     }
+
+    // Enforce size limit
+    const contentLength = Number(res.headers.get("content-length") || 0);
+    if (contentLength > MAX_RESPONSE_BYTES) {
+      return NextResponse.json({ error: "File too large" }, { status: 413 });
+    }
+
     const text = await res.text();
+    if (text.length > MAX_RESPONSE_BYTES) {
+      return NextResponse.json({ error: "File too large" }, { status: 413 });
+    }
+
     return new NextResponse(text, {
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });

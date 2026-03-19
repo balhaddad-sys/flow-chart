@@ -143,19 +143,67 @@ exports.sendChatMessage = functions
     const examName = typeof data?.examName === "string" ? data.examName.trim().slice(0, 80) : "";
     const clinicallyNuanced = Boolean(data?.clinicallyNuanced);
 
+    // Idempotency: client sends a unique requestId for each message attempt.
+    // If the same requestId arrives again (e.g. retry after timeout), return
+    // the cached response instead of creating a duplicate message.
+    const requestId = typeof data?.requestId === "string" ? data.requestId.trim().slice(0, 64) : "";
+
     try {
+      // Dedupe check: if requestId provided, look for an existing message with that requestId
+      if (requestId) {
+        const existingSnap = await db
+          .collection("users").doc(uid)
+          .collection("chatMessages")
+          .where("requestId", "==", requestId)
+          .where("role", "==", "user")
+          .limit(1)
+          .get();
+
+        if (!existingSnap.empty) {
+          // Find the corresponding assistant response
+          const userMsg = existingSnap.docs[0];
+          const assistantSnap = await db
+            .collection("users").doc(uid)
+            .collection("chatMessages")
+            .where("threadId", "==", threadId)
+            .where("role", "==", "assistant")
+            .where("createdAt", ">", userMsg.data().createdAt)
+            .orderBy("createdAt", "asc")
+            .limit(1)
+            .get();
+
+          if (!assistantSnap.empty) {
+            const cached = assistantSnap.docs[0].data();
+            log.info("Returning cached response for duplicate requestId", { uid, requestId });
+            return {
+              success: true,
+              data: {
+                userMessageId: userMsg.id,
+                response: cached.content,
+                citations: cached.citations || [],
+                evidenceReferences: cached.evidenceReferences || [],
+                deduplicated: true,
+              },
+            };
+          }
+        }
+      }
+
       // Save user message
+      const userMsgData = {
+        threadId,
+        role: "user",
+        content: message,
+        citations: [],
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+      if (requestId) userMsgData.requestId = requestId;
+
       const userMsgRef = await db
         .collection("users")
         .doc(uid)
         .collection("chatMessages")
-        .add({
-          threadId,
-          role: "user",
-          content: message,
-          citations: [],
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+        .add(userMsgData);
 
       // Get recent thread history
       const historySnap = await db

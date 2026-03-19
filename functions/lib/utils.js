@@ -88,4 +88,41 @@ function withTimeout(taskPromise, timeoutMs, timeoutLabel) {
   ]);
 }
 
-module.exports = { shuffleArray, clampInt, truncate, toISODate, weekdayName, withTimeout };
+/**
+ * Canonical day-key: returns YYYY-MM-DD in UTC for any Date or Firestore Timestamp.
+ * This is the single source of truth for date binning across the entire backend.
+ * All schedule dates, activity tracking, streak computation, and overdue detection
+ * MUST use this function to ensure consistency.
+ *
+ * @param {Date|{toDate: () => Date}|number} input - Date, Firestore Timestamp, or epoch ms
+ * @returns {string} YYYY-MM-DD in UTC
+ */
+function toUTCDayKey(input) {
+  let date;
+  if (input instanceof Date) {
+    date = input;
+  } else if (input && typeof input.toDate === "function") {
+    date = input.toDate();
+  } else if (typeof input === "number") {
+    date = new Date(input);
+  } else {
+    date = new Date();
+  }
+  return date.toISOString().slice(0, 10);
+}
+
+/**
+ * Returns a Date set to UTC midnight for the given day-key or Date.
+ * @param {string|Date} input - YYYY-MM-DD string or Date
+ * @returns {Date}
+ */
+function toUTCMidnight(input) {
+  if (typeof input === "string") {
+    const [y, m, d] = input.split("-").map(Number);
+    return new Date(Date.UTC(y, m - 1, d));
+  }
+  const d = input instanceof Date ? input : new Date();
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
+module.exports = { shuffleArray, clampInt, truncate, toISODate, toUTCDayKey, toUTCMidnight, weekdayName, withTimeout };

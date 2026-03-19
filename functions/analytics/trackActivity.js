@@ -26,10 +26,12 @@ exports.trackActivity = functions
     const attempt = snap.data();
 
     try {
-      // Use the attempt's own timestamp for accurate date attribution
-      // Falls back to server time if attempt has no timestamp
-      const attemptTime = attempt.createdAt?.toDate?.() ?? attempt.answeredAt?.toDate?.() ?? new Date();
-      const dateKey = attemptTime.toISOString().slice(0, 10); // YYYY-MM-DD
+      // Use canonical day-key derived from the attempt's own timestamp.
+      // This ensures activity is attributed to the correct UTC day regardless
+      // of when the trigger fires or what timezone the server is in.
+      const { toUTCDayKey } = require("../lib/utils");
+      const attemptTime = attempt.createdAt ?? attempt.answeredAt ?? null;
+      const dateKey = toUTCDayKey(attemptTime);
 
       const dayRef = db.doc(`users/${uid}/activity/${dateKey}`);
 

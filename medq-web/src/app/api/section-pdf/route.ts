@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PDFDocument } from "pdf-lib";
+import { verifyFirebaseToken } from "@/lib/server/firebase-token";
 
 export const runtime = "nodejs";
 
 const ALLOWED_HOST = "firebasestorage.googleapis.com";
 const MAX_SECTION_PAGES = 60;
+const MAX_SOURCE_BYTES = 100 * 1024 * 1024; // 100 MB source PDF limit
 
 function toPositiveInt(value: string | null, fallback: number) {
   const parsed = Number.parseInt(String(value ?? ""), 10);
@@ -23,6 +25,19 @@ function safeName(value: string) {
  * instead of opening the full source document.
  */
 export async function GET(req: NextRequest) {
+  // Auth check
+  const authHeader = req.headers.get("authorization");
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!token) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+  }
+
+  try {
+    await verifyFirebaseToken(token);
+  } catch {
+    return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
+  }
+
   const rawUrl = req.nextUrl.searchParams.get("url");
   if (!rawUrl) {
     return NextResponse.json({ error: "Missing url parameter" }, { status: 400 });
@@ -55,6 +70,9 @@ export async function GET(req: NextRequest) {
     }
 
     const sourceBytes = await sourceRes.arrayBuffer();
+    if (sourceBytes.byteLength > MAX_SOURCE_BYTES) {
+      return NextResponse.json({ error: "Source PDF too large" }, { status: 413 });
+    }
     const sourcePdf = await PDFDocument.load(sourceBytes);
     const totalPages = sourcePdf.getPageCount();
 
