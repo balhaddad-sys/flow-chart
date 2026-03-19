@@ -10,6 +10,7 @@ import { BookOpen, Loader2, CheckCircle2, AlertCircle, HelpCircle, ExternalLink 
 import type { SectionModel } from "@/lib/types/section";
 import type { FileModel } from "@/lib/types/file";
 import { getFileDownloadUrl } from "@/lib/firebase/storage";
+import { getAuth } from "firebase/auth";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -47,8 +48,9 @@ export function SectionList({ sections, loading, file }: SectionListProps) {
 
     try {
       const downloadUrl = await getFileDownloadUrl(file.storagePath);
+      const authToken = await getAuth().currentUser?.getIdToken() ?? "";
       const sourceUrl = isPdf
-        ? `/api/section-pdf?url=${encodeURIComponent(downloadUrl)}&start=${startIndex}&end=${endIndex}&name=${encodeURIComponent(file.originalName)}`
+        ? `/api/section-pdf?url=${encodeURIComponent(downloadUrl)}&start=${startIndex}&end=${endIndex}&name=${encodeURIComponent(file.originalName)}&token=${encodeURIComponent(authToken)}`
         : downloadUrl;
 
       if (previewWindow) {

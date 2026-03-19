@@ -25,9 +25,10 @@ function safeName(value: string) {
  * instead of opening the full source document.
  */
 export async function GET(req: NextRequest) {
-  // Auth check
+  // Auth check — supports both header and query param (for window.open use cases)
   const authHeader = req.headers.get("authorization");
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7)
+    : req.nextUrl.searchParams.get("token");
   if (!token) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }

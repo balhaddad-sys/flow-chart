@@ -1,6 +1,18 @@
 import { ref, uploadBytesResumable, getDownloadURL, type UploadTask } from "firebase/storage";
 import { doc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 import { storage, db } from "./client";
+
+/** Get the current user's ID token for authenticated API calls. */
+async function getAuthToken(): Promise<string | null> {
+  try {
+    const user = getAuth().currentUser;
+    if (!user) return null;
+    return await user.getIdToken();
+  } catch {
+    return null;
+  }
+}
 
 const SUPPORTED_MIME_TYPES = [
   "application/pdf",
@@ -100,7 +112,10 @@ export async function getFileDownloadUrl(storagePath: string): Promise<string> {
 /** Read a text file from Cloud Storage via a server-side proxy (avoids CORS). */
 export async function getTextBlob(storagePath: string): Promise<string> {
   const downloadUrl = await getDownloadURL(ref(storage, storagePath));
-  const res = await fetch(`/api/storage-proxy?url=${encodeURIComponent(downloadUrl)}`);
+  const token = await getAuthToken();
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const res = await fetch(`/api/storage-proxy?url=${encodeURIComponent(downloadUrl)}`, { headers });
   if (!res.ok) throw new Error(`Failed to fetch text blob: ${res.status}`);
   return res.text();
 }

@@ -30,6 +30,7 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { useTimerStore } from "@/lib/stores/timer-store";
 import { updateTask, getFile } from "@/lib/firebase/firestore";
 import { getTextBlob, getFileDownloadUrl } from "@/lib/firebase/storage";
+import { getAuth } from "firebase/auth";
 import * as fn from "@/lib/firebase/functions";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
@@ -307,8 +308,9 @@ export default function StudySessionPage({
     const previewWindow = window.open("", "_blank");
     try {
       const downloadUrl = await getFileDownloadUrl(file.storagePath);
+      const authToken = await getAuth().currentUser?.getIdToken() ?? "";
       const sourceUrl = isPdf
-        ? `/api/section-pdf?url=${encodeURIComponent(downloadUrl)}&start=${startIndex}&end=${endIndex}&name=${encodeURIComponent(file.originalName)}`
+        ? `/api/section-pdf?url=${encodeURIComponent(downloadUrl)}&start=${startIndex}&end=${endIndex}&name=${encodeURIComponent(file.originalName)}&token=${encodeURIComponent(authToken)}`
         : downloadUrl;
       if (previewWindow) {
         previewWindow.opener = null; // security: detach opener reference
