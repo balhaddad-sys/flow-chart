@@ -61,7 +61,7 @@ function buildTokenBudget(requestCount, { advanced = false, rescue = false, fast
   // without the older oversized token ceilings.
   const base = fast ? 520 : advanced ? 880 : 720;
   const perQuestion = fast ? 220 : advanced ? 320 : 260;
-  const hardCap = rescue ? 4800 : fast ? 3200 : advanced ? 5600 : 4400;
+  const hardCap = rescue ? 4800 : fast ? 3200 : advanced ? 5200 : 4400;
   return Math.min(hardCap, base + safeCount * perQuestion);
 }
 

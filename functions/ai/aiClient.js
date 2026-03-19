@@ -31,10 +31,10 @@ const MODELS = {
   HEAVY: "claude-sonnet-4-6", // Tutoring, fix plans, chat (quality-optimized)
 };
 
-// Max tokens per prompt type — tuned for cost vs completeness
+// Max tokens per prompt type — aligned with selfTuningCostEngine ceiling (5200)
 const MAX_TOKENS = {
   blueprint: 1800,
-  questions: 6144,
+  questions: 5200,
   tutoring: 1024,
   fixPlan: 2048,
   documentExtract: 800,

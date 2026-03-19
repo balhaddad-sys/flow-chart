@@ -42,9 +42,9 @@ const GENERATION_VERSION = 2;
 
 function buildExamBankTokenBudget(count, { fallback = false } = {}) {
   const safeCount = Math.max(3, Math.min(20, Number(count) || DEFAULT_COUNT));
-  const base = fallback ? 900 : 1100;
-  const perQuestion = fallback ? 280 : 320;
-  const hardCap = fallback ? 5200 : 6144;
+  const base = fallback ? 900 : 900;
+  const perQuestion = fallback ? 280 : 300;
+  const hardCap = fallback ? 5200 : 5200;
   return Math.min(hardCap, base + safeCount * perQuestion);
 }
 
