@@ -208,7 +208,7 @@ export function SectionList({ sections, loading, file }: SectionListProps) {
                 </Badge>
                 {section.aiStatus === "ANALYZED" && section.questionsCount > 0 && (
                   <Link
-                    href={`/quiz?section=${section.id}`}
+                    href={`/practice/quiz?section=${section.id}`}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <Button variant="outline" size="sm" className="h-7 text-xs">

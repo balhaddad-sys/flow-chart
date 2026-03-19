@@ -142,7 +142,6 @@ export function PDFViewer({ url, className = "" }: PDFViewerProps) {
           onError={handleError}
           title="Section PDF"
           className="w-full h-full border-0"
-          sandbox="allow-same-origin allow-scripts allow-popups"
         />
       </div>
     </div>

@@ -33,9 +33,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
 
-  try {
-    await verifyFirebaseToken(token);
-  } catch {
+  // verifyFirebaseToken expects "Bearer <token>" format
+  const bearerToken = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
+  const user = await verifyFirebaseToken(bearerToken);
+  if (!user) {
     return NextResponse.json({ error: "Invalid or expired token" }, { status: 401 });
   }
 

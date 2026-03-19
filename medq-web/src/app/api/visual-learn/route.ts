@@ -253,7 +253,13 @@ export async function POST(req: NextRequest) {
           systemInstruction: SYSTEM_PROMPT,
           contents: [{ role: "user", parts: [{ text: USER_PROMPT(title, promptText, concepts, topicTags) }] }],
         })
-        .then((result) => extractJson(result.response.text())),
+        .then((result) => {
+          const text = result.response.text();
+          if (!text || text.trim().length === 0) {
+            throw new Error("AI returned an empty response. The content may have been filtered.");
+          }
+          return extractJson(text);
+        }),
       MODEL_TIMEOUT_MS,
       "Visual learning generation timed out. Please retry."
     );
