@@ -79,6 +79,11 @@ exports.generateQuestions = functions
         (bp.commonTraps?.length || 0) +
         (bp.termsToDefine?.length || 0);
       if (bpContentCount === 0) {
+        // Non-instructional sections (title pages, TOC, etc.) have empty blueprints —
+        // return gracefully instead of treating as an error.
+        if (section.isNonInstructional) {
+          return ok({ questionCount: 0, generatedNow: 0, fromCache: true, backgroundQueued: false, skipped: true, reason: "Non-instructional section" });
+        }
         return fail(Errors.NOT_ANALYZED, "Section blueprint has no content. Please retry the section analysis first.");
       }
 

@@ -156,16 +156,23 @@ exports.processSection = functions
           bp.highYieldPoints.length + bp.commonTraps.length + bp.termsToDefine.length) > 0;
 
         if (!hasContent) {
-          log.warn("Blueprint normalised but all arrays empty — treating as failure", {
+          // Empty arrays are legitimate — section may be a title page, TOC,
+          // copyright notice, or other non-educational content.  Mark it as
+          // ANALYZED (not FAILED) so it doesn't block the parent file.
+          log.info("Blueprint normalised but no educational content — marking as non-instructional", {
             uid,
             sectionId,
             rawKeys: Object.keys(blueprintResult.value.data || {}),
             durationMs: Date.now() - t0,
           });
           await snap.ref.update({
-            aiStatus: "FAILED",
-            questionsErrorMessage: "Blueprint analysis returned no content. Please retry.",
-            lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
+            aiStatus: "ANALYZED",
+            isNonInstructional: true,
+            blueprint: normalised.blueprint,
+            title: normalised.title || sectionData.title,
+            difficulty: 1,
+            estMinutes: 0,
+            questionsStatus: "SKIPPED",
           });
           await maybeMarkFileReady(uid, sectionData.fileId);
           return null;
@@ -334,7 +341,12 @@ async function maybeMarkFileReady(uid, fileId) {
         return data.aiStatus === "ANALYZED" && data.questionsStatus === "FAILED";
       });
       const hasAnyQuestions = siblingsSnap.docs.some((d) => (d.data().questionsCount || 0) > 0);
-      const allFailed = siblingsSnap.docs.every((d) => d.data().aiStatus === "FAILED");
+      const analyzedWithContent = siblingsSnap.docs.filter((d) => {
+        const data = d.data();
+        return data.aiStatus === "ANALYZED" && !data.isNonInstructional;
+      });
+      const allFailed = analyzedWithContent.length === 0 &&
+        siblingsSnap.docs.every((d) => d.data().aiStatus === "FAILED" || d.data().isNonInstructional);
 
       let fileStatus;
       if (allFailed) {
