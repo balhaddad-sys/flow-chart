@@ -21,7 +21,8 @@ const { DEFAULT_QUESTION_COUNT } = require("../lib/constants");
 const { computeSectionQuestionDifficultyCounts } = require("../lib/difficulty");
 const { normaliseQuestion } = require("../lib/serialize");
 const { stripOCRNoise } = require("../lib/sanitize");
-const { generateQuestions: aiGenerateQuestions } = require("../ai/aiClient");
+const { generateQuestions: claudeGenerateQuestions } = require("../ai/aiClient");
+const { generateQuestions: geminiGenerateQuestions } = require("../ai/geminiClient");
 const { analyzeSectionBlueprint, blueprintContentCount } = require("../ai/blueprintAnalysis");
 const { QUESTIONS_FROM_TEXT_SYSTEM, questionsFromTextUserPrompt } = require("../ai/prompts");
 const { maybeAutoGenerateSchedule } = require("../scheduling/autoSchedule");
@@ -127,7 +128,7 @@ exports.processSection = functions
           contentType: fileData.mimeType || "pdf",
           sectionText,
         }),
-        aiGenerateQuestions(
+        geminiGenerateQuestions(
           QUESTIONS_FROM_TEXT_SYSTEM,
           questionsFromTextUserPrompt({
             sectionText,
@@ -138,7 +139,8 @@ exports.processSection = functions
             sectionTitle: sectionData.title,
             sourceFileName: fileData.originalName || "Unknown",
             examType,
-          })
+          }),
+          { maxTokens: 4096, retries: 1 }
         ),
       ]);
 
