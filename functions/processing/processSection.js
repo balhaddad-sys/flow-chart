@@ -327,16 +327,34 @@ async function maybeMarkFileReady(uid, fileId) {
     });
 
     if (allDone && !siblingsSnap.empty) {
+      // Determine readiness quality: if any section has failed questions,
+      // mark as READY_PARTIAL instead of fully READY
+      const hasQuestionFailures = siblingsSnap.docs.some((d) => {
+        const data = d.data();
+        return data.aiStatus === "ANALYZED" && data.questionsStatus === "FAILED";
+      });
+      const hasAnyQuestions = siblingsSnap.docs.some((d) => (d.data().questionsCount || 0) > 0);
+      const allFailed = siblingsSnap.docs.every((d) => d.data().aiStatus === "FAILED");
+
+      let fileStatus;
+      if (allFailed) {
+        fileStatus = "FAILED";
+      } else if (hasQuestionFailures || !hasAnyQuestions) {
+        fileStatus = "READY_PARTIAL";
+      } else {
+        fileStatus = "READY";
+      }
+
       const fileRef = db.doc(`users/${uid}/files/${fileId}`);
       await fileRef.set(
         {
-          status: "READY",
+          status: fileStatus,
           processingPhase: admin.firestore.FieldValue.delete(),
           processedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
         { merge: true }
       );
-      log.info("All sections done, file marked READY", { uid, fileId });
+      log.info("All sections done, file marked", { uid, fileId, status: fileStatus, hasQuestionFailures });
 
       // Auto-generate study plan if all course files are done and no plan exists yet
       const fileData = (await fileRef.get()).data();

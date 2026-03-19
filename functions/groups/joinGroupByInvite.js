@@ -22,7 +22,8 @@ exports.joinGroupByInvite = functions
   .https.onCall(async (data, context) => {
     const uid = requireAuth(context);
     requireStrings(data, [{ field: "inviteCode", maxLen: 20 }]);
-    await checkRateLimit(uid, "joinGroup", RATE_LIMITS.submitAttempt);
+    // Dedicated rate limit for group joins (not reusing submitAttempt)
+    await checkRateLimit(uid, "joinGroup", { maxCalls: 10, windowSeconds: 60 });
 
     const inviteCode = data.inviteCode.trim().toUpperCase();
 
@@ -39,22 +40,30 @@ exports.joinGroupByInvite = functions
       }
 
       const groupDoc = snap.docs[0];
-      const groupData = groupDoc.data();
 
-      // Already a member — just return the group ID
-      if ((groupData.members || []).includes(uid)) {
-        return ok({ groupId: groupDoc.id, alreadyMember: true });
-      }
+      // Use a transaction to prevent memberCount drift from concurrent/retried joins
+      const result = await db.runTransaction(async (tx) => {
+        const freshDoc = await tx.get(groupDoc.ref);
+        const freshData = freshDoc.data();
 
-      // Add user to group atomically
-      await groupDoc.ref.update({
-        members: admin.firestore.FieldValue.arrayUnion(uid),
-        memberCount: admin.firestore.FieldValue.increment(1),
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        // Already a member — no-op, return early
+        if ((freshData.members || []).includes(uid)) {
+          return { groupId: groupDoc.id, alreadyMember: true };
+        }
+
+        tx.update(groupDoc.ref, {
+          members: admin.firestore.FieldValue.arrayUnion(uid),
+          memberCount: (freshData.members || []).length + 1, // computed, not incremented
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        return { groupId: groupDoc.id, alreadyMember: false };
       });
 
-      log.info("User joined group via invite", { uid, groupId: groupDoc.id });
-      return ok({ groupId: groupDoc.id, alreadyMember: false });
+      if (!result.alreadyMember) {
+        log.info("User joined group via invite", { uid, groupId: result.groupId });
+      }
+      return ok(result);
     } catch (error) {
       return safeError(error, "join group by invite");
     }

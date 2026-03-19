@@ -240,8 +240,16 @@ exports.generateExamBankQuestions = functions
       const uniqueNew = stamped.filter((q) => !isDuplicate(q.stem, existingStems));
 
       // Merge, cap, persist
-      const merged = [...existingQuestions, ...uniqueNew].slice(-MAX_STORED_QUESTIONS);
+      const allQuestions = [...existingQuestions, ...uniqueNew];
+      const merged = allQuestions.slice(-MAX_STORED_QUESTIONS);
       const updatedDomains = [...domainsGenerated, domain].slice(-50);
+
+      // Identify and delete stale question docs that were trimmed from the bank
+      const trimmedIds = allQuestions.length > MAX_STORED_QUESTIONS
+        ? allQuestions.slice(0, allQuestions.length - MAX_STORED_QUESTIONS)
+            .map((q) => q.id)
+            .filter(Boolean)
+        : [];
 
       const now = admin.firestore.FieldValue.serverTimestamp();
 
@@ -255,6 +263,11 @@ exports.generateExamBankQuestions = functions
           courseId: examType,
           createdAt: now,
         });
+      }
+
+      // Delete stale question docs that were trimmed from the bank
+      for (const staleId of trimmedIds.slice(0, 400)) { // cap deletes per batch
+        batch.delete(db.doc(`users/${uid}/questions/${staleId}`));
       }
 
       batch.set(

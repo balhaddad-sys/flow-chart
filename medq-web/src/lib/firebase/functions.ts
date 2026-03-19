@@ -544,7 +544,8 @@ export function processDocumentBatch(params: {
 }
 
 // --- Retry Failed Sections ---
-export function retryFailedSections(params: { fileId: string }) {
+// Accepts either fileId or courseId (backend supports both)
+export function retryFailedSections(params: { fileId?: string; courseId?: string }) {
   return callFunction<{ retriedCount: number; message: string }>(
     "retryFailedSections",
     params

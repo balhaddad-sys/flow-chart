@@ -53,22 +53,29 @@ async function getSectionAttemptStats(uid, sectionId, lookbackDays) {
 
   const questionIds = new Set(questionsSnap.docs.map((d) => d.id));
 
-  // Fetch recent attempts
+  // Fetch recent attempts — query by questionId directly for each question
+  // to avoid the global cap issue where heavy activity in other sections
+  // pushes relevant attempts out of the 200-doc window.
   const cutoff = admin.firestore.Timestamp.fromDate(
     new Date(Date.now() - lookbackDays * MS_PER_DAY)
   );
 
-  const attemptsSnap = await db
-    .collection(`users/${uid}/attempts`)
-    .where("createdAt", ">=", cutoff)
-    .orderBy("createdAt", "desc")
-    .limit(200) // reasonable cap
-    .get();
+  // Query attempts per question (batched to avoid too many queries)
+  const questionIdArray = Array.from(questionIds).slice(0, 50); // cap at 50 questions
+  const relevant = [];
 
-  // Filter to attempts for this section's questions
-  const relevant = attemptsSnap.docs
-    .map((d) => d.data())
-    .filter((a) => questionIds.has(a.questionId));
+  // Firestore IN queries support max 30 items
+  for (let i = 0; i < questionIdArray.length; i += 30) {
+    const batch = questionIdArray.slice(i, i + 30);
+    const batchSnap = await db
+      .collection(`users/${uid}/attempts`)
+      .where("questionId", "in", batch)
+      .where("createdAt", ">=", cutoff)
+      .orderBy("createdAt", "desc")
+      .limit(100)
+      .get();
+    relevant.push(...batchSnap.docs.map((d) => d.data()));
+  }
 
   if (relevant.length === 0) {
     return { accuracy: 0.5, avgTimeSec: 30, avgConfidence: 0, count: 0 };

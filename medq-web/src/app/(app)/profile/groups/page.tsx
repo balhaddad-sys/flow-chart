@@ -56,7 +56,9 @@ export default function GroupsPage() {
     if (!uid || !user || !createName.trim()) return;
     setCreating(true);
     try {
-      const inviteCode = Math.random().toString(36).slice(2, 8).toUpperCase();
+      // Cryptographically random invite code to avoid collisions
+      const bytes = crypto.getRandomValues(new Uint8Array(6));
+      const inviteCode = Array.from(bytes, (b) => b.toString(36)).join("").toUpperCase().slice(0, 8);
       const ref = await addDoc(collection(db, "studyGroups"), {
         name: createName.trim(),
         description: createDesc.trim() || null,
