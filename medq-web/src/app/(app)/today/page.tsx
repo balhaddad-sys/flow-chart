@@ -20,16 +20,11 @@ import { StreakGraph } from "@/components/home/streak-graph";
 import { PipelineProgress } from "@/components/home/pipeline-progress";
 import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   PageLoadingState,
   InlineLoadingState,
   LoadingButtonLabel,
 } from "@/components/ui/loading-state";
+import { PhaseLoadingCard } from "@/components/ui/phase-loading-card";
 import {
   Upload,
   Calendar,
@@ -41,7 +36,6 @@ import {
   BookOpen,
   Trophy,
   ChevronRight,
-  MoreHorizontal,
 } from "lucide-react";
 import * as fn from "@/lib/firebase/functions";
 import { toast } from "sonner";
@@ -96,6 +90,8 @@ export default function TodayPage() {
 
   const sectionMap = useMemo(() => buildSectionMap(sections), [sections]);
   const [fixPlanLoading, setFixPlanLoading] = useState(false);
+  const [fixPlanPhase, setFixPlanPhase] = useState("idle");
+  const [seedPhase, setSeedPhase] = useState("idle");
 
   const hasFiles = files.length > 0;
   const hasSections = sections.some((s) => s.aiStatus === "ANALYZED");
@@ -130,20 +126,35 @@ export default function TodayPage() {
   async function handleFixPlan() {
     if (!effectiveCourseId) return;
     setFixPlanLoading(true);
+    setFixPlanPhase("analyze");
     try {
+      // Phase transitions on a timer since we can't observe the function internals
+      const phaseTimer = setTimeout(() => setFixPlanPhase("plan"), 3000);
+      const phaseTimer2 = setTimeout(() => setFixPlanPhase("save"), 7000);
       await fn.runFixPlan({ courseId: effectiveCourseId });
+      clearTimeout(phaseTimer);
+      clearTimeout(phaseTimer2);
+      setFixPlanPhase("done");
       toast.success("Remediation plan generated. Check your plan for updated tasks.");
     } catch {
+      setFixPlanPhase("analyze");
       toast.error("Failed to generate fix plan.");
     } finally {
       setFixPlanLoading(false);
+      setTimeout(() => setFixPlanPhase("idle"), 2000);
     }
   }
 
   async function handleSeedSampleDeck() {
     setSeedingDeck(true);
+    setSeedPhase("create");
     try {
+      const t1 = setTimeout(() => setSeedPhase("generate"), 3000);
+      const t2 = setTimeout(() => setSeedPhase("finalize"), 8000);
       const result = await fn.seedSampleDeck();
+      clearTimeout(t1);
+      clearTimeout(t2);
+      setSeedPhase("done");
       if (result.alreadySeeded) {
         toast.info("Sample deck is already in your account.");
       } else {
@@ -155,6 +166,7 @@ export default function TodayPage() {
       toast.error("Failed to load sample deck.");
     } finally {
       setSeedingDeck(false);
+      setTimeout(() => setSeedPhase("idle"), 2000);
     }
   }
 
@@ -180,12 +192,6 @@ export default function TodayPage() {
         : hasSections
           ? { label: "Start Quiz", href: "/practice", icon: CircleHelp }
           : { label: "AI Chat", href: "/ai", icon: Sparkles };
-
-  const secondaryActions = [
-    { label: "Library", href: "/library", visible: primaryAction.href !== "/library" },
-    { label: "Practice", href: "/practice", visible: !primaryAction.href.startsWith("/practice") },
-    { label: "AI Chat", href: "/ai", visible: primaryAction.href !== "/ai" },
-  ].filter((action) => action.visible);
 
   if (coursesLoading) {
     return (
@@ -281,6 +287,19 @@ export default function TodayPage() {
               )}
             </Button>
           </div>
+          {seedingDeck && seedPhase !== "idle" && (
+            <PhaseLoadingCard
+              phases={[
+                { key: "create", label: "Creating sample course" },
+                { key: "generate", label: "Loading high-yield questions" },
+                { key: "finalize", label: "Setting up your deck" },
+              ]}
+              activePhase={seedPhase}
+              complete={seedPhase === "done"}
+              completeMessage="Sample deck ready!"
+              className="mt-3"
+            />
+          )}
         </section>
       )}
 
@@ -445,6 +464,19 @@ export default function TodayPage() {
               </Button>
             )}
           </div>
+          {fixPlanLoading && fixPlanPhase !== "idle" && (
+            <PhaseLoadingCard
+              phases={[
+                { key: "analyze", label: "Analyzing weak topics" },
+                { key: "plan", label: "Building remediation tasks" },
+                { key: "save", label: "Saving to your plan" },
+              ]}
+              activePhase={fixPlanPhase}
+              complete={fixPlanPhase === "done"}
+              completeMessage="Fix plan ready!"
+              className="mb-3"
+            />
+          )}
           <WeakTopicsBanner topics={weakTopics} />
         </section>
       )}

@@ -212,18 +212,21 @@ export default function PracticePage() {
   async function handleGenerate(sectionId: string) {
     if (!courseId) return;
     setGeneratingIds((prev) => ({ ...prev, [sectionId]: true }));
+    const toastId = toast.loading("Extracting content and generating questions...", {
+      description: "This usually takes 15-30 seconds.",
+    });
     try {
       const result = await fn.generateQuestions({ courseId, sectionId, count: 10 });
       if (result.inProgress) {
-        toast.info("Question generation already in progress.");
+        toast.info("Question generation already in progress.", { id: toastId });
       } else if (result.fromCache) {
-        toast.success(`${result.questionCount ?? 0} questions already available.`);
+        toast.success(`${result.questionCount ?? 0} questions already available.`, { id: toastId });
       } else {
-        toast.success("Generating questions — they'll appear as they're ready.");
+        toast.success("Generating questions — they'll appear as they're ready.", { id: toastId, description: "You can navigate away safely." });
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to generate questions.";
-      toast.error(message);
+      toast.error(message, { id: toastId });
     } finally {
       setGeneratingIds((prev) => ({ ...prev, [sectionId]: false }));
     }

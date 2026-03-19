@@ -5,9 +5,9 @@ import { SidebarV2 } from "./sidebar-v2";
 import { BottomTabBar } from "./bottom-tab-bar";
 import { MedicalDisclaimer } from "./medical-disclaimer";
 import { FileProcessingNotifier } from "@/components/library/file-processing-notifier";
+import { RouteProgress } from "./route-progress";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { Settings } from "lucide-react";
 
 function MobileHeader() {
   const { user } = useAuth();
@@ -36,6 +36,7 @@ export function AppShellV2({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-[100dvh] md:grid md:grid-cols-[15rem_minmax(0,1fr)]">
+      <RouteProgress />
       <SidebarV2 />
       <main id="main-content" className="relative overflow-y-auto pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0">
         <MobileHeader />
