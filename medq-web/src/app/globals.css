@@ -102,11 +102,11 @@
   --secondary: #292524;
   --secondary-foreground: #fafaf9;
   --muted: #292524;
-  --muted-foreground: #a8a29e;
+  --muted-foreground: #d6d3d1; /* boosted from #a8a29e for WCAG AA (4.5:1 on #292524) */
   --accent: #042f2e;
   --accent-foreground: #ccfbf1;
   --destructive: #ef4444;
-  --border: #292524;
+  --border: #3a3633; /* slightly brighter for better visibility */
   --input: #292524;
   --ring: #2dd4bf;
 

@@ -16,11 +16,12 @@ export function ExamCountdown({ examDate }: ExamCountdownProps) {
   const exam = examDate.toDate();
   const now = new Date();
   const diffMs = exam.getTime() - now.getTime();
-  const daysLeft = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-
-  const isUrgent  = daysLeft <= 7;
+  const daysLeft = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  const isExamPassed = daysLeft <= 0;
+  const isExamToday = daysLeft === 0 || (daysLeft === 1 && diffMs < 24 * 60 * 60 * 1000);
+  const isUrgent  = daysLeft > 0 && daysLeft <= 7;
   const isWarning = daysLeft > 7 && daysLeft <= 30;
-  const isPassed  = daysLeft === 0;
+  const displayDays = Math.max(0, daysLeft);
 
   const dateStr = exam.toLocaleDateString("en-US", {
     month: "short",
@@ -46,22 +47,28 @@ export function ExamCountdown({ examDate }: ExamCountdownProps) {
         )}
       />
 
-      <div className="flex items-baseline justify-center gap-0.5">
-        <NumberTicker
-          value={isPassed ? 0 : daysLeft}
-          className={cn(
-            "text-2xl font-bold tabular-nums tracking-tight",
-            isUrgent ? "text-red-600 dark:text-red-400" : isWarning ? "text-amber-600 dark:text-amber-400" : "text-foreground"
-          )}
-        />
-        <span className="text-xs text-muted-foreground">
-          {daysLeft === 1 ? "day" : "days"}
-        </span>
-      </div>
+      {isExamPassed ? (
+        <p className="text-sm font-semibold text-muted-foreground">Exam passed</p>
+      ) : isExamToday ? (
+        <p className="text-lg font-bold text-red-600 dark:text-red-400 animate-glow-pulse">Exam today</p>
+      ) : (
+        <div className="flex items-baseline justify-center gap-0.5">
+          <NumberTicker
+            value={displayDays}
+            className={cn(
+              "text-2xl font-bold tabular-nums tracking-tight",
+              isUrgent ? "text-red-600 dark:text-red-400" : isWarning ? "text-amber-600 dark:text-amber-400" : "text-foreground"
+            )}
+          />
+          <span className="text-xs text-muted-foreground">
+            {displayDays === 1 ? "day" : "days"}
+          </span>
+        </div>
+      )}
 
       <p className="mt-0.5 text-xs text-muted-foreground">{dateStr}</p>
-      {isUrgent && (
-        <p className="mt-1.5 text-xs font-semibold uppercase tracking-wider text-red-500 animate-glow-pulse">
+      {isUrgent && !isExamToday && (
+        <p className="mt-1.5 text-xs font-semibold tracking-wider text-red-500 animate-glow-pulse">
           Exam soon
         </p>
       )}
