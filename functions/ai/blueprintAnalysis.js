@@ -12,7 +12,7 @@ const { sanitizeText, stripOCRNoise } = require("../lib/sanitize");
 const { clampInt, truncate, withTimeout } = require("../lib/utils");
 const { evaluateSectionForAnalysis } = require("../processing/filters/sectionFilter");
 
-const DEFAULT_PROVIDER_ORDER = Object.freeze(["claude", "gemini"]);
+const DEFAULT_PROVIDER_ORDER = Object.freeze(["gemini", "claude"]);
 const PROVIDER_TIMEOUT_MS = Object.freeze({
   claude: 45_000,
   gemini: 35_000,
@@ -530,7 +530,24 @@ async function analyzeSectionBlueprint({
   }
 
   const heuristicBlueprint = buildHeuristicBlueprint({ sectionText: cleanedText });
-  const fallbackHasContent = blueprintContentCount(heuristicBlueprint) > 0;
+  const heuristicCount = blueprintContentCount(heuristicBlueprint);
+  const fallbackHasContent = heuristicCount > 0;
+
+  // If the heuristic blueprint is rich enough (≥8 items across all fields),
+  // skip the AI call entirely — saves ~$0.001 per section, which adds up
+  // at scale (800 sections = $0.80 saved).
+  if (heuristicCount >= 8) {
+    return {
+      success: true,
+      normalised: heuristicBlueprint,
+      isNonInstructional: false,
+      source: "heuristic",
+      degraded: false,
+      attempts: [{ provider: "heuristic", success: true, error: null }],
+      cleanedText,
+    };
+  }
+
   const userPrompt = blueprintUserPrompt({
     fileName,
     sectionLabel,

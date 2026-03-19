@@ -112,8 +112,8 @@ const TRIAGE_WEIGHTS = Object.freeze({
  * >= BACKLOG:  kept available but not auto-scheduled.
  * <  BACKLOG:  deferred entirely (hidden from the daily plan).
  */
-const TRIAGE_SCHEDULE_THRESHOLD = 0.65;
-const TRIAGE_BACKLOG_THRESHOLD  = 0.45;
+const TRIAGE_SCHEDULE_THRESHOLD = 0.55;
+const TRIAGE_BACKLOG_THRESHOLD  = 0.35;
 
 /** Maximum brand-new (first-study) topics placed per day. */
 const MAX_NEW_TOPICS_PER_DAY = 3;
