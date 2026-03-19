@@ -342,8 +342,9 @@ function placeTasks(tasks, days, { examDate } = {}) {
       }
 
       if (targetDay >= days.length) {
-        // No day has exact capacity — fall back to the day with the most remaining,
-        // but only if it still has positive capacity (avoid overloading exhausted days).
+        // No day has exact capacity — find the day with the most remaining.
+        // NEVER exceed a day's capacity. If the task doesn't fit anywhere,
+        // skip it rather than overbooking.
         let bestDay = -1;
         let bestRemaining = 0;
         for (let d = dayIndex; d < days.length; d++) {
@@ -352,7 +353,8 @@ function placeTasks(tasks, days, { examDate } = {}) {
             bestRemaining = days[d].remaining;
           }
         }
-        if (bestDay === -1) {
+        // Only place if the best day has enough capacity for this task
+        if (bestDay === -1 || bestRemaining < task.estMinutes) {
           skipped.push(task);
           continue;
         }
@@ -405,8 +407,13 @@ function placeTasks(tasks, days, { examDate } = {}) {
     while (targetIdx < days.length && targetIdx <= lastValidIdx && days[targetIdx].remaining < task.estMinutes) {
       targetIdx++;
     }
-    // Clamp to exam boundary, fall back to last valid day.
-    if (targetIdx > lastValidIdx) targetIdx = lastValidIdx;
+
+    // If no day has capacity within the exam boundary, skip this review
+    // instead of overbooking the last valid day.
+    if (targetIdx > lastValidIdx || days[targetIdx].remaining < task.estMinutes) {
+      skipped.push(task);
+      continue;
+    }
 
     const { _dayOffset, ...cleanTask } = task;
     const dayKey = days[targetIdx].date.getTime();

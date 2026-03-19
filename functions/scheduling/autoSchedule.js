@@ -60,15 +60,45 @@ async function maybeAutoGenerateSchedule(uid, courseId) {
 
     if (sectionsSnap.empty) return; // No analyzable content
 
-    // ── Skip if tasks already exist (user already has a plan) ─────────
-    const existingTasks = await db
-      .collection(`users/${uid}/tasks`)
-      .where("courseId", "==", courseId)
-      .limit(1)
-      .get();
+    // ── Acquire course-level lock to prevent duplicate schedule generation ──
+    // Uses a Firestore document as a distributed lock. If two processSection
+    // completions race, only one will successfully create the lock doc.
+    const lockRef = db.doc(`users/${uid}/courses/${courseId}`);
+    try {
+      const lockResult = await db.runTransaction(async (tx) => {
+        const courseDoc = await tx.get(lockRef);
+        const courseData = courseDoc.data() || {};
 
-    if (!existingTasks.empty) {
-      log.info("Auto-schedule skipped: tasks already exist", { uid, courseId });
+        // Skip if already scheduled or lock is held
+        if (courseData._autoScheduleLock) {
+          return { locked: false, reason: "lock already held" };
+        }
+
+        // Check if tasks already exist
+        const existingTasks = await db
+          .collection(`users/${uid}/tasks`)
+          .where("courseId", "==", courseId)
+          .limit(1)
+          .get();
+
+        if (!existingTasks.empty) {
+          return { locked: false, reason: "tasks already exist" };
+        }
+
+        // Acquire lock
+        tx.update(lockRef, {
+          _autoScheduleLock: admin.firestore.FieldValue.serverTimestamp(),
+        });
+        return { locked: true };
+      });
+
+      if (!lockResult.locked) {
+        log.info("Auto-schedule skipped", { uid, courseId, reason: lockResult.reason });
+        return;
+      }
+    } catch (lockErr) {
+      // Transaction failed (contention) — another instance won the race
+      log.info("Auto-schedule lock contention, skipping", { uid, courseId, error: lockErr.message });
       return;
     }
 
@@ -85,9 +115,10 @@ async function maybeAutoGenerateSchedule(uid, courseId) {
     const revisionPolicy = userPrefs.revisionPolicy || "standard";
 
     // Merge user default daily minutes with course-level availability overrides.
+    // Use nullish coalescing (??) to preserve explicit zero values
     const availability = {
-      defaultMinutesPerDay: userPrefs.dailyMinutesDefault || 120,
-      catchUpBufferPercent: userPrefs.catchUpBufferPercent || 15,
+      defaultMinutesPerDay: userPrefs.dailyMinutesDefault ?? 120,
+      catchUpBufferPercent: userPrefs.catchUpBufferPercent ?? 15,
       ...(courseData.availability || {}),
     };
 
@@ -118,7 +149,9 @@ async function maybeAutoGenerateSchedule(uid, courseId) {
       }
     });
 
-    const startDate = new Date();
+    // Use canonical UTC midnight — same as manual generateSchedule
+    const { toUTCMidnight } = require("../lib/utils");
+    const startDate = toUTCMidnight(new Date());
 
     // Validate inputs.
     const validationErrors = validateScheduleInputs(startDate, examDate);

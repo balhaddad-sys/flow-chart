@@ -112,21 +112,52 @@ async function extractPdfSections(filePath) {
 
   const totalPages = data.numpages;
   const fullText = data.text;
-  const charsPerPage = fullText.length / Math.max(totalPages, 1);
+
+  // Build per-page character boundaries using page break markers.
+  // pdf-parse inserts form feed (\f) between pages in many PDFs.
+  // If page breaks are present, use them for accurate boundaries;
+  // otherwise fall back to proportional estimation.
+  const pageBreaks = [];
+  let searchFrom = 0;
+  for (let i = 0; i < totalPages - 1; i++) {
+    const ffIdx = fullText.indexOf("\f", searchFrom);
+    if (ffIdx === -1) break;
+    pageBreaks.push(ffIdx);
+    searchFrom = ffIdx + 1;
+  }
+
+  const hasRealPageBreaks = pageBreaks.length >= totalPages * 0.5;
+
+  // Build char offset for each page boundary
+  const pageCharOffsets = [0]; // page 1 starts at char 0
+  if (hasRealPageBreaks) {
+    for (const brk of pageBreaks) {
+      pageCharOffsets.push(brk + 1); // skip the \f character
+    }
+  } else {
+    // Fallback: proportional estimation (existing behavior, clearly marked)
+    const charsPerPage = fullText.length / Math.max(totalPages, 1);
+    for (let p = 1; p < totalPages; p++) {
+      pageCharOffsets.push(Math.floor(p * charsPerPage));
+    }
+  }
+  pageCharOffsets.push(fullText.length); // end sentinel
 
   // Detect heading-like lines so sections get meaningful titles
   const headings = detectHeadings(fullText);
 
   const sections = [];
+  const droppedPages = [];
   let startPage = 1;
-  let prevEndChar = 0;
 
   while (startPage <= totalPages) {
     const endPage = Math.min(startPage + PAGES_PER_SECTION - 1, totalPages);
-    const rawEndChar = Math.floor(endPage * charsPerPage);
+
+    // Use actual page boundaries instead of average char density
+    const startChar = pageCharOffsets[startPage - 1] ?? 0;
+    const rawEndChar = pageCharOffsets[endPage] ?? fullText.length;
 
     // Snap to nearest paragraph boundary
-    const startChar = prevEndChar;
     const endChar = endPage === totalPages
       ? fullText.length
       : snapToBreak(fullText, rawEndChar);
@@ -147,9 +178,11 @@ async function extractPdfSections(filePath) {
         endPage,
         estMinutes: Math.ceil((endPage - startPage + 1) * 3),
       });
+    } else {
+      // Track dropped pages so callers can surface warnings
+      droppedPages.push({ startPage, endPage, textLength: text.length });
     }
 
-    prevEndChar = endChar;
     startPage = endPage + 1;
   }
 
@@ -167,6 +200,17 @@ async function extractPdfSections(filePath) {
         estMinutes: Math.max(1, Math.ceil(trimmed.split(/\s+/).length / 180)),
       });
     }
+  }
+
+  // Log dropped pages as a warning so ops can monitor extraction quality
+  if (droppedPages.length > 0) {
+    const log = require("../../lib/logger");
+    log.warn("PDF extraction dropped page ranges with insufficient text", {
+      droppedPages,
+      totalPages,
+      sectionsExtracted: sections.length,
+      usedRealPageBreaks: hasRealPageBreaks,
+    });
   }
 
   return sections;

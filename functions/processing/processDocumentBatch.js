@@ -40,6 +40,26 @@ function stripDataUrl(input) {
 }
 
 /**
+ * Detect MIME type from base64 data URL prefix or raw base64 magic bytes.
+ * @param {string} input
+ * @returns {string|null}
+ */
+function detectMimeType(input) {
+  // Check data URL prefix
+  const match = input.match(/^data:([^;]+);base64,/);
+  if (match) return match[1];
+
+  // Check raw base64 magic bytes
+  const raw = input.slice(0, 12);
+  if (raw.startsWith("/9j/")) return "image/jpeg";
+  if (raw.startsWith("iVBOR")) return "image/png";
+  if (raw.startsWith("R0lGO")) return "image/gif";
+  if (raw.startsWith("AAAA")) return "image/webp";
+
+  return null;
+}
+
+/**
  * Validate the shape of a single vision-extracted page result.
  * @param {object} data
  * @returns {{ valid: boolean, error?: string }}
@@ -69,11 +89,14 @@ function validatePageResult(data) {
  * @param {number} pageIndex - Zero-based.
  * @returns {Promise<{ success: boolean, page: number, data?: object, error?: string, ms?: number }>}
  */
-async function analyzeSinglePage(base64Image, pageIndex) {
+async function analyzeSinglePage(base64Image, pageIndex, imageMediaType) {
+  // Detect actual MIME type from base64 header or use provided type
+  const detectedType = imageMediaType || detectMimeType(base64Image) || "image/jpeg";
+
   const result = await callGeminiVision({
     systemPrompt: DOCUMENT_EXTRACT_SYSTEM,
     base64Image,
-    mediaType: "image/jpeg",
+    mediaType: detectedType,
     userText: documentExtractUserPrompt({ pageIndex }),
     maxTokens: 2048,
     retries: 2,
@@ -162,8 +185,11 @@ exports.processDocumentBatch = functions
       recordCount: records.length,
     });
 
+    // If ALL pages failed, report as failure — not success with empty results
+    const allFailed = successes.length === 0 && cleanedImages.length > 0;
+
     return {
-      success: true,
+      success: !allFailed,
       data: {
         results: records,
         pages: pagesSorted,

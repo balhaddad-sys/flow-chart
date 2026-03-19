@@ -85,7 +85,28 @@ exports.generateSchedule = functions
         return fail(Errors.INVALID_ARGUMENT, validationErrors.join(" "));
       }
 
-      const tasks = buildWorkUnits(sections, courseId, revisionPolicy, srsCards);
+      // Exclude sections that already have completed (DONE) study tasks
+      // to prevent regeneration from duplicating work the user finished.
+      const doneTasksSnap = await db
+        .collection(`users/${uid}/tasks`)
+        .where("courseId", "==", courseId)
+        .where("status", "==", "DONE")
+        .where("type", "==", "STUDY")
+        .get();
+      const doneSectionIds = new Set(
+        doneTasksSnap.docs.flatMap((d) => d.data().sectionIds || [])
+      );
+
+      const schedulableSections = sections.filter((s) => !doneSectionIds.has(s.id));
+      if (schedulableSections.length === 0 && doneSectionIds.size > 0) {
+        // All sections already completed — nothing to schedule
+        return ok({ taskCount: 0, skippedCount: 0, message: "All sections already completed." });
+      }
+
+      const tasks = buildWorkUnits(
+        schedulableSections.length > 0 ? schedulableSections : sections,
+        courseId, revisionPolicy, srsCards
+      );
       const totalMinutes = computeTotalLoad(tasks);
       const requestedDays = buildDayCapacities(startDate, examDate, availability);
       let days = requestedDays;
