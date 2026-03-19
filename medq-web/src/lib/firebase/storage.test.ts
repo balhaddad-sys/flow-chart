@@ -22,6 +22,10 @@ jest.mock("firebase/firestore", () => ({
   serverTimestamp: jest.fn(),
 }));
 
+jest.mock("firebase/auth", () => ({
+  getAuth: jest.fn(() => ({ currentUser: null })),
+}));
+
 import { validateFile } from "./storage";
 
 // Helper: create a minimal File-like object
