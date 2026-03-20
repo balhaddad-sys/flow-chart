@@ -107,6 +107,12 @@ function isGenericSectionTitle(value) {
   if (!title) return true;
   if (GENERIC_SECTION_TITLE_RE.test(title)) return true;
   if (/^(?:section|topic|part)\s*[a-z0-9]+$/i.test(title)) return true;
+  // Catch raw internal IDs like "iateT1/P1Life-threatening" or "9780160949951: FUND..."
+  if (/[A-Z]\d+\/[A-Z]\d+/i.test(title)) return true;        // e.g. "iateT1/P1Life"
+  if (/^\d{10,}/.test(title)) return true;                     // ISBN-style numeric prefix
+  // ALL-CAPS multi-word prefix like "KUWAIT CONTEXT" but not medical acronyms like "COPD"
+  const firstSegment = (title.split(/[-–—]/).at(0) || "").trim();
+  if (/^[A-Z\s]{10,}$/.test(firstSegment) && firstSegment.split(/\s+/).length >= 2) return true;
   return false;
 }
 
