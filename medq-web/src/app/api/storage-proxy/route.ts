@@ -6,19 +6,14 @@ const ALLOWED_HOSTS = new Set([
   "medq-a6cc6.firebasestorage.app",
   "storage.googleapis.com",
 ]);
-const MAX_RESPONSE_BYTES = 10 * 1024 * 1024; // 10 MB limit
+const MAX_RESPONSE_BYTES = 50 * 1024 * 1024; // 50 MB limit for PDFs
 
 /**
  * Server-side proxy for Firebase Storage downloads.
  * Avoids CORS issues since the fetch happens on the server, not the browser.
- *
- * Security:
- * - Requires valid Firebase auth token
- * - Only allows firebasestorage.googleapis.com URLs (SSRF protection)
- * - Enforces response size limit
+ * Streams binary data (PDFs, images) with proper content types.
  */
 export async function GET(req: NextRequest) {
-  // Auth check
   const authHeader = req.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token) {
@@ -36,7 +31,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Missing url parameter" }, { status: 400 });
   }
 
-  // Validate the URL points to Firebase Storage (prevent SSRF)
   let parsed: URL;
   try {
     parsed = new URL(url);
@@ -57,19 +51,24 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Enforce size limit
     const contentLength = Number(res.headers.get("content-length") || 0);
     if (contentLength > MAX_RESPONSE_BYTES) {
       return NextResponse.json({ error: "File too large" }, { status: 413 });
     }
 
-    const text = await res.text();
-    if (text.length > MAX_RESPONSE_BYTES) {
+    const arrayBuffer = await res.arrayBuffer();
+    if (arrayBuffer.byteLength > MAX_RESPONSE_BYTES) {
       return NextResponse.json({ error: "File too large" }, { status: 413 });
     }
 
-    return new NextResponse(text, {
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
+    const contentType = res.headers.get("content-type") || "application/octet-stream";
+
+    return new NextResponse(arrayBuffer, {
+      headers: {
+        "Content-Type": contentType,
+        "Content-Length": String(arrayBuffer.byteLength),
+        "Cache-Control": "private, max-age=3600",
+      },
     });
   } catch {
     return NextResponse.json({ error: "Failed to fetch from storage" }, { status: 502 });

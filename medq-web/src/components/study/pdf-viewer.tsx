@@ -10,8 +10,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PDFDocument } from "pdf-lib";
-import { ref, getBlob } from "firebase/storage";
+import { ref, getDownloadURL } from "firebase/storage";
 import { storage } from "@/lib/firebase/client";
+import { getAuth } from "firebase/auth";
 
 interface PDFViewerProps {
   /** Firebase Storage path (e.g. "users/uid/files/abc.pdf") */
@@ -24,9 +25,9 @@ interface PDFViewerProps {
 }
 
 /**
- * Client-side PDF viewer that extracts a page range from the source PDF
- * using pdf-lib in the browser, then renders it via an iframe blob URL.
- * No server-side API call needed — avoids Vercel function timeouts.
+ * Client-side PDF viewer that extracts a page range from the source PDF.
+ * Downloads via server-side proxy to avoid CORS, then uses pdf-lib
+ * in the browser to extract the relevant pages.
  */
 export function PDFViewer({ storagePath, startPage, endPage, className = "" }: PDFViewerProps) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
@@ -43,15 +44,30 @@ export function PDFViewer({ storagePath, startPage, endPage, className = "" }: P
     setProgress(10);
 
     try {
-      // Download via Firebase SDK (handles auth + CORS internally)
+      // 1. Get the Firebase download URL
       setProgress(15);
       const fileRef = ref(storage, storagePath);
-      const pdfBlob = await getBlob(fileRef);
-      const arrayBuf = await pdfBlob.arrayBuffer();
-      setProgress(40);
+      const downloadUrl = await getDownloadURL(fileRef);
 
-      // Parse and extract pages
+      // 2. Fetch via server-side proxy (avoids CORS)
+      setProgress(25);
+      const authToken = await getAuth().currentUser?.getIdToken();
+      if (!authToken) throw new Error("Not authenticated");
+
+      const proxyUrl = `/api/storage-proxy?url=${encodeURIComponent(downloadUrl)}`;
+      const res = await fetch(proxyUrl, {
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Failed to download PDF (${res.status})`);
+      }
+      setProgress(50);
+
+      const arrayBuf = await res.arrayBuffer();
       setProgress(60);
+
+      // 3. Parse and extract pages
       const sourcePdf = await PDFDocument.load(arrayBuf, { ignoreEncryption: true });
       const totalPages = sourcePdf.getPageCount();
 
@@ -68,7 +84,7 @@ export function PDFViewer({ storagePath, startPage, endPage, className = "" }: P
 
       setProgress(90);
       const outputBytes = await sectionPdf.save();
-      const outputBlob = new Blob([outputBytes.buffer as ArrayBuffer], { type: "application/pdf" });
+      const outputBlob = new Blob([new Uint8Array(outputBytes)], { type: "application/pdf" });
       const url = URL.createObjectURL(outputBlob);
 
       // Clean up previous blob
@@ -174,7 +190,8 @@ export function PDFViewer({ storagePath, startPage, endPage, className = "" }: P
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 z-10">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             <p className="mt-2 text-xs text-muted-foreground">
-              {progress < 40 ? "Downloading PDF..." :
+              {progress < 25 ? "Preparing download..." :
+               progress < 50 ? "Downloading PDF..." :
                progress < 75 ? "Extracting pages..." :
                "Rendering..."}
             </p>
