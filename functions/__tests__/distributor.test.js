@@ -27,7 +27,26 @@ describe("scheduling/distributor", () => {
       });
     });
 
-    it("assigns priority = 1 to all redistributed items", () => {
+    it("boosts original priority by +1 instead of flattening to 1", () => {
+      const items = [
+        { ref: "a", priority: 70 },
+        { ref: "b", priority: 30 },
+      ];
+      const result = distributeOverdue(items, today);
+      // Higher-priority item sorts first, gets boosted priority
+      const highPri = result.find((r) => r.ref === "a");
+      const lowPri = result.find((r) => r.ref === "b");
+      expect(highPri.priority).toBe(71);
+      expect(lowPri.priority).toBe(31);
+    });
+
+    it("caps boosted priority at 100", () => {
+      const items = [{ ref: "a", priority: 100 }];
+      const result = distributeOverdue(items, today);
+      expect(result[0].priority).toBe(100);
+    });
+
+    it("defaults to priority 1 for items with no original priority", () => {
       const items = [{ ref: "a" }, { ref: "b" }];
       const result = distributeOverdue(items, today);
       result.forEach((r) => {
@@ -73,6 +92,36 @@ describe("scheduling/distributor", () => {
       const result = distributeOverdue(items, today, 5);
       const tomorrow = new Date(today.getTime() + MS_PER_DAY);
       expect(result[0].newDate.getTime()).toEqual(tomorrow.getTime());
+    });
+
+    it("sorts STUDY tasks before QUESTIONS before REVIEW", () => {
+      const items = [
+        { ref: "review", type: "REVIEW", estMinutes: 10 },
+        { ref: "questions", type: "QUESTIONS", estMinutes: 10 },
+        { ref: "study", type: "STUDY", estMinutes: 10 },
+      ];
+      const dayCapacities = [
+        { date: new Date("2025-01-11"), remaining: 120 },
+      ];
+      const result = distributeOverdue(items, today, 5, dayCapacities);
+      expect(result[0].ref).toBe("study");
+      expect(result[1].ref).toBe("questions");
+      expect(result[2].ref).toBe("review");
+    });
+
+    it("sorts by priority descending within same type", () => {
+      const items = [
+        { ref: "low", type: "STUDY", priority: 20, estMinutes: 10 },
+        { ref: "high", type: "STUDY", priority: 80, estMinutes: 10 },
+        { ref: "mid", type: "STUDY", priority: 50, estMinutes: 10 },
+      ];
+      const dayCapacities = [
+        { date: new Date("2025-01-11"), remaining: 120 },
+      ];
+      const result = distributeOverdue(items, today, 5, dayCapacities);
+      expect(result[0].ref).toBe("high");
+      expect(result[1].ref).toBe("mid");
+      expect(result[2].ref).toBe("low");
     });
   });
 
@@ -142,13 +191,13 @@ describe("scheduling/distributor", () => {
       });
     });
 
-    it("assigns priority 1 in capacity-aware mode", () => {
+    it("preserves boosted priority in capacity-aware mode", () => {
       const dayCapacities = [
         { date: new Date("2025-01-11"), remaining: 60 },
       ];
-      const items = [{ ref: "a", estMinutes: 10 }];
+      const items = [{ ref: "a", estMinutes: 10, priority: 50 }];
       const result = distributeOverdue(items, today, 5, dayCapacities);
-      expect(result[0].priority).toBe(1);
+      expect(result[0].priority).toBe(51);
     });
   });
 });

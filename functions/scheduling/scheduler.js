@@ -185,6 +185,22 @@ function normalizeExamTypeKey(examType) {
   return key;
 }
 
+/**
+ * Apply a confidence adjustment to weakness scores based on the number of
+ * quiz attempts. With very few attempts (< 5), the weakness score is
+ * regressed toward a neutral 0.35 to avoid over-reacting to small samples.
+ *
+ * At 5+ attempts the score is used at full weight. This prevents a single
+ * wrong answer from making a topic appear critically weak.
+ */
+function confidenceAdjust(rawWeakness, attemptCount) {
+  if (attemptCount == null || attemptCount >= 5) return rawWeakness;
+  if (attemptCount <= 0) return 0.35; // no data, use neutral
+  const NEUTRAL = 0.35;
+  const confidence = Math.min(1, attemptCount / 5);
+  return NEUTRAL + (rawWeakness - NEUTRAL) * confidence;
+}
+
 function buildWeaknessMap(weakestTopics = [], allTopicScores = []) {
   const weaknessByTag = new Map();
 
@@ -196,7 +212,9 @@ function buildWeaknessMap(weakestTopics = [], allTopicScores = []) {
   for (const topic of source) {
     const key = normalizeTopicKey(topic?.tag);
     if (!key) continue;
-    weaknessByTag.set(key, clamp01(Number(topic?.weaknessScore ?? 0)));
+    const raw = clamp01(Number(topic?.weaknessScore ?? 0));
+    const adjusted = confidenceAdjust(raw, topic?.attemptCount);
+    weaknessByTag.set(key, adjusted);
   }
 
   return weaknessByTag;
@@ -310,6 +328,24 @@ function computeHighYieldDensity(section) {
   return clamp01((highYieldCount + commonTrapCount * 1.25 + Math.min(3, keyConceptCount) * 0.35) / 6);
 }
 
+/**
+ * Apply recency decay to a weakness score based on how many days ago the topic
+ * was last reviewed. Recent reviews keep the score near its raw value; stale
+ * scores decay toward a neutral 0.35 baseline so that un-reviewed topics
+ * gradually regain priority without losing the weakness signal entirely.
+ *
+ * Half-life of 14 days: after 14 days without review the score moves ~50%
+ * toward the neutral baseline. This is a lightweight exponential decay that
+ * adds no measurable cost (one Math.exp per tag lookup).
+ */
+function applyRecencyDecay(rawWeakness, daysSinceReview) {
+  if (daysSinceReview == null || daysSinceReview <= 0) return rawWeakness;
+  const NEUTRAL = 0.35;
+  const HALF_LIFE = 14;
+  const decay = Math.exp(-0.693 * daysSinceReview / HALF_LIFE); // ln(2) ≈ 0.693
+  return NEUTRAL + (rawWeakness - NEUTRAL) * decay;
+}
+
 function lookupSectionWeakness(section, adaptiveContext) {
   if (!adaptiveContext) return 0;
 
@@ -317,11 +353,26 @@ function lookupSectionWeakness(section, adaptiveContext) {
   let strongest = 0;
 
   for (const tag of topicTags) {
-    const weakness = adaptiveContext.weaknessByTag.get(normalizeTopicKey(tag)) || 0;
+    const key = normalizeTopicKey(tag);
+    let weakness = adaptiveContext.weaknessByTag.get(key) || 0;
+    // Apply recency decay when review history is available
+    if (weakness > 0 && adaptiveContext.lastReviewByTag && adaptiveContext.lastReviewByTag.size > 0) {
+      const daysSince = adaptiveContext.lastReviewByTag.get(key);
+      if (daysSince != null) {
+        weakness = applyRecencyDecay(weakness, daysSince);
+      }
+    }
     strongest = Math.max(strongest, weakness);
   }
 
-  const titleWeakness = adaptiveContext.weaknessByTag.get(normalizeTopicKey(section.title)) || 0;
+  const titleKey = normalizeTopicKey(section.title);
+  let titleWeakness = adaptiveContext.weaknessByTag.get(titleKey) || 0;
+  if (titleWeakness > 0 && adaptiveContext.lastReviewByTag && adaptiveContext.lastReviewByTag.size > 0) {
+    const daysSince = adaptiveContext.lastReviewByTag.get(titleKey);
+    if (daysSince != null) {
+      titleWeakness = applyRecencyDecay(titleWeakness, daysSince);
+    }
+  }
   strongest = Math.max(strongest, titleWeakness);
 
   if (strongest > 0) return strongest;
@@ -656,7 +707,7 @@ function buildTaskFocus(type, section, fallbackTitle) {
   return buildStudyFocus(section, fallbackTitle);
 }
 
-function buildTaskRationale(type, signals, adaptiveContext) {
+function buildTaskRationale(type, signals, adaptiveContext, planPosition = null) {
   const reasons = [];
   const topicName = signals.primaryTopicTag ? truncate(signals.primaryTopicTag, 40) : null;
 
@@ -688,6 +739,13 @@ function buildTaskRationale(type, signals, adaptiveContext) {
     if (adaptiveContext.daysToExam <= 3) reasons.push("exam imminent");
     else if (adaptiveContext.daysToExam <= 7) reasons.push("exam this week");
     else if (adaptiveContext.daysToExam <= 14) reasons.push("exam within 2 weeks");
+  }
+
+  // Plan position context — helps the learner understand why a task is
+  // placed early or late in the plan without adding any algorithmic cost
+  if (planPosition != null) {
+    if (planPosition <= 0.15) reasons.push("front-loaded for early foundation");
+    else if (planPosition >= 0.85) reasons.push("consolidation phase");
   }
 
   // Type-specific detail
@@ -842,6 +900,9 @@ function buildWorkUnits(sections, courseId, revisionPolicy = "standard", srsCard
       sourceOrder,
     };
 
+    // Plan position: 0.0 = first section, 1.0 = last section
+    const planPosition = sections.length > 1 ? sourceOrder / (sections.length - 1) : 0.5;
+
     const studyFocus = adaptiveSignals ? buildTaskFocus("STUDY", section, baseTitle) : "";
     tasks.push({
       ...base,
@@ -851,7 +912,7 @@ function buildWorkUnits(sections, courseId, revisionPolicy = "standard", srsCard
       estMinutes,
       ...(adaptiveSignals ? {
         focus: studyFocus,
-        rationale: buildTaskRationale("STUDY", adaptiveSignals, adaptiveContext),
+        rationale: buildTaskRationale("STUDY", adaptiveSignals, adaptiveContext, planPosition),
         priority: adaptiveTaskPriority("STUDY", adaptiveSignals),
       } : {}),
     });
@@ -872,7 +933,7 @@ function buildWorkUnits(sections, courseId, revisionPolicy = "standard", srsCard
         estMinutes: Math.min(estMinutes, Math.max(8, Math.round(estMinutes * 0.35))),
         ...(adaptiveSignals ? {
           focus: questionFocus,
-          rationale: buildTaskRationale("QUESTIONS", adaptiveSignals, adaptiveContext),
+          rationale: buildTaskRationale("QUESTIONS", adaptiveSignals, adaptiveContext, planPosition),
           priority: adaptiveTaskPriority("QUESTIONS", adaptiveSignals),
           _dayOffset: adaptiveSignals.questionGapDays,
         } : {}),
@@ -884,7 +945,7 @@ function buildWorkUnits(sections, courseId, revisionPolicy = "standard", srsCard
       ? {
           ...sharedAdaptive,
           focus: reviewFocus,
-          rationale: buildTaskRationale("REVIEW", adaptiveSignals, adaptiveContext),
+          rationale: buildTaskRationale("REVIEW", adaptiveSignals, adaptiveContext, planPosition),
           priority: adaptiveTaskPriority("REVIEW", adaptiveSignals),
         }
       : {};
@@ -1280,6 +1341,47 @@ function validateScheduleInputs(startDate, examDate) {
   return errors;
 }
 
+/**
+ * Promote backlog sections to fill remaining capacity when scheduled sections
+ * don't use the full study window. Promotes highest-scoring backlog sections
+ * first, up to the available remaining capacity.
+ *
+ * This is a pure function — it returns the promoted sections without mutating
+ * the inputs. The caller merges them into the scheduled set.
+ *
+ * @param {Object[]} backlogSections - Sections in the backlog tier.
+ * @param {Map} triageResults - Per-section triage scores from triageSections.
+ * @param {number} scheduledLoad - Total estMinutes already scheduled.
+ * @param {number} totalCapacity - Total usable capacity across all days.
+ * @returns {Object[]} Sections promoted from backlog, sorted by triage score descending.
+ */
+function promoteBacklog(backlogSections, triageResults, scheduledLoad, totalCapacity) {
+  if (!backlogSections || backlogSections.length === 0) return [];
+
+  const headroom = totalCapacity - scheduledLoad;
+  // Only promote if there's at least 15 minutes of headroom to avoid over-packing
+  if (headroom < 15) return [];
+
+  // Sort backlog by triage score descending — best candidates first
+  const sorted = [...backlogSections].sort((a, b) => {
+    const scoreA = triageResults.get(a.id)?.triageScore ?? 0;
+    const scoreB = triageResults.get(b.id)?.triageScore ?? 0;
+    return scoreB - scoreA;
+  });
+
+  const promoted = [];
+  let usedMinutes = 0;
+
+  for (const section of sorted) {
+    const sectionMinutes = section.estMinutes || 15;
+    if (usedMinutes + sectionMinutes > headroom) continue;
+    promoted.push(section);
+    usedMinutes += sectionMinutes;
+  }
+
+  return promoted;
+}
+
 module.exports = {
   buildAdaptiveContext,
   buildWorkUnits,
@@ -1296,4 +1398,5 @@ module.exports = {
   isThinSection,
   mergeAdjacentThinSections,
   pruneForDeficit,
+  promoteBacklog,
 };

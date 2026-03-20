@@ -23,6 +23,7 @@ const {
   triageSections,
   mergeAdjacentThinSections,
   pruneForDeficit,
+  promoteBacklog,
 } = require("./scheduler");
 
 /**
@@ -173,18 +174,25 @@ async function maybeAutoGenerateSchedule(uid, courseId) {
     });
 
     // ── Triage + merge + prune — same pipeline as manual generateSchedule ──
-    const { results: triageResults, scheduled: scheduledSections } =
+    const { results: triageResults, scheduled: scheduledSections, backlog: backlogSections } =
       triageSections(sections, adaptiveContext);
     const mergedSections = mergeAdjacentThinSections(
       scheduledSections.length > 0 ? scheduledSections : sections,
       triageResults
     );
 
-    const allTasks = buildWorkUnits(mergedSections, courseId, revisionPolicy, srsCards, adaptiveContext);
-
     // Capacity-aware deficit pruning
     let days = buildDayCapacities(startDate, examDate, availability);
     const totalCapacity = days.reduce((sum, d) => sum + d.usableCapacity, 0);
+
+    // ── Backlog promotion: fill remaining capacity with best backlog sections ──
+    const scheduledLoad = mergedSections.reduce((sum, s) => sum + (s.estMinutes || 15), 0);
+    const promoted = promoteBacklog(backlogSections, triageResults, scheduledLoad, totalCapacity);
+    const allScheduled = promoted.length > 0
+      ? mergeAdjacentThinSections([...mergedSections, ...promoted], triageResults)
+      : mergedSections;
+
+    const allTasks = buildWorkUnits(allScheduled, courseId, revisionPolicy, srsCards, adaptiveContext);
     const { kept: prunedTasks } = pruneForDeficit(allTasks, totalCapacity);
     const tasks = prunedTasks.length < allTasks.length ? prunedTasks : allTasks;
 

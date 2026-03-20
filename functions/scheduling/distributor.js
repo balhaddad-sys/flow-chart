@@ -15,13 +15,22 @@ const { MS_PER_DAY, CATCH_UP_SPAN_DAYS } = require("../lib/constants");
  * @property {number} priority - Elevated priority for catch-up items.
  */
 
+// Task type ordering: STUDY before QUESTIONS before REVIEW so that
+// redistributed tasks maintain a pedagogically sound sequence.
+const TYPE_ORDER = { STUDY: 0, QUESTIONS: 1, REVIEW: 2 };
+
 /**
  * Distribute overdue items across the next N days.
  *
  * When `dayCapacities` is provided, tasks are placed respecting each day's
  * remaining minutes.  Otherwise falls back to a simple even split.
  *
- * @param {Array<{ ref: *, estMinutes?: number }>} overdueItems - Items to redistribute.
+ * Tasks are sorted so STUDY tasks precede their QUESTIONS/REVIEW counterparts,
+ * and higher-priority tasks are placed first within each type group. The
+ * original adaptive priority is preserved (boosted by +1) instead of being
+ * flattened to a uniform value.
+ *
+ * @param {Array<{ ref: *, estMinutes?: number, type?: string, priority?: number }>} overdueItems - Items to redistribute.
  * @param {Date}   today     - Start of today (midnight).
  * @param {number} [spanDays=CATCH_UP_SPAN_DAYS] - How many future days to spread across.
  * @param {Array<{ date: Date, remaining: number }>} [dayCapacities] - Optional capacity-aware slots.
@@ -30,13 +39,21 @@ const { MS_PER_DAY, CATCH_UP_SPAN_DAYS } = require("../lib/constants");
 function distributeOverdue(overdueItems, today, spanDays = CATCH_UP_SPAN_DAYS, dayCapacities = null) {
   if (overdueItems.length === 0) return [];
 
+  // Sort: by type (STUDY → QUESTIONS → REVIEW), then by priority descending
+  const sorted = [...overdueItems].sort((a, b) => {
+    const typeA = TYPE_ORDER[a.type] ?? 1;
+    const typeB = TYPE_ORDER[b.type] ?? 1;
+    if (typeA !== typeB) return typeA - typeB;
+    return (b.priority || 0) - (a.priority || 0);
+  });
+
   // Capacity-aware distribution when day slots are provided.
   if (dayCapacities && dayCapacities.length > 0) {
     const caps = dayCapacities.map((c) => ({ date: c.date, remaining: c.remaining }));
     const result = [];
     let dayIdx = 0;
 
-    for (const item of overdueItems) {
+    for (const item of sorted) {
       const taskMinutes = item.estMinutes || 15;
       // Find next day with enough capacity (don't stop early at length - 1).
       const startIdx = dayIdx;
@@ -55,10 +72,12 @@ function distributeOverdue(overdueItems, today, spanDays = CATCH_UP_SPAN_DAYS, d
         }
         dayIdx = bestIdx;
       }
+      // Preserve original priority with a +1 boost for catch-up urgency
+      const boostedPriority = Math.min(100, (item.priority || 0) + 1);
       result.push({
         ref: item.ref,
         newDate: caps[dayIdx].date,
-        priority: 1,
+        priority: boostedPriority,
       });
       caps[dayIdx].remaining -= taskMinutes;
     }
@@ -66,14 +85,15 @@ function distributeOverdue(overdueItems, today, spanDays = CATCH_UP_SPAN_DAYS, d
   }
 
   // Simple even-split fallback.
-  const perDay = Math.ceil(overdueItems.length / spanDays);
+  const perDay = Math.ceil(sorted.length / spanDays);
 
-  return overdueItems.map((item, idx) => {
+  return sorted.map((item, idx) => {
     const dayOffset = Math.floor(idx / perDay) + 1;
+    const boostedPriority = Math.min(100, (item.priority || 0) + 1);
     return {
       ref: item.ref,
       newDate: new Date(today.getTime() + dayOffset * MS_PER_DAY),
-      priority: 1,
+      priority: boostedPriority,
     };
   });
 }

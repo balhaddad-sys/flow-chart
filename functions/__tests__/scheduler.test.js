@@ -13,6 +13,7 @@ const {
   isThinSection,
   mergeAdjacentThinSections,
   pruneForDeficit,
+  promoteBacklog,
 } = require("../scheduling/scheduler");
 
 describe("scheduling/scheduler", () => {
@@ -811,6 +812,156 @@ describe("scheduling/scheduler", () => {
         const day1Tasks = placed.filter((t) => t.dueDate.toISOString().includes("2025-01-01"));
         // Should be capped at MAX_NEW_TOPICS_PER_DAY (3)
         expect(day1Tasks.length).toBeLessThanOrEqual(3);
+      });
+    });
+
+    describe("recency decay", () => {
+      it("decays stale weakness scores toward neutral baseline", () => {
+        // Create context with weakness data and stale review (30 days ago)
+        const ctx = buildAdaptiveContext({
+          startDate: new Date("2025-01-01T00:00:00Z"),
+          examDate: new Date("2025-02-01T00:00:00Z"),
+          examType: "USMLE_STEP2",
+          stats: {
+            overallAccuracy: 0.55,
+            weakestTopics: [{ tag: "cardiology", weaknessScore: 0.9 }],
+            lastReviewByTag: {
+              cardiology: { toDate: () => new Date("2024-12-02T00:00:00Z") }, // 30 days ago
+            },
+          },
+        });
+
+        const ctxFresh = buildAdaptiveContext({
+          startDate: new Date("2025-01-01T00:00:00Z"),
+          examDate: new Date("2025-02-01T00:00:00Z"),
+          examType: "USMLE_STEP2",
+          stats: {
+            overallAccuracy: 0.55,
+            weakestTopics: [{ tag: "cardiology", weaknessScore: 0.9 }],
+            lastReviewByTag: {
+              cardiology: { toDate: () => new Date("2024-12-31T00:00:00Z") }, // 1 day ago
+            },
+          },
+        });
+
+        const section = {
+          id: "s1", title: "Cardiology basics", difficulty: 4,
+          topicTags: ["cardiology"],
+          blueprint: { highYieldPoints: ["p"], commonTraps: ["t"], keyConcepts: ["k"] },
+        };
+
+        const staleScore = computeTriageScore(section, ctx);
+        const freshScore = computeTriageScore(section, ctxFresh);
+
+        // The stale weakness should produce a lower triage score than a fresh one
+        expect(staleScore.triageScore).toBeLessThan(freshScore.triageScore);
+      });
+    });
+
+    describe("confidence-weighted weakness", () => {
+      it("regresses low-attempt weakness scores toward neutral", () => {
+        const ctxLowAttempts = buildAdaptiveContext({
+          startDate: new Date("2025-01-01T00:00:00Z"),
+          examDate: new Date("2025-02-01T00:00:00Z"),
+          stats: {
+            overallAccuracy: 0.55,
+            allTopicScores: [{ tag: "cardiology", weaknessScore: 0.9, attemptCount: 1 }],
+          },
+        });
+
+        const ctxHighAttempts = buildAdaptiveContext({
+          startDate: new Date("2025-01-01T00:00:00Z"),
+          examDate: new Date("2025-02-01T00:00:00Z"),
+          stats: {
+            overallAccuracy: 0.55,
+            allTopicScores: [{ tag: "cardiology", weaknessScore: 0.9, attemptCount: 20 }],
+          },
+        });
+
+        const section = {
+          id: "s1", title: "Cardiology", difficulty: 4,
+          topicTags: ["cardiology"],
+          blueprint: { highYieldPoints: ["p"], commonTraps: ["t"], keyConcepts: ["k"] },
+        };
+
+        const lowAttemptScore = computeTriageScore(section, ctxLowAttempts);
+        const highAttemptScore = computeTriageScore(section, ctxHighAttempts);
+
+        // Low-attempt weakness should be regressed toward neutral → lower triage score
+        expect(lowAttemptScore.triageScore).toBeLessThan(highAttemptScore.triageScore);
+      });
+    });
+
+    describe("plan position rationale", () => {
+      it("includes front-loaded context for early sections", () => {
+        const ctx = makeAdaptive();
+        const sections = Array.from({ length: 10 }, (_, i) => ({
+          id: `s${i}`, title: `Topic ${i}`, difficulty: 3,
+          topicTags: [`topic${i}`], estMinutes: 15,
+          blueprint: { highYieldPoints: ["p"], commonTraps: ["t"], keyConcepts: ["k"] },
+        }));
+
+        const tasks = buildWorkUnits(sections, "c1", "off", null, ctx);
+        const firstStudy = tasks.find((t) => t.type === "STUDY" && t.sourceOrder === 0);
+        expect(firstStudy.rationale).toContain("front-loaded");
+      });
+
+      it("includes consolidation context for late sections", () => {
+        const ctx = makeAdaptive();
+        const sections = Array.from({ length: 10 }, (_, i) => ({
+          id: `s${i}`, title: `Topic ${i}`, difficulty: 3,
+          topicTags: [`topic${i}`], estMinutes: 15,
+          blueprint: { highYieldPoints: ["p"], commonTraps: ["t"], keyConcepts: ["k"] },
+        }));
+
+        const tasks = buildWorkUnits(sections, "c1", "off", null, ctx);
+        const lastStudy = tasks.find((t) => t.type === "STUDY" && t.sourceOrder === 9);
+        expect(lastStudy.rationale).toContain("consolidation");
+      });
+    });
+
+    describe("backlog promotion", () => {
+      it("promotes highest-scoring backlog sections to fill headroom", () => {
+        const triageResults = new Map([
+          ["s1", { triageTier: "backlog", triageScore: 0.50 }],
+          ["s2", { triageTier: "backlog", triageScore: 0.45 }],
+          ["s3", { triageTier: "backlog", triageScore: 0.40 }],
+        ]);
+        const backlog = [
+          { id: "s1", estMinutes: 20 },
+          { id: "s2", estMinutes: 20 },
+          { id: "s3", estMinutes: 20 },
+        ];
+        // Scheduled load 60, capacity 100 → 40 headroom → promote s1+s2 (40 min)
+        const promoted = promoteBacklog(backlog, triageResults, 60, 100);
+        expect(promoted).toHaveLength(2);
+        expect(promoted[0].id).toBe("s1"); // highest score first
+        expect(promoted[1].id).toBe("s2");
+      });
+
+      it("promotes nothing when headroom is less than 15 minutes", () => {
+        const triageResults = new Map([["s1", { triageTier: "backlog", triageScore: 0.5 }]]);
+        const backlog = [{ id: "s1", estMinutes: 10 }];
+        const promoted = promoteBacklog(backlog, triageResults, 95, 100);
+        expect(promoted).toHaveLength(0);
+      });
+
+      it("returns empty array for empty backlog", () => {
+        expect(promoteBacklog([], new Map(), 0, 100)).toEqual([]);
+      });
+
+      it("skips sections that would exceed headroom", () => {
+        const triageResults = new Map([
+          ["s1", { triageTier: "backlog", triageScore: 0.50 }],
+          ["s2", { triageTier: "backlog", triageScore: 0.45 }],
+        ]);
+        const backlog = [
+          { id: "s1", estMinutes: 50 }, // too big for 30 headroom
+          { id: "s2", estMinutes: 20 }, // fits
+        ];
+        const promoted = promoteBacklog(backlog, triageResults, 70, 100);
+        expect(promoted).toHaveLength(1);
+        expect(promoted[0].id).toBe("s2");
       });
     });
   });

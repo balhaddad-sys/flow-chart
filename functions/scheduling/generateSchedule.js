@@ -31,6 +31,7 @@ const {
   triageSections,
   mergeAdjacentThinSections,
   pruneForDeficit,
+  promoteBacklog,
 } = require("./scheduler");
 
 exports.generateSchedule = functions
@@ -129,15 +130,22 @@ exports.generateSchedule = functions
       // Merge adjacent thin/low-priority sections to reduce fragmentation
       const mergedSections = mergeAdjacentThinSections(scheduledSections, triageResults);
 
-      const tasks = buildWorkUnits(
-        mergedSections,
-        courseId, revisionPolicy, srsCards, adaptiveContext
-      );
-
       // ── Capacity-aware deficit pruning ─────────────────────────────────
       const requestedDays = buildDayCapacities(startDate, examDate, availability);
       let days = requestedDays;
       const totalCapacity = days.reduce((sum, d) => sum + d.usableCapacity, 0);
+
+      // ── Backlog promotion: fill remaining capacity with best backlog sections ──
+      const scheduledLoad = mergedSections.reduce((sum, s) => sum + (s.estMinutes || 15), 0);
+      const promoted = promoteBacklog(backlogSections, triageResults, scheduledLoad, totalCapacity);
+      const allScheduled = promoted.length > 0
+        ? mergeAdjacentThinSections([...mergedSections, ...promoted], triageResults)
+        : mergedSections;
+
+      const tasks = buildWorkUnits(
+        allScheduled,
+        courseId, revisionPolicy, srsCards, adaptiveContext
+      );
 
       // If over capacity, prune lowest-priority tasks before extending
       const { kept: prunedTasks, pruned: droppedTasks } = pruneForDeficit(tasks, totalCapacity);
