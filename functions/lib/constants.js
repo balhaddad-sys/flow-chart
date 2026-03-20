@@ -31,8 +31,8 @@ const SUPPORTED_MIME_TYPES = [
 // ── Document extractors ─────────────────────────────────────────────────────
 
 /** Number of PDF pages per extracted section (larger chunks = fewer AI calls).
- *  25 pages balances cost (fewer AI calls) vs quality (sections stay topically coherent). */
-const PAGES_PER_SECTION = 25;
+ *  20 pages balances cost (fewer AI calls) vs quality (sections stay topically coherent). */
+const PAGES_PER_SECTION = 20;
 
 /** Number of PPTX slides per extracted section (larger chunks = fewer AI calls). */
 const SLIDES_PER_SECTION = 30;

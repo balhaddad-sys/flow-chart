@@ -12,6 +12,7 @@ const { normaliseQuestion } = require("../lib/serialize");
 const { verifyQuestionEvidenceBatch } = require("../lib/citationVerification");
 const { generateQuestions: claudeGenerateQuestions } = require("../ai/aiClient");
 const { generateQuestions: geminiGenerateQuestions } = require("../ai/geminiClient");
+const { generateQuestions: deepseekGenerateQuestions } = require("../ai/deepseekClient");
 const { buildQuestionGenPlan } = require("../ai/selfTuningCostEngine");
 const { QUESTIONS_SYSTEM, questionsUserPrompt } = require("../ai/prompts");
 const {
@@ -186,20 +187,18 @@ async function generateAndPersistBatch({
     rateLimitRetryDelayMs: plan.rateLimitRetryDelayMs,
   };
 
-  // Gemini-first for speed (~2s) and cost, Claude fallback for reliability
-  let result = await geminiGenerateQuestions(
-    QUESTIONS_SYSTEM,
-    questionsUserPrompt(questionPromptArgs),
-    questionOpts
-  );
+  // DeepSeek-first (cheapest), Gemini fallback (fast), Claude last resort (reliable)
+  const prompt = questionsUserPrompt(questionPromptArgs);
+  let result = await deepseekGenerateQuestions(QUESTIONS_SYSTEM, prompt, questionOpts);
+
+  if (!result.success || !result.data?.questions) {
+    console.warn("DeepSeek question generation failed, falling back to Gemini:", result.error);
+    result = await geminiGenerateQuestions(QUESTIONS_SYSTEM, prompt, questionOpts);
+  }
 
   if (!result.success || !result.data?.questions) {
     console.warn("Gemini question generation failed, falling back to Claude:", result.error);
-    result = await claudeGenerateQuestions(
-      QUESTIONS_SYSTEM,
-      questionsUserPrompt(questionPromptArgs),
-      questionOpts
-    );
+    result = await claudeGenerateQuestions(QUESTIONS_SYSTEM, prompt, questionOpts);
   }
 
   if (!result.success || !result.data?.questions) {

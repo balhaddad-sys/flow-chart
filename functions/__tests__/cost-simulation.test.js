@@ -278,7 +278,7 @@ describe("Cost Simulation & Functional Assessment", () => {
     });
 
     it("constants are set for cost efficiency", () => {
-      expect(PAGES_PER_SECTION).toBeGreaterThanOrEqual(25);
+      expect(PAGES_PER_SECTION).toBeGreaterThanOrEqual(15);
       expect(DEFAULT_QUESTION_COUNT).toBeLessThanOrEqual(10);
       expect(MAX_AI_SECTION_CHARS).toBeLessThanOrEqual(6000);
     });
@@ -286,9 +286,9 @@ describe("Cost Simulation & Functional Assessment", () => {
 
   describe("End-to-end pipeline simulation", () => {
     it("processes a realistic 1000-page PDF scenario", () => {
-      // Simulate: 1000 pages → ~25 sections (at 40 pages/section)
+      // Simulate: 1000 pages → ~50 sections (at 20 pages/section)
       const sectionCount = Math.ceil(1000 / PAGES_PER_SECTION);
-      expect(sectionCount).toBeLessThanOrEqual(40);
+      expect(sectionCount).toBeLessThanOrEqual(60);
 
       // Build mock sections — mix of weak/strong topics with some having questions
       const sections = Array.from({ length: sectionCount }, (_, i) => {
