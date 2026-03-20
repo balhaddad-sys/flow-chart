@@ -540,7 +540,13 @@ async function analyzeSectionBlueprint({
     && !looksGenericTitle(heuristicBlueprint.title)
     && heuristicBlueprint.title.length >= 8;
 
-  if (heuristicCount >= 12 && heuristicTitleOk) {
+  // Clean text (no OCR noise) needs fewer items to trust the heuristic.
+  // OCR-heavy text needs more items because patterns match garbage.
+  const ocrNoiseRatio = (sectionText.length - cleanedText.length) / Math.max(1, sectionText.length);
+  const isCleanText = ocrNoiseRatio < 0.08;
+  const heuristicThreshold = isCleanText ? 8 : 12;
+
+  if (heuristicCount >= heuristicThreshold && heuristicTitleOk) {
     return {
       success: true,
       normalised: heuristicBlueprint,

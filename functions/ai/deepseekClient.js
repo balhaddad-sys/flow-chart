@@ -124,7 +124,7 @@ async function callDeepSeek(systemPrompt, userPrompt, opts = {}) {
  */
 async function generateQuestions(systemPrompt, userPrompt, opts = {}) {
   return callDeepSeek(systemPrompt, userPrompt, {
-    maxTokens: opts.maxTokens ?? 8192,
+    maxTokens: Math.min(opts.maxTokens ?? 4096, 5200),
     retries: opts.retries ?? 1,
     temperature: opts.temperature ?? 0.3,
     jsonMode: true,
