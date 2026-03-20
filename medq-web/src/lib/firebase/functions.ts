@@ -586,7 +586,7 @@ export function deleteUserData() {
 }
 
 // --- Admin: Reprocess Blueprints ---
-export function reprocessBlueprints(params: { courseId?: string }) {
+export function reprocessBlueprints(params: { courseId?: string; forceAll?: boolean }) {
   return callFunction<{
     updated: number;
     failed: number;

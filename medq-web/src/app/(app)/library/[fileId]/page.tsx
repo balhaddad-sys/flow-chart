@@ -25,6 +25,7 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
   const { sections, loading } = useSectionsByFile(fileId);
 
   const [retrying, setRetrying] = useState(false);
+  const [reprocessing, setReprocessing] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -63,6 +64,18 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
       toast.error("Failed to retry sections. Please try again.");
     } finally {
       setRetrying(false);
+    }
+  }
+
+  async function handleReprocess() {
+    setReprocessing(true);
+    try {
+      const result = await fn.reprocessBlueprints({ courseId: courseId || undefined, forceAll: true });
+      toast.success(result.message || `Reprocessed ${result.updated} sections.`);
+    } catch {
+      toast.error("Failed to reprocess blueprints. Please try again.");
+    } finally {
+      setReprocessing(false);
     }
   }
 
@@ -123,6 +136,18 @@ export default function FileDetailPage({ params }: { params: Promise<{ fileId: s
                 <>
                   <RefreshCw className="mr-1 h-4 w-4" />
                   Retry Failed
+                </>
+              )}
+            </Button>
+          )}
+          {file && file.status !== "PROCESSING" && (
+            <Button variant="outline" size="sm" onClick={handleReprocess} disabled={reprocessing}>
+              {reprocessing ? (
+                <LoadingButtonLabel label="Reprocessing..." />
+              ) : (
+                <>
+                  <RefreshCw className="mr-1 h-4 w-4" />
+                  Reprocess
                 </>
               )}
             </Button>
