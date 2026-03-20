@@ -114,8 +114,6 @@ export default function StudySessionPage({
   const [activeSourceParagraphIndex, setActiveSourceParagraphIndex] = useState<number | null>(null);
   const sourceParagraphRefs = useRef<Record<number, HTMLLIElement | null>>({});
   const [file, setFile] = useState<FileModel | null>(null);
-  const [pdfSourceUrl, setPdfSourceUrl] = useState<string | null>(null);
-  const [pdfLoading, setPdfLoading] = useState(false);
 
 
   // Fetch task to determine knowledge stage
@@ -262,23 +260,6 @@ export default function StudySessionPage({
     }
   }, [sectionText, section?.title, summaryLoading, user]);
 
-  // Get Firebase Storage download URL for the PDF viewer
-  useEffect(() => {
-    if (!file?.storagePath || file.mimeType !== "application/pdf" || pdfSourceUrl) return;
-    let cancelled = false;
-    setPdfLoading(true);
-    (async () => {
-      try {
-        const downloadUrl = await getFileDownloadUrl(file.storagePath);
-        if (!cancelled) setPdfSourceUrl(downloadUrl);
-      } catch {
-        // silently fail — user can still use Guide and Notes
-      } finally {
-        if (!cancelled) setPdfLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [file?.storagePath, file?.mimeType, pdfSourceUrl]);
 
   // Auto-generate notes when section text loads
   useEffect(() => {
@@ -919,26 +900,12 @@ export default function StudySessionPage({
           {/* ─── Source Tab (PDF Viewer) ─── */}
           {file?.storagePath && file?.mimeType === "application/pdf" && (
             <TabsContent value="source" className="mt-0">
-              {pdfLoading ? (
-                <div className="flex flex-col items-center justify-center py-16">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  <p className="mt-2 text-xs text-muted-foreground">Preparing PDF viewer...</p>
-                </div>
-              ) : pdfSourceUrl ? (
-                <PDFViewer
-                  sourceUrl={pdfSourceUrl}
-                  startPage={Math.max(1, Math.floor(section?.contentRef?.startIndex || 1))}
-                  endPage={Math.max(1, Math.floor(section?.contentRef?.endIndex || 1))}
-                  className="min-h-[60vh]"
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <AlertTriangle className="h-5 w-5 text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    Unable to load source PDF. Try refreshing the page.
-                  </p>
-                </div>
-              )}
+              <PDFViewer
+                storagePath={file.storagePath}
+                startPage={Math.max(1, Math.floor(section?.contentRef?.startIndex || 1))}
+                endPage={Math.max(1, Math.floor(section?.contentRef?.endIndex || 1))}
+                className="min-h-[60vh]"
+              />
             </TabsContent>
           )}
 

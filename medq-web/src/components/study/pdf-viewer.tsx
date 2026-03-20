@@ -7,15 +7,15 @@ import {
   Loader2,
   AlertTriangle,
   ExternalLink,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PDFDocument } from "pdf-lib";
+import { ref, getBlob } from "firebase/storage";
+import { storage } from "@/lib/firebase/client";
 
 interface PDFViewerProps {
-  /** Firebase Storage download URL for the full source PDF */
-  sourceUrl: string;
+  /** Firebase Storage path (e.g. "users/uid/files/abc.pdf") */
+  storagePath: string;
   /** 1-based start page */
   startPage: number;
   /** 1-based end page */
@@ -28,7 +28,7 @@ interface PDFViewerProps {
  * using pdf-lib in the browser, then renders it via an iframe blob URL.
  * No server-side API call needed — avoids Vercel function timeouts.
  */
-export function PDFViewer({ sourceUrl, startPage, endPage, className = "" }: PDFViewerProps) {
+export function PDFViewer({ storagePath, startPage, endPage, className = "" }: PDFViewerProps) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,17 +43,16 @@ export function PDFViewer({ sourceUrl, startPage, endPage, className = "" }: PDF
     setProgress(10);
 
     try {
-      // Fetch the full PDF
+      // Download via Firebase SDK (handles auth + CORS internally)
       setProgress(15);
-      const res = await fetch(sourceUrl);
-      if (!res.ok) throw new Error(`Failed to download PDF (${res.status})`);
-
+      const fileRef = ref(storage, storagePath);
+      const pdfBlob = await getBlob(fileRef);
+      const arrayBuf = await pdfBlob.arrayBuffer();
       setProgress(40);
-      const sourceBytes = await res.arrayBuffer();
 
       // Parse and extract pages
       setProgress(60);
-      const sourcePdf = await PDFDocument.load(sourceBytes, { ignoreEncryption: true });
+      const sourcePdf = await PDFDocument.load(arrayBuf, { ignoreEncryption: true });
       const totalPages = sourcePdf.getPageCount();
 
       if (totalPages === 0) throw new Error("PDF has no pages");
@@ -69,8 +68,8 @@ export function PDFViewer({ sourceUrl, startPage, endPage, className = "" }: PDF
 
       setProgress(90);
       const outputBytes = await sectionPdf.save();
-      const blob = new Blob([outputBytes], { type: "application/pdf" });
-      const url = URL.createObjectURL(blob);
+      const outputBlob = new Blob([outputBytes.buffer as ArrayBuffer], { type: "application/pdf" });
+      const url = URL.createObjectURL(outputBlob);
 
       // Clean up previous blob
       if (blobUrlRef.current) URL.revokeObjectURL(blobUrlRef.current);
@@ -82,7 +81,7 @@ export function PDFViewer({ sourceUrl, startPage, endPage, className = "" }: PDF
     } finally {
       setLoading(false);
     }
-  }, [sourceUrl, startPage, endPage]);
+  }, [storagePath, startPage, endPage]);
 
   useEffect(() => {
     buildSectionPdf();
