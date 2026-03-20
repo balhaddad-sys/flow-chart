@@ -74,6 +74,15 @@ function looksGenericTitle(value) {
   if (!simplified) return true;
   if (GENERIC_TITLE_RE.test(simplified)) return true;
   if (/^(?:section|topic|part)\s*[a-z0-9]+$/i.test(simplified)) return true;
+  // OCR-corrupted titles: internal slashes with alphanumeric IDs (e.g. "iateT1/P1Life")
+  if (/[A-Za-z]\d+\/[A-Za-z]\d*/i.test(simplified)) return true;
+  // ISBN-style numeric prefixes
+  if (/^\d{10,}/.test(simplified)) return true;
+  // CamelCase fragments without spaces suggest OCR merge errors (e.g. "iateT1/P1Life-threatening")
+  if (/[a-z][A-Z][a-z]/.test(simplified) && !/\s/.test(simplified.slice(0, 15))) return true;
+  // ALL-CAPS multi-word titles ≥10 chars (e.g. "KUWAIT CONTEXT") — but not short acronyms
+  const firstSegment = (simplified.split(/[-–—]/).at(0) || "").trim();
+  if (/^[A-Z\s]{10,}$/.test(firstSegment) && firstSegment.split(/\s+/).length >= 2) return true;
   return false;
 }
 
