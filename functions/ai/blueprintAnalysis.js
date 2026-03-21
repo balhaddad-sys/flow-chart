@@ -74,15 +74,8 @@ function looksGenericTitle(value) {
   if (!simplified) return true;
   if (GENERIC_TITLE_RE.test(simplified)) return true;
   if (/^(?:section|topic|part)\s*[a-z0-9]+$/i.test(simplified)) return true;
-  // OCR-corrupted titles: internal slashes with alphanumeric IDs (e.g. "iateT1/P1Life")
-  if (/[A-Za-z]\d+\/[A-Za-z]\d*/i.test(simplified)) return true;
   // ISBN-style numeric prefixes
   if (/^\d{10,}/.test(simplified)) return true;
-  // CamelCase fragments without spaces suggest OCR merge errors (e.g. "iateT1/P1Life-threatening")
-  if (/[a-z][A-Z][a-z]/.test(simplified) && !/\s/.test(simplified.slice(0, 15))) return true;
-  // ALL-CAPS multi-word titles ≥10 chars (e.g. "KUWAIT CONTEXT") — but not short acronyms
-  const firstSegment = (simplified.split(/[-–—]/).at(0) || "").trim();
-  if (/^[A-Z\s]{10,}$/.test(firstSegment) && firstSegment.split(/\s+/).length >= 2) return true;
   return false;
 }
 
@@ -204,6 +197,8 @@ function conceptPhraseFromText(value) {
     .trim();
 
   if (!text || looksGenericTitle(text) || NOISE_LINE_RE.test(text)) return "";
+  // Reject OCR fragments: letters fused with digits and slashes (e.g. "iateT1/P1Life")
+  if (/[a-z]\d+\/[A-Z]/i.test(text) && wordCount(text) <= 3) return "";
 
   if (text.includes(":")) {
     const left = text.split(":")[0].trim();
@@ -334,6 +329,12 @@ function extractTerms(text, concepts, title) {
 function buildObjective(concept) {
   const topic = sanitizeText(concept || "").replace(/\s+/g, " ").trim();
   if (!topic) return "";
+
+  // Reject garbage concepts: too short, no spaces (likely OCR fragment),
+  // or contains suspicious patterns like internal slashes in code-like strings
+  if (topic.length < 5) return "";
+  if (wordCount(topic) < 2 && !/^[A-Z]{2,8}$/.test(topic)) return "";
+  if (/[a-z]\d+\/[A-Z]/i.test(topic)) return ""; // OCR merge like "iateT1/P1Life"
 
   if (/\b(?:management|treatment|therapy|algorithm|approach)\b/i.test(topic)) {
     return `Apply ${topic} to clinical decision-making.`;
@@ -550,10 +551,11 @@ async function analyzeSectionBlueprint({
     && heuristicBlueprint.title.length >= 8;
 
   // Clean text (no OCR noise) needs fewer items to trust the heuristic.
-  // OCR-heavy text needs more items because patterns match garbage.
+  // OCR-heavy text should almost always go through AI because heuristics
+  // extract garbage patterns from noisy OCR output.
   const ocrNoiseRatio = (sectionText.length - cleanedText.length) / Math.max(1, sectionText.length);
-  const isCleanText = ocrNoiseRatio < 0.08;
-  const heuristicThreshold = isCleanText ? 8 : 12;
+  const isCleanText = ocrNoiseRatio < 0.05;
+  const heuristicThreshold = isCleanText ? 10 : 20;
 
   if (heuristicCount >= heuristicThreshold && heuristicTitleOk) {
     return {

@@ -76,8 +76,8 @@ function stripOCRNoise(text) {
     .replace(/^[ \t]*\d{1,4}[ \t]*$/gm, "")
     // Timestamps: "5/13/04 12:59 PM", "2004-01-15T..."
     .replace(/\d{1,2}\/\d{1,2}\/\d{2,4}\s+\d{1,2}:\d{2}\s*(AM|PM)?/gi, "")
-    // Software/scanner artifacts: "Purves3/eFM", "filename.pdf"
-    .replace(/\b\w+\d*\/[a-z]+\b/gi, "")
+    // Software/scanner artifacts: "filename.pdf"
+    // NOTE: Do NOT strip word/word patterns — they match real medical codes (T1/P1, IV/IM, etc.)
     .replace(/\b\w+\.(pdf|docx?|pptx?|txt)\b/gi, "")
     // Copyright lines
     .replace(/^.*copyright\s*©?\s*\d{4}.*$/gim, "")
