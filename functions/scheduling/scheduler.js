@@ -120,6 +120,9 @@ function objectiveToTopic(value) {
   return cleanTitleCandidate(value, 140)
     .replace(LEADING_OBJECTIVE_VERB_RE, "")
     .replace(/^the\s+/i, "")
+    // Strip generic template phrases from heuristic-generated objectives
+    .replace(/^(?:core principles of|underlying mechanism of|decisive findings in|complications and prognostic factors of|preventive strategies for|high-yield features of)\s+/i, "")
+    .replace(/\s+(?:to clinical decision-making|in (?:clinical|exam|an emergency) (?:scenarios?|settings?))\s*\.?$/i, "")
     .replace(/[.?!].*$/, "")
     .trim();
 }
@@ -714,15 +717,23 @@ function condenseFocusForTitle(focus) {
 }
 
 function buildTaskTitle(prefix, baseTitle, focus) {
-  const cleanBase = cleanTitleCandidate(baseTitle, 170) || "Section";
+  const cleanBase = cleanTitleCandidate(baseTitle, 80) || "Section";
   const shortFocus = condenseFocusForTitle(focus);
 
+  // Don't append focus if: empty, overlaps with base, or base is already long
   if (!shortFocus) return `${prefix}: ${cleanBase}`;
   if (cleanBase.toLowerCase().includes(shortFocus.toLowerCase())) {
     return `${prefix}: ${cleanBase}`;
   }
+  if (shortFocus.toLowerCase().includes(cleanBase.toLowerCase())) {
+    return `${prefix}: ${shortFocus}`;
+  }
+  // Don't append focus if base title is already long enough
+  if (cleanBase.split(/\s+/).length >= 8) {
+    return `${prefix}: ${cleanBase}`;
+  }
 
-  return truncate(`${prefix}: ${cleanBase} - ${shortFocus}`, 200);
+  return truncate(`${prefix}: ${cleanBase} — ${shortFocus}`, 120);
 }
 
 function adaptiveTaskPriority(type, signals) {
