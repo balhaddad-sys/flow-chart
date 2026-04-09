@@ -108,21 +108,20 @@ Provide:
 
 Return this exact JSON schema:
 {
-  "tutor": {
-    "correct_answer": "string — the correct option text",
-    "why_correct": "string — clear explanation",
-    "why_student_wrong": "string — specific to their chosen answer",
-    "key_takeaway": "string — memorable clinical pearl",
-    "follow_ups": [
-      { "q": "string — micro question 1", "a": "string — answer 1" },
-      { "q": "string — micro question 2", "a": "string — answer 2" }
-    ]
-  }
+  "explanation": "string — clear explanation of the correct answer",
+  "hints": ["string — hint 1", "string — hint 2", "string — hint 3"],
+  "keyConcepts": ["string — concept 1", "string — concept 2"]
 }`;
 }
 
+// Export as tutorPrompt for direct use
+const tutorPrompt = TUTOR_SYSTEM;
+
 const FIX_PLAN_SYSTEM = `You are MedQ Planner. Based on a student's weakness data, create a focused
 remediation plan. Output STRICT JSON only.`;
+
+// Export as fixPlanPrompt for direct use
+const fixPlanPrompt = FIX_PLAN_SYSTEM;
 
 function fixPlanUserPrompt({ weaknessDataJSON, minutesAvailable, daysAvailable }) {
   return `Weakness data:
@@ -179,8 +178,10 @@ module.exports = {
   questionsUserPrompt,
   TUTOR_SYSTEM,
   tutorUserPrompt,
+  tutorPrompt,
   FIX_PLAN_SYSTEM,
   fixPlanUserPrompt,
+  fixPlanPrompt,
   DOCUMENT_EXTRACT_SYSTEM,
   documentExtractUserPrompt,
 };

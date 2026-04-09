@@ -1,50 +1,36 @@
-# Flutter
-.dart_tool/
-.packages
-build/
-*.iml
-*.ipr
-*.iws
-.idea/
-.vscode/
+```
+# Dependencies
+node_modules/
 
-# Firebase
-.firebase/
-firebase-debug.log
-firestore-debug.log
-ui-debug.log
-
-# Cloud Functions
-functions/node_modules/
-functions/lib/
-
-# Environment
+# Environment variables
 .env
 .env.local
-*.key
-*.pem
+.env.*
+
+# Tests
+__tests__/
+
+# Logs
+*.log
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Generated files
-*.g.dart
-*.freezed.dart
-
-# Coverage
-coverage/
-
-# Secrets
-*.secret
-credentials.json
-service-account*.json
-
-# Logs
-*.log
-storage-debug.log
-pubspec.lock
-
-# Build artifacts
-.flutter-plugins
-.flutter-plugins-dependencies
+# Build outputs
+dist/
+build/
+target/
+```

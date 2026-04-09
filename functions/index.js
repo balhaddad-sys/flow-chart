@@ -19,6 +19,13 @@ const { getQuiz } = require("./questions/getQuiz");
 // Analytics
 const { submitAttempt } = require("./analytics/submitAttempt");
 const { computeWeakness } = require("./analytics/computeWeakness");
+const { runFixPlan } = require("./analytics/runFixPlan");
+
+// Course
+const { createCourse } = require("./course/createCourse");
+
+// Tutor
+const { getTutorHelp } = require("./tutor/getTutorHelp");
 
 // Admin
 const { deleteUserData } = require("./admin/deleteUserData");
@@ -35,5 +42,8 @@ exports.generateQuestions = generateQuestions;
 exports.getQuiz = getQuiz;
 exports.submitAttempt = submitAttempt;
 exports.computeWeakness = computeWeakness;
+exports.runFixPlan = runFixPlan;
+exports.createCourse = createCourse;
+exports.getTutorHelp = getTutorHelp;
 exports.deleteUserData = deleteUserData;
 exports.healthCheck = healthCheck;
