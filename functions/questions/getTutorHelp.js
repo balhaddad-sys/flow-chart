@@ -21,13 +21,13 @@ const { getTutorResponse } = require("../ai/aiClient");
 const { TUTOR_SYSTEM, tutorUserPrompt } = require("../ai/prompts");
 
 // Define the secret so the function can access it
-const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
+const hfApiKey = functions.params.defineSecret("HF_API_KEY");
 
 exports.getTutorHelp = functions
   .runWith({
     timeoutSeconds: 120,
     memory: "512MB",
-    secrets: [anthropicApiKey],
+    secrets: [hfApiKey],
   })
   .https.onCall(async (data, context) => {
     const uid = requireAuth(context);

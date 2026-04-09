@@ -1,34 +1,30 @@
 /**
  * @module ai/aiClient
- * @description Production-grade Claude API wrapper for MedQ's AI pipeline.
+ * @description AI client for MedQ's pipeline — powered by FREE Hugging Face models.
+ *
+ * Delegates to hfClient.js for text generation (Mistral/Mixtral via HF Inference API)
+ * and geminiClient.js for vision tasks. Maintains the same exported interface so all
+ * callers (generateBlueprint, generateQuestions, getTutorResponse, etc.) work unchanged.
  *
  * Key Features:
- *  - **Prefill Injection:** Forces pure JSON output by starting the assistant
- *    response with "{", eliminating markdown code blocks and conversational text
- *    that would break JSON.parse(). This is the industry-standard technique for
- *    structured output from LLMs.
- *
- *  - **Prompt Caching:** System prompts are marked as ephemeral, allowing Claude
- *    to reuse cached context across repeated calls (90% cost reduction on cache hits).
- *
- *  - **Retry Logic:** Exponential backoff on failures (network, rate limits, transient errors).
- *
- *  - **Robust Extraction:** Multi-layer JSON parsing that handles edge cases in model output.
+ *  - **Zero cost:** Uses HF free-tier serverless inference (~5K-10K req/day)
+ *  - **Retry Logic:** Handled by hfClient (exponential backoff + cold-start detection)
+ *  - **Robust Extraction:** Multi-layer JSON parsing for LLM output edge cases
  *
  * Functions:
- *  - `callClaude`       — Text-based JSON generation with retry + prefill injection.
- *  - `callClaudeVision` — Image-based extraction with prompt caching.
+ *  - `callClaude`       — Text-based JSON generation (now routed to HF).
+ *  - `callClaudeVision` — Image-based extraction (routed to Gemini).
  *  - Convenience wrappers per prompt type (`generateBlueprint`, `generateQuestions`, etc.).
  *  - `extractJsonFromText` — Robust JSON extraction from raw model output.
  */
 
-const Anthropic = require("@anthropic-ai/sdk");
+const { callHF, MODELS: HF_MODELS } = require("./hfClient");
 const { jsonrepair } = require("jsonrepair");
 
-// Model identifiers — update here to roll out a new model globally.
+// Model identifiers — mapped to HF models via hfClient
 const MODELS = {
-  LIGHT: "claude-haiku-4-5-20251001", // Blueprints, question generation, task planning
-  HEAVY: "claude-sonnet-4-6", // Tutoring, fix plans, chat (quality-optimized)
+  LIGHT: HF_MODELS.LIGHT, // Blueprints, question generation, task planning
+  HEAVY: HF_MODELS.HEAVY, // Tutoring, fix plans, chat (quality-optimized)
 };
 
 // Max tokens per prompt type — aligned with selfTuningCostEngine ceiling (5200)
@@ -39,32 +35,6 @@ const MAX_TOKENS = {
   fixPlan: 2048,
   documentExtract: 800,
 };
-
-// Retry delays in ms for non-rate-limit errors
-const RETRY_DELAYS = [500, 1500, 4000];
-
-// Rate limit retry: wait 60s (full rate window reset) before retrying
-const RATE_LIMIT_RETRY_DELAY = 60000;
-const RATE_LIMIT_MAX_RETRIES = 2; // Up to 3 attempts total for rate limits (was 4)
-
-// Lazy-initialized Anthropic client.
-// Firebase secrets are only available at function invocation time, NOT at module load.
-// So we create the client on first use rather than at import time.
-let _client = null;
-
-function getClient() {
-  if (_client) return _client;
-
-  if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error(
-      "ANTHROPIC_API_KEY environment variable is not set. " +
-      "Ensure the function declares `secrets: [anthropicApiKey]` in runWith()."
-    );
-  }
-
-  _client = new Anthropic();
-  return _client;
-}
 
 /**
  * Robust JSON extraction: handles code fences, leading/trailing text,
@@ -145,20 +115,16 @@ function extractJsonFromText(text) {
 }
 
 /**
- * Call Claude API with automatic retry and JSON validation.
- * Uses prompt caching on system prompts for faster repeated calls.
- *
- * CRITICAL: Uses prefill injection to force JSON-only output. This ensures Claude
- * always starts with "{" or "[", preventing markdown code blocks and conversational
- * preambles that would break JSON.parse().
+ * Call AI model for text-based JSON generation via Hugging Face.
+ * Drop-in replacement for the previous Claude callClaude function.
  *
  * @param {string} systemPrompt - System message
  * @param {string} userPrompt - User message
  * @param {string} tier - "LIGHT" or "HEAVY"
  * @param {number} maxTokens - Max tokens for response
  * @param {number} retries - Retry count (default 2)
- * @param {boolean} usePrefill - Enable prefill injection (default true)
- * @returns {object} Parsed JSON response
+ * @param {boolean} _usePrefill - Ignored (kept for API compat)
+ * @returns {object} { success, data, model, tokensUsed } or { success: false, error }
  */
 async function callClaude(
   systemPrompt,
@@ -166,90 +132,30 @@ async function callClaude(
   tier,
   maxTokens,
   retries = 2,
-  usePrefill = true
+  _usePrefill = true
 ) {
-  const model = MODELS[tier];
-  let rateLimitRetries = 0;
-  let attempt = 0;
+  // Append JSON instruction to system prompt to encourage structured output
+  const jsonSystemPrompt = systemPrompt + "\n\nIMPORTANT: Respond with valid JSON only. No markdown, no code fences, no explanatory text.";
 
-  for (;;) {
-    try {
-      // Build messages array with optional prefill injection.
-      // Sonnet 4.6+ does not support assistant prefill — disable for HEAVY tier.
-      const messages = [{ role: "user", content: userPrompt }];
-      const canPrefill = usePrefill && tier !== "HEAVY";
-
-      if (canPrefill) {
-        messages.push({ role: "assistant", content: "{" });
-      }
-
-      const response = await getClient().messages.create({
-        model: model,
-        max_tokens: maxTokens,
-        messages: messages,
-        system: [
-          {
-            type: "text",
-            text: systemPrompt,
-            cache_control: { type: "ephemeral" },
-          },
-        ],
-      });
-
-      let text = response.content
-        .filter((block) => block.type === "text")
-        .map((block) => block.text)
-        .join("");
-
-      if (canPrefill) {
-        text = "{" + text;
-      }
-
-      const jsonStr = extractJsonFromText(text);
-      const parsed = JSON.parse(jsonStr);
-      return { success: true, data: parsed, model, tokensUsed: response.usage };
-    } catch (error) {
-      const isRateLimit = error.status === 429 || error.message?.includes("rate_limit");
-
-      if (isRateLimit && rateLimitRetries < RATE_LIMIT_MAX_RETRIES) {
-        rateLimitRetries++;
-        console.warn(`Rate limited, waiting 60s before retry ${rateLimitRetries}/${RATE_LIMIT_MAX_RETRIES}`, { model, tier });
-        await new Promise((r) => setTimeout(r, RATE_LIMIT_RETRY_DELAY));
-        continue; // Don't increment attempt counter for rate limits
-      }
-
-      console.error(`AI call attempt ${attempt + 1}/${retries + 1} failed:`, {
-        model,
-        tier,
-        error: error.message,
-        isRateLimit,
-      });
-
-      if (attempt >= retries) {
-        return {
-          success: false,
-          error: error.message,
-          model,
-          rawResponse: error.rawResponse || null,
-        };
-      }
-
-      attempt++;
-      const delay = RETRY_DELAYS[attempt - 1] || 4000;
-      await new Promise((r) => setTimeout(r, delay));
-    }
-  }
+  return callHF(jsonSystemPrompt, userPrompt, tier, {
+    maxTokens,
+    retries,
+    temperature: 0.3,
+    jsonMode: true,
+  });
 }
 
 /**
- * Call Claude with a vision (image) message. Supports prompt caching
- * on the system prompt for faster TTFT on repeated calls.
+ * Vision (image) extraction — delegated to Gemini (free tier).
+ * HF free tier doesn't reliably support vision models, so we use Gemini Flash.
+ * Keeps the same interface as the original callClaudeVision.
+ *
  * @param {object} opts
- * @param {string} opts.systemPrompt - Stable system prompt (cached)
- * @param {string} opts.base64Image - Base64-encoded image data (no data URL prefix)
+ * @param {string} opts.systemPrompt - System prompt
+ * @param {string} opts.base64Image - Base64-encoded image data
  * @param {string} opts.mediaType - MIME type (e.g. "image/jpeg")
  * @param {string} opts.userText - Per-image user instruction
- * @param {string} opts.tier - "LIGHT" or "HEAVY"
+ * @param {string} opts.tier - Ignored (always uses Gemini)
  * @param {number} opts.maxTokens - Max tokens for response
  * @param {number} [opts.retries=2] - Retry count
  * @returns {object} { success, data, model, tokensUsed, ms } or { success: false, error }
@@ -263,89 +169,16 @@ async function callClaudeVision({
   maxTokens,
   retries = 2,
 }) {
-  const model = MODELS[tier];
-  const t0 = Date.now();
-  let rateLimitRetries = 0;
-  let attempt = 0;
-
-  for (;;) {
-    try {
-      const response = await getClient().messages.create({
-        model,
-        max_tokens: maxTokens,
-        temperature: 0,
-        system: [
-          {
-            type: "text",
-            text: systemPrompt,
-            cache_control: { type: "ephemeral" },
-          },
-        ],
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "image",
-                source: {
-                  type: "base64",
-                  media_type: mediaType,
-                  data: base64Image,
-                },
-              },
-              {
-                type: "text",
-                text: userText,
-              },
-            ],
-          },
-        ],
-      });
-
-      const text = response.content
-        .filter((block) => block.type === "text")
-        .map((block) => block.text)
-        .join("");
-
-      const jsonStr = extractJsonFromText(text);
-      const parsed = JSON.parse(jsonStr);
-
-      return {
-        success: true,
-        data: parsed,
-        model,
-        tokensUsed: response.usage,
-        ms: Date.now() - t0,
-      };
-    } catch (error) {
-      const isRateLimit = error.status === 429 || error.message?.includes("rate_limit");
-
-      if (isRateLimit && rateLimitRetries < RATE_LIMIT_MAX_RETRIES) {
-        rateLimitRetries++;
-        console.warn(`Vision rate limited, waiting 60s before retry ${rateLimitRetries}/${RATE_LIMIT_MAX_RETRIES}`, { model, tier });
-        await new Promise((r) => setTimeout(r, RATE_LIMIT_RETRY_DELAY));
-        continue;
-      }
-
-      console.error(
-        `Vision call attempt ${attempt + 1}/${retries + 1} failed:`,
-        { model, tier, error: error.message, isRateLimit }
-      );
-
-      if (attempt >= retries) {
-        return {
-          success: false,
-          error: error.message,
-          model,
-          ms: Date.now() - t0,
-        };
-      }
-
-      attempt++;
-      const delay = RETRY_DELAYS[attempt - 1] || 4000;
-      await new Promise((r) => setTimeout(r, delay));
-    }
-  }
+  // Delegate to Gemini vision (free tier)
+  const { callGeminiVision } = require("./geminiClient");
+  return callGeminiVision({
+    systemPrompt,
+    base64Image,
+    mediaType,
+    userText,
+    maxTokens,
+    retries,
+  });
 }
 
 // Convenience wrappers

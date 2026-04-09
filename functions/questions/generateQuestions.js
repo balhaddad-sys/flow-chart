@@ -32,7 +32,7 @@ const {
   generateAndPersistBatch,
 } = require("./generationPipeline");
 
-const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
+const hfApiKey = functions.params.defineSecret("HF_API_KEY");
 const deepseekApiKey = functions.params.defineSecret("DEEPSEEK_API_KEY");
 
 /**
@@ -45,7 +45,7 @@ exports.generateQuestions = functions
   .runWith({
     timeoutSeconds: 120,
     memory: "512MB",
-    secrets: [anthropicApiKey, deepseekApiKey],
+    secrets: [hfApiKey, deepseekApiKey],
   })
   .https.onCall(async (data, context) => {
     const t0 = Date.now();

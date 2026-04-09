@@ -23,7 +23,7 @@ const { lookupQuestions, writeQuestions } = require("../cache/knowledgeCache");
 const { selectAndVary } = require("../cache/variationEngine");
 
 const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
-const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
+const hfApiKey = functions.params.defineSecret("HF_API_KEY");
 
 const EXPLORE_BACKFILL_JOB_TYPE = "EXPLORE_QUIZ_BACKFILL";
 const FAST_READY_COUNT = 3;
@@ -65,7 +65,7 @@ exports.exploreQuiz = functions
   .runWith({
     timeoutSeconds: 180,
     memory: "512MB",
-    secrets: [geminiApiKey, anthropicApiKey],
+    secrets: [geminiApiKey, hfApiKey],
   })
   .https.onCall(async (data, context) => {
     const t0 = Date.now();
@@ -290,7 +290,7 @@ exports.retryExploreBackfill = functions
   .runWith({
     timeoutSeconds: 30,
     memory: "256MB",
-    secrets: [geminiApiKey, anthropicApiKey],
+    secrets: [geminiApiKey, hfApiKey],
   })
   .https.onCall(async (data, context) => {
     const uid = requireAuth(context);

@@ -15,7 +15,7 @@ const { defineSecret } = require("firebase-functions/params");
 const { checkRateLimit, RATE_LIMITS } = require("../middleware/rateLimit");
 const log = require("../lib/logger");
 
-const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
+const hfApiKey = defineSecret("HF_API_KEY");
 
 const CHAT_SYSTEM = `You are MedQ AI Study Assistant, a helpful and accurate medical education tutor.
 You help medical students understand their course material by answering questions,
@@ -122,7 +122,7 @@ Return this exact JSON schema:
 
 exports.sendChatMessage = functions
   .runWith({
-    secrets: [anthropicApiKey],
+    secrets: [hfApiKey],
     timeoutSeconds: 120,
     memory: "512MB",
   })

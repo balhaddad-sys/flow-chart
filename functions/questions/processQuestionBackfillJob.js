@@ -29,7 +29,7 @@ const {
   generateAndPersistBatch,
 } = require("./generationPipeline");
 
-const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
+const hfApiKey = functions.params.defineSecret("HF_API_KEY");
 
 /** Maximum AI calls per single invocation. */
 const MAX_ITERATIONS = 8;
@@ -44,7 +44,7 @@ exports.processQuestionBackfillJob = functions
   .runWith({
     timeoutSeconds: 300,
     memory: "512MB",
-    secrets: [anthropicApiKey],
+    secrets: [hfApiKey],
   })
   .firestore.document("users/{uid}/jobs/{jobId}")
   .onCreate(async (snap, context) => {

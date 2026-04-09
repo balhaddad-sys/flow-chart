@@ -24,7 +24,7 @@ const { verifyQuestionEvidenceBatch } = require("../lib/citationVerification");
 const { EXAM_PLAYBOOKS, buildExamPlaybookPrompt, normalizeExamType } = require("../ai/examPlaybooks");
 
 const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
-const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
+const hfApiKey = functions.params.defineSecret("HF_API_KEY");
 
 const MAX_STORED_QUESTIONS = 100;
 const DEFAULT_COUNT = 10;
@@ -120,8 +120,8 @@ exports.generateExamBankQuestions = functions
   .runWith({
     timeoutSeconds: 180,
     memory: "512MB",
-    // Claude = primary generator; Gemini = fallback (both secrets needed)
-    secrets: [anthropicApiKey, geminiApiKey],
+    // HF = primary generator; Gemini = fallback (both secrets needed)
+    secrets: [hfApiKey, geminiApiKey],
   })
   .https.onCall(async (data, context) => {
     const t0 = Date.now();

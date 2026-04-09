@@ -31,7 +31,7 @@ const {
 const { withTimeout } = require("../lib/utils");
 
 const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
-const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
+const hfApiKey = functions.params.defineSecret("HF_API_KEY");
 
 const MAX_TOPIC_LEN = 200;
 const MAX_SUMMARY_LEN = 6_000;
@@ -408,7 +408,7 @@ exports.exploreTopicInsight = functions
   .runWith({
     timeoutSeconds: 120,
     memory: "512MB",
-    secrets: [geminiApiKey, anthropicApiKey],
+    secrets: [geminiApiKey, hfApiKey],
   })
   .https.onCall(async (data, context) => {
     const uid = requireAuth(context);

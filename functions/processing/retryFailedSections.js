@@ -18,13 +18,13 @@ const { generateQuestions: aiGenerateQuestions } = require("../ai/aiClient");
 const { QUESTIONS_SYSTEM, questionsUserPrompt } = require("../ai/prompts");
 
 // Define the secret so the function can access it
-const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
+const hfApiKey = functions.params.defineSecret("HF_API_KEY");
 
 exports.retryFailedSections = functions
   .runWith({
     timeoutSeconds: 300,
     memory: "512MB",
-    secrets: [anthropicApiKey],
+    secrets: [hfApiKey],
   })
   .https.onCall(async (data, context) => {
     if (!context.auth) {

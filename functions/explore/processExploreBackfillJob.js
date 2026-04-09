@@ -17,7 +17,7 @@ const {
 const { writeQuestions } = require("../cache/knowledgeCache");
 
 const geminiApiKey = functions.params.defineSecret("GEMINI_API_KEY");
-const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
+const hfApiKey = functions.params.defineSecret("HF_API_KEY");
 
 const EXPLORE_BACKFILL_JOB_TYPE = "EXPLORE_QUIZ_BACKFILL";
 
@@ -29,7 +29,7 @@ exports.processExploreBackfillJob = functions
   .runWith({
     timeoutSeconds: 300,
     memory: "512MB",
-    secrets: [geminiApiKey, anthropicApiKey],
+    secrets: [geminiApiKey, hfApiKey],
   })
   .firestore.document("users/{uid}/jobs/{jobId}")
   .onCreate(async (snap, context) => {

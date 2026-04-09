@@ -23,12 +23,12 @@ const { generateFixPlan } = require("../ai/aiClient");
 const { FIX_PLAN_SYSTEM, fixPlanUserPrompt } = require("../ai/prompts");
 
 // Define the secret so the function can access it
-const anthropicApiKey = functions.params.defineSecret("ANTHROPIC_API_KEY");
+const hfApiKey = functions.params.defineSecret("HF_API_KEY");
 
 exports.runFixPlan = functions
   .runWith({
     timeoutSeconds: 60,
-    secrets: [anthropicApiKey], // Grant access to the secret
+    secrets: [hfApiKey], // Grant access to the secret
   })
   .https.onCall(async (data, context) => {
     const uid = requireAuth(context);
